@@ -1,0 +1,12 @@
+.animation-horizontal-shake {
+  animation-name: animation-horizontal-shake-clip;
+  animation-duration: 0.35s;
+}
+
+@keyframes animation-horizontal-shake-clip {
+  0% { transform: translateX(0) }
+  25% { transform: translateX(5px) }
+  50% { transform: translateX(-5px) }
+  75% { transform: translateX(5px) }
+  100% { transform: translateX(0) }
+}

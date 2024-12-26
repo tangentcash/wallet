@@ -1,0 +1,39 @@
+.fade-transition-enter {
+  opacity: 0;
+}
+
+.fade-transition-enter-active {
+  opacity: 1;
+  transition: 250ms ease;
+}
+
+.fade-transition-exit {
+  opacity: 1;
+  transition: 250ms ease;
+}
+
+.fade-transition-exit-active {
+  opacity: 0;
+  transition: 250ms ease;
+}
+
+.fade-in-transition {
+  animation-name: fade-in-transition-clip;
+  animation-duration: 0.35s;
+}
+
+.fade-out-transition {
+  animation-name: fade-out-transition-clip;
+  animation-duration: 0.35s;
+  opacity: 0;
+}
+
+@keyframes fade-in-transition-clip {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+
+@keyframes fade-out-transition-clip {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}

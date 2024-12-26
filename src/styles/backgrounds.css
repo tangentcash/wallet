@@ -1,0 +1,38 @@
+.text-rainbow {
+  background: -webkit-linear-gradient(70deg, var(--crimson-9), var(--mint-9) 100%);
+  background: linear-gradient(70deg, var(--crimson-9), var(--mint-9) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.router-link {
+  color: var(--indigo-11);
+}
+
+.clickable {
+  transition: transform 50ms linear;
+}
+
+.clickable:hover {
+  transform: scale(0.99);
+  cursor: pointer;
+}
+
+.clickable:active {
+  transform: scale(0.98);
+}
+
+.before-clear::before {
+  display: none;
+}
+
+.select-clear {
+  -webkit-touch-callout: none;
+    -webkit-user-select: none;
+     -khtml-user-select: none;
+       -moz-user-select: none;
+        -ms-user-select: none;
+            user-select: none;
+            
+}

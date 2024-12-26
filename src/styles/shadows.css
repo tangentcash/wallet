@@ -1,0 +1,40 @@
+.shadow-rainbow,
+.shadow-rainbow-animation,
+.shadow-rainbow-hover {
+  position: relative;
+}
+
+.shadow-rainbow::before,
+.shadow-rainbow-animation::before,
+.shadow-rainbow-hover::before {
+  content: "";
+  border-radius: inherit;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  opacity: 0;
+  box-shadow: -15px 0 30px -10px var(--orange-a7), 0 0 30px -10px var(--pink-a7), 15px 0 30px -10px var(--violet-a7), 0 0 0 1px var(--pink-a4);
+  transition: all 0.2s linear;
+}
+
+.shadow-rainbow::before,
+.shadow-rainbow-hover:not(:disabled):hover::before {
+  opacity: 0.65;
+}
+
+.shadow-rainbow-animation::before {
+  animation-name: shadow-rainbow-animation-clip;
+  animation-duration: 3s;
+  animation-delay: 0.2s;
+  animation-iteration-count: infinite;
+  opacity: 1.0;
+}
+
+@keyframes shadow-rainbow-animation-clip {
+  25% { box-shadow: -15px 0 30px -10px var(--pink-a7), 0 0 30px -10px var(--violet-a7), 15px 0 30px -10px var(--pink-a4), 0 0 0 1px var(--orange-a7); opacity: 0.5; }
+  50% { box-shadow: -15px 0 30px -10px var(--violet-a7), 0 0 30px -10px var(--pink-a4), 15px 0 30px -10px var(--orange-a7), 0 0 0 1px var(--pink-a7); opacity: 1.0; }
+  75% { box-shadow: -15px 0 30px -10px var(--pink-a4), 0 0 30px -10px var(--orange-a7), 15px 0 30px -10px var(--pink-a7), 0 0 0 1px var(--violet-a7); opacity: 0.5; }
+  100% { box-shadow: -15px 0 30px -10px var(--orange-a7), 0 0 30px -10px var(--pink-a7), 15px 0 30px -10px var(--violet-a7), 0 0 0 1px var(--pink-a4); opacity: 1.0; }
+}

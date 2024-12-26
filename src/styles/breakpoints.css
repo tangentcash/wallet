@@ -1,0 +1,17 @@
+@media only screen and (max-width: 610px) {
+  .bp-mobile-ghost600,
+  .bp-mobile-ghost600::before {
+    --card-background-color: transparent;
+    --card-border-width: 0;
+    --backdrop-filter-panel: initial;
+  }
+}
+
+@media only screen and (max-width: 810px) {
+  .bp-mobile-ghost800,
+  .bp-mobile-ghost800::before {
+    --card-background-color: transparent;
+    --card-border-width: 0;
+    --backdrop-filter-panel: initial;
+  }
+}

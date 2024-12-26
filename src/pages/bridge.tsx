@@ -1,0 +1,641 @@
+import { mdiBackburger, mdiInformationOutline } from "@mdi/js";
+import { Avatar, Badge, Box, Button, Card, DataList, Dialog, DropdownMenu, Flex, Heading, Select, Table, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Link, useNavigate } from "react-router";
+import { Interface, Wallet } from "../core/wallet";
+import { useCallback, useMemo, useState } from "react";
+import { AssetId, Uint256 } from "../core/tangent/algorithm";
+import { useEffectAsync } from "../core/extensions/react";
+import { AlertBox, AlertType } from "../components/alert";
+import { Readability } from "../core/text";
+import { SchemaUtil, Stream } from "../core/tangent/serialization";
+import { Messages, Transactions } from "../core/tangent/schema";
+import * as Collapsible from "@radix-ui/react-collapsible";
+import Icon from "@mdi/react";
+import InfiniteScroll from "react-infinite-scroll-component";
+import BigNumber from "bignumber.js";
+
+const BRIDGE_COUNT = 48;
+
+export default function BridgePage() {
+  const ownerAddress = Wallet.getAddress() || '';
+  const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
+  const [mode, setMode] = useState('bridges');
+  const [registrationType, setRegistrationType] = useState<'address' | 'pubkey'>('address');
+  const [registrationTarget, setRegistrationTarget] = useState('');
+  const [registrationSignature, setRegistrationSignature] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [assets, setAssets] = useState<any[]>([]);
+  const [asset, setAsset] = useState(-1);
+  const [proposer, setProposer] = useState<string | null>(null);
+  const [walletAddresses, setWalletAddresses] = useState<any[]>([]);
+  const [acquiredBridges, setAcquiredBridges] = useState<{ [key: string]: any }>({ });
+  const [candidateBridges, setCandidateBridges] = useState<any[]>([]);
+  const [moreBridges, setMoreBridges] = useState(true);
+  const navigate = useNavigate();
+  const registrationMessage = useMemo((): string => {
+    if (asset == -1 || registrationType != 'pubkey' || !registrationTarget.length)
+      return '';
+
+    const stream = new Stream();
+    SchemaUtil.store(stream, {
+      asset: new AssetId(assets[asset].id),
+      gasPrice: new BigNumber(NaN),
+      gasLimit: new Uint256(0),
+      sequence: 0,
+      conservative: false,
+      pubkey: registrationTarget.trim(),
+      sighash: ''
+    }, Messages.asSigningSchema(new Transactions.PubkeyAccount()));
+    return stream.encode();
+  }, [registrationType, registrationTarget]);
+  const findBridges = useCallback(async (refresh?: boolean) => {
+    try {
+      if (asset == -1)
+        return false;
+
+      const data = await Interface.getBestAccountContributionsWithRewards(new AssetId(assets[asset].id), refresh ? 0 : candidateBridges.length, BRIDGE_COUNT);
+      if (!Array.isArray(data) || !data.length) {
+        setMoreBridges(false);
+        return false;
+      }
+
+      setCandidateBridges(refresh ? data : data.concat(candidateBridges));
+      setMoreBridges(data.length >= BRIDGE_COUNT);
+      return data.length > 0;
+    } catch {
+      if (refresh)
+        setCandidateBridges([]);
+      setMoreBridges(false);
+      return false;
+    }
+  }, [asset, candidateBridges]);
+  const useBridge = useCallback((owner: string | null, type: 'bridges' | 'register' | 'withdraw' | 'deposit') => {
+    setProposer(owner);
+    setMode(type);
+  }, []);
+  const submitRegistrationTransaction = useCallback(async () =>
+  {
+    if (loading)
+      return;
+
+    setLoading(true);
+    try {
+      const output = await Wallet.buildTransactionWithAutoGasLimit({
+        asset: new AssetId(assets[asset].id),
+        conservative: false,
+        method: registrationType == 'pubkey' ? {
+          type: new Transactions.PubkeyAccount(),
+          args: {
+            pubkey: registrationTarget,
+            sighash: registrationSignature
+          }
+        } : {
+          type: new Transactions.AddressAccount(),
+          args: {
+            address: registrationTarget
+          }
+        }
+      });
+      const hash = await Interface.submitTransaction(output.data);
+      if (hash != null) {
+        AlertBox.open(AlertType.Info, 'Transaction ' + hash + ' sent!');
+        navigate('/');
+      } else {
+        AlertBox.open(AlertType.Error, 'Failed to send transaction!');
+      }  
+      setLoading(false);
+      return output;
+    } catch (exception) {
+      AlertBox.open(AlertType.Error, (exception as Error).message);
+      setLoading(false);
+      return null;
+    }
+  }, [registrationType, registrationTarget, registrationSignature]);
+  useEffectAsync(async () => {
+    try {
+      if (!assets.length) {
+        const assetData = await Interface.getBlockchains();
+        if (Array.isArray(assetData)) {
+          setAssets(assetData.sort((a, b) => new AssetId(a.id).handle.localeCompare(new AssetId(b.id).handle)));
+        }
+      }
+    } catch { }
+  }, []);
+  useEffectAsync(async () => {
+    await findBridges(true);
+    try {
+      const addressData = await Interface.fetchAll((offset, count) => Interface.getWitnessAddresses(ownerAddress, offset, count));
+      if (!Array.isArray(addressData))
+        throw false;
+
+      const bridges = addressData.filter((item) => item.asset.id.toString() == assets[asset].id.toString() && item.purpose == 'custodian').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
+      const addresses = addressData.filter((item) => item.asset.id.toString() == assets[asset].id.toString() && item.purpose == 'router').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
+      const mapping: any = { };
+      for (let item in bridges) {
+        let input = bridges[item];
+        let output = mapping[input.proposer];
+        if (output != null) {
+          output.addresses = [...input.addresses, ...output.addresses];
+        } else {
+          mapping[input.proposer] = input;
+        }
+      }
+      
+      setAcquiredBridges(mapping);
+      setWalletAddresses(addresses);  
+    } catch {
+      setAcquiredBridges([]);
+      setWalletAddresses([]);
+    }
+  }, [asset]);
+
+  return (
+    <Box px="4" pt="4" mx="auto" maxWidth="640px">
+      {
+        asset == -1 &&
+        <>
+          <Flex justify="between" align="center">
+            <Heading>Bridge</Heading>
+            <Button variant="soft" size="2" color="indigo" onClick={() => navigate(-1)}>
+              <Icon path={mdiBackburger} size={0.7} /> BACK
+            </Button>
+          </Flex>
+          <Box width="100%" mt="4" mb="5">
+            <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+          </Box>
+          <Table.Root variant="surface">
+            <Table.Header>
+              <Table.Row>
+                <Table.ColumnHeaderCell>Blockchain</Table.ColumnHeaderCell>
+                <Table.ColumnHeaderCell align="right">Deposit/Withdraw</Table.ColumnHeaderCell>
+              </Table.Row>
+            </Table.Header>
+            <Table.Body>
+              {
+                assets.map((item, index) =>
+                  <Table.Row key={item.id.toString()}>
+                    <Table.RowHeaderCell>
+                      <Flex align="center" gap="1">
+                        <Avatar mr="1" size="1" radius="full" fallback={(item.token || item.chain)[0]} src={'/cryptocurrency/' + (item.token || item.chain).toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
+                        <Text size="2" weight="light">{Readability.toAssetName(item)}</Text>
+                      </Flex>
+                    </Table.RowHeaderCell>
+                    <Table.Cell align="right">
+                      <Button variant="ghost" color="jade" size="1" onClick={() => setAsset(index)}>
+                        {
+                          item.supports.token_transfer.length > 0 &&
+                          <>Use <Badge size="1" radius="medium">{ item.token || item.chain }</Badge> or <Badge size="1" radius="medium" color="orange">{ item.supports.token_transfer.toUpperCase() } tokens</Badge></>
+                        }
+                        {
+                          !item.supports.token_transfer.length &&
+                          <>Use <Badge size="1" radius="medium">{ item.token || item.chain }</Badge></>
+                        }
+                      </Button>
+                    </Table.Cell>
+                  </Table.Row>
+                )
+              }
+            </Table.Body>
+          </Table.Root>
+        </>
+      }
+      {
+        asset != -1 &&
+        <Box>
+          {
+            mode == 'bridges' &&
+            <Box>
+              <Box width="100%" mb="6">
+                <Box width="100%" mb="4">
+                  <Flex justify="between" align="center" mb="3">
+                    <Heading size="6">My bridges</Heading>
+                    <Button variant="surface" color="gray" onClick={() => setAsset(-1)}>
+                      <Icon path={mdiBackburger} size={0.7} />
+                      <Flex align="center" gap="1">
+                        <Avatar size="1" radius="full" fallback={(assets[asset].token || assets[asset].chain)[0]} src={'/cryptocurrency/' + (assets[asset].token || assets[asset].chain).toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
+                        <Text size="2" style={{ color: 'var(--gray-12)' }} weight="light">{Readability.toAssetName(assets[asset])}</Text>
+                      </Flex>
+                    </Button>
+                  </Flex>
+                  <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+                </Box>
+                {
+                  <Card>
+                    <Heading size="4" mb="2">Addresses of my wallets</Heading>
+                    <DataList.Root orientation={orientation}>
+                      {
+                        walletAddresses.map((wallet, walletIndex: number) => {
+                          return wallet.addresses.map((walletAddress: string, addressIndex: number) =>
+                            <DataList.Item key={walletAddress}>
+                              <DataList.Label>Sender/withdrawal address v{wallet.addresses.length - addressIndex} of {walletIndex + 1}:</DataList.Label>
+                              <DataList.Value>
+                                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                                  navigator.clipboard.writeText(walletAddress);
+                                  AlertBox.open(AlertType.Info, 'Address copied!')
+                                }}>{ walletAddress.substring(0, 16) }...{ walletAddress.substring(walletAddress.length - 16) }</Button>
+                              </DataList.Value>
+                            </DataList.Item>
+                          )
+                        })
+                      }
+                    </DataList.Root>
+                    {
+                      walletAddresses.length > 0 &&
+                      <Box width="100%" mt="4" my="3">
+                        <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+                      </Box>
+                    }
+                    <Text size="1" weight="light"><Text color="yellow">Register</Text> more {Readability.toAssetName(assets[asset])} addresses through bridges to have more {assets[asset].routing_policy == 'account' ? 'deposit/' : ''}withdrawal options</Text>
+                  </Card>
+                }
+                {
+                  Object.keys(acquiredBridges).map((item: string) => {
+                    const bridge = acquiredBridges[item];
+                    return (
+                      <Box key={bridge.hash} mt="4">
+                        <Card>
+                          <Flex align="center" gap="2" mb="3">
+                            <Heading size="4">Bridge</Heading>
+                            <Badge radius="medium" variant="surface" size="3">{ bridge.proposer.substring(bridge.proposer.length - 6).toUpperCase() }</Badge>
+                          </Flex>
+                          <DataList.Root orientation={orientation}>
+                            <DataList.Item>
+                              <DataList.Label>Holder account:</DataList.Label>
+                              <DataList.Value>
+                                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                                  navigator.clipboard.writeText(bridge.proposer);
+                                  AlertBox.open(AlertType.Info, 'Address copied!')
+                                }}>{ bridge.proposer.substring(0, 16) }...{ bridge.proposer.substring(bridge.proposer.length - 16) }</Button>
+                                <Box ml="2">
+                                  <Link className="router-link" to={'/account/' + bridge.proposer}>▒▒</Link>
+                                </Box>
+                              </DataList.Value>
+                            </DataList.Item>
+                            {
+                              bridge.addresses.map((address: string, addressIndex: number) =>
+                                <DataList.Item key={address}>
+                                  <DataList.Label>Deposit address v{bridge.addresses.length - addressIndex}:</DataList.Label>
+                                  <DataList.Value>
+                                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                                      navigator.clipboard.writeText(address);
+                                      AlertBox.open(AlertType.Info, 'Address copied!')
+                                    }}>{ address.substring(0, 16) }...{ address.substring(address.length - 16) }</Button>
+                                  </DataList.Value>
+                                </DataList.Item>
+                              )
+                            }
+                            <DataList.Item>
+                              <DataList.Label>Deposit method:</DataList.Label>
+                              <DataList.Value>
+                                {
+                                  assets[asset].routing_policy == 'utxo' &&
+                                  <Badge color="green">Deposit from any wallet</Badge>
+                                }
+                                {
+                                  assets[asset].routing_policy == 'memo' &&
+                                  <Flex gap="2" wrap="wrap">
+                                    <Badge color="yellow">Deposit from any wallet with memo</Badge>
+                                    <Badge color="red">Memo — { bridge.address_index.toString() }</Badge>
+                                  </Flex>
+                                }
+                                {
+                                  assets[asset].routing_policy == 'account' &&
+                                  <Box>
+                                    {
+                                      !walletAddresses.length &&
+                                      <Badge color="red">No wallet addresses</Badge>
+                                    }
+                                    {
+                                      walletAddresses.map((wallet) => {
+                                        return wallet.addresses.map((walletAddress: string, addressIndex: number) =>
+                                          <Flex gap="1" mb={addressIndex < wallet.addresses.length - 1 ? '2' : '0'} key={walletAddress}>
+                                            <Text size="2">Deposit from</Text>
+                                            <Button size="1" variant="soft" color="red" onClick={() => {
+                                              navigator.clipboard.writeText(walletAddress);
+                                              AlertBox.open(AlertType.Info, 'Address copied!')
+                                            }}>{ walletAddress.substring(0, 16) }...{ walletAddress.substring(walletAddress.length - 16) }</Button>
+                                            { addressIndex < wallet.addresses.length - 1 && <Text>OR</Text> }
+                                          </Flex>
+                                        )
+                                      })
+                                    }
+                                  </Box>
+                                }
+                              </DataList.Value>
+                            </DataList.Item>
+                          </DataList.Root>
+                          <Flex justify="end">
+                            <DropdownMenu.Root>
+                              <DropdownMenu.Trigger>
+                                <Button size="2" variant="surface" color="yellow">
+                                  Request
+                                  <DropdownMenu.TriggerIcon />
+                                </Button>
+                              </DropdownMenu.Trigger>
+                              <DropdownMenu.Content>
+                                <DropdownMenu.Item shortcut="→" onClick={() => useBridge(bridge.proposer, 'register')}>Registration</DropdownMenu.Item>
+                                <DropdownMenu.Item shortcut="↙" disabled={true} onClick={() => useBridge(bridge.proposer, 'deposit')}>Deposit</DropdownMenu.Item>
+                                <DropdownMenu.Item shortcut="↗" onClick={() => useBridge(bridge.proposer, 'withdraw')}>Withdrawal</DropdownMenu.Item>
+                              </DropdownMenu.Content>
+                            </DropdownMenu.Root>
+                          </Flex>
+                        </Card>
+                      </Box>
+                    )
+                  })
+                }
+              </Box>
+              <Box width="100%" mb="4">
+                <Heading size="6" mb="3">Candidate bridges</Heading>
+                <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+              </Box>
+              {
+                !candidateBridges.length &&
+                <Flex justify="center" mt="4">
+                  <Text color="red">❌ No active bridges for {Readability.toAssetName(assets[asset])} blockchain ❌</Text>
+                </Flex>
+              }
+              <InfiniteScroll dataLength={candidateBridges.length} hasMore={moreBridges} next={findBridges} loader={<div></div>}>
+                {
+                  candidateBridges.map((item, index) =>
+                    <Box width="100%" key={item.contribution.hash + index} mb="4">
+                      <Card>
+                        <Flex justify="between">
+                          <Flex align="center" gap="2" mb="4">
+                            <Heading size="4">Bridge</Heading>
+                            <Badge radius="medium" variant="surface" size="3">{ item.contribution.owner.substring(item.contribution.owner.length - 6).toUpperCase() }</Badge>
+                          </Flex>
+                        </Flex>
+                        <DataList.Root orientation={orientation}>
+                          <DataList.Item align="center">
+                            <DataList.Label>Deposit capacity:</DataList.Label>
+                            <DataList.Value>
+                              <Badge radius="small" size="3" color={item.contribution.coverage.gt(0) ? 'green' : 'red'}>MAX — { Readability.toMoney(new AssetId(assets[asset].id), item.contribution.coverage) }</Badge>
+                            </DataList.Value>
+                          </DataList.Item>
+                          {
+                            item.reward != null && (item.reward.incoming_relative_fee.gt(0) || item.reward.incoming_absolute_fee.gt(0)) &&
+                            <DataList.Item>
+                              <DataList.Label>Deposit cost:</DataList.Label>
+                              <DataList.Value>
+                                <Text>{ (100 * item.reward.incoming_relative_fee.toNumber()).toFixed(2) }% + { Readability.toMoney(new AssetId(assets[asset].id), item.reward.incoming_absolute_fee) }</Text>
+                              </DataList.Value>
+                            </DataList.Item>
+                          }
+                        </DataList.Root>
+                        <Box width="100%" my="4">
+                          <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+                        </Box>
+                        <DataList.Root orientation={orientation}>
+                          <DataList.Item align="center">
+                            <DataList.Label>Withdrawal capacity:</DataList.Label>
+                            <DataList.Value>
+                              <Badge radius="small" size="3" color={item.contribution.custody.gt(0) ? 'green' : 'red'}>MAX — { Readability.toMoney(new AssetId(assets[asset].id), item.contribution.custody) }</Badge>
+                            </DataList.Value>
+                          </DataList.Item>
+                          {
+                            item.reward != null && (item.reward.outgoing_relative_fee.gt(0) || item.reward.outgoing_absolute_fee.gt(0)) &&
+                            <DataList.Item>
+                              <DataList.Label>Withdrawal cost:</DataList.Label>
+                              <DataList.Value>
+                                <Text>{ (100 * item.reward.outgoing_relative_fee.toNumber()).toFixed(2) }% + { Readability.toMoney(new AssetId(assets[asset].id), item.reward.outgoing_absolute_fee) }</Text>
+                              </DataList.Value>
+                            </DataList.Item>
+                          }
+                        </DataList.Root>
+                        <Collapsible.Root>
+                          <Flex justify="between" align="center" mt="4">
+                            <Collapsible.Trigger asChild={true}>
+                              <Button size="2" variant="surface" color="blue">
+                                <Flex align="center" gap="1">
+                                  <Icon path={mdiInformationOutline} size={0.8} />
+                                  <Text>Custody</Text>
+                                </Flex>
+                              </Button>
+                            </Collapsible.Trigger>
+                            <DropdownMenu.Root>
+                              <DropdownMenu.Trigger>
+                                <Button size="2" variant="surface" color="yellow">
+                                  Request
+                                  <DropdownMenu.TriggerIcon />
+                                </Button>
+                              </DropdownMenu.Trigger>
+                              <DropdownMenu.Content>
+                                <DropdownMenu.Item shortcut="→" onClick={() => useBridge(item.contribution.owner, 'register')}>Registration</DropdownMenu.Item>
+                                <DropdownMenu.Item shortcut="↙" disabled={acquiredBridges[item.contribution.owner] != null} onClick={() => useBridge(item.contribution.owner, 'deposit')}>Deposit</DropdownMenu.Item>
+                                <DropdownMenu.Item shortcut="↗" onClick={() => useBridge(item.contribution.owner, 'withdraw')}>Withdrawal</DropdownMenu.Item>
+                              </DropdownMenu.Content>
+                            </DropdownMenu.Root>
+                          </Flex>
+                          <Collapsible.Content>
+                            <Box width="100%" my="4">
+                              <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+                            </Box>
+                            <Card mb="1">
+                              <DataList.Root orientation={orientation}>
+                                <DataList.Item>
+                                  <DataList.Label>Holder account:</DataList.Label>
+                                  <DataList.Value>
+                                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                                      navigator.clipboard.writeText(item.contribution.owner);
+                                      AlertBox.open(AlertType.Info, 'Address copied!')
+                                    }}>{ item.contribution.owner.substring(0, 16) }...{ item.contribution.owner.substring(item.contribution.owner.length - 16) }</Button>
+                                    <Box ml="2">
+                                      <Link className="router-link" to={'/account/' + item.contribution.owner}>▒▒</Link>
+                                    </Box>
+                                  </DataList.Value>
+                                </DataList.Item>
+                                <DataList.Item>
+                                  <DataList.Label>Custodial balance:</DataList.Label>
+                                  <DataList.Value>
+                                    <Flex gap="2">
+                                      <Text>{ Readability.toMoney(new AssetId(assets[asset].id), item.contribution.custody) }</Text>
+                                      <Badge size="1" radius="medium" color={ item.contribution.contribution.lte(0) || !item.contribution.custody.dividedBy(item.contribution.contribution).lt(item.contribution.threshold) ? 'red' : 'green' }>FULLNESS: { ((item.contribution.contribution.gt(0) ? item.contribution.custody.multipliedBy(item.contribution.threshold).dividedBy(item.contribution.contribution).toNumber() : 0) * 100).toFixed(2) }%</Badge>
+                                    </Flex>
+                                  </DataList.Value>
+                                </DataList.Item>
+                                <DataList.Item>
+                                  <DataList.Label>Locked balance:</DataList.Label>
+                                  <DataList.Value>
+                                    <Flex gap="2">
+                                      { Readability.toMoney(new AssetId(assets[asset].id), item.contribution.contribution) }
+                                      <Badge size="1" radius="medium" color={ item.contribution.custody.lte(0) || item.contribution.contribution.dividedBy(item.contribution.custody).gte(item.contribution.threshold) ? 'green' : 'red' }>COVERAGE: { ((item.contribution.custody.gt(0) ? item.contribution.contribution.dividedBy(item.contribution.custody).toNumber() : 1) * 100).toFixed(2) }%</Badge>
+                                    </Flex>
+                                  </DataList.Value>
+                                </DataList.Item>
+                                <DataList.Item>
+                                  <DataList.Label>Balance at risk:</DataList.Label>
+                                  <DataList.Value>
+                                    { Readability.toMoney(new AssetId(assets[asset].id), item.contribution.reservation.plus(BigNumber.max(BigNumber.min(item.contribution.custody.multipliedBy(item.contribution.threshold).minus(item.contribution.contribution), item.contribution.custody), 0))) }
+                                  </DataList.Value>
+                                </DataList.Item>
+                                <DataList.Item>
+                                  <DataList.Label>Coverage threshold:</DataList.Label>
+                                  <DataList.Value>
+                                  { ((item.contribution.custody.gt(0) ? item.contribution.contribution.dividedBy(item.contribution.custody).toNumber() : 1) * 100).toFixed(2) }% ≥ { (item.contribution.threshold.toNumber() * 100).toFixed(2) }%
+                                  </DataList.Value>
+                                </DataList.Item>
+                              </DataList.Root>
+                            </Card>
+                          </Collapsible.Content>
+                        </Collapsible.Root>
+                        {
+                          !item.contribution.honest &&
+                          <Box position="absolute" top="0" left="0" right="0" bottom="0" px="4" py="4" style={{ backgroundColor: 'var(--tomato-3)', opacity: '0.7' }}>
+                            <Flex align="end" justify="end" height="100%" width="100%">
+                              <Heading style={{ textTransform: 'uppercase' }}>BANNED</Heading>
+                            </Flex>
+                          </Box>
+                        }
+                      </Card>
+                    </Box>
+                  )
+                }
+              </InfiniteScroll>
+            </Box>
+          }
+          {
+            mode == 'register' && proposer != null &&
+            <Box>
+              <Box width="100%" mb="4">
+                <Flex justify="between" align="center" mb="3">
+                  <Flex align="center" gap="2">
+                    <Heading size="6">Bridge</Heading>
+                    <Badge radius="medium" variant="surface" size="3">{ proposer.substring(proposer.length - 6).toUpperCase() }</Badge>
+                  </Flex>
+                  <Button variant="surface" color="gray" onClick={() => useBridge(null, 'bridges')}>
+                    <Icon path={mdiBackburger} size={0.7} />
+                    <Flex align="center" gap="1">
+                      <Avatar size="1" radius="full" fallback={(assets[asset].token || assets[asset].chain)[0]} src={'/cryptocurrency/' + (assets[asset].token || assets[asset].chain).toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
+                      <Text size="2" style={{ color: 'var(--gray-12)' }} weight="light">{Readability.toAssetName(assets[asset])}</Text>
+                    </Flex>
+                  </Button>
+                </Flex>
+                <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+              </Box>
+              <Card>
+                <Box mb="4">
+                  <Flex mb="1" justify="between" align="center">
+                    <Heading size="5">{ registrationType == 'address' ? 'Address' : 'Pubkey' } registration</Heading>
+                    <Select.Root value={registrationType} onValueChange={(value) => setRegistrationType(value as ('address' | 'pubkey'))}>
+                      <Select.Trigger />
+                      <Select.Content>
+                        <Select.Group>
+                          <Select.Label>Registration type</Select.Label>
+                          <Select.Item value="address">Address</Select.Item>
+                          <Select.Item value="pubkey">Pubkey</Select.Item>
+                        </Select.Group>
+                      </Select.Content>
+                    </Select.Root>
+                  </Flex>
+                  <Text size="2" color="gray">Register Your wallet address to {assets[asset].routing_policy == 'account' ? 'deposit or ' : ''}withdraw assets</Text>
+                </Box>
+                {
+                  registrationType == 'address' &&
+                  <Box>
+                    <Tooltip content="Your wallet's address">
+                      <TextField.Root mb="3" size="3" placeholder="Wallet address" value={registrationTarget} onChange={(e) => setRegistrationTarget(e.target.value)} />
+                    </Tooltip>
+                  </Box>
+                }
+                {
+                  registrationType == 'pubkey' &&
+                  <Box>
+                    <Tooltip content="Your wallet's public key">
+                      <TextField.Root mb="3" size="3" placeholder="Public key of wallet address" value={registrationTarget} onChange={(e) => setRegistrationTarget(e.target.value)} />
+                    </Tooltip>
+                    <Tooltip content="Message that should be signed with a private key">
+                      <TextField.Root mb="3" size="3" placeholder="Message to sign" readOnly={true} value={registrationMessage} onClick={() => {
+                        navigator.clipboard.writeText(registrationMessage);
+                        AlertBox.open(AlertType.Info, 'Message copied!')
+                      }}/>
+                    </Tooltip>
+                    <Tooltip content="Signature of a message signed with Your wallet's private key">
+                      <TextField.Root mb="3" size="3" placeholder="Message signature" value={registrationSignature} onChange={(e) => setRegistrationSignature(e.target.value)} />
+                    </Tooltip>
+                  </Box>
+                }
+                <Flex justify="end" py="1" px="2">
+                  <Text align="right" size="1" color={registrationType == 'pubkey' ? 'green' : 'orange'}>{ registrationType == 'pubkey' ? 'One or more addresses derived from pubkey will be permanently linked to this account' : 'Address may be re-taken by another account using pubkey registration' }</Text>
+                </Flex>
+              </Card>
+              <Flex justify="center" mt="4">
+                <Dialog.Root>
+                  <Dialog.Trigger>
+                    <Button variant="outline" size="3" color="jade" loading={loading} disabled={!registrationTarget.length || (registrationType == 'pubkey' ? !registrationSignature.length : false)}>Submit transaction</Button>
+                  </Dialog.Trigger>
+                  <Dialog.Content maxWidth="450px">
+                    <Dialog.Title mb="0">Confirmation</Dialog.Title>
+                    <Dialog.Description mb="3" size="2" color="gray">This transaction will be sent to one of the nodes</Dialog.Description>
+                    <Box>
+                      <Text as="div" weight="light" size="4" mb="1">— Registering <Text color="red">{ registrationTarget.substring(0, 6) }...{ registrationTarget.substring(registrationTarget.length - 6) }</Text> as a { Readability.toAssetName(assets[asset]) } { registrationType }</Text>
+                      <Text as="div" weight="light" size="4" mb="1">— { registrationType == 'pubkey' ? 'Permanently linked to this account' : 'Reserved for possible change by pubkey registration' }</Text>
+                    </Box>
+                    <Flex gap="3" mt="4" justify="between">
+                      <Dialog.Close>
+                        <Button variant="soft" color="gray">Cancel</Button>
+                      </Dialog.Close>
+                      <Dialog.Close>
+                        <Button color="red" loading={loading} onClick={() => submitRegistrationTransaction()}>Submit</Button>
+                      </Dialog.Close>
+                    </Flex>
+                  </Dialog.Content>
+                </Dialog.Root>
+              </Flex>
+            </Box>
+          }
+          {
+            mode == 'withdraw' && proposer != null &&
+            <Box>
+              <Box width="100%" mb="4">
+                <Flex justify="between" align="center" mb="3">
+                  <Flex align="center" gap="2">
+                    <Heading size="6">Bridge</Heading>
+                    <Badge radius="medium" variant="surface" size="3">{ proposer.substring(proposer.length - 6).toUpperCase() }</Badge>
+                  </Flex>
+                  <Button variant="surface" color="gray" onClick={() => useBridge(null, 'bridges')}>
+                    <Icon path={mdiBackburger} size={0.7} />
+                    <Flex align="center" gap="1">
+                      <Avatar size="1" radius="full" fallback={(assets[asset].token || assets[asset].chain)[0]} src={'/cryptocurrency/' + (assets[asset].token || assets[asset].chain).toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
+                      <Text size="2" style={{ color: 'var(--gray-12)' }} weight="light">{Readability.toAssetName(assets[asset])}</Text>
+                    </Flex>
+                  </Button>
+                </Flex>
+                <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+              </Box>
+              <Card>
+                <Heading size="5" mb="1">Asset withdrawal</Heading>
+                <Text size="2" mb="4" color="gray">Withdraw assets to Your registered wallet address</Text>
+              </Card>
+            </Box>
+          }
+          {
+            mode == 'deposit' && proposer != null &&
+            <Box>
+              <Box width="100%" mb="4">
+                <Flex justify="between" align="center" mb="3">
+                  <Flex align="center" gap="2">
+                    <Heading size="6">Bridge</Heading>
+                    <Badge radius="medium" variant="surface" size="3">{ proposer.substring(proposer.length - 6).toUpperCase() }</Badge>
+                  </Flex>
+                  <Button variant="surface" color="gray" onClick={() => useBridge(null, 'bridges')}>
+                    <Icon path={mdiBackburger} size={0.7} />
+                    <Flex align="center" gap="1">
+                      <Avatar size="1" radius="full" fallback={(assets[asset].token || assets[asset].chain)[0]} src={'/cryptocurrency/' + (assets[asset].token || assets[asset].chain).toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
+                      <Text size="2" style={{ color: 'var(--gray-12)' }} weight="light">{Readability.toAssetName(assets[asset])}</Text>
+                    </Flex>
+                  </Button>
+                </Flex>
+                <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+              </Box>
+              <Card>
+                <Heading size="5" mb="1">Asset deposit</Heading>
+                <Text size="2" mb="4" color="gray">Create a deposit address for Your assets{assets[asset].routing_policy == 'account' ? ' to be able to fund it from Your registered wallet addresses' : ''}</Text>
+              </Card>
+            </Box>
+          }
+        </Box>
+      }
+    </Box>
+  )
+}
