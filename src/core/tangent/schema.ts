@@ -66,6 +66,17 @@ export namespace Transactions {
     getType() { return Omnitransfer.__type__; }
   }
 
+  export class Withdrawal extends Ledger.Transaction {
+    static __type__: number = 18;
+    proposer: string = 'pubkeyhash';
+    to: string[] = [
+      'to', 'string',
+      'value', 'decimal'
+    ];
+
+    getType() { return Withdrawal.__type__; }
+  }
+
   export class Rollup extends Ledger.Transaction {
     static __type__: number = 19;
 
@@ -85,6 +96,13 @@ export namespace Transactions {
     sighash: string = 'string';
 
     getType() { return PubkeyAccount.__type__; }
+  }
+
+  export class DelegationAccount extends Ledger.Transaction {
+    static __type__: number = 25;
+    proposer: string = 'pubkeyhash';
+
+    getType() { return DelegationAccount.__type__; }
   }
 
   export class ContributionAllocation extends Ledger.Transaction {

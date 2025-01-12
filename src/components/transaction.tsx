@@ -1,6 +1,6 @@
 import { Avatar, Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Text } from "@radix-ui/themes";
 import { Readability } from "../core/text";
-import { Netstat, SummaryState } from "../core/wallet";
+import { Interface, Netstat, SummaryState } from "../core/wallet";
 import { AlertBox, AlertType } from "./alert";
 import { States, Transactions } from "../core/tangent/schema";
 import { AssetId, Pubkeyhash, Signing } from "../core/tangent/algorithm";
@@ -8,6 +8,7 @@ import { TextUtil } from "../core/tangent/text";
 import { Link } from "react-router";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
+import { useState } from "react";
 
 function parameterToString(event: any): string {
   if (typeof event == 'object' || Array.isArray(event)) {
@@ -171,7 +172,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
       )
     case 'withdrawal':
       return transaction.to.map((item: any, index: number) =>
-        <Card key={item.to + index} mb={index == transaction.transfers.length - 1 ? '0' : '4'}>
+        <Card key={item.to + index} mb={index == transaction.to.length - 1 ? '0' : '4'}>
           <DataList.Root orientation={props.orientation}>
             <DataList.Item>
               <DataList.Label>From account:</DataList.Label>
@@ -179,7 +180,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(transaction.proposer.address);
                   AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ transaction.proposer.substring(0, 16) }...{ transaction.proposer.address.substring(transaction.proposer.address.length - 16) }</Button>
+                }}>{ transaction.proposer.substring(0, 16) }...{ transaction.proposer.substring(transaction.proposer.length - 16) }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/account/' + transaction.proposer}>▒▒</Link>
                 </Box>
@@ -288,68 +289,57 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
-            <DataList.Label>Custodian owner account:</DataList.Label>
+            <DataList.Label>Initiator transaction hash:</DataList.Label>
             <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" disabled={!transaction.account.owner} onClick={() => {
-                navigator.clipboard.writeText(transaction.account.owner || 'none');
-                AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ transaction.account.owner ? transaction.account.owner.substring(0, 16) + '...' + transaction.account.owner.substring(transaction.account.owner.length - 16) : 'none' }</Button>
+              <Button size="2" variant="ghost" color="indigo" disabled={!transaction.delegation_account_hash} onClick={() => {
+                navigator.clipboard.writeText(transaction.delegation_account_hash);
+                AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+              }}>{ transaction.delegation_account_hash.substring(0, 16) }...{ transaction.delegation_account_hash.substring(transaction.delegation_account_hash.length - 16) }</Button>
               {
-                transaction.account.owner &&
+                transaction.delegation_account_hash &&
                 <Box ml="2">
-                  <Link className="router-link" to={'/account/' + transaction.account.owner}>▒▒</Link>
+                  <Link className="router-link" to={'/transaction/' + transaction.delegation_account_hash}>▒▒</Link>
                 </Box>
               }
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Custodian proposer account:</DataList.Label>
+            <DataList.Label>Owner account:</DataList.Label>
             <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" disabled={!transaction.account.proposer} onClick={() => {
-                navigator.clipboard.writeText(transaction.account.proposer || 'none');
+              <Button size="2" variant="ghost" color="indigo" disabled={!transaction.owner} onClick={() => {
+                navigator.clipboard.writeText(transaction.owner || 'none');
                 AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ transaction.account.proposer ? transaction.account.proposer.substring(0, 16) + '...' + transaction.account.proposer.substring(transaction.account.proposer.length - 16) : 'none' }</Button>
+              }}>{ transaction.owner ? transaction.owner.substring(0, 16) + '...' + transaction.owner.substring(transaction.owner.length - 16) : 'none' }</Button>
               {
-                transaction.account.proposer &&
+                transaction.owner &&
                 <Box ml="2">
-                  <Link className="router-link" to={'/account/' + transaction.account.proposer}>▒▒</Link>
+                  <Link className="router-link" to={'/account/' + transaction.owner}>▒▒</Link>
                 </Box>
               }
             </DataList.Value>
           </DataList.Item>
-          {
-            transaction.account.addresses.map((item: any, index: number) =>
-              <DataList.Item key={item}>
-                <DataList.Label>Custodian address v{transaction.account.addresses.length - index}:</DataList.Label>
-                <DataList.Value>
-                  <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                    navigator.clipboard.writeText(item);
-                    AlertBox.open(AlertType.Info, 'Custodian address copied!')
-                  }}>{ item.substring(0, 16) }...{ item.substring(item.length - 16) }</Button>
-                </DataList.Value>
-              </DataList.Item>
-            )
-          }
           <DataList.Item>
-            <DataList.Label>Custodian address index:</DataList.Label>
-            <DataList.Value>{ Readability.toAddressIndex(transaction.account.address_index) }</DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Custodian verifying key:</DataList.Label>
+            <DataList.Label>Custodian pubkey:</DataList.Label>
             <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" disabled={!transaction.account.verifying_key} onClick={() => {
-                navigator.clipboard.writeText(transaction.account.verifying_key || 'none');
-                AlertBox.open(AlertType.Info, 'Key copied!')
-              }}>{ transaction.account.verifying_key ? transaction.account.verifying_key.substring(0, 16) + '...' + transaction.account.verifying_key.substring(transaction.account.verifying_key.length - 16) : 'none' }</Button>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.pubkey);
+                AlertBox.open(AlertType.Info, 'Custodian pubkey copied!')
+              }}>{ transaction.pubkey.substring(0, 16) }...{ transaction.pubkey.substring(transaction.pubkey.length - 16) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Custodian signature:</DataList.Label>
+            <DataList.Label>Custodian sighash:</DataList.Label>
             <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" disabled={!transaction.account_signature} onClick={() => {
-                navigator.clipboard.writeText(transaction.account_signature || 'none');
-                AlertBox.open(AlertType.Info, 'Signature copied!')
-              }}>{ transaction.account_signature ? transaction.account_signature.substring(0, 16) + '...' + transaction.account_signature.substring(transaction.account_signature.length - 16) : 'none' }</Button>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.sighash);
+                AlertBox.open(AlertType.Info, 'Custodian sighash copied!')
+              }}>{ transaction.sighash.substring(0, 16) }...{ transaction.sighash.substring(transaction.sighash.length - 16) }</Button>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>Custodian index:</DataList.Label>
+            <DataList.Value>
+              <Badge color="red" size="2" radius="medium">0x{ transaction.pubkey_index.toString(16) }</Badge>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
@@ -363,6 +353,16 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Badge color={ transaction.status == 1 ? 'green' : (transaction.status == -1 ? 'red' : 'gray') }>{ transaction.status == 1 ? 'Online' : (transaction.status == -1 ? 'Offline' : 'Standby') }</Badge>
             </DataList.Value>
           </DataList.Item>
+          {
+            transaction.observers.map((observer: any) => 
+              <DataList.Item key={observer.asset.chain}>
+                <DataList.Label>{ observer.asset.chain } observer status:</DataList.Label>
+                <DataList.Value>
+                  <Badge color={ observer.status == 1 ? 'green' : (observer.status == -1 ? 'red' : 'gray') }>{ observer.status == 1 ? 'Online' : (observer.status == -1 ? 'Offline' : 'Standby') }</Badge>
+                </DataList.Value>
+              </DataList.Item>
+            )
+          }
         </DataList.Root>
       )
     case 'replay':
@@ -995,6 +995,8 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
   const ownerAddress = props.ownerAddress;
   const time = receipt ? receipt.finalization_time.minus(receipt.generation_time).toNumber() : new Date().getTime();
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
+  const aggregation = transaction.category == 'aggregation';
+  const [consensus, setConsensus] = aggregation ? useState<{ branch: string, threshold: BigNumber, progress: BigNumber, committee: BigNumber, reached: boolean } | null>(null) : [undefined, undefined];
   if (receipt != null && receipt.block_number.gt(Netstat.blockTipNumber))
     Netstat.blockTipNumber = receipt.block_number;
 
@@ -1019,8 +1021,10 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               state != null &&
               <Flex gap="2" wrap="wrap">
                 {
-                  !state.balances[ownerAddress] &&
-                  <Badge size="1" radius="medium" color="gray">No relevant asset transfers</Badge>
+                  Object.keys(state.witnesses.addresses).map((asset) => {
+                    const aliases = state.witnesses.addresses[asset].aliases;
+                    return aliases.map((alias) => <Badge key={alias} size="1" radius="medium" color="green">+{ alias.substring(0, 4) }...{ alias.substring(alias.length - 4) }</Badge>)
+                  })
                 }
                 {
                   state.balances[ownerAddress] && Object.keys(state.balances[ownerAddress]).map((asset) => {
@@ -1030,12 +1034,16 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                     )
                   })
                 }
+                {
+                  !state.balances[ownerAddress] && !Object.keys(state.witnesses.addresses).length &&
+                  <Badge size="1" radius="medium" color="gray">Eventless program interaction</Badge>
+                }
               </Flex>
             }
             {
               state == null &&
-              <Flex gap="2" wrap="wrap">
-                <Badge size="1" radius="medium" color="gray">State is not finalized</Badge>
+              <Flex gap="2" wrap="wrap" justify="between">
+                <Badge size="1" radius="medium" color="gray">Awaiting state finalization</Badge>
               </Flex>
             }
           </Box>
@@ -1150,6 +1158,61 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               </>
             }
           </DataList.Root>
+          {
+            aggregation && state == null &&
+            <>
+              <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
+              <DataList.Root orientation={orientation}>
+                {
+                  consensus == null &&
+                  <DataList.Item>
+                    <DataList.Label>Attestation progress:</DataList.Label>
+                    <DataList.Value>
+                      <Button size="1" variant="outline" color="yellow" onClick={async () => {
+                        try {
+                          const consensusData = await Interface.getMempoolCumulativeConsensus(transaction.hash);
+                          if (setConsensus != null && consensusData != null)
+                            setConsensus(consensusData);
+                        } catch {
+                          AlertBox.open(AlertType.Error, 'Failed to fetch transaction consensus info');
+                        }
+                      }}>Fetch consensus info</Button>
+                    </DataList.Value>
+                  </DataList.Item>
+                }
+                {
+                  consensus != null &&
+                  <>
+                    <DataList.Item>
+                      <DataList.Label>Best assertion:</DataList.Label>
+                      <DataList.Value>
+                        <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                          navigator.clipboard.writeText(consensus.branch);
+                          AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+                        }}>{ consensus.branch.substring(0, 16) }...{ consensus.branch.substring(consensus.branch.length - 16) }</Button>
+                      </DataList.Value>
+                    </DataList.Item>
+                    <DataList.Item>
+                      <DataList.Label>Attestation committee:</DataList.Label>
+                      <DataList.Value>{ Readability.toCount('proposer', consensus.committee) }</DataList.Value>
+                    </DataList.Item>
+                    <DataList.Item>
+                      <DataList.Label>Attestations acquired:</DataList.Label>
+                      <DataList.Value>
+                        <Text color="yellow">{ (consensus.progress.toNumber() * 100).toFixed(2) }%</Text>
+                      </DataList.Value>
+                    </DataList.Item>
+                    <DataList.Item>
+                      <DataList.Label>Required attestations:</DataList.Label>
+                      <DataList.Value>
+                        <Text color="red">{ (consensus.threshold.toNumber() * 100).toFixed(2) }%</Text>
+                      </DataList.Value>
+                    </DataList.Item>
+                  </>
+                }
+              </DataList.Root>
+            </>
+          }
           <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
           <ContractFields orientation={orientation} transaction={transaction}></ContractFields>
           {

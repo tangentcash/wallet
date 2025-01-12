@@ -57,7 +57,7 @@ export class Readability {
       case 'invocation':
         return 'Contract call';
       case 'withdrawal':
-        return 'Withdrawal';
+        return 'Internal withdrawal';
       case 'rollup':
         return 'Rollup';
       case 'address_account':
@@ -71,7 +71,7 @@ export class Readability {
       case 'commitment':
         return 'Validator activity';
       case 'replay':
-        return 'Withdrawal rollback';
+        return 'Bridge withdrawal';
       case 'contribution_allocation':
         return 'Coverage wallet election';
       case 'contribution_activation':
@@ -87,7 +87,7 @@ export class Readability {
       case 'contribution_migration':
         return 'Custody migration';
       case 'claim':
-        return 'Claiming transaction';
+        return 'Bridging transaction';
       default:
         return 'Non-standard';
     }

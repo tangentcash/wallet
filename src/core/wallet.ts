@@ -716,8 +716,8 @@ export class Interface {
         Storage.set(key);
     }
   }
-  static submitTransaction(hexMessage: string): Promise<string | null> {
-    return this.fetch('no-cache', 'submittransaction', [hexMessage]);
+  static submitTransaction(hexMessage: string, validate: boolean): Promise<string | null> {
+    return this.fetch('no-cache', 'submittransaction', [hexMessage, validate]);
   }
   static getBlockchains(): Promise<any[] | null> {
     return this.fetch('cache', 'getblockchains', []);
@@ -736,6 +736,9 @@ export class Interface {
   }
   static getWitnessAddresses(address: string, offset: number, count: number): Promise<any[] | null> {
     return this.fetch('no-cache', 'getwitnessaddresses', [address, offset, count]);
+  }
+  static getWitnessAddressesByPurpose(address: string, purpose: 'witness' | 'router' | 'custodian' | 'contribution', offset: number, count: number): Promise<any[] | null> {
+    return this.fetch('no-cache', 'getwitnessaddressesbypurpose', [address, purpose, offset, count]);
   }
   static getMempoolTransactionsByOwner(address: string, offset: number, count: number, direction?: number, unrolling?: number): Promise<any[] | null> {
     const args = [address, offset, count];
@@ -757,6 +760,9 @@ export class Interface {
   }
   static getMempoolTransactionByHash(hash: string): Promise<any | null> {
     return this.fetch('cache', 'getmempooltransactionbyhash', [hash]);
+  }
+  static getMempoolCumulativeConsensus(hash: string): Promise<{ branch: string, threshold: BigNumber, progress: BigNumber, committee: BigNumber, reached: boolean } | null> {
+    return this.fetch('no-cache', 'getcumulativemempoolconsensus', [hash]);
   }
   static getBlockByNumber(number: number, unrolling?: number): Promise<any | null> {
     return this.fetch('cache', 'getblockbynumber', unrolling != null ? [number, unrolling] : [number]);

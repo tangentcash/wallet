@@ -1,21 +1,23 @@
 import { mdiBackburger, mdiMinus, mdiPlus } from "@mdi/js";
-import { Avatar, Badge, Box, Button, Card, Checkbox, DataList, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Avatar, Badge, Box, Button, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/extensions/react";
 import { Interface, TransactionOutput, Wallet } from "../core/wallet";
 import { AssetId, Signing, Uint256 } from "../core/tangent/algorithm";
 import { Readability } from "../core/text";
-import { Link, useNavigate } from "react-router";
-import { Transactions } from "../core/tangent/schema";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { Ledger, Transactions } from "../core/tangent/schema";
 import { AlertBox, AlertType } from "../components/alert";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
 
 export default function InteractionPage() {
   const ownerAddress = Wallet.getAddress() || '';
-  const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
+  const [query] = useSearchParams();
+  const [blockchains, setBlockchains] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [asset, setAsset] = useState(-1);
+  const [program, setProgram] = useState<'transfer' | 'withdrawal'>('transfer');
   const [sequence, setSequence] = useState<BigNumber | null>();
   const [gasPrice, setGasPrice] = useState('');
   const [gasLimit, setGasLimit] = useState('');
@@ -26,6 +28,24 @@ export default function InteractionPage() {
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
   const [to, setTo] = useState<{ address: string, memo: string | null, value: string }[]>([{ address: '', memo: null, value: '' }]);
   const navigate = useNavigate();
+  const maySendToMany = useMemo((): boolean => {
+    if (asset == -1)
+      return false;
+
+    if (program == 'withdrawal') {
+      const blockchain = blockchains.find((item) => item.chain == assets[asset].asset.chain);
+      return blockchain != null && blockchain.routing_policy == 'utxo';
+    }
+
+    return program == 'transfer';
+  }, [asset, program, blockchains]);
+  const transactionType = useMemo((): string => {
+    if (program == 'transfer')
+      return to.length > 1 ? 'Send to many' : 'Send to one';
+    else if (program == 'withdrawal')
+      return to.length > 1 ? 'Withdraw to many' : 'Withdraw to one';
+    return 'Bad program';
+  }, [program, to]);
   const sendingValue = useMemo((): BigNumber => {
     return to.reduce((value, next) => {
       try {
@@ -62,8 +82,12 @@ export default function InteractionPage() {
         return false;
 
       const publicKeyHash = Signing.decodeAddress(paymentAddress);
-      if (!publicKeyHash || publicKeyHash.data.length != 20)
+      if (program == 'transfer') {
+        if (!publicKeyHash || publicKeyHash.data.length != 20)
+          return false;
+      } else if (publicKeyHash != null || !paymentAddress.length) {
         return false;
+      }
 
       try {
         const numeric = new BigNumber(payment.value.trim());
@@ -96,8 +120,14 @@ export default function InteractionPage() {
       return false;
     }
 
+    if (program == 'withdrawal') {
+      const proposer = query.get('proposer');
+      if (proposer == null)
+        return false;
+    }
+
     return maxFeeValue.plus(sendingValue).lte(assets[asset].balance);
-  }, [paymentsReady, gasPrice, gasLimit, maxFeeValue, sendingValue, assets, asset]);
+  }, [paymentsReady, gasPrice, gasLimit, maxFeeValue, sendingValue, assets, asset, program]);
   const setRemainingValue = useCallback((index: number) => {
     const balance = assets[asset].balance;
     let value = balance.minus(sendingValue);
@@ -177,29 +207,49 @@ export default function InteractionPage() {
     
     setLoading(true);
     try {
+      let method: { type: Ledger.Transaction, args: { [key: string]: any } };
+      switch (program) {
+        case 'transfer':
+          method = to.length > 1 ? {
+            type: new Transactions.Omnitransfer(),
+            args: {
+              to: to.map((payment) => ({
+                memo: payment.memo || '',
+                value: new BigNumber(payment.value),
+                to: Signing.decodeAddress(payment.address)
+              }))
+            }
+          } : {
+            type: new Transactions.Transfer(),
+            args: {
+              memo: to[0].memo || '',
+              value: new BigNumber(to[0].value),
+              to: Signing.decodeAddress(to[0].address)
+            }
+          }
+          break;
+        case 'withdrawal':
+          method = {
+            type: new Transactions.Withdrawal(),
+            args: {
+              proposer: Signing.decodeAddress(query.get('proposer') || ''),
+              to: to.map((payment) => ({
+                to: payment.address,
+                value: new BigNumber(payment.value)
+              }))
+            }
+          }
+          break;
+        default:
+          throw new TypeError('bad program');
+      }
       const output = await Wallet.buildTransaction({
         asset: new AssetId(assets[asset].asset.id),
         sequence: prebuilt ? prebuilt.body.sequence.toString() : (sequence || undefined),
         conservative: conservative,
         gasPrice: gasPrice,
         gasLimit: prebuilt ? prebuilt.body.gasLimit.toString() : gasLimit,
-        method: to.length > 1 ? {
-          type: new Transactions.Omnitransfer(),
-          args: {
-            to: to.map((payment) => ({
-              memo: payment.memo || '',
-              value: new BigNumber(payment.value),
-              to: Signing.decodeAddress(payment.address)
-            }))
-          }
-        } : {
-          type: new Transactions.Transfer(),
-          args: {
-            memo: to[0].memo || '',
-            value: new BigNumber(to[0].value),
-            to: Signing.decodeAddress(to[0].address)
-          }
-        }
+        method: method
       });
       setSequence(new BigNumber(output.body.sequence.toString()));
       setTransactionData(output);
@@ -210,7 +260,7 @@ export default function InteractionPage() {
       setLoading(false);
       return null;
     }
-  }, [paymentsReady, loading, assets, asset, sequence, conservative, gasPrice, gasLimit, to]);
+  }, [paymentsReady, loading, assets, asset, sequence, conservative, gasPrice, gasLimit, to, program]);
   const submitTransaction = useCallback(async () => {
     if (loading)
       return false;
@@ -223,7 +273,7 @@ export default function InteractionPage() {
 
     setLoading(true);
     try {
-      const hash = await Interface.submitTransaction(output.data);
+      const hash = await Interface.submitTransaction(output.data, true);
       if (hash != null) {
         AlertBox.open(AlertType.Info, 'Transaction ' + hash + ' sent!');
         navigate('/');
@@ -237,19 +287,63 @@ export default function InteractionPage() {
     return true;
   }, [loading, to, transactionReady, loading, sequence, assets, asset]);
   useEffectAsync(async () => {
+    const queryAsset = query.get('asset');
+    const queryType = query.get('type');
+    switch (queryType) {
+      case 'transfer':
+      case 'withdrawal':
+        setProgram(queryType);
+        break;
+      default:
+        break;
+    }
+
     try {
       let assetData = await Interface.fetchAll((offset, count) => Interface.getAccountBalances(ownerAddress, offset, count));
       if (Array.isArray(assetData)) {
         assetData = assetData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
-        setAssets(assetData.filter((item) => item.balance?.gt(0) || item.reserve?.gt(0) || item.supply?.gt(0)));
+        assetData = assetData.filter((item) => item.balance?.gt(0) || item.reserve?.gt(0) || item.supply?.gt(0));
       }
+
+      if (queryAsset != null) {
+        const target: AssetId = new AssetId(queryAsset);
+        if (Array.isArray(assetData)) {
+          const index = assetData.findIndex((item) => item.asset.id == target.id);
+          if (index == -1) {
+            assetData.push({
+              asset: target,
+              balance: new BigNumber(0),
+              reserve: new BigNumber(0),
+              supply: new BigNumber(0)
+            });
+            setAsset(assets.length - 1);
+          } else {
+            setAsset(index);
+          }
+        } else {
+          assetData = [{
+            asset: target,
+            balance: new BigNumber(0),
+            reserve: new BigNumber(0),
+            supply: new BigNumber(0)
+          }];
+          setAsset(0);
+        }
+      }
+      setAssets(assetData || []);
     } catch { }
-  }, []);
+
+    try {
+      const blockchainData = await Interface.getBlockchains();
+      if (Array.isArray(blockchainData))
+        setBlockchains(blockchainData);
+    } catch { }
+  }, [query]);
 
   return (
     <Box px="4" pt="4" mx="auto" maxWidth="640px">
       <Flex justify="between" align="center">
-        <Heading>{ to.length > 1 ? 'Pay to many' : 'Pay to one' }</Heading>
+        <Heading>{ transactionType }</Heading>
         <Button variant="soft" size="2" color="indigo" onClick={() => navigate(-1)}>
           <Icon path={mdiBackburger} size={0.7} /> BACK
         </Button>
@@ -285,17 +379,20 @@ export default function InteractionPage() {
             <Heading size="4" mb="2">Recepient account{ to.length > 1 ? ' #' + (index + 1) : ''}</Heading>
             <Flex gap="2" mb="3">
               <Box width="100%">
-                <Tooltip content="Pay to account address">
-                  <TextField.Root size="3" placeholder="Pay to account" type="text" value={item.address} onChange={(e) => {
+                <Tooltip content={program == 'transfer' ? 'Send to account address' : 'Withdraw to Your pre-registered address'}>
+                  <TextField.Root size="3" placeholder={program == 'transfer' ? 'Send to account' : 'Withdraw to address'} type="text" value={item.address} onChange={(e) => {
                     const copy = [...to];
                     copy[index].address = e.target.value;
                     setTo(copy);
                   }} />
                 </Tooltip>
               </Box>
-              <Button size="3" variant="outline" color="gray" disabled={!paymentsReady}>
-                <Link className="router-link" to={'/account/' + item.address}>▒▒</Link>
-              </Button>
+              {
+                paymentsReady &&
+                <Button size="3" variant="outline" color="gray" disabled={!paymentsReady}>
+                  <Link className="router-link" to={'/account/' + item.address}>▒▒</Link>
+                </Button>
+              }
             </Flex>
             {
               item.memo != null &&
@@ -319,33 +416,39 @@ export default function InteractionPage() {
               </Box>
               <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
             </Flex>
-            <Flex justify="between" mt="2">
-              <Box px="1">
-                <Tooltip content="Identify payment by number">
-                  <Text as="label" size="2" color={item.memo != null ? 'jade' : 'gray'}>
-                    <Flex gap="2" align="center" justify="end">
-                      <Checkbox size="3" checked={item.memo != null} onCheckedChange={(value) => {
-                        const copy = [...to];
-                        copy[index].memo = value ? '' : null;
-                        setTo(copy);
-                      }} />
-                      <Text>Attach message</Text>
-                    </Flex>
-                  </Text>
-                </Tooltip>
-              </Box>
-              <IconButton variant="soft" color={index != 0 ? 'red' : 'jade'} onClick={() => {
-                const copy = [...to];
-                if (index == 0) {
-                  copy.push({ address: '', memo: null, value: '' });
-                } else {
-                  copy.splice(index, 1);
-                }
-                setTo(copy);
-              }}>
-                <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
-              </IconButton>
-            </Flex>
+            {
+              maySendToMany &&
+              <Flex justify="between">
+                <Box px="1">
+                  {
+                    program == 'transfer' &&
+                    <Tooltip content="Identify payment by number">
+                      <Text as="label" size="2" color={item.memo != null ? 'jade' : 'gray'}>
+                        <Flex gap="2" align="center" justify="end">
+                          <Checkbox size="3" checked={item.memo != null} onCheckedChange={(value) => {
+                            const copy = [...to];
+                            copy[index].memo = value ? '' : null;
+                            setTo(copy);
+                          }} />
+                          <Text>Attach message</Text>
+                        </Flex>
+                      </Text>
+                    </Tooltip>
+                  }
+                </Box>
+                <IconButton variant="soft" color={index != 0 ? 'red' : 'jade'} disabled={!maySendToMany && index == 0} onClick={() => {
+                  const copy = [...to];
+                  if (index == 0) {
+                    copy.push({ address: '', memo: null, value: '' });
+                  } else {
+                    copy.splice(index, 1);
+                  }
+                  setTo(copy);
+                }}>
+                  <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
+                </IconButton>
+              </Flex>
+            }
           </Card>
         )
       }
@@ -466,8 +569,14 @@ export default function InteractionPage() {
                 {
                   asset != -1 &&
                   <Box>
-                    <Text as="div" weight="light" size="4" mb="1">— Paying <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', to.length) }</Text></Text>
-                    <Text as="div" weight="light" size="4" mb="1">— Paying up to <Text color="orange">{ Readability.toMoney(assets[asset].asset, maxFeeValue) }</Text> to <Text color="sky">miner as fee</Text></Text>
+                    <Text as="div" weight="light" size="4" mb="1">— { program == 'withdrawal' ? 'Withdraw' : 'Send' } <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', to.length) }</Text></Text>
+                    <Text as="div" weight="light" size="4" mb="1">— Pay up to <Text color="orange">{ Readability.toMoney(assets[asset].asset, maxFeeValue) }</Text> to <Text color="sky">miner as fee</Text></Text>
+                    {
+                      program == 'withdrawal' &&
+                      <Text as="div" weight="light" size="4" mb="1">— Withdraw through <Badge radius="medium" variant="surface" size="2">{ 
+                        (query.get('proposer') || 'NULL').substring((query.get('proposer') || 'NULL').length - 6).toUpperCase()
+                      }</Badge> node</Text>
+                    }
                   </Box>
                 }
                 <Flex gap="3" mt="4" justify="between">
@@ -483,33 +592,6 @@ export default function InteractionPage() {
           </Flex>
         </Box>
       }
-    </Box>
-  )
-
-  return (
-    <Box px="4" pt="4" mx="auto" maxWidth="640px">
-      <Card>
-        <DataList.Root orientation={orientation}>
-          <DataList.Item align="center">
-            <DataList.Label>Paying value:</DataList.Label>
-            <DataList.Value>
-              <Badge color={asset != -1 ? 'red' : 'gray'} variant="soft" radius="full" size="3">{ asset != -1 ? Readability.toMoney(assets[asset].asset, sendingValue) : 'none' }</Badge>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item align="center">
-            <DataList.Label>Max fee value:</DataList.Label>
-            <DataList.Value>
-              <Badge color={asset != -1 ? 'orange' : 'gray'} variant="soft" radius="full" size="3">{ asset != -1 ? Readability.toMoney(assets[asset].asset, maxFeeValue) : 'none' }</Badge>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item align="center">
-            <DataList.Label>Max paying value:</DataList.Label>
-            <DataList.Value>
-              <Badge color={asset != -1 ? 'green' : 'gray'} variant="soft" radius="full" size="3">{ asset != -1 ? Readability.toMoney(assets[asset].asset, sendingValue.plus(maxFeeValue)) : 'none' }</Badge>
-            </DataList.Value>
-          </DataList.Item>
-        </DataList.Root>
-      </Card>
     </Box>
   )
 }

@@ -5,12 +5,12 @@ import Icon from "@mdi/react";
 
 const types: { path: string, name: string, tip: string, color: string | undefined, icon: string, persistent: boolean }[] = [
   { path: '/', name: 'Home', tip: 'My account', color: undefined, icon: mdiSquareRoundedBadgeOutline, persistent: true },
-  { path: '/configure', name: 'Configure', tip: 'App settings', color: 'yellow', icon: mdiDotsCircle, persistent: true },
   { path: '/bridge', name: 'Bridge', tip: 'Deposit/withdrawal bridges', color: 'orange', icon: mdiSetRight, persistent: true },
   { path: '/interaction', name: 'Pay', tip: 'Send transaction', color: 'jade', icon: mdiContactlessPaymentCircleOutline, persistent: true },
-  { path: '/block', name: 'Block', tip: 'Block details', color: 'yellow', icon: mdiMagnifyScan, persistent: false },
-  { path: '/transaction', name: 'Txn', tip: 'Transaction details', color: 'yellow', icon: mdiMagnifyScan, persistent: false },
-  { path: '/account', name: 'Account', tip: 'Account details', color: 'yellow', icon: mdiMagnifyScan, persistent: false },
+  { path: '/configure', name: 'Configure', tip: 'App settings', color: 'yellow', icon: mdiDotsCircle, persistent: true },
+  { path: '/block', name: 'Block', tip: 'Block details', color: 'blue', icon: mdiMagnifyScan, persistent: false },
+  { path: '/transaction', name: 'Txn', tip: 'Transaction details', color: 'blue', icon: mdiMagnifyScan, persistent: false },
+  { path: '/account', name: 'Account', tip: 'Account details', color: 'blue', icon: mdiMagnifyScan, persistent: false },
   { path: '/restore', name: 'Lockscreen', tip: 'Wallet management', color: undefined, icon: mdiLogin, persistent: false }
 ]
 

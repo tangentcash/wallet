@@ -480,6 +480,9 @@ export class AssetId {
   toUint8Array(): Uint8Array {
     return ByteUtil.byteStringToUint8Array(this.handle).reverse();
   }
+  toHex(): string {
+    return ByteUtil.uint8ArrayToHexString(this.toUint8Array().reverse());
+  }
   isValid(): boolean {
     return (typeof this.id == 'number' ? this.id > 0 : this.id.length > 0) && this.handle.length > 0 && this.chain != null && (!this.token || (this.token != null && this.checksum != null));
   }
