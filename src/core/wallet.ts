@@ -52,33 +52,103 @@ export type TransactionOutput = {
   } & { [key: string]: any }
 }
 
+export enum WalletType {
+  Mnemonic = 'mnemonic',
+  PrivateKey = 'privatekey',
+  PublicKey = 'publickey',
+  Address = 'address'
+}
+
+export enum NetworkType {
+  Mainnet = 'mainnet',
+  Testnet = 'testnet',
+  Regtest = 'regtest'
+}
+
 export class InterfaceProps {
   streaming: boolean = true;
 }
 
 class Keychain {
+  type: WalletType | null = null;
   privateKey: Seckey | null = null;
   publicKey: Pubkey | null = null;
   publicKeyHash: Pubkeyhash | null = null;
   address: string | null = null;
 
-  constructor(mnemonic: string[]) {
-    this.privateKey = Signing.derivePrivateKeyFromMnemonic(mnemonic.join(' '));
-    if (!this.privateKey)
-        return;
-
-    this.publicKey = Signing.derivePublicKey(this.privateKey);
-    if (!this.publicKey)
-      return;
-
-    this.publicKeyHash = Signing.derivePublicKeyHash(this.publicKey);
-    if (!this.publicKeyHash)
-      return;
-
-    this.address = Signing.encodeAddress(this.publicKeyHash);
-  }
   isValid(): boolean {
-    return this.privateKey != null && this.publicKey != null && this.publicKeyHash != null && this.address != null;
+    switch (this.type) {
+      case WalletType.Mnemonic:
+      case WalletType.PrivateKey:
+        return this.privateKey != null && this.publicKey != null && this.publicKeyHash != null && this.address != null;
+      case WalletType.PublicKey:
+        return this.publicKey != null && this.publicKeyHash != null && this.address != null;
+      case WalletType.Address:
+        return this.publicKeyHash != null && this.address != null;
+      default:
+        return false;
+    }
+  }
+  static fromMnemonic(mnemonic: string[]): Keychain | null {
+    if (mnemonic.length != 24)
+      return null;
+
+    const privateKey = Signing.derivePrivateKeyFromMnemonic(mnemonic.join(' '));
+    if (!privateKey)
+      return null;
+
+    const serialized = Signing.encodePrivateKey(privateKey);
+    if (!serialized)
+      return null;
+
+    const result = this.fromPrivateKey(serialized);
+    if (!result)
+      return null;
+
+    result.type = WalletType.Mnemonic;
+    return result;
+  }
+  static fromPrivateKey(privateKey: string): Keychain | null {
+    const result = new Keychain();
+    result.type = WalletType.PrivateKey;
+    result.privateKey = Signing.decodePrivateKey(privateKey);
+    if (!result.privateKey)
+        return null;
+
+    result.publicKey = Signing.derivePublicKey(result.privateKey);
+    if (!result.publicKey)
+      return null;
+
+    result.publicKeyHash = Signing.derivePublicKeyHash(result.publicKey);
+    if (!result.publicKeyHash)
+      return null;
+
+    result.address = Signing.encodeAddress(result.publicKeyHash);
+    return result;
+  }
+  static fromPublicKey(publicKey: string): Keychain | null {
+    const result = new Keychain();
+    result.type = WalletType.PublicKey;
+    result.publicKey = Signing.decodePublicKey(publicKey);
+    if (!result.publicKey)
+      return null;
+
+    result.publicKeyHash = Signing.derivePublicKeyHash(result.publicKey);
+    if (!result.publicKeyHash)
+      return null;
+
+    result.address = Signing.encodeAddress(result.publicKeyHash);
+    return result;
+  }
+  static fromAddress(address: string): Keychain | null {
+    const result = new Keychain();
+    result.type = WalletType.Address;
+    result.address = address;
+    result.publicKeyHash = Signing.decodeAddress(result.address);
+    if (!result.publicKeyHash)
+      return null;
+
+    return result;
   }
 }
 
@@ -105,21 +175,52 @@ export class Netstat {
 export class Wallet {
   private static data: Keychain | null = null;
 
-  private static storeKeychain(mnemonic: string[]): boolean {
-    const data = new Keychain(mnemonic);
-    if (!data.isValid())
+  private static storeKeychain(type: WalletType, secret: string | string[]): boolean {
+    let data: Keychain | null = null;
+    switch (type) {
+      case WalletType.Mnemonic: {
+        if (!Array.isArray(secret))
+          return false;
+
+        data = Keychain.fromMnemonic(secret);
+        break;
+      }
+      case WalletType.PrivateKey: {
+        if (Array.isArray(secret))
+          return false;
+
+        data = Keychain.fromPrivateKey(secret);
+        break;
+      }
+      case WalletType.PublicKey: {
+        if (Array.isArray(secret))
+          return false;
+
+        data = Keychain.fromPublicKey(secret);
+        break;
+      }
+      case WalletType.Address: {
+        if (Array.isArray(secret))
+          return false;
+
+        data = Keychain.fromAddress(secret);
+        break;
+      }
+    }
+
+    if (!data || !data.isValid())
       return false;
     
     this.data = data;
     return true;
   }
-  static async restore(passphrase: string, network?: 'mainnet' | 'testnet' | 'regtest'): Promise<boolean> {
+  static async restore(passphrase: string, network?: NetworkType): Promise<boolean> {
     if (network != null) {
       Chain.props = Chain[network];
       Storage.set(StorageField.Network, network);
     } else {
       network = Storage.get(StorageField.Network);
-      if (network == 'mainnet' || network == 'testnet' || network == 'regtest')
+      if (network == NetworkType.Mainnet || network == NetworkType.Testnet || network == NetworkType.Regtest)
         Chain.props = Chain[network];
     }
       
@@ -128,29 +229,64 @@ export class Wallet {
       return false;
 
     const mnemonic: string[] | null = await SafeStorage.get(StorageField.Mnemonic);
-    if (!mnemonic || !this.storeKeychain(mnemonic))
-      return false;
+    if (!mnemonic || !this.storeKeychain(WalletType.Mnemonic, mnemonic)) {
+      const privateKey: string | null = await SafeStorage.get(StorageField.PrivateKey);
+      if (!privateKey || !this.storeKeychain(WalletType.PrivateKey, privateKey)) {
+        const publicKey: string | null = await SafeStorage.get(StorageField.PublicKey);
+        if (!publicKey || !this.storeKeychain(WalletType.PublicKey, publicKey)) {
+          const address: string | null = await SafeStorage.get(StorageField.Address);
+          if (!address || !this.storeKeychain(WalletType.Address, address))
+            return false;
+        }
+      }
+    }
 
     await Netstat.stream();
     await Netstat.sync();
     return true;
   }
-  static async reset(mnemonic: string[], network?: 'mainnet' | 'testnet' | 'regtest'): Promise<boolean> {
-    if (mnemonic.length != 24)
-      return false;
-
+  static async reset(secret: string | string[], type: WalletType, network?: NetworkType): Promise<boolean> {
     if (network != null) {
       Chain.props = Chain[network];
       Storage.set(StorageField.Network, network);
     } else {
       network = Storage.get(StorageField.Network);
-      if (network == 'mainnet' || network == 'testnet' || network == 'regtest')
+      if (network == NetworkType.Mainnet || network == NetworkType.Testnet || network == NetworkType.Regtest)
         Chain.props = Chain[network];
     }
     
-    const status = await SafeStorage.set(StorageField.Mnemonic, mnemonic);
-    if (!status || !this.storeKeychain(mnemonic))
-      return false;
+    await SafeStorage.set(StorageField.Mnemonic);
+    await SafeStorage.set(StorageField.PrivateKey);
+    await SafeStorage.set(StorageField.PublicKey);
+    await SafeStorage.set(StorageField.Address);
+    switch (type) {
+      case WalletType.Mnemonic: {
+        const status = await SafeStorage.set(StorageField.Mnemonic, secret);
+        if (!status || !this.storeKeychain(type, secret))
+          return false;
+        break;
+      }
+      case WalletType.PrivateKey: {
+        const status = await SafeStorage.set(StorageField.PrivateKey, secret);
+        if (!status || !this.storeKeychain(type, secret))
+          return false;
+        break;
+      }
+      case WalletType.PublicKey: {
+        const status = await SafeStorage.set(StorageField.PublicKey, secret);
+        if (!status || !this.storeKeychain(type, secret))
+          return false;
+        break;
+      }
+      case WalletType.Address: {
+        const status = await SafeStorage.set(StorageField.Address, secret);
+        if (!status || !this.storeKeychain(type, secret))
+          return false;
+        break;
+      }
+      default:
+        return false;
+    }
 
     await Netstat.stream();
     await Netstat.sync();
@@ -266,7 +402,7 @@ export class Wallet {
   }
   static getPublicKey(): Pubkey | null | undefined {
     return this.isReady() ? this.data?.publicKey : null;
-  }
+  } 
   static getPublicKeyHash(): Pubkeyhash | null | undefined {
     return this.isReady() ? this.data?.publicKeyHash : null;
   }

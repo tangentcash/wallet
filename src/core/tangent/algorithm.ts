@@ -16,7 +16,7 @@ import BigNumber from 'bignumber.js';
 
 secp256k1.etc.hmacSha256Sync = (k, ...m) => hmac(sha256, k, secp256k1.etc.concatBytes(...m));
 
-export type NetworkType = {
+export type ChainParams = {
   NAME: string,
   SECKEY_VERSION: number,
   SECKEY_PREFIX: string,
@@ -28,7 +28,7 @@ export type NetworkType = {
 }
 
 export class Chain {
-  static mainnet: NetworkType = {
+  static mainnet: ChainParams = {
     NAME: 'mainnet',
     SECKEY_VERSION: 0xF,
     SECKEY_PREFIX: 'prv',
@@ -38,7 +38,7 @@ export class Chain {
     ADDRESS_PREFIX: 'tc',
     PROPOSER_COMMITTEE: 24
   };
-  static testnet: NetworkType = {
+  static testnet: ChainParams = {
     NAME: 'testnet',
     SECKEY_VERSION: 0xE,
     SECKEY_PREFIX: 'prvt',
@@ -48,7 +48,7 @@ export class Chain {
     ADDRESS_PREFIX: 'tct',
     PROPOSER_COMMITTEE: 24
   };
-  static regtest: NetworkType = {
+  static regtest: ChainParams = {
     NAME: 'regtest',
     SECKEY_VERSION: 0xD,
     SECKEY_PREFIX: 'prvrt',
@@ -66,7 +66,7 @@ export class Chain {
     ASSETID: 32,
     MESSAGE: 0xffffff
   }
-  static props: NetworkType = this.mainnet;
+  static props: ChainParams = this.mainnet;
 }
 
 export class Uint256 {

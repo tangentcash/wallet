@@ -5,7 +5,7 @@ import { BrowserRouter, Route, Routes } from "react-router";
 import { Box, Theme } from "@radix-ui/themes";
 import { Alert, AlertBox, AlertType } from "./components/alert";
 import { core } from '@tauri-apps/api';
-import { Interface, Wallet } from "./core/wallet";
+import { Interface, NetworkType, Wallet } from "./core/wallet";
 import { Storage, StorageField } from "./core/storage";
 import RestorePage from "./pages/restore";
 import HomePage from "./pages/home";
@@ -59,9 +59,10 @@ export class AppData {
       server.sentBytes += bytes;
       server.time = new Date();
       ++server.requests;
-    } else
+    } else {
       AppData.server.connections[address] = { sentBytes: bytes, receivedBytes: 0, requests: 1, responses: 0, time: new Date() };
-      
+    }
+    
     console.log('[rpc]', `${method} on node ${address} call:`, message);
   }
   private static response(address: string, method: string, message: any, size: number): void {
@@ -71,8 +72,9 @@ export class AppData {
       server.receivedBytes += bytes;
       server.time = new Date();
       ++server.responses;
-    } else
+    } else {
       AppData.server.connections[address] = { sentBytes: 0, receivedBytes: bytes, requests: 0, responses: 1, time: new Date() };
+    }
 
     console.log('[rpc]', `${method} on node ${address} return:`, message);
   }
@@ -86,8 +88,9 @@ export class AppData {
       server.time = new Date();
       if (!networkError)
         ++server.responses;
-    } else
+    } else {
       AppData.server.connections[address] = { sentBytes: 0, receivedBytes: bytes, requests: 0, responses: networkError ? 0 : 1, time: new Date() };
+    }
 
     console.log('[rpc]', `${method} on node ${address} return:`, (error as any)?.message || error);
     AlertBox.open(AlertType.Error, `${method} on node ${address} has failed: ${(error as any)?.message || error}`);
@@ -109,7 +112,7 @@ export class AppData {
     Interface.onNodeResponse = this.response;
     Interface.onNodeError = this.error;
     if (true)
-      await Wallet.restore('123456', 'regtest');
+      await Wallet.restore('123456', NetworkType.Regtest);
    
     const splashscreen = document.getElementById('splashscreen-content');
     if (splashscreen != null) {

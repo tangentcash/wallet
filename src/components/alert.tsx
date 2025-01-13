@@ -18,14 +18,37 @@ export enum AlertStatus {
 }
 
 export class AlertBox {
-  static alerts: { id: number, status: AlertStatus, type: AlertType, message: string }[] = [];
+  static alerts: { id: number, status: AlertStatus, type: AlertType, message: string, timeout: number }[] = [];
   static counter: number = 0;
   static notify: (() => void) | null = null;
 
-  static open(type: AlertType, message: string) {
-    const id = ++this.counter;
-    this.alerts.push({ id: id, status: AlertStatus.Opening, type: type, message: message });
-    setTimeout(() => {
+  private static toCountedMessage(message: string, count: number): string {
+    const uncountedMessage = this.toUncountedMessage(message);
+    return uncountedMessage[0] + ' (' + count + ')';
+  }
+  private static toUncountedMessage(message: string): [string, number] {
+    try {
+      if (message[message.length - 1] != ')')
+        throw false;
+
+      let index = message.length - 1;
+      while (index >= 0 && message[index] != '(')
+        --index;
+      
+      if (index <= 0 || message[index - 1] != ' ')
+        throw false;
+
+      const value = parseInt(message.substring(index + 1, message.length - 1));
+      if (isNaN(value))
+        throw false;
+
+      return [message.substring(0, index - 1), value];
+    } catch {
+      return [message, 0];
+    }
+  }
+  private static destructor(id: number): () => void {
+    return () => {
       for (let i = 0; i < this.alerts.length; i++) {
         if (this.alerts[i].id == id) {
           this.alerts[i].status = AlertStatus.Closing;
@@ -35,22 +58,48 @@ export class AlertBox {
 
       if (this.notify)
         this.notify();
-    }, ALERT_TIME);
+    };
+  }
+  static open(type: AlertType, message: string): number {
+    if (this.alerts.length > 0) {
+      const top = this.alerts.find((item) => item.type == type && this.toUncountedMessage(item.message)[0] == message);
+      if (top != null) {
+        const prevMessage = this.toUncountedMessage(top.message);
+        clearTimeout(top.timeout);
+
+        top.message = this.toCountedMessage(prevMessage[0], prevMessage[1] + 1);
+        top.timeout = setTimeout(this.destructor(top.id), ALERT_TIME);
+        if (top.status != AlertStatus.Opening)
+          top.status = AlertStatus.Active;
+        if (this.notify)
+          this.notify();
+        return top.id;
+      }
+    }
+
+    const id = ++this.counter;
+    this.alerts.push({
+      id: id,
+      status: AlertStatus.Opening,
+      type: type,
+      message: message,
+      timeout: setTimeout(this.destructor(id), ALERT_TIME)
+    });
     if (this.notify)
       this.notify();
 
     switch (type) {
       case AlertType.Error:
         console.error('[ui]', message);
-        break;
+        return id;
       case AlertType.Warning:
         console.warn('[ui]', message);
-        break;
+        return id;
       case AlertType.Info:
         console.log('[ui]', message);
-        break;
+        return id;
       default:
-        break;
+        return id;
     }
   }
   static close(id: number) {
