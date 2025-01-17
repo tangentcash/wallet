@@ -144,7 +144,7 @@ export class Stream {
       let size = StreamUtil.getStringSize(type);
       let data = this.read(size);
       if (data == null || data.length != size)
-        return null;
+        return size > 0 ? null : '';
       
       return StreamUtil.isString16(type) ? ByteUtil.uint8ArrayToHexString(data) : ByteUtil.uint8ArrayToByteString(data);
     } else if (type != Viewable.StringAny10 && type != Viewable.StringAny16)
@@ -160,7 +160,7 @@ export class Stream {
 
     let data = this.read(size);
     if (data == null || data.length != size)
-      return null;
+      return size > 0 ? null : '';
 
     return StreamUtil.isString16(type) ? ByteUtil.uint8ArrayToHexString(data) : ByteUtil.uint8ArrayToByteString(data);
   }
@@ -169,7 +169,7 @@ export class Stream {
       let size = StreamUtil.getStringSize(type);
       let data = this.read(size);
       if (data == null || data.length != size)
-        return null;
+        return size > 0 ? null : new Uint8Array();
       
       return data;
     } else if (type != Viewable.StringAny10 && type != Viewable.StringAny16)
@@ -185,7 +185,7 @@ export class Stream {
 
     let data = this.read(size);
     if (data == null || data.length != size)
-      return null;
+      return size > 0 ? null : new Uint8Array();
 
     return data;
   }

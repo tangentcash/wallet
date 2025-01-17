@@ -115,7 +115,11 @@ class Keychain {
     if (!result.privateKey)
         return null;
 
-    result.publicKey = Signing.derivePublicKey(result.privateKey);
+    const publicKey = Signing.derivePublicKey(result.privateKey);
+    if (!publicKey)
+      return null;
+    
+    result.publicKey = Signing.deriveTweakedPublicKey(publicKey);
     if (!result.publicKey)
       return null;
 
@@ -357,7 +361,7 @@ export class Wallet {
     const stream = new Stream();
     SchemaUtil.store(stream, transaction, Messages.asSigningSchema(props.method.type));
 
-    const signature = Signing.sign(stream.hash(), privateKey);
+    const signature = Signing.signTweaked(stream.hash(), privateKey);
     if (!signature)
       throw new Error('Failed to sign a transaction');
 

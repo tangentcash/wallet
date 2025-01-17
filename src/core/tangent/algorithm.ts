@@ -1,7 +1,5 @@
-import * as secp256k1 from '@noble/secp256k1';
+import secp256k1 from 'secp256k1';
 import * as bip39 from '@scure/bip39';
-import { hmac } from '@noble/hashes/hmac';
-import { sha256 } from '@noble/hashes/sha256';
 import { Base64 } from 'js-base64';
 import { wordlist } from '@scure/bip39/wordlists/english';
 import { randomBytes } from '@ethersproject/random';
@@ -13,8 +11,6 @@ import { blake2b } from '@noble/hashes/blake2b';
 import { ripemd160 } from '@noble/hashes/ripemd160';
 import { TextUtil } from './text';
 import BigNumber from 'bignumber.js';
-
-secp256k1.etc.hmacSha256Sync = (k, ...m) => hmac(sha256, k, secp256k1.etc.concatBytes(...m));
 
 export type ChainParams = {
   NAME: string,
@@ -501,7 +497,7 @@ export class AssetId {
 }
 
 export class Segwit {
-  static bitsTweak(outputBits: number, input: Uint8Array, inputBits: number, padding: number): Uint8Array | null {
+  static tweak(outputBits: number, input: Uint8Array, inputBits: number, padding: number): Uint8Array | null {
     let bits: number = 0;
     let value: number = 0;
     let max: number = (1 << outputBits) - 1;
@@ -528,13 +524,13 @@ export class Segwit {
 
     return output.slice(0, outputSize);
   }
-  static addressEncode(prefix: string, version: number, program: Uint8Array): string | null {
+  static encode(prefix: string, version: number, program: Uint8Array): string | null {
     if (version == 0 && program.length != 20 && program.length != 32)
       return null;
     else if (program.length < 2 || program.length > 40)
       return null;
 
-    let data = this.bitsTweak(5, program, 8, 1);
+    let data = this.tweak(5, program, 8, 1);
     if (!data)
       return null;
 
@@ -545,7 +541,7 @@ export class Segwit {
       return null;
     }
   }
-  static addressDecode(prefix: string, address: string): { program: Uint8Array, version: number } | null {
+  static decode(prefix: string, address: string): { program: Uint8Array, version: number } | null {
     try {
       let program = bech32m.decode(address);
       if (program.words.length == 0 || program.words.length > 65)
@@ -554,7 +550,7 @@ export class Segwit {
       if (program.prefix != prefix)
         return null;
   
-      let data = this.bitsTweak(8, new Uint8Array(program.words.slice(1)), 5, 0);
+      let data = this.tweak(8, new Uint8Array(program.words.slice(1)), 5, 0);
       if (!data || data.length < 2 || data.length > 40)
         return null;
 
@@ -585,59 +581,111 @@ export class Signing {
     }
     return key;
   }
-  static recover(hash: Uint256, signature: Sighash): Pubkey | null {
+  static recoverNormal(hash: Uint256, signature: Sighash): Pubkey | null {
     let recoveryId = signature.data[signature.data.length - 1];
     if (recoveryId > 4)
       return null;
 
     try {
-      const recoverableSignature = secp256k1.Signature.fromCompact(signature.data.slice(0, 64)).addRecoveryBit(recoveryId);
-      const publicKey = new Pubkey();
-      publicKey.data = recoverableSignature.recoverPublicKey(hash.toUint8Array()).toRawBytes(true);
-      return publicKey;
+      const result = secp256k1.ecdsaRecover(signature.data.slice(0, 64), recoveryId, hash.toUint8Array(), true);
+      if (!result)
+        return null;
+
+      return new Pubkey(result);
     } catch {
       return null;
     }
   }
-  static recoverHash(hash: Uint256, signature: Sighash): Pubkeyhash | null {
-    let publicKey = this.recover(hash, signature);
+  static recoverTweaked(hash: Uint256, signature: Sighash): Pubkey | null {
+    const signaturePublicKey = this.recoverNormal(hash, signature);
+    if (!signaturePublicKey)
+      return null;
+
+    const signatureTweak = this.deriveSignatureTweak(hash);
+    if (!signatureTweak)
+      return null;
+
+    const signatureTweakNegated = this.negatePrivateKey(signatureTweak);
+    if (!signatureTweakNegated)
+      return null;
+
+    return this.publicKeyTweakAdd(signaturePublicKey, signatureTweakNegated);
+  }
+  static recoverNormalHash(hash: Uint256, signature: Sighash): Pubkeyhash | null {
+    let publicKey = this.recoverNormal(hash, signature);
     if (!publicKey)
       return null;
 
     return this.derivePublicKeyHash(publicKey);
   }
-  static sign(hash: Uint256, privateKey: Seckey): Sighash | null {
+  static recoverTweakedHash(hash: Uint256, signature: Sighash): Pubkeyhash | null {
+    let publicKey = this.recoverTweaked(hash, signature);
+    if (!publicKey)
+      return null;
+
+    return this.derivePublicKeyHash(publicKey);
+  }
+  static signNormal(hash: Uint256, privateKey: Seckey): Sighash | null {
     try {
-      const result = secp256k1.sign(hash.toUint8Array(), privateKey.data);
-      let signature = new Sighash();
-      signature.data = Uint8Array.from([...result.toCompactRawBytes(), result.recovery]);
+      const result = secp256k1.ecdsaSign(hash.toUint8Array(), privateKey.data);
+      const signature = new Sighash();
+      signature.data = Uint8Array.from([...result.signature, result.recid]);
       return signature;
     } catch {
       return null;
     }
   }
-  static verify(hash: Uint256, publicKey: Pubkey, signature: Sighash): boolean {
+  static signTweaked(hash: Uint256, rootPrivateKey: Seckey): Sighash | null {
+    const signatureTweak = this.deriveSignatureTweak(hash);
+    if (!signatureTweak)
+      return null;
+
+    const rootPublicKey = this.derivePublicKey(rootPrivateKey);
+    if (!rootPublicKey)
+      return null;
+
+    const rootTweak = this.deriveRootTweak(rootPublicKey);
+    let signaturePrivateKey = this.privateKeyTweakMul(rootPrivateKey, rootTweak);
+    if (!signaturePrivateKey)
+      return null;
+
+    signaturePrivateKey = this.privateKeyTweakAdd(signaturePrivateKey, signatureTweak);
+    if (!signaturePrivateKey)
+      return null;
+
+    return this.signNormal(hash, signaturePrivateKey);
+  }
+  static verifyNormal(hash: Uint256, publicKey: Pubkey, signature: Sighash): boolean {
     try {
-      return secp256k1.verify(signature.data.slice(0, 64), hash.toUint8Array(), publicKey.data);
+      return secp256k1.ecdsaVerify(signature.data.slice(0, 64), hash.toUint8Array(), publicKey.data);
     } catch {
       return false;
     }
+  }
+  static verifyTweaked(hash: Uint256, tweakedPublicKey: Pubkey, signature: Sighash): boolean {
+    const signatureTweak = this.deriveSignatureTweak(hash);
+    if (!signatureTweak)
+      return false;
+
+    let signaturePublicKey = this.publicKeyTweakAdd(tweakedPublicKey, signatureTweak);
+    if (!signaturePublicKey)
+      return false;
+
+    return this.verifyNormal(hash, signaturePublicKey, signature);
   }
   static verifyMnemonic(mnemonic: string): boolean {
     return bip39.validateMnemonic(mnemonic, wordlist);
   }
   static verifyPrivateKey(privateKey: Seckey): boolean {
     try {
-      secp256k1.ProjectivePoint.fromPrivateKey(privateKey.data).assertValidity();
-      return true;
+      return secp256k1.privateKeyVerify(privateKey.data);
     } catch {
       return false;
     }
   }
   static verifyPublicKey(publicKey: Pubkey): boolean {
     try {
-      secp256k1.ProjectivePoint.fromHex(publicKey.data).assertValidity();
-      return true;
+      return secp256k1.publicKeyVerify(publicKey.data);
     } catch {
       return false;
     }
@@ -667,7 +715,7 @@ export class Signing {
   }
   static derivePublicKey(privateKey: Seckey): Pubkey {
     let publicKey = new Pubkey();
-    publicKey.data = secp256k1.getPublicKey(privateKey.data, true);
+    publicKey.data = secp256k1.publicKeyCreate(privateKey.data, true);
     return publicKey;
   }
   static derivePublicKeyHash(publicKey: Pubkey): Pubkeyhash {
@@ -683,8 +731,95 @@ export class Signing {
     publicKeyHash.data = hash.slice(0, 20);
     return publicKeyHash;
   }
+  static deriveRootTweak(rootPublicKey: Pubkey): Seckey {
+    let privateKey = new Seckey(Hashing.hash256(rootPublicKey.data));
+    while (!this.verifyPrivateKey(privateKey)) {
+      privateKey.data = Hashing.hash256(privateKey.data);
+    }
+    return privateKey;
+  }
+  static deriveSignatureTweak(hash: Uint256): Seckey | null {
+    let input = hash.toUint8Array();
+    while (!this.verifyPrivateKey(new Seckey(input))) {
+      input = Hashing.hash256(input);
+    }
+    
+    let output = Hashing.hash256(input);
+    while (!this.verifyPrivateKey(new Seckey(output))) {
+      output = Hashing.hash256(output);
+    }
+    return this.privateKeyTweakMul(new Seckey(input), new Seckey(output));
+  }
+  static deriveTweakedPublicKey(rootPublicKey: Pubkey): Pubkey | null {
+    const rootTweak = this.deriveRootTweak(rootPublicKey);
+    return this.publicKeyTweakMul(rootPublicKey, rootTweak);
+  }
+  static negatePrivateKey(privateKey: Seckey): Seckey | null {
+    try {
+      const copy = new Uint8Array(privateKey.data);
+      return new Seckey(secp256k1.privateKeyNegate(copy));
+    } catch {
+      return null;
+    }
+  }
+  static privateKeyTweakAdd(privateKey: Seckey, tweak: Seckey): Seckey | null {
+    try {
+      const copy = new Uint8Array(privateKey.data);
+      const result = secp256k1.privateKeyTweakAdd(copy, tweak.data);
+      if (!result)
+        return null;
+
+      return new Seckey(result);
+    } catch {
+      return null;
+    }
+  }
+  static privateKeyTweakMul(privateKey: Seckey, tweak: Seckey): Seckey | null {
+    try {
+      const copy = new Uint8Array(privateKey.data);
+      const result = secp256k1.privateKeyTweakMul(copy, tweak.data);
+      if (!result)
+        return null;
+      
+      return new Seckey(result);
+    } catch {
+      return null;
+    }
+  }
+  static negatePublicKey(publicKey: Pubkey): Pubkey | null {
+    try {
+      const copy = new Uint8Array(publicKey.data);
+      return new Pubkey(secp256k1.publicKeyNegate(copy));
+    } catch {
+      return null;
+    }
+  }
+  static publicKeyTweakAdd(publicKey: Pubkey, tweak: Seckey): Pubkey | null {
+    try {
+      const copy = new Uint8Array(publicKey.data);
+      const result = secp256k1.publicKeyTweakAdd(copy, tweak.data, true);
+      if (!result)
+        return null;
+      
+      return new Pubkey(result);
+    } catch {
+      return null;
+    }
+  }
+  static publicKeyTweakMul(publicKey: Pubkey, tweak: Seckey): Pubkey | null {
+    try {
+      const copy = new Uint8Array(publicKey.data);
+      const result = secp256k1.publicKeyTweakMul(copy, tweak.data, true);
+      if (!result)
+        return null;
+      
+      return new Pubkey(result);
+    } catch {
+      return null;
+    }
+  }
   static decodePrivateKey(value: string): Seckey | null {
-    let result = Segwit.addressDecode(Chain.props.SECKEY_PREFIX, value);
+    let result = Segwit.decode(Chain.props.SECKEY_PREFIX, value);
     if (!result || result.version != Chain.props.SECKEY_VERSION || result.program.length != Chain.size.SECKEY)
       return null;
 
@@ -693,10 +828,10 @@ export class Signing {
     return privateKey;
   }
   static encodePrivateKey(privateKey: Seckey): string | null {
-    return Segwit.addressEncode(Chain.props.SECKEY_PREFIX, Chain.props.SECKEY_VERSION, privateKey.data);
+    return Segwit.encode(Chain.props.SECKEY_PREFIX, Chain.props.SECKEY_VERSION, privateKey.data);
   }
   static decodePublicKey(value: string): Seckey | null {
-    let result = Segwit.addressDecode(Chain.props.PUBKEY_PREFIX, value);
+    let result = Segwit.decode(Chain.props.PUBKEY_PREFIX, value);
     if (!result || result.version != Chain.props.PUBKEY_VERSION || result.program.length != Chain.size.PUBKEY)
       return null;
 
@@ -705,10 +840,10 @@ export class Signing {
     return publicKey;
   }
   static encodePublicKey(publicKey: Pubkey): string | null {
-    return Segwit.addressEncode(Chain.props.PUBKEY_PREFIX, Chain.props.PUBKEY_VERSION, publicKey.data);
+    return Segwit.encode(Chain.props.PUBKEY_PREFIX, Chain.props.PUBKEY_VERSION, publicKey.data);
   }
   static decodeAddress(value: string): Pubkeyhash | null {
-    let result = Segwit.addressDecode(Chain.props.ADDRESS_PREFIX, value);
+    let result = Segwit.decode(Chain.props.ADDRESS_PREFIX, value);
     if (!result || result.version != Chain.props.ADDRESS_VERSION || result.program.length != Chain.size.PUBKEYHASH)
       return null;
 
@@ -717,7 +852,7 @@ export class Signing {
     return publicKeyHash;
   }
   static encodeAddress(publicKeyHash: Pubkeyhash): string | null {
-    return Segwit.addressEncode(Chain.props.ADDRESS_PREFIX, Chain.props.ADDRESS_VERSION, publicKeyHash.data);
+    return Segwit.encode(Chain.props.ADDRESS_PREFIX, Chain.props.ADDRESS_VERSION, publicKeyHash.data);
   }
 }
 

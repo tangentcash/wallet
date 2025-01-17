@@ -9,13 +9,14 @@ export default function test() {
 
   let mnemonic = 'chimney clerk liberty defense gesture risk disorder switch raven chapter document admit win swing forward please clerk vague online coil material tone sibling intact';
   let privateKey = Signing.derivePrivateKeyFromMnemonic(mnemonic);
-  let publicKey = privateKey ? Signing.derivePublicKey(privateKey) : null;
+  let rootPublicKey = privateKey ? Signing.derivePublicKey(privateKey) : null;
+  let publicKey = rootPublicKey ? Signing.deriveTweakedPublicKey(rootPublicKey) : null;
   let publicKeyHash = publicKey ? Signing.derivePublicKeyHash(publicKey) : null;
   let message = 'Hello, World!';
   let messageHash = new Uint256(Hashing.hash256(ByteUtil.utf8StringToUint8Array(message)));
-  let signature = privateKey ? Signing.sign(messageHash, privateKey) : null;
-  let recoverPublicKey = signature ? Signing.recover(messageHash, signature) : null;
-  let recoverPublicKeyHash = signature ? Signing.recoverHash(messageHash, signature) : null;
+  let signature = privateKey ? Signing.signTweaked(messageHash, privateKey) : null;
+  let recoverPublicKey = signature ? Signing.recoverTweaked(messageHash, signature) : null;
+  let recoverPublicKeyHash = signature ? Signing.recoverTweakedHash(messageHash, signature) : null;
   let cryptography = {
     mnemonic: mnemonic,
     mnemonicTest: Signing.verifyMnemonic(mnemonic) ? 'passed' : 'failed',
@@ -28,7 +29,7 @@ export default function test() {
     message: message,
     messageHash: messageHash.toHex(),
     signature: signature ? ByteUtil.uint8ArrayToHexString(signature.data) : null,
-    signatureTest: publicKey && signature && Signing.verify(messageHash, publicKey, signature) ? 'passed' : 'failed',
+    signatureTest: publicKey && signature && Signing.verifyTweaked(messageHash, publicKey, signature) ? 'passed' : 'failed',
     recoverPublicKey: recoverPublicKey ? Signing.encodePublicKey(recoverPublicKey) : null,
     recoverPublicKeyTest: recoverPublicKey && publicKey && recoverPublicKey.equals(publicKey) ? 'passed' : 'failed',
     recoverAddress: recoverPublicKeyHash ? Signing.encodeAddress(recoverPublicKeyHash) : null,
@@ -42,7 +43,7 @@ export default function test() {
     gasLimit: new Uint256(10000),
     sequence: 3,
     conservative: false,
-    memo: null,
+    memo: '',
     value: new BigNumber(0.1),
     to: new Pubkeyhash('0x26e43159073658d6590a95febb3b5b1898b1a22b')
   };
