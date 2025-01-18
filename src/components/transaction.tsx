@@ -1,4 +1,4 @@
-import { Avatar, Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Text } from "@radix-ui/themes";
+import { Avatar, Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Spinner, Text } from "@radix-ui/themes";
 import { Readability } from "../core/text";
 import { Interface, Netstat, SummaryState } from "../core/wallet";
 import { AlertBox, AlertType } from "./alert";
@@ -43,7 +43,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.to);
                 AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ transaction.to.substring(0, 16) }...{ transaction.to.substring(transaction.to.length - 16) }</Button>
+              }}>{ Readability.toAddress(transaction.to) }</Button>
               <Box ml="2">
                 <Link className="router-link" to={'/account/' + transaction.to}>▒▒</Link>
               </Box>
@@ -72,7 +72,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(item.to);
                   AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ item.to.substring(0, 16) }...{ item.to.substring(item.to.length - 16) }</Button>
+                }}>{ Readability.toAddress(item.to) }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/account/' + item.to}>▒▒</Link>
                 </Box>
@@ -101,7 +101,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.location_address);
                 AlertBox.open(AlertType.Info, 'Program hash copied!')
-              }}>{ transaction.location_address.substring(0, 16) }...{ transaction.location_address.substring(transaction.location_address.length - 16) }</Button>
+              }}>{ Readability.toHash(transaction.location_address) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -121,7 +121,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
                 const data: any = JSON.stringify(transaction.args, null, 2);
                 navigator.clipboard.writeText(data);
                 AlertBox.open(AlertType.Info, 'Program calldata copied!')
-              }}>{ transaction.calldata.substring(0, 16) }...{ transaction.calldata.substring(transaction.calldata.length - 16) }</Button>
+              }}>{ Readability.toHash(transaction.calldata) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -147,7 +147,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.to);
                 AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ transaction.to.substring(0, 16) }...{ transaction.to.substring(transaction.to.length - 16) }</Button>
+              }}>{ Readability.toAddress(transaction.to) }</Button>
               <Box ml="2">
                 <Link className="router-link" to={'/account/' + transaction.to}>▒▒</Link>
               </Box>
@@ -180,7 +180,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(transaction.proposer.address);
                   AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ transaction.proposer.substring(0, 16) }...{ transaction.proposer.substring(transaction.proposer.length - 16) }</Button>
+                }}>{ Readability.toAddress(transaction.proposer) }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/account/' + transaction.proposer}>▒▒</Link>
                 </Box>
@@ -192,7 +192,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(item.address);
                   AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ item.address.substring(0, 16) }...{ item.address.substring(item.address.length - 16) }</Button>
+                }}>{ Readability.toAddress(item.address) }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/account/' + item.address}>▒▒</Link>
                 </Box>
@@ -218,7 +218,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(item.hash);
                     AlertBox.open(AlertType.Info, 'Internal transaction hash copied!')
-                  }}>{ item.hash.substring(0, 16) }...{ item.hash.substring(item.hash.length - 14) }</Button>
+                  }}>{ Readability.toHash(item.hash) }</Button>
                   <Box ml="2">
                     <Link className="router-link" to={'/transaction/' + item.hash}>▒▒</Link>
                   </Box>
@@ -237,7 +237,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.address);
                 AlertBox.open(AlertType.Info, 'Router address copied!')
-              }}>{ transaction.address.substring(0, 16) }...{ transaction.address.substring(transaction.address.length - 16) }</Button>
+              }}>{ Readability.toAddress(transaction.address) }</Button>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
@@ -251,7 +251,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.pubkey);
                 AlertBox.open(AlertType.Info, 'Router pubkey copied!')
-              }}>{ transaction.pubkey.substring(0, 16) }...{ transaction.pubkey.substring(transaction.pubkey.length - 16) }</Button>
+              }}>{ Readability.toHash(transaction.pubkey) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -260,7 +260,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.sighash);
                 AlertBox.open(AlertType.Info, 'Router sighash copied!')
-              }}>{ transaction.sighash.substring(0, 16) }...{ transaction.sighash.substring(transaction.sighash.length - 16) }</Button>
+              }}>{ Readability.toHash(transaction.sighash) }</Button>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
@@ -274,7 +274,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" disabled={!transaction.proposer} onClick={() => {
                 navigator.clipboard.writeText(transaction.proposer || 'none');
                 AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ transaction.proposer ? transaction.proposer.substring(0, 16) + '...' + transaction.proposer.substring(transaction.proposer.length - 16) : 'none' }</Button>
+              }}>{ Readability.toAddress(transaction.proposer) }</Button>
               {
                 transaction.proposer &&
                 <Box ml="2">
@@ -294,7 +294,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" disabled={!transaction.delegation_account_hash} onClick={() => {
                 navigator.clipboard.writeText(transaction.delegation_account_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ transaction.delegation_account_hash.substring(0, 16) }...{ transaction.delegation_account_hash.substring(transaction.delegation_account_hash.length - 16) }</Button>
+              }}>{ Readability.toHash(transaction.delegation_account_hash) }</Button>
               {
                 transaction.delegation_account_hash &&
                 <Box ml="2">
@@ -309,7 +309,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" disabled={!transaction.owner} onClick={() => {
                 navigator.clipboard.writeText(transaction.owner || 'none');
                 AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ transaction.owner ? transaction.owner.substring(0, 16) + '...' + transaction.owner.substring(transaction.owner.length - 16) : 'none' }</Button>
+              }}>{ Readability.toAddress(transaction.owner) }</Button>
               {
                 transaction.owner &&
                 <Box ml="2">
@@ -324,7 +324,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.pubkey);
                 AlertBox.open(AlertType.Info, 'Custodian pubkey copied!')
-              }}>{ transaction.pubkey.substring(0, 16) }...{ transaction.pubkey.substring(transaction.pubkey.length - 16) }</Button>
+              }}>{ Readability.toHash(transaction.pubkey) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -333,7 +333,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.sighash);
                 AlertBox.open(AlertType.Info, 'Custodian sighash copied!')
-              }}>{ transaction.sighash.substring(0, 16) }...{ transaction.sighash.substring(transaction.sighash.length - 16) }</Button>
+              }}>{ Readability.toHash(transaction.sighash) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -374,7 +374,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.transaction_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ transaction.transaction_hash.substring(0, 16) }...{ transaction.transaction_hash.substring(transaction.transaction_hash.length - 16) }</Button>
+              }}>{ Readability.toHash(transaction.transaction_hash) }</Button>
               <Box ml="2">
                 <Link className="router-link" to={'/transaction/' + transaction.transaction_hash}>▒▒</Link>
               </Box>
@@ -386,7 +386,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.transaction_id);
                 AlertBox.open(AlertType.Info, 'Transaction id copied!')
-              }}>{ transaction.transaction_id.substring(0, 16) }...{ transaction.transaction_id.substring(transaction.transaction_id.length - 16) }</Button>
+              }}>{ Readability.toHash(transaction.transaction_id) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -395,7 +395,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.transaction_data);
                 AlertBox.open(AlertType.Info, 'Transaction data copied!')
-              }}>{ transaction.transaction_data.substring(0, 16) }...{ transaction.transaction_data.substring(transaction.transaction_data.length - 16) }</Button>
+              }}>{ Readability.toHash(transaction.transaction_data) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -413,7 +413,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.public_key_1);
                 AlertBox.open(AlertType.Info, 'Key copied!')
-              }}>{ transaction.public_key_1.substring(0, 16) }...{ transaction.public_key_1.substring(transaction.public_key_1.length - 16) }</Button>
+              }}>{ Readability.toHash(transaction.public_key_1) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -422,7 +422,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.encrypted_private_key_1_for_1);
                 AlertBox.open(AlertType.Info, 'Key copied!')
-              }}>{ transaction.encrypted_private_key_1_for_1.substring(0, 16) }...{ transaction.encrypted_private_key_1_for_1.substring(transaction.encrypted_private_key_1_for_1.length - 16) } (encrypted)</Button>
+              }}>{ Readability.toHash(transaction.encrypted_private_key_1_for_1) } (encrypted)</Button>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
@@ -436,7 +436,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.contribution_allocation_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ transaction.contribution_allocation_hash.substring(0, 16) }...{ transaction.contribution_allocation_hash.substring(transaction.contribution_allocation_hash.length - 16) }</Button>
+              }}>{ Readability.toHash(transaction.contribution_allocation_hash) }</Button>
               <Box ml="2">
                 <Link className="router-link" to={'/transaction/' + transaction.contribution_allocation_hash}>▒▒</Link>
               </Box>
@@ -448,7 +448,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.public_key_2);
                 AlertBox.open(AlertType.Info, 'Key copied!')
-              }}>{ transaction.public_key_2.substring(0, 16) }...{ transaction.public_key_2.substring(transaction.public_key_2.length - 16) }</Button>
+              }}>{ Readability.toHash(transaction.public_key_2) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -457,7 +457,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.encrypted_private_key_2_for_2);
                 AlertBox.open(AlertType.Info, 'Key copied!')
-              }}>{ transaction.encrypted_private_key_2_for_2.substring(0, 16) }...{ transaction.encrypted_private_key_2_for_2.substring(transaction.encrypted_private_key_2_for_2.length - 16) } (encrypted)</Button>
+              }}>{ Readability.toHash(transaction.encrypted_private_key_2_for_2) } (encrypted)</Button>
             </DataList.Value>
           </DataList.Item>
           {
@@ -471,7 +471,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
                       <Button size="2" variant="ghost" color="indigo" onClick={() => {
                         navigator.clipboard.writeText(item);
                         AlertBox.open(AlertType.Info, 'Address copied!')
-                      }}>{ item.substring(0, 16) }...{ item.substring(item.length - 16) }</Button>
+                      }}>{ Readability.toAddress(item) }</Button>
                     </DataList.Value>
                   </DataList.Item>
                 )
@@ -486,7 +486,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
                   <Button size="2" variant="ghost" color="indigo" disabled={!transaction.contribution_wallet.verifying_key} onClick={() => {
                     navigator.clipboard.writeText(transaction.contribution_wallet.verifying_key || 'none');
                     AlertBox.open(AlertType.Info, 'Address copied!')
-                  }}>{ transaction.contribution_wallet.verifying_key ? transaction.contribution_wallet.verifying_key.substring(0, 16) + '...' + transaction.contribution_wallet.verifying_key.substring(transaction.contribution_wallet.verifying_key.length - 16) : 'none' }</Button>
+                  }}>{ Readability.toHash(transaction.contribution_wallet.verifying_key) }</Button>
                 </DataList.Value>
               </DataList.Item>
             </>
@@ -502,7 +502,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.contribution_activation_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ transaction.contribution_activation_hash.substring(0, 16) }...{ transaction.contribution_activation_hash.substring(transaction.contribution_activation_hash.length - 16) }</Button>
+              }}>{ Readability.toHash(transaction.contribution_activation_hash) }</Button>
               <Box ml="2">
                 <Link className="router-link" to={'/transaction/' + transaction.contribution_activation_hash}>▒▒</Link>
               </Box>
@@ -519,7 +519,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.contribution_deallocation_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ transaction.contribution_deallocation_hash.substring(0, 16) }...{ transaction.contribution_deallocation_hash.substring(transaction.contribution_deallocation_hash.length - 16) }</Button>
+              }}>{ Readability.toHash(transaction.contribution_deallocation_hash) }</Button>
               <Box ml="2">
                 <Link className="router-link" to={'/transaction/' + transaction.contribution_deallocation_hash}>▒▒</Link>
               </Box>
@@ -531,7 +531,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.encrypted_private_key_2_for_1);
                 AlertBox.open(AlertType.Info, 'Key copied!')
-              }}>{ transaction.encrypted_private_key_2_for_1.substring(0, 16) }...{ transaction.encrypted_private_key_2_for_1.substring(transaction.encrypted_private_key_2_for_1.length - 16) } (encrypted)</Button>
+              }}>{ Readability.toHash(transaction.encrypted_private_key_2_for_1) } (encrypted)</Button>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
@@ -558,7 +558,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" disabled={transaction.to == null} onClick={() => {
                 navigator.clipboard.writeText(transaction.to);
                 AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ transaction.to ? transaction.to.substring(0, 16) + '...' + transaction.to.substring(transaction.to.length - 16) : 'none' }</Button>
+              }}>{ Readability.toAddress(transaction.to) }</Button>
               {
                 transaction.to != null &&
                 <Box ml="2">
@@ -582,7 +582,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.proposer);
                 AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ transaction.proposer.substring(0, 16) }...{ transaction.proposer.substring(transaction.proposer.length - 16) }</Button>
+              }}>{ Readability.toAddress(transaction.proposer) }</Button>
               <Box ml="2">
                 <Link className="router-link" to={'/account/' + transaction.proposer}>▒▒</Link>
               </Box>
@@ -604,7 +604,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(transaction.assertion.transaction_id);
                   AlertBox.open(AlertType.Info, 'Transaction id copied!')
-                }}>{ transaction.assertion.transaction_id.substring(0, 16) }...{ transaction.assertion.transaction_id.substring(transaction.assertion.transaction_id.length - 16) }</Button>
+                }}>{ Readability.toHash(transaction.assertion.transaction_id) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -626,7 +626,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
                       <Button size="2" variant="ghost" color="indigo" onClick={() => {
                         navigator.clipboard.writeText(item.address);
                         AlertBox.open(AlertType.Info, 'Address copied!')
-                      }}>{ item.address.substring(0, 16) }...{ item.address.substring(item.address.length - 16) } — { Readability.toAddressIndex(item.address_index) }</Button>
+                      }}>{ Readability.toAddress(item.address) } — { Readability.toAddressIndex(item.address_index) }</Button>
                     </DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
@@ -647,7 +647,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
                       <Button size="2" variant="ghost" color="indigo" onClick={() => {
                         navigator.clipboard.writeText(item.address);
                         AlertBox.open(AlertType.Info, 'Address copied!')
-                      }}>{ item.address.substring(0, 16) }...{ item.address.substring(item.address.length - 16) } — { Readability.toAddressIndex(item.address_index) }</Button>
+                      }}>{ Readability.toAddress(item.address) } — { Readability.toAddressIndex(item.address_index) }</Button>
                     </DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
@@ -709,7 +709,7 @@ function EventField(props: { orientation: 'horizontal' | 'vertical', event: any 
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(fromAddress);
                     AlertBox.open(AlertType.Info, 'Address copied!')
-                  }}>{ fromAddress.substring(0, 16) }...{ fromAddress.substring(fromAddress.length - 16) }</Button>
+                  }}>{ Readability.toAddress(fromAddress) }</Button>
                   <Box ml="2">
                     <Link className="router-link" to={'/account/' + fromAddress}>▒▒</Link>
                   </Box>
@@ -721,7 +721,7 @@ function EventField(props: { orientation: 'horizontal' | 'vertical', event: any 
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(toAddress);
                     AlertBox.open(AlertType.Info, 'Address copied!')
-                  }}>{ toAddress.substring(0, 16) }...{ toAddress.substring(toAddress.length - 16) }</Button>
+                  }}>{ Readability.toAddress(toAddress) }</Button>
                   <Box ml="2">
                     <Link className="router-link" to={'/account/' + toAddress}>▒▒</Link>
                   </Box>
@@ -756,7 +756,7 @@ function EventField(props: { orientation: 'horizontal' | 'vertical', event: any 
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(ownerAddress);
                     AlertBox.open(AlertType.Info, 'Address copied!')
-                  }}>{ ownerAddress.substring(0, 16) }...{ ownerAddress.substring(ownerAddress.length - 16) }</Button>
+                  }}>{ Readability.toAddress(ownerAddress) }</Button>
                   <Box ml="2">
                     <Link className="router-link" to={'/account/' + ownerAddress}>▒▒</Link>
                   </Box>
@@ -799,7 +799,7 @@ function EventField(props: { orientation: 'horizontal' | 'vertical', event: any 
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(ownerAddress);
                     AlertBox.open(AlertType.Info, 'Address copied!')
-                  }}>{ ownerAddress.substring(0, 16) }...{ ownerAddress.substring(ownerAddress.length - 16) }</Button>
+                  }}>{ Readability.toAddress(ownerAddress) }</Button>
                   <Box ml="2">
                     <Link className="router-link" to={'/account/' + ownerAddress}>▒▒</Link>
                   </Box>
@@ -843,7 +843,7 @@ function EventField(props: { orientation: 'horizontal' | 'vertical', event: any 
                       <Button size="2" variant="ghost" color="indigo" onClick={() => {
                         navigator.clipboard.writeText(item);
                         AlertBox.open(AlertType.Info, 'Address copied!')
-                      }}>{ item.substring(0, 16) }...{ item.substring(item.length - 16) }</Button>
+                      }}>{ Readability.toAddress(item) }</Button>
                     </DataList.Value>
                   </DataList.Item>
                 )
@@ -880,7 +880,7 @@ function EventField(props: { orientation: 'horizontal' | 'vertical', event: any 
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(transactionId);
                     AlertBox.open(AlertType.Info, 'Transaction id copied!')
-                  }}>{ transactionId.substring(0, 16) }...{ transactionId.substring(transactionId.length - 16) }</Button>
+                  }}>{ Readability.toHash(transactionId) }</Button>
                 </DataList.Value>
               </DataList.Item>
               <DataList.Item>
@@ -911,7 +911,7 @@ function EventField(props: { orientation: 'horizontal' | 'vertical', event: any 
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(transactionHash);
                     AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                  }}>{ transactionHash.substring(0, 16) }...{ transactionHash.substring(transactionHash.length - 16) }</Button>
+                  }}>{ Readability.toHash(transactionHash) }</Button>
                   <Box ml="2">
                     <Link className="router-link" to={'/transaction/' + transactionHash}>▒▒</Link>
                   </Box>
@@ -950,7 +950,7 @@ function EventField(props: { orientation: 'horizontal' | 'vertical', event: any 
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(ownerAddress);
                     AlertBox.open(AlertType.Info, 'Address copied!')
-                  }}>{ ownerAddress.substring(0, 16) }...{ ownerAddress.substring(ownerAddress.length - 16) }</Button>
+                  }}>{ Readability.toAddress(ownerAddress) }</Button>
                   <Box ml="2">
                     <Link className="router-link" to={'/account/' + ownerAddress}>▒▒</Link>
                   </Box>
@@ -1006,12 +1006,13 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
         <Flex gap="3">
           <Avatar mt="1" size="2" radius="full" fallback={(transaction.asset.token || transaction.asset.chain)[0]} src={'/cryptocurrency/' + (transaction.asset.token || transaction.asset.chain).toLowerCase() + '.svg'} />
           <Box width="100%">
-            <Flex justify="between" align="center">
+            <Flex justify="between" align="center" mb="1">
               <Text as="div" size="2" weight="bold">{ Readability.toTransactionType(transaction.type) }</Text>
               <Collapsible.Trigger asChild={true}>
-                <Button size="2" radius="large" variant="soft" color="gray">
-                  <Text mr="-1" as="div" size="1" weight="light" color={ receipt ? 'gray' : 'orange' }>{ receipt ? new Date(receipt.finalization_time.toNumber()).toLocaleTimeString() : 'PENDING' }</Text>
-                  <Box mb="1">
+                <Button size="1" radius="large" variant="soft" color="gray">
+                  { receipt && <Text mr="-1" as="div" size="1" weight="light" color="gray">{ new Date(receipt.finalization_time.toNumber()).toLocaleTimeString() }</Text> }
+                  { !receipt && <Spinner /> }
+                  <Box ml="1">
                     <DropdownMenu.TriggerIcon />
                   </Box>
                 </Button>
@@ -1023,7 +1024,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 {
                   Object.keys(state.witnesses.addresses).map((asset) => {
                     const aliases = state.witnesses.addresses[asset].aliases;
-                    return aliases.map((alias) => <Badge key={alias} size="1" radius="medium" color="green">+{ alias.substring(0, 4) }...{ alias.substring(alias.length - 4) }</Badge>)
+                    return aliases.map((alias) => <Badge key={alias} size="1" radius="medium" color="green">+{ Readability.toAddress(alias) }</Badge>)
                   })
                 }
                 {
@@ -1057,7 +1058,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(transaction.hash);
                   AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                }}>{ transaction.hash.substring(0, 16) }...{ transaction.hash.substring(transaction.hash.length - 16) }</Button>
+                }}>{ Readability.toHash(transaction.hash) }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/transaction/' + transaction.hash}>▒▒</Link>
                 </Box>
@@ -1069,7 +1070,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(transaction.signature);
                   AlertBox.open(AlertType.Info, 'Transaction signature copied!')
-                }}>{ transaction.signature.substring(0, 16) }...{ transaction.signature.substring(transaction.signature.length - 16) }</Button>
+                }}>{ Readability.toHash(transaction.signature) }</Button>
               </DataList.Value>
             </DataList.Item>
             {
@@ -1110,7 +1111,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               <DataList.Item>
                 <DataList.Label>Status:</DataList.Label>
                 <DataList.Value>
-                  <Badge color="yellow">Not included in block</Badge>
+                  <Badge color="yellow">Not included a in block</Badge>
                 </DataList.Value>
               </DataList.Item>
             }
@@ -1120,7 +1121,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(receipt?.from || ownerAddress);
                   AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ (receipt?.from || ownerAddress).substring(0, 16) }...{ (receipt?.from || ownerAddress).substring((receipt?.from || ownerAddress).length - 16) }</Button>
+                }}>{ Readability.toAddress(receipt?.from || ownerAddress) }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/account/' + (receipt?.from || ownerAddress)}>▒▒</Link>
                 </Box>
@@ -1189,7 +1190,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                         <Button size="2" variant="ghost" color="indigo" onClick={() => {
                           navigator.clipboard.writeText(consensus.branch);
                           AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                        }}>{ consensus.branch.substring(0, 16) }...{ consensus.branch.substring(consensus.branch.length - 16) }</Button>
+                        }}>{ Readability.toHash(consensus.branch) }</Button>
                       </DataList.Value>
                     </DataList.Item>
                     <DataList.Item>

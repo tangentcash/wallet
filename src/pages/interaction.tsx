@@ -512,7 +512,7 @@ export default function InteractionPage() {
             <Flex gap="2" mt="2">
               <Box width="100%">
                 <Tooltip content="Future transaction hash">
-                  <TextField.Root mb="3" size="3" placeholder="Transaction hash" readOnly={true} value={transactionData ? transactionData.hash.substring(0, 16) + '...' + transactionData.hash.substring(transactionData.hash.length - 16) : ''} onClick={() => {
+                  <TextField.Root mb="3" size="3" placeholder="Transaction hash" readOnly={true} value={Readability.toHash(transactionData?.hash)} onClick={() => {
                     navigator.clipboard.writeText(transactionData?.hash || 'none');
                     AlertBox.open(AlertType.Info, 'Transaction hash copied!')
                   }}/>
@@ -521,7 +521,7 @@ export default function InteractionPage() {
               <Button size="3" variant="outline" color="gray" disabled={loadingGasPrice || loadingGasLimit} loading={loading} onClick={() => buildTransaction()}>Redo</Button>
             </Flex>
             <Tooltip content="Transaction data that will be sent to a node">
-              <TextField.Root mb="3" size="3" placeholder="Transaction data" readOnly={true} value={transactionData ? transactionData.data.substring(0, 20) + '...' + transactionData.data.substring(transactionData.data.length - 20) : ''} onClick={() => {
+              <TextField.Root mb="3" size="3" placeholder="Transaction data" readOnly={true} value={Readability.toHash(transactionData?.data)} onClick={() => {
                 navigator.clipboard.writeText(transactionData?.data || 'none');
                 AlertBox.open(AlertType.Info, 'Transaction data copied!')
               }}/>
@@ -529,7 +529,7 @@ export default function InteractionPage() {
             <Flex gap="2" mb="3">
               <Box width="100%">
                 <Tooltip content="Account that pays for transaction">
-                  <TextField.Root size="3" placeholder="Paying account" readOnly={true} value={ownerAddress.substring(0, 16) + '...' + ownerAddress.substring(ownerAddress.length - 16)} onClick={() => {
+                  <TextField.Root size="3" placeholder="Paying account" readOnly={true} value={Readability.toAddress(ownerAddress)} onClick={() => {
                     navigator.clipboard.writeText(ownerAddress);
                     AlertBox.open(AlertType.Info, 'Address copied!')
                   }}/>

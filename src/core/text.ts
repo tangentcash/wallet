@@ -145,4 +145,16 @@ export class Readability {
     asset.chain = numeric.eq(1) ? name : (name + 's');
     return this.toValue(asset, numeric, delta || false, false);
   }
+  static toHash(value?: string): string {
+    if (!value)
+      return 'none';
+
+    return value.substring(0, 16) + '...' + value.substring(value.length - 16);
+  }
+  static toAddress(value?: string): string {
+    if (!value)
+      return 'none';
+    
+    return value.substring(0, 8) + '...' + value.substring(value.length - 8);
+  }
 }

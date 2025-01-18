@@ -476,7 +476,10 @@ export class Interface {
     if (!data.error)
       return this.fetchObject(data.result)
 
-    return new Error((data.error.message ? data.error.message : '') + ' causing layer_exception::type' + (data.error.code ? data.error.code.toString() : ''));
+    const message = data.error.message ? data.error.message : '';
+    const code = data.error.code ? data.error.code.toString() : '0';
+    const hash = ByteUtil.uint8ArrayToHexString(Hashing.hash160(ByteUtil.byteStringToUint8Array(message + ' / ' + code)));
+    return new Error(message + ' causing layer_exception ' + hash.substring(0, 8));
   }
   private static fetchResult(hash: string, data: any): any[] | undefined {    
     if (Array.isArray(data) || data.result === undefined) {

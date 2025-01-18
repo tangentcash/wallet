@@ -95,144 +95,148 @@ export default function ConfigurePage() {
   }, []);
 
   return (
-    <Box px="4" pt="4">
+    <Box px="4" pt="4" mx="auto" maxWidth="580px">
       <Flex justify="between" align="center">
         <Heading size="6">Options</Heading>
         <Button variant="soft" size="2" color="indigo" onClick={() => navigate(-1)}>
           <Icon path={mdiBackburger} size={0.7} /> BACK
         </Button>
       </Flex>
-      <Box width="100%" mt="4" mb="5">
+      <Box width="100%" mt="4">
         <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
       </Box>
-      <Card>
+      <Card mt="4">
         <Box px="2" py="2">
-          <Box>
-            <Heading size="4" mb="1">Client options</Heading>
-            <Text as="label" size="1">
-              <Flex gap="2" align="center" justify="between">
-                <Text size="3" weight="medium" color="gray">Dark theme</Text>
-                <Switch size="3" variant="soft" checked={AppData.props.appearance == 'dark'} onCheckedChange={(value) => AppData.setAppearance(value ? 'dark' : 'light')}/>
-              </Flex>
-            </Text>
-            <Flex justify="between" align="center" mt="2">
-              <Text size="3" weight="medium" color="gray">Lock wallet</Text>
-              <Button size="2" variant="soft" color="red" onClick={() => Wallet.clear(() => navigate('/restore'))}>
-                <Icon path={mdiLocationExit} size={0.85} />
-              </Button>
+          <Heading size="5" mb="1">Client options</Heading>
+          <Text as="label" size="1">
+            <Flex gap="2" align="center" justify="between">
+              <Text size="2" color="gray">Dark theme</Text>
+              <Switch size="3" variant="soft" checked={AppData.props.appearance == 'dark'} onCheckedChange={(value) => AppData.setAppearance(value ? 'dark' : 'light')}/>
             </Flex>
-          </Box>
-          <Box pt="5">
-            <Heading size="4" mb="1">Server options</Heading>
-            <Text as="label" size="1">
-              <Flex gap="2" align="center" justify="between">
-                <Text size="3" weight="medium" color="gray">Use ws streaming</Text>
-                <Switch size="3" variant="soft" checked={Interface.getProps().streaming} onCheckedChange={(value) => setWsStreaming(value)}/>
-              </Flex>
-            </Text>
-          </Box>
-          <Box pt="5">
-            <Heading size="4" mb="1">App options</Heading>
-            <Flex justify="between" align="center">
-              <Text size="3" weight="medium" color="gray">Clear cache</Text>
-              <Button size="2" variant="soft" color="jade" onClick={() => {
-                Interface.clearCache();
-                AlertBox.open(AlertType.Info, 'Application cache erased');
-              }}>
-                <Icon path={mdiCached} size={0.85} />
-              </Button>
-            </Flex>
-            <Flex justify="between" align="center" mt="2">
-              <Text size="3" weight="medium" color="gray">Reload app</Text>
-              <Button size="2" variant="soft" onClick={() => location.reload()}>
-                <Icon path={mdiReloadAlert} size={0.85} />
-              </Button>
-            </Flex>
-            <Flex justify="between" align="center" mt="2">
-              <Text size="3" weight="medium" color="gray">Show debugger</Text>
-              <Button size="2" variant="soft" color="yellow" onClick={() => AppData.openDevTools()}>
-                <Icon path={mdiBugOutline} size={0.85} />
-              </Button>
-            </Flex>
-          </Box>
-          <Box pt="5">
-            <Heading size="4" mb="1">Wallet options</Heading>
-            <Flex justify="between" align="center">
-              <Text size="3" weight="medium" color="gray">Copy recovery phrase</Text>
-              <Button size="2" variant="soft" color="red" onClick={() => {
-                  const mnemonic = SafeStorage.get(StorageField.Mnemonic);
-                  if (mnemonic != null && Array.isArray(mnemonic)) {
-                    navigator.clipboard.writeText(mnemonic.join(' '));
-                    AlertBox.open(AlertType.Info, 'Recovery phrase copied!');
-                  } else {
-                    AlertBox.open(AlertType.Error, 'Recovery phrase is not present');
-                  }
-                }}>
-                <Icon path={mdiAlertOctagram} size={0.85} />
-              </Button>
-            </Flex>
-            <Flex justify="between" align="center" mt="2">
-              <Text size="3" weight="medium" color="gray">Copy private key</Text>
-              <Button size="2" variant="soft" color="red" onClick={() => {
-                  const secretKey = Wallet.getSecretKey();
-                  if (secretKey != null) {
-                    navigator.clipboard.writeText(Signing.encodeSecretKey(secretKey) || 'FAILED');
-                    AlertBox.open(AlertType.Info, 'Private key copied!');
-                  } else {
-                    AlertBox.open(AlertType.Error, 'Private key is not present');
-                  }
-                }}>
-                <Icon path={mdiAlertOctagramOutline} size={0.85} />
-              </Button>
-            </Flex>
-            <Flex justify="between" align="center" mt="2">
-              <Text size="3" weight="medium" color="gray">Copy public key</Text>
-              <Button size="2" variant="soft" color="orange" onClick={() => {
-                  const publicKey = Wallet.getPublicKey();
-                  if (publicKey != null) {
-                    navigator.clipboard.writeText(Signing.encodePublicKey(publicKey) || 'FAILED');
-                    AlertBox.open(AlertType.Info, 'Public key copied!');
-                  } else {
-                    AlertBox.open(AlertType.Error, 'Public key is not present');
-                  }
-                }}>
-                <Icon path={mdiLockOpenAlertOutline} size={0.85} />
-              </Button>
-            </Flex>
-            <Flex justify="between" align="center" mt="2">
-              <Text size="3" weight="medium" color="gray">Copy public key hash</Text>
-              <Button size="2" variant="soft" color="jade" onClick={() => {
-                  const publicKeyHash = Wallet.getPublicKeyHash();
-                  if (publicKeyHash != null) {
-                    navigator.clipboard.writeText(ByteUtil.uint8ArrayToHexString(publicKeyHash.data) || 'FAILED');
-                    AlertBox.open(AlertType.Info, 'Public key hash copied!');
-                  } else {
-                    AlertBox.open(AlertType.Error, 'Public key hash is not present');
-                  }
-                }}>
-                <Icon path={mdiMagnifyExpand} size={0.85} />
-              </Button>
-            </Flex>
-            <Flex justify="between" align="center" mt="2">
-              <Text size="3" weight="medium" color="gray">Copy address</Text>
-              <Button size="2" variant="soft" color="jade" onClick={() => {
-                  const address = Wallet.getAddress();
-                  if (address != null) {
-                    navigator.clipboard.writeText(address);
-                    AlertBox.open(AlertType.Info, 'Address copied!');
-                  } else {
-                    AlertBox.open(AlertType.Error, 'Address is not present');
-                  }
-                }}>
-                <Icon path={mdiInformationOutline} size={0.85} />
-              </Button>
-            </Flex>
-          </Box>
+          </Text>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" color="gray">Seal wallet</Text>
+            <Button size="2" variant="soft" color="red" onClick={() => Wallet.clear(() => navigate('/restore'))}>
+              <Icon path={mdiLocationExit} size={0.85} />
+            </Button>
+          </Flex>
         </Box>
       </Card>
       <Card mt="4">
         <Box px="2" py="2">
-          <Heading size="4" mb="1">Network statistics</Heading>
+          <Heading size="5" mb="1">Server options</Heading>
+          <Text as="label" size="1">
+            <Flex gap="2" align="center" justify="between">
+              <Text size="2" color="gray">Use ws streaming</Text>
+              <Switch size="3" variant="soft" checked={Interface.getProps().streaming} onCheckedChange={(value) => setWsStreaming(value)}/>
+            </Flex>
+          </Text>
+        </Box>
+      </Card>
+      <Card mt="4">
+        <Box px="2" py="2">
+          <Heading size="5" mb="1">App options</Heading>
+          <Flex justify="between" align="center">
+            <Text size="2" color="gray">Clear cache</Text>
+            <Button size="2" variant="soft" color="jade" onClick={() => {
+              Interface.clearCache();
+              AlertBox.open(AlertType.Info, 'Application cache erased');
+            }}>
+              <Icon path={mdiCached} size={0.85} />
+            </Button>
+          </Flex>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" color="gray">Reload app</Text>
+            <Button size="2" variant="soft" onClick={() => location.reload()}>
+              <Icon path={mdiReloadAlert} size={0.85} />
+            </Button>
+          </Flex>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" color="gray">Show debugger</Text>
+            <Button size="2" variant="soft" color="yellow" onClick={() => AppData.openDevTools()}>
+              <Icon path={mdiBugOutline} size={0.85} />
+            </Button>
+          </Flex>
+        </Box>
+      </Card>
+      <Card mt="4">
+        <Box px="2" py="2">
+          <Heading size="5" mb="1">Wallet options</Heading>
+          <Flex justify="between" align="center">
+            <Text size="2" color="gray">Copy recovery phrase</Text>
+            <Button size="2" variant="soft" color="red" onClick={() => {
+                const mnemonic = SafeStorage.get(StorageField.Mnemonic);
+                if (mnemonic != null && Array.isArray(mnemonic)) {
+                  navigator.clipboard.writeText(mnemonic.join(' '));
+                  AlertBox.open(AlertType.Info, 'Recovery phrase copied!');
+                } else {
+                  AlertBox.open(AlertType.Error, 'Recovery phrase is not present');
+                }
+              }}>
+              <Icon path={mdiAlertOctagram} size={0.85} />
+            </Button>
+          </Flex>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" color="gray">Copy private key</Text>
+            <Button size="2" variant="soft" color="red" onClick={() => {
+                const secretKey = Wallet.getSecretKey();
+                if (secretKey != null) {
+                  navigator.clipboard.writeText(Signing.encodeSecretKey(secretKey) || 'FAILED');
+                  AlertBox.open(AlertType.Info, 'Private key copied!');
+                } else {
+                  AlertBox.open(AlertType.Error, 'Private key is not present');
+                }
+              }}>
+              <Icon path={mdiAlertOctagramOutline} size={0.85} />
+            </Button>
+          </Flex>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" color="gray">Copy public key</Text>
+            <Button size="2" variant="soft" color="orange" onClick={() => {
+                const publicKey = Wallet.getPublicKey();
+                if (publicKey != null) {
+                  navigator.clipboard.writeText(Signing.encodePublicKey(publicKey) || 'FAILED');
+                  AlertBox.open(AlertType.Info, 'Public key copied!');
+                } else {
+                  AlertBox.open(AlertType.Error, 'Public key is not present');
+                }
+              }}>
+              <Icon path={mdiLockOpenAlertOutline} size={0.85} />
+            </Button>
+          </Flex>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" color="gray">Copy public key hash</Text>
+            <Button size="2" variant="soft" color="jade" onClick={() => {
+                const publicKeyHash = Wallet.getPublicKeyHash();
+                if (publicKeyHash != null) {
+                  navigator.clipboard.writeText(ByteUtil.uint8ArrayToHexString(publicKeyHash.data) || 'FAILED');
+                  AlertBox.open(AlertType.Info, 'Public key hash copied!');
+                } else {
+                  AlertBox.open(AlertType.Error, 'Public key hash is not present');
+                }
+              }}>
+              <Icon path={mdiMagnifyExpand} size={0.85} />
+            </Button>
+          </Flex>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" color="gray">Copy address</Text>
+            <Button size="2" variant="soft" color="jade" onClick={() => {
+                const address = Wallet.getAddress();
+                if (address != null) {
+                  navigator.clipboard.writeText(address);
+                  AlertBox.open(AlertType.Info, 'Address copied!');
+                } else {
+                  AlertBox.open(AlertType.Error, 'Address is not present');
+                }
+              }}>
+              <Icon path={mdiInformationOutline} size={0.85} />
+            </Button>
+          </Flex>
+        </Box>
+      </Card>
+      <Card mt="4">
+        <Box px="2" py="2">
+          <Heading size="5" mb="3">Network statistics</Heading>
           <DataList.Root size="2" orientation={orientation}>
             <DataList.Item align="center">
               <DataList.Label>Reliability</DataList.Label>

@@ -69,7 +69,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.hash);
                   AlertBox.open(AlertType.Info, 'Block hash copied!')
-                }}>{ block.hash.substring(0, 16) }...{ block.hash.substring(block.hash.length - 16) }</Button>
+                }}>{ Readability.toHash(block.hash) }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/block/' + block.hash}>▒▒</Link>
                 </Box>
@@ -91,7 +91,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.parent_hash);
                   AlertBox.open(AlertType.Info, 'Parent hash copied!')
-                }}>{ block.parent_hash.substring(0, 16) }...{ block.parent_hash.substring(block.parent_hash.length - 16) }</Button>
+                }}>{ Readability.toHash(block.parent_hash) }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/block/' + block.parent_hash}>▒▒</Link>
                 </Box>
@@ -124,7 +124,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.transactions_root);
                   AlertBox.open(AlertType.Info, 'Merkle root hash copied!')
-                }}>{ block.transactions_root.substring(0, 16) }...{ block.transactions_root.substring(block.transactions_root.length - 16) }</Button>
+                }}>{ Readability.toHash(block.transactions_root) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -133,7 +133,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.receipts_root);
                   AlertBox.open(AlertType.Info, 'Merkle root hash copied!')
-                }}>{ block.receipts_root.substring(0, 16) }...{ block.receipts_root.substring(block.receipts_root.length - 16) }</Button>
+                }}>{ Readability.toHash(block.receipts_root) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -146,7 +146,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.states_root);
                   AlertBox.open(AlertType.Info, 'Merkle root hash copied!')
-                }}>{ block.states_root.substring(0, 16) }...{ block.states_root.substring(block.states_root.length - 16) }</Button>
+                }}>{ Readability.toHash(block.states_root) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -159,7 +159,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.signature);
                   AlertBox.open(AlertType.Info, 'Block signature copied!')
-                }}>{ block.signature.substring(0, 16) }...{ block.signature.substring(block.signature.length - 16) }</Button>
+                }}>{ Readability.toHash(block.signature) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -168,7 +168,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.wesolowski);
                   AlertBox.open(AlertType.Info, 'Block proof copied!')
-                }}>{ block.wesolowski.substring(0, 16) }...{ block.wesolowski.substring(block.wesolowski.length - 16) }</Button>
+                }}>{ Readability.toHash(block.wesolowski) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -183,7 +183,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.proposer);
                   AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ block.proposer.substring(0, 16) }...{ block.proposer.substring(block.proposer.length - 16) }</Button>
+                }}>{ Readability.toAddress(block.proposer) }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/account/' + block.proposer}>▒▒</Link>
                 </Box>
@@ -199,7 +199,7 @@ export default function BlockPage() {
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Gas use:</DataList.Label>
-              <DataList.Value>{ Readability.toGas(block.gas_use) } | { (block.gas_use.div(block.gas_limit).toNumber() * 100).toFixed(2) }%</DataList.Value>
+              <DataList.Value>{ Readability.toGas(block.gas_use) } | { (block.gas_use.div(block.gas_limit.gt(0) ? block.gas_limit : 1).toNumber() * 100).toFixed(2) }%</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Slot status:</DataList.Label>
@@ -234,7 +234,7 @@ export default function BlockPage() {
                         <Button size="2" variant="ghost" color="indigo" onClick={() => {
                           navigator.clipboard.writeText(hash);
                           AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                        }}>{ hash.substring(0, 16) }...{ hash.substring(hash.length - 16) }</Button>
+                        }}>{ Readability.toHash(hash) }</Button>
                         <Box ml="2">
                           <Link className="router-link" to={'/transaction/' + hash}>▒▒</Link>
                         </Box>
