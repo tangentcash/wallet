@@ -6,7 +6,7 @@ export enum StorageField {
   Network = '__network__',
   Passphrase = '__passphrase__',
   Mnemonic = '__mnemonic__',
-  PrivateKey = '__privatekey__',
+  SecretKey = '__secretkey__',
   PublicKey = '__publickey__',
   Address = '__address__',
   Polling = '__polling__',

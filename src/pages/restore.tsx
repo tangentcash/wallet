@@ -158,14 +158,14 @@ export default function RestorePage() {
         reportError();
         return false;
       }
-      case WalletType.PrivateKey: {
+      case WalletType.SecretKey: {
         Chain.props = Chain[networkType];
-        const key = Signing.decodePrivateKey(importCandidate.trim());
+        const key = Signing.decodeSecretKey(importCandidate.trim());
         if (!key)
           return false;
 
-        if (Signing.verifyPrivateKey(key)) {
-          const result = Signing.encodePrivateKey(key);
+        if (Signing.verifySecretKey(key)) {
+          const result = Signing.encodeSecretKey(key);
           if (result != null && result != importCandidate)
             setImportCandidate(result);
           return true;
@@ -305,7 +305,7 @@ export default function RestorePage() {
                         <Select.Item value="mnemonic">
                           <Text color="red">Recovery phrase</Text>
                         </Select.Item>
-                        <Select.Item value="privatekey">
+                        <Select.Item value="secretkey">
                           <Text color="red">Private key</Text>
                         </Select.Item>
                         <Select.Item value="publickey">
@@ -329,7 +329,7 @@ export default function RestorePage() {
                   </>
                 }
                 {
-                  importType == WalletType.PrivateKey &&
+                  importType == WalletType.SecretKey &&
                   <>
                     <TextField.Root type="text" placeholder={Chain[networkType].SECKEY_PREFIX + ' ...'} size="3" value={importCandidate} onChange={(e) => { setImportCandidate(e.target.value); }} />
                     <Flex justify="center" mt="2">

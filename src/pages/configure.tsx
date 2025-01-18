@@ -174,9 +174,9 @@ export default function ConfigurePage() {
             <Flex justify="between" align="center" mt="2">
               <Text size="3" weight="medium" color="gray">Copy private key</Text>
               <Button size="2" variant="soft" color="red" onClick={() => {
-                  const privateKey = Wallet.getPrivateKey();
-                  if (privateKey != null) {
-                    navigator.clipboard.writeText(Signing.encodePrivateKey(privateKey) || 'FAILED');
+                  const secretKey = Wallet.getSecretKey();
+                  if (secretKey != null) {
+                    navigator.clipboard.writeText(Signing.encodeSecretKey(secretKey) || 'FAILED');
                     AlertBox.open(AlertType.Info, 'Private key copied!');
                   } else {
                     AlertBox.open(AlertType.Error, 'Private key is not present');

@@ -54,7 +54,7 @@ export type TransactionOutput = {
 
 export enum WalletType {
   Mnemonic = 'mnemonic',
-  PrivateKey = 'privatekey',
+  SecretKey = 'secretkey',
   PublicKey = 'publickey',
   Address = 'address'
 }
@@ -71,7 +71,7 @@ export class InterfaceProps {
 
 class Keychain {
   type: WalletType | null = null;
-  privateKey: Seckey | null = null;
+  secretKey: Seckey | null = null;
   publicKey: Pubkey | null = null;
   publicKeyHash: Pubkeyhash | null = null;
   address: string | null = null;
@@ -79,8 +79,8 @@ class Keychain {
   isValid(): boolean {
     switch (this.type) {
       case WalletType.Mnemonic:
-      case WalletType.PrivateKey:
-        return this.privateKey != null && this.publicKey != null && this.publicKeyHash != null && this.address != null;
+      case WalletType.SecretKey:
+        return this.secretKey != null && this.publicKey != null && this.publicKeyHash != null && this.address != null;
       case WalletType.PublicKey:
         return this.publicKey != null && this.publicKeyHash != null && this.address != null;
       case WalletType.Address:
@@ -93,33 +93,33 @@ class Keychain {
     if (mnemonic.length != 24)
       return null;
 
-    const privateKey = Signing.derivePrivateKeyFromMnemonic(mnemonic.join(' '));
-    if (!privateKey)
+    const secretKey = Signing.deriveSecretKeyFromMnemonic(mnemonic.join(' '));
+    if (!secretKey)
       return null;
 
-    const serialized = Signing.encodePrivateKey(privateKey);
+    const serialized = Signing.encodeSecretKey(secretKey);
     if (!serialized)
       return null;
 
-    const result = this.fromPrivateKey(serialized);
+    const result = this.fromSecretKey(serialized);
     if (!result)
       return null;
 
     result.type = WalletType.Mnemonic;
     return result;
   }
-  static fromPrivateKey(privateKey: string): Keychain | null {
+  static fromSecretKey(secretKey: string): Keychain | null {
     const result = new Keychain();
-    result.type = WalletType.PrivateKey;
-    result.privateKey = Signing.decodePrivateKey(privateKey);
-    if (!result.privateKey)
+    result.type = WalletType.SecretKey;
+    result.secretKey = Signing.decodeSecretKey(secretKey);
+    if (!result.secretKey)
         return null;
 
-    const publicKey = Signing.derivePublicKey(result.privateKey);
+    const publicKey = Signing.derivePublicKey(result.secretKey);
     if (!publicKey)
       return null;
     
-    result.publicKey = Signing.deriveTweakedPublicKey(publicKey);
+    result.publicKey = Signing.deriveTweakedPublicKey(result.secretKey, publicKey);
     if (!result.publicKey)
       return null;
 
@@ -189,11 +189,11 @@ export class Wallet {
         data = Keychain.fromMnemonic(secret);
         break;
       }
-      case WalletType.PrivateKey: {
+      case WalletType.SecretKey: {
         if (Array.isArray(secret))
           return false;
 
-        data = Keychain.fromPrivateKey(secret);
+        data = Keychain.fromSecretKey(secret);
         break;
       }
       case WalletType.PublicKey: {
@@ -234,8 +234,8 @@ export class Wallet {
 
     const mnemonic: string[] | null = await SafeStorage.get(StorageField.Mnemonic);
     if (!mnemonic || !this.storeKeychain(WalletType.Mnemonic, mnemonic)) {
-      const privateKey: string | null = await SafeStorage.get(StorageField.PrivateKey);
-      if (!privateKey || !this.storeKeychain(WalletType.PrivateKey, privateKey)) {
+      const secretKey: string | null = await SafeStorage.get(StorageField.SecretKey);
+      if (!secretKey || !this.storeKeychain(WalletType.SecretKey, secretKey)) {
         const publicKey: string | null = await SafeStorage.get(StorageField.PublicKey);
         if (!publicKey || !this.storeKeychain(WalletType.PublicKey, publicKey)) {
           const address: string | null = await SafeStorage.get(StorageField.Address);
@@ -260,7 +260,7 @@ export class Wallet {
     }
     
     await SafeStorage.set(StorageField.Mnemonic);
-    await SafeStorage.set(StorageField.PrivateKey);
+    await SafeStorage.set(StorageField.SecretKey);
     await SafeStorage.set(StorageField.PublicKey);
     await SafeStorage.set(StorageField.Address);
     switch (type) {
@@ -270,8 +270,8 @@ export class Wallet {
           return false;
         break;
       }
-      case WalletType.PrivateKey: {
-        const status = await SafeStorage.set(StorageField.PrivateKey, secret);
+      case WalletType.SecretKey: {
+        const status = await SafeStorage.set(StorageField.SecretKey, secret);
         if (!status || !this.storeKeychain(type, secret))
           return false;
         break;
@@ -306,8 +306,8 @@ export class Wallet {
     if (!address)
       throw new Error('Account address is not available');
 
-    const privateKey = Wallet.getPrivateKey();
-    if (!privateKey) {
+    const secretKey = Wallet.getSecretKey();
+    if (!secretKey) {
       throw new Error('Account private key is not available');
     }
 
@@ -361,7 +361,7 @@ export class Wallet {
     const stream = new Stream();
     SchemaUtil.store(stream, transaction, Messages.asSigningSchema(props.method.type));
 
-    const signature = Signing.signTweaked(stream.hash(), privateKey);
+    const signature = Signing.signTweaked(stream.hash(), secretKey);
     if (!signature)
       throw new Error('Failed to sign a transaction');
 
@@ -401,8 +401,8 @@ export class Wallet {
     props.gasLimit = intermediate.body.gasLimit.toString();
     return await Wallet.buildTransaction(props);
   }
-  static getPrivateKey(): Seckey | null | undefined {
-    return this.isReady() ? this.data?.privateKey : null;
+  static getSecretKey(): Seckey | null | undefined {
+    return this.isReady() ? this.data?.secretKey : null;
   }
   static getPublicKey(): Pubkey | null | undefined {
     return this.isReady() ? this.data?.publicKey : null;

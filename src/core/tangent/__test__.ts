@@ -8,20 +8,20 @@ export default function test() {
   Chain.props = Chain.regtest;
 
   let mnemonic = 'chimney clerk liberty defense gesture risk disorder switch raven chapter document admit win swing forward please clerk vague online coil material tone sibling intact';
-  let privateKey = Signing.derivePrivateKeyFromMnemonic(mnemonic);
-  let rootPublicKey = privateKey ? Signing.derivePublicKey(privateKey) : null;
-  let publicKey = rootPublicKey ? Signing.deriveTweakedPublicKey(rootPublicKey) : null;
+  let secretKey = Signing.deriveSecretKeyFromMnemonic(mnemonic);
+  let rootPublicKey = secretKey ? Signing.derivePublicKey(secretKey) : null;
+  let publicKey = secretKey && rootPublicKey ? Signing.deriveTweakedPublicKey(secretKey, rootPublicKey) : null;
   let publicKeyHash = publicKey ? Signing.derivePublicKeyHash(publicKey) : null;
   let message = 'Hello, World!';
   let messageHash = new Uint256(Hashing.hash256(ByteUtil.utf8StringToUint8Array(message)));
-  let signature = privateKey ? Signing.signTweaked(messageHash, privateKey) : null;
+  let signature = secretKey ? Signing.signTweaked(messageHash, secretKey) : null;
   let recoverPublicKey = signature ? Signing.recoverTweaked(messageHash, signature) : null;
   let recoverPublicKeyHash = signature ? Signing.recoverTweakedHash(messageHash, signature) : null;
   let cryptography = {
     mnemonic: mnemonic,
     mnemonicTest: Signing.verifyMnemonic(mnemonic) ? 'passed' : 'failed',
-    privateKey: privateKey ? Signing.encodePrivateKey(privateKey) : null,
-    privateKeyTest: privateKey && Signing.verifyPrivateKey(privateKey) ? 'passed' : 'failed',
+    secretKey: secretKey ? Signing.encodeSecretKey(secretKey) : null,
+    secretKeyTest: secretKey && Signing.verifySecretKey(secretKey) ? 'passed' : 'failed',
     publicKey: publicKey ? Signing.encodePublicKey(publicKey) : null,
     publicKeyTest: publicKey && Signing.verifyPublicKey(publicKey) ? 'passed' : 'failed',
     address: publicKeyHash ? Signing.encodeAddress(publicKeyHash) : null,
