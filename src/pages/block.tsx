@@ -8,6 +8,7 @@ import { AlertBox, AlertType } from "../components/alert";
 import { Readability } from "../core/text";
 import Icon from "@mdi/react";
 import { Chain } from "../core/tangent/algorithm";
+import BigNumber from "bignumber.js";
 
 export default function BlockPage() {
   const params = useParams();
@@ -49,7 +50,7 @@ export default function BlockPage() {
   if (block != null) {
     const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
     const time = block.approval_time.minus(block.proposal_time).toNumber();
-    const confidence = Math.min(100 * (1.0 - block.priority.toNumber() / Chain.props.PROPOSER_COMMITTEE), 99.99);
+    const confidence = Math.min(100 * (block.priority.toNumber() / Chain.props.PROPOSER_COMMITTEE), 100) + 0.01;
     if (block.number.gt(Netstat.blockTipNumber))
       Netstat.blockTipNumber = block.number;
     
@@ -64,6 +65,16 @@ export default function BlockPage() {
         <Card variant="surface" mt="4">
           <DataList.Root orientation={orientation}>
             <DataList.Item>
+              <DataList.Label>Block number:</DataList.Label>
+              <DataList.Value>
+                { block.number.toString() }
+                <Box ml="2">
+                  <Link className="router-link" to={'/block/' + block.hash}>▒▒</Link>
+                </Box>
+                <Badge ml="2" color={block.priority > 0 ? (confidence > 50 ? 'red' : 'yellow') : 'green'}>{ 'Fork possibility < ' + confidence.toFixed(2) }%</Badge>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
               <DataList.Label>Block hash:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
@@ -73,16 +84,6 @@ export default function BlockPage() {
                 <Box ml="2">
                   <Link className="router-link" to={'/block/' + block.hash}>▒▒</Link>
                 </Box>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Block number:</DataList.Label>
-              <DataList.Value>
-                { block.number.toString() }
-                <Box ml="2">
-                  <Link className="router-link" to={'/block/' + block.hash}>▒▒</Link>
-                </Box>
-                <Badge ml="2" color={block.priority > 0 ? 'yellow' : 'green'}>P{block.priority.toNumber() + 1} / { confidence.toFixed(2) }%{ Netstat.blockTipNumber != null ? ' / ' + Readability.toCount('confirmation', Netstat.blockTipNumber.minus(block.number)) : ''}</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -107,6 +108,49 @@ export default function BlockPage() {
               <DataList.Label>Time:</DataList.Label>
               <DataList.Value>{ new Date(block.approval_time.toNumber()).toLocaleString() }</DataList.Value>
             </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Signature:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(block.signature);
+                  AlertBox.open(AlertType.Info, 'Block signature copied!')
+                }}>{ Readability.toHash(block.signature) }</Button>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Wesolowski proof:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(block.wesolowski);
+                  AlertBox.open(AlertType.Info, 'Block proof copied!')
+                }}>{ Readability.toHash(block.wesolowski) }</Button>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Proposer account:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(block.proposer);
+                  AlertBox.open(AlertType.Info, 'Address copied!')
+                }}>{ Readability.toAddress(block.proposer) }</Button>
+                <Box ml="2">
+                  <Link className="router-link" to={'/account/' + block.proposer}>▒▒</Link>
+                </Box>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Proposer priority:</DataList.Label>
+              <DataList.Value>Slot leader #{block.priority.toNumber() + 1}</DataList.Value>
+            </DataList.Item>
+            {
+              Netstat.blockTipNumber != null &&
+              <DataList.Item>
+                <DataList.Label>Confidence:</DataList.Label>
+                <DataList.Value>
+                  <Badge color="orange">{ Readability.toCount('confirmation', Netstat.blockTipNumber.minus(block.number)) }</Badge>
+                </DataList.Value>
+              </DataList.Item>
+            }
             {
               block.witnesses.length > 0 &&
               block.witnesses.map((item: any) => {
@@ -137,10 +181,6 @@ export default function BlockPage() {
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>Transactions:</DataList.Label>
-              <DataList.Value>{ Readability.toCount('transaction', block.transactions_count) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
               <DataList.Label>States merkle root:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
@@ -150,43 +190,17 @@ export default function BlockPage() {
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
+              <DataList.Label>Transactions:</DataList.Label>
+              <DataList.Value>{ Readability.toCount('transaction', block.transactions_count) }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
               <DataList.Label>States:</DataList.Label>
               <DataList.Value>{ Readability.toCount('state', block.states_count) } | { Readability.toCount('update', block.mutations_count) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Signature:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.signature);
-                  AlertBox.open(AlertType.Info, 'Block signature copied!')
-                }}>{ Readability.toHash(block.signature) }</Button>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Wesolowski proof:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.wesolowski);
-                  AlertBox.open(AlertType.Info, 'Block proof copied!')
-                }}>{ Readability.toHash(block.wesolowski) }</Button>
-              </DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Proof difficulty:</DataList.Label>
               <DataList.Value>
                 <Badge color="red">{ Readability.toUnit(block.difficulty) } in { Readability.toTimespan(block.wesolowski_time) }</Badge>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Proposer account:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.proposer);
-                  AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ Readability.toAddress(block.proposer) }</Button>
-                <Box ml="2">
-                  <Link className="router-link" to={'/account/' + block.proposer}>▒▒</Link>
-                </Box>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
