@@ -871,6 +871,12 @@ export class Interface {
   static getNextAccountSequence(address: string): Promise<{ min: BigNumber | string, max: BigNumber | string } | null> {
     return this.fetch('no-cache', 'getnextaccountsequence', [address]);
   }
+  static getAccountWork(address: string): Promise<any | null> {
+    return this.fetch('no-cache', 'getaccountwork', [address]);
+  }
+  static getAccountObservers(address: string, offset: number, count: number): Promise<any[] | null> {
+    return this.fetch('no-cache', 'getaccountobservers', [address, offset, count]);
+  }
   static getAccountBalance(address: string, asset: AssetId): Promise<{ supply: BigNumber, reserve: BigNumber, balance: BigNumber } | null> {
     return this.fetch('no-cache', 'getaccountbalance', [address, asset.handle]);
   }

@@ -13,7 +13,7 @@ export default function AccountPage() {
     return <Navigate replace={true} to="/" state={{ from: `${location.pathname}${location.search}` }} />;
 
   return (
-    <Box px="4" pt="4">
+    <Box px="4" pt="4" maxWidth="680px" mx="auto">
       <Flex justify="between" align="center">
         <Heading size="6">Account</Heading>
         <Button variant="soft" size="2" color="indigo" onClick={() => navigate(-1)}>

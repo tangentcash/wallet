@@ -6,9 +6,8 @@ import { Badge, Box, Button, Card, DataList, Flex, Heading, IconButton, Spinner,
 import { mdiArrowLeftBoldCircleOutline, mdiArrowRightBoldCircleOutline, mdiBackburger } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
 import { Readability } from "../core/text";
-import Icon from "@mdi/react";
 import { Chain } from "../core/tangent/algorithm";
-import BigNumber from "bignumber.js";
+import Icon from "@mdi/react";
 
 export default function BlockPage() {
   const params = useParams();
@@ -272,7 +271,7 @@ export default function BlockPage() {
     )
   } else {
     return (
-      <Flex justify="center">
+      <Flex justify="center" pt="6">
         <Spinner size="3" />
       </Flex>
     )

@@ -104,7 +104,7 @@ export default function HomePage() {
   }, []);
 
   return (
-    <Box px="4" pt="4">
+    <Box px="4" pt="4" maxWidth="680px" mx="auto">
       <Flex gap="2" align="center" px="1">
         <Heading size="6">My Account</Heading>
         <Dialog.Root>
