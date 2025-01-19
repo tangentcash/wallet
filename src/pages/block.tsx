@@ -50,7 +50,7 @@ export default function BlockPage() {
   if (block != null) {
     const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
     const time = block.approval_time.minus(block.proposal_time).toNumber();
-    const confidence = Math.min(100 * (block.priority.toNumber() / Chain.props.PROPOSER_COMMITTEE), 100) + 0.01;
+    const possibility = Math.max(Math.min(100 * (1.0 - Math.pow(1.0 - block.priority.toNumber() / Chain.props.PROPOSER_COMMITTEE, 4)), 100), 0.01);
     if (block.number.gt(Netstat.blockTipNumber))
       Netstat.blockTipNumber = block.number;
     
@@ -71,7 +71,7 @@ export default function BlockPage() {
                 <Box ml="2">
                   <Link className="router-link" to={'/block/' + block.hash}>▒▒</Link>
                 </Box>
-                <Badge ml="2" color={block.priority > 0 ? (confidence > 50 ? 'red' : 'yellow') : 'green'}>{ 'Fork possibility < ' + confidence.toFixed(2) }%</Badge>
+                <Badge ml="2" color={block.priority > 0 ? (possibility > 50 ? 'red' : 'yellow') : 'green'}>{ 'Fork possibility < ' + possibility.toFixed(2) }%</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
