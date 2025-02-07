@@ -1,8 +1,9 @@
 import BigNumber from "bignumber.js";
 import { SafeStorage, Storage, StorageField } from "./storage";
-import { AssetId, ByteUtil, Chain, Hashing, Pubkey, Pubkeyhash, Seckey, Sighash, Signing, Uint256 } from "./tangent/algorithm";
-import { Ledger, Messages, States } from "./tangent/schema";
+import { AssetId, ByteUtil, Chain, Hashing, Pubkey, Pubkeyhash, Seckey, Recsighash, Signing, Uint256 } from "./tangent/algorithm";
+import { Ledger, Messages } from "./tangent/schema";
 import { SchemaUtil, Stream } from "./tangent/serialization";
+import { Types } from "./tangent/types";
 
 const DEFAULT_DISCOVERERS = ['nds.tanchain.org'];
 const DEFAULT_INTERFACES = ['127.0.0.1:18419'];
@@ -22,8 +23,13 @@ export type SummaryState = {
     addresses: Record<string, { asset: AssetId, index: BigNumber, aliases: string[] }>
     transactions: Record<string, { asset: AssetId, transactionId: string }[]>
   },
+  program: {
+    receipts: Record<string, { relativeGasUse: BigNumber, relativeGasPaid: BigNumber }>,
+    elections: Set<string>,
+  },
   contributions: Record<string, Record<string, { asset: AssetId, custody: BigNumber, coverage: BigNumber }>>,
   balances: Record<string, Record<string, { asset: AssetId, supply: BigNumber, reserve: BigNumber, balance: BigNumber }>>,
+  transactions: Record<string, boolean>,
   errors: string[]
 };
 
@@ -43,7 +49,7 @@ export type TransactionOutput = {
   hash: string,
   data: string,
   body: {
-    signature: Sighash,
+    signature: Recsighash,
     asset: AssetId,
     sequence: Uint256,
     conservative: boolean,
@@ -115,11 +121,7 @@ class Keychain {
     if (!result.secretKey)
         return null;
 
-    const publicKey = Signing.derivePublicKey(result.secretKey);
-    if (!publicKey)
-      return null;
-    
-    result.publicKey = Signing.deriveTweakedPublicKey(result.secretKey, publicKey);
+    result.publicKey = Signing.derivePublicKey(result.secretKey);
     if (!result.publicKey)
       return null;
 
@@ -350,7 +352,7 @@ export class Wallet {
     }
 
     const transaction = {
-      signature: new Sighash(),
+      signature: new Recsighash(),
       asset: props.asset,
       sequence: new Uint256(props.sequence.toString()),
       conservative: props.conservative || false,
@@ -361,7 +363,7 @@ export class Wallet {
     const stream = new Stream();
     SchemaUtil.store(stream, transaction, Messages.asSigningSchema(props.method.type));
 
-    const signature = Signing.signTweaked(stream.hash(), secretKey);
+    const signature = Signing.sign(stream.hash(), secretKey);
     if (!signature)
       throw new Error('Failed to sign a transaction');
 
@@ -865,8 +867,8 @@ export class Interface {
   static getBlockchains(): Promise<any[] | null> {
     return this.fetch('cache', 'getblockchains', []);
   }
-  static getBestAccountContributionsWithRewards(asset: AssetId, offset: number, count: number): Promise<any[] | null> {
-    return this.fetch('no-cache', 'getbestaccountcontributionswithrewards', [asset.handle, offset, count]);
+  static getBestAccountDepositoriesWithRewards(asset: AssetId, offset: number, count: number): Promise<any[] | null> {
+    return this.fetch('no-cache', 'getbestaccountdepositorieswithrewards', [asset.handle, offset, count]);
   }
   static getNextAccountSequence(address: string): Promise<{ min: BigNumber | string, max: BigNumber | string } | null> {
     return this.fetch('no-cache', 'getnextaccountsequence', [address]);
@@ -940,8 +942,13 @@ export class InterfaceUtil {
         addresses: { },
         transactions: { }
       },
+      program: {
+        receipts: { },
+        elections: new Set(),
+      },
       contributions: { },
       balances: { },
+      transactions: { },
       errors: []
     };
     if (!events || !Array.isArray(events))
@@ -956,7 +963,7 @@ export class InterfaceUtil {
           }
           break;
         }
-        case States.AccountBalance.type: {
+        case Types.AccountBalance: {
           if (event.args.length >= 4 && (event.args[0] instanceof BigNumber || typeof event.args[0] == 'string') && typeof event.args[1] == 'string' && typeof event.args[2] == 'string' && event.args[3] instanceof BigNumber) {
             const [assetId, from, to, value] = event.args;
             const fromAddress = Signing.encodeAddress(new Pubkeyhash(from)) || from;
@@ -1000,26 +1007,33 @@ export class InterfaceUtil {
           }
           break;
         }
-        case States.AccountContribution.type: {
-          if (event.args.length >= 4 && (event.args[0] instanceof BigNumber || typeof event.args[0] == 'string') && typeof event.args[1] == 'string' && event.args[2] instanceof BigNumber && event.args[3] instanceof BigNumber) {
-            const [assetId, owner, custody, coverage] = event.args;
-            const ownerAddress = Signing.encodeAddress(new Pubkeyhash(owner)) || owner;
+        case Types.AccountDepository: {
+          if (event.args.length >= 3 && (event.args[0] instanceof BigNumber || typeof event.args[0] == 'string') && typeof event.args[1] == 'string') {
+            const [assetId, owner] = event.args;
             const asset = new AssetId(assetId);
+            const ownerAddress = Signing.encodeAddress(new Pubkeyhash(owner)) || owner;
             if (!asset.handle)
               break;
             
-            if (!result.contributions[ownerAddress])
-              result.contributions[ownerAddress] = { };
-            if (!result.contributions[ownerAddress][asset.handle])
-              result.contributions[ownerAddress][asset.handle] = { asset: asset, custody: new BigNumber(0), coverage: new BigNumber(0) };
-
-            const ownerState = result.contributions[ownerAddress][asset.handle];
-            ownerState.custody = ownerState.custody.plus(custody);
-            ownerState.coverage = ownerState.coverage.plus(coverage);
+            if (event.args[2] instanceof BigNumber && (event.args.length < 4 || event.args[3] instanceof BigNumber)) {
+              const [custody, coverage] = event.args.slice(2);
+              if (!result.contributions[ownerAddress])
+                result.contributions[ownerAddress] = { };
+              if (!result.contributions[ownerAddress][asset.handle])
+                result.contributions[ownerAddress][asset.handle] = { asset: asset, custody: new BigNumber(0), coverage: new BigNumber(0) };
+  
+              const ownerState = result.contributions[ownerAddress][asset.handle];
+              ownerState.custody = ownerState.custody.plus(custody);
+              if (coverage != null)
+                ownerState.coverage = ownerState.coverage.plus(coverage);
+            } else if (event.args.length >= 4 && (event.args[2] instanceof BigNumber || typeof event.args[2] == 'string') && typeof event.args[3] == 'boolean') {
+              const [transactionHash, active] = event.args.slice(2);
+              result.transactions[transactionHash] = active;
+            }
           }
           break;
         }
-        case States.WitnessAddress.type: {
+        case Types.WitnessAddress: {
           if (event.args.length >= 2 && (event.args[0] instanceof BigNumber || typeof event.args[0] == 'string') && event.args[1] instanceof BigNumber) {
             const [assetId, addressIndex, addressAliases] = [event.args[0], event.args[1], event.args.slice(2)];
             const asset = new AssetId(assetId);
@@ -1038,7 +1052,7 @@ export class InterfaceUtil {
           }
           break;
         }
-        case States.WitnessTransaction.type: {
+        case Types.WitnessTransaction: {
           if (event.args.length == 2 && (event.args[0] instanceof BigNumber || typeof event.args[0] == 'string') && typeof event.args[1] == 'string') {
             const [assetId, transactionId] = event.args;
             const asset = new AssetId(assetId);
@@ -1049,6 +1063,24 @@ export class InterfaceUtil {
               result.witnesses.transactions[asset.handle].push({ asset: asset, transactionId: transactionId });
             else
               result.witnesses.transactions[asset.handle] = [{ asset: asset, transactionId: transactionId }];
+          }
+          break;
+        }
+        case Types.Rollup: {
+          if (event.args.length == 3 && (event.args[0] instanceof BigNumber || typeof event.args[0] == 'string') && (event.args[1] instanceof BigNumber || typeof event.args[1] == 'string') && (event.args[2] instanceof BigNumber || typeof event.args[2] == 'string')) {
+            const [transactionHash, relativeGasUse, relativeGasPaid] = event.args;
+            result.program.receipts[new Uint256(transactionHash.toString()).toHex()] = {
+              relativeGasUse: new BigNumber(relativeGasUse.toString()),
+              relativeGasPaid: new BigNumber(relativeGasPaid.toString())
+            };
+          }
+          break;
+        }
+        case Types.ContributionAllocation: {
+          if (event.args.length == 1 && typeof event.args[0] == 'string') {
+            const [proposer] = event.args;
+            const proposerAddress = Signing.encodeAddress(new Pubkeyhash(proposer)) || proposer;
+            result.program.elections.add(proposerAddress);
           }
           break;
         }

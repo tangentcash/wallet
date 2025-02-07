@@ -164,16 +164,10 @@ export default function RestorePage() {
         if (!key)
           return false;
 
-        if (Signing.verifySecretKey(key)) {
-          const result = Signing.encodeSecretKey(key);
-          if (result != null && result != importCandidate)
-            setImportCandidate(result);
-          return true;
-        }
-
-        AlertBox.open(AlertType.Error, 'Private key is not correct');
-        reportError();
-        return false;
+        const result = Signing.encodeSecretKey(key);
+        if (result != null && result != importCandidate)
+          setImportCandidate(result);
+        return true;
       }
       case WalletType.PublicKey: {
         Chain.props = Chain[networkType];

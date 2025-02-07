@@ -1,6 +1,6 @@
-import { AssetId, ByteUtil, Chain, Hashing, Pubkey, Pubkeyhash, Seckey, Sighash, Uint256 } from "./algorithm";
-import BigNumber from "bignumber.js";
+import { AssetId, ByteUtil, Chain, Hashing, Pubkey, Pubkeyhash, Seckey, Recsighash, Uint256 } from "./algorithm";
 import { TextUtil } from "./text";
+import BigNumber from "bignumber.js";
 
 BigNumber.config({ EXPONENTIAL_AT: 1e+9 });
 
@@ -421,9 +421,9 @@ export class SchemaUtil {
           stream.writeBoolean(value);
           break;
         }
-        case 'sighash': {
-          if (!(value instanceof Sighash))
-            throw new TypeError('field ' + field + ' is not of type sighash');
+        case 'recsighash': {
+          if (!(value instanceof Recsighash))
+            throw new TypeError('field ' + field + ' is not of type recsighash');
 
           stream.writeBinaryString(value.data);
           break;
@@ -472,7 +472,7 @@ export class SchemaUtil {
 
     object.version = this.VERSION;
     if (typeof schema.getType == 'function')
-      object.type = schema.getType();
+      object.type = Hashing.hash32(ByteUtil.byteStringToUint8Array(schema.getType()));
 
     for (let field in schema) {
       let type = schema[field];
@@ -524,10 +524,10 @@ export class SchemaUtil {
         case 'boolean':
           value = stream.readBoolean(subtype);
           break;
-        case 'sighash':
+        case 'recsighash':
           value = stream.readBinaryString(subtype);
           if (value != null)
-            value = new Sighash(value);
+            value = new Recsighash(value);
           break;
         case 'seckey':
           value = stream.readBinaryString(subtype);

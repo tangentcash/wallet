@@ -9,6 +9,10 @@ import { Readability } from "../core/text";
 import { Chain } from "../core/tangent/algorithm";
 import Icon from "@mdi/react";
 
+function lerp(a: number, b: number, t: number): number {
+  return a * (1 - t) + b * t;
+}
+
 export default function BlockPage() {
   const params = useParams();
   const [block, setBlock] = useState<any>(null);
@@ -49,7 +53,8 @@ export default function BlockPage() {
   if (block != null) {
     const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
     const time = block.approval_time.minus(block.proposal_time).toNumber();
-    const possibility = Math.max(Math.min(100 * (1.0 - Math.pow(1.0 - block.priority.toNumber() / Chain.props.PROPOSER_COMMITTEE, 4)), 100), 0.01);
+    const priority = block.priority.toNumber();
+    const possibility = 100 * Math.min(1, Math.max(0, (priority > 0 ? 0.4 : 0.0) + lerp(0.0, 0.5, priority / (Chain.props.PROPOSER_COMMITTEE - 1))));
     if (block.number.gt(Netstat.blockTipNumber))
       Netstat.blockTipNumber = block.number;
     
@@ -70,7 +75,7 @@ export default function BlockPage() {
                 <Box ml="2">
                   <Link className="router-link" to={'/block/' + block.hash}>▒▒</Link>
                 </Box>
-                <Badge ml="2" color={block.priority > 0 ? (possibility > 50 ? 'red' : 'yellow') : 'green'}>{ 'Fork possibility < ' + possibility.toFixed(2) }%</Badge>
+                <Badge ml="2" color={priority > 0 ? (possibility > 50 ? 'red' : 'yellow') : 'green'}>{ 'Fork possibility ≈ ' + possibility.toFixed(2) }%</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -100,7 +105,7 @@ export default function BlockPage() {
             <DataList.Item>
               <DataList.Label>Status:</DataList.Label>
               <DataList.Value>
-                <Badge color={block.recovery.gt(0) ? 'red' : 'gray'}>{ block.recovery.gt(0) ? 'Recovery' : 'Extension' }  in { Readability.toTimespan(time) }</Badge>
+                <Badge color={block.recovery.gt(0) ? 'red' : 'gray'}>{ block.recovery.gt(0) ? 'Recovery' : 'Extension' } in { Readability.toTimespan(time) }</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -139,7 +144,7 @@ export default function BlockPage() {
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Proposer priority:</DataList.Label>
-              <DataList.Value>Slot leader #{block.priority.toNumber() + 1}</DataList.Value>
+              <DataList.Value>Slot leader #{priority + 1}</DataList.Value>
             </DataList.Item>
             {
               Netstat.blockTipNumber != null &&
@@ -165,36 +170,36 @@ export default function BlockPage() {
               <DataList.Label>Transactions merkle root:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.transactions_root);
+                  navigator.clipboard.writeText(block.transaction_root);
                   AlertBox.open(AlertType.Info, 'Merkle root hash copied!')
-                }}>{ Readability.toHash(block.transactions_root) }</Button>
+                }}>{ Readability.toHash(block.transaction_root) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Receipts merkle root:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.receipts_root);
+                  navigator.clipboard.writeText(block.receipt_root);
                   AlertBox.open(AlertType.Info, 'Merkle root hash copied!')
-                }}>{ Readability.toHash(block.receipts_root) }</Button>
+                }}>{ Readability.toHash(block.receipt_root) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>States merkle root:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.states_root);
+                  navigator.clipboard.writeText(block.state_root);
                   AlertBox.open(AlertType.Info, 'Merkle root hash copied!')
-                }}>{ Readability.toHash(block.states_root) }</Button>
+                }}>{ Readability.toHash(block.state_root) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Transactions:</DataList.Label>
-              <DataList.Value>{ Readability.toCount('transaction', block.transactions_count) }</DataList.Value>
+              <DataList.Value>{ Readability.toCount('transaction', block.transaction_count) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>States:</DataList.Label>
-              <DataList.Value>{ Readability.toCount('state', block.states_count) } | { Readability.toCount('update', block.mutations_count) }</DataList.Value>
+              <DataList.Value>{ Readability.toCount('state', block.state_count) } | { Readability.toCount('update', block.mutation_count) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Proof difficulty:</DataList.Label>

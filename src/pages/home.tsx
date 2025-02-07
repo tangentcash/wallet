@@ -131,7 +131,7 @@ export default function HomePage() {
           </Dialog.Content>
         </Dialog.Root>
       </Flex>
-      <Account ownerAddress={ownerAddress} ref={account}></Account>
+      <Account ownerAddress={ownerAddress} owns={true} ref={account}></Account>
     </Box>
   );
 }

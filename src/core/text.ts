@@ -53,13 +53,19 @@ export class Readability {
       case 'omnitransfer':
         return 'Bulk transfer';
       case 'deployment':
-        return 'Contract creation';
+        return 'Contract deployment';
       case 'invocation':
         return 'Contract call';
       case 'withdrawal':
-        return 'Internal withdrawal';
+        return 'Withdrawal';
       case 'rollup':
         return 'Rollup';
+      case 'commitment':
+        return 'Validator activity';
+      case 'incoming_claim':
+        return 'Incoming transaction';
+      case 'outgoing_claim':
+        return 'Outgoing transaction';
       case 'address_account':
         return 'Address registration';
       case 'pubkey_account':
@@ -68,26 +74,22 @@ export class Readability {
         return 'Deposit wallet delegation';
       case 'custodian_account':
         return 'Deposit wallet creation';
-      case 'commitment':
-        return 'Validator activity';
-      case 'replay':
-        return 'Bridge withdrawal';
       case 'contribution_allocation':
-        return 'Coverage wallet election';
+        return 'Contribution allocation';
+      case 'contribution_selection':
+        return 'Contribution election';
       case 'contribution_activation':
-        return 'Coverage wallet creation';
+        return 'Contribution wallet creation';
       case 'contribution_deallocation':
-        return 'Coverage wallet dismission';
+        return 'Contribution deallocation';
+      case 'contribution_deselection':
+        return 'Contribution 1st disposal';
       case 'contribution_deactivation':
-        return 'Coverage wallet unlock';
-      case 'contribution_adjustment':
-        return 'Fee policy activity';
-      case 'contribution_allowance':
-        return 'Coverage policy activity';
-      case 'contribution_migration':
-        return 'Custody migration';
-      case 'claim':
-        return 'Bridging transaction';
+        return 'Contribution 2nd disposal';
+      case 'depository_adjustment':
+        return 'Custodial policy activity';
+      case 'depository_migration':
+        return 'Custodial funds migration';
       default:
         return 'Non-standard';
     }

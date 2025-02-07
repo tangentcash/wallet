@@ -54,7 +54,7 @@ export default function BridgePage() {
       if (asset == -1)
         return null;
 
-      const data = await Interface.getBestAccountContributionsWithRewards(new AssetId(assets[asset].id), refresh ? 0 : candidateBridges.length, BRIDGE_COUNT);
+      const data = await Interface.getBestAccountDepositoriesWithRewards(new AssetId(assets[asset].id), refresh ? 0 : candidateBridges.length, BRIDGE_COUNT);
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setCandidateBridges([]);
@@ -226,7 +226,7 @@ export default function BridgePage() {
                   <Select.Item value="-1" disabled={true}>Select blockchain</Select.Item>
                   {
                     assets.map((item, index) =>
-                      <Select.Item key={item.hash + '_select'} value={index.toString()}>
+                      <Select.Item key={item.id + '_select'} value={index.toString()}>
                         <Flex align="center" gap="1">
                           <Avatar mr="1" size="1" radius="full" fallback={(item.token || item.chain)[0]} src={'/cryptocurrency/' + (item.token || item.chain).toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
                           <Text size="2" weight="light">{Readability.toAssetName(item)}</Text>

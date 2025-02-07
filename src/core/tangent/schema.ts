@@ -5,7 +5,7 @@ export namespace Messages {
   }
 
   export class Authentic extends Generic {
-    signature: string = 'sighash';
+    signature: string = 'recsighash';
   }
   
   export function asSigningSchema(schema: any): any {
@@ -29,85 +29,85 @@ export namespace Ledger {
 
 export namespace States {
   export class AccountBalance {
-    static type: number = 8;
+    static typename: string = 'account_balance';
   }
 
-  export class AccountContribution {
-    static type: number = 9;
+  export class AccountDepository {
+    static typename: string = 'account_depository';
   }
 
   export class WitnessAddress {
-    static type: number = 12;
+    static typename: string = 'witness_address';
   }
 
   export class WitnessTransaction {
-    static type: number = 13;
+    static typename: string = 'witness_transaction';
   }
 }
 
 export namespace Transactions {
   export class Transfer extends Ledger.Transaction {
-    static __type__: number = 14;
+    static typename: string = 'transfer';
     memo: string = 'string';
     value: string = 'decimal';
     to: string = 'pubkeyhash';
 
-    getType() { return Transfer.__type__; }
+    getType() { return Transfer.typename; }
   }
 
   export class Omnitransfer extends Ledger.Transaction {
-    static __type__: number = 15;
+    static typename: string = 'omnitransfer';
     to: string[] = [
       'memo', 'uint32',
       'value', 'decimal',
       'to', 'pubkeyhash'
     ];
 
-    getType() { return Omnitransfer.__type__; }
+    getType() { return Omnitransfer.typename; }
   }
 
   export class Withdrawal extends Ledger.Transaction {
-    static __type__: number = 18;
+    static typename: string = 'withdrawal';
     proposer: string = 'pubkeyhash';
     to: string[] = [
       'to', 'string',
       'value', 'decimal'
     ];
 
-    getType() { return Withdrawal.__type__; }
+    getType() { return Withdrawal.typename; }
   }
 
   export class Rollup extends Ledger.Transaction {
-    static __type__: number = 19;
+    static typename: string = 'rollup';
 
-    getType() { return Rollup.__type__; }
+    getType() { return Rollup.typename; }
   }
 
   export class AddressAccount extends Ledger.Transaction {
-    static __type__: number = 23;
+    static typename: string = 'address_account';
     address: string = 'string';
 
-    getType() { return AddressAccount.__type__; }
+    getType() { return AddressAccount.typename; }
   }
 
   export class PubkeyAccount extends Ledger.Transaction {
-    static __type__: number = 24;
+    static typename: string = 'pubkey_account';
     pubkey: string = 'string';
     sighash: string = 'string';
 
-    getType() { return PubkeyAccount.__type__; }
+    getType() { return PubkeyAccount.typename; }
   }
 
   export class DelegationAccount extends Ledger.Transaction {
-    static __type__: number = 25;
+    static typename: string = 'delegation_account';
     proposer: string = 'pubkeyhash';
 
-    getType() { return DelegationAccount.__type__; }
+    getType() { return DelegationAccount.typename; }
   }
 
   export class ContributionAllocation extends Ledger.Transaction {
-    static __type__: number = 27;
+    static typename: string = 'contribution_allocation';
 
-    getType() { return ContributionAllocation.__type__; }
+    getType() { return ContributionAllocation.typename; }
   }
 }

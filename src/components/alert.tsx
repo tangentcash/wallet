@@ -18,7 +18,7 @@ export enum AlertStatus {
 }
 
 export class AlertBox {
-  static alerts: { id: number, status: AlertStatus, type: AlertType, message: string, timeout: number }[] = [];
+  static alerts: { id: number, status: AlertStatus, type: AlertType, message: string, timeout: any }[] = [];
   static counter: number = 0;
   static notify: (() => void) | null = null;
 

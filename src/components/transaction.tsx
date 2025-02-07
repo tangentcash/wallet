@@ -2,13 +2,13 @@ import { Avatar, Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Spinner
 import { Readability } from "../core/text";
 import { Interface, Netstat, SummaryState } from "../core/wallet";
 import { AlertBox, AlertType } from "./alert";
-import { States, Transactions } from "../core/tangent/schema";
 import { AssetId, Pubkeyhash, Signing } from "../core/tangent/algorithm";
 import { TextUtil } from "../core/tangent/text";
 import { Link } from "react-router";
+import { useState } from "react";
+import { Types } from "../core/tangent/types";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
-import { useState } from "react";
 
 function parameterToString(event: any): string {
   if (typeof event == 'object' || Array.isArray(event)) {
@@ -228,6 +228,132 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
           </Card>
         </Box>
       )
+    case 'commitment':
+      return (
+        <DataList.Root orientation={props.orientation}>
+          <DataList.Item>
+            <DataList.Label>Validator status:</DataList.Label>
+            <DataList.Value>
+              <Badge color={ transaction.online == 1 ? 'green' : (transaction.online == -1 ? 'gray' : 'red') }>{ transaction.online == 1 ? 'Online' : (transaction.online == -1 ? 'Standby' : 'Offline') }</Badge>
+            </DataList.Value>
+          </DataList.Item>
+          {
+            transaction.observers.map((observer: any) => 
+              <DataList.Item key={observer.asset.chain}>
+                <DataList.Label>{ observer.asset.chain } observer status:</DataList.Label>
+                <DataList.Value>
+                  <Badge color={ observer.online ? 'green' : 'red' }>{ observer.online ? 'Online' : 'Offline' }</Badge>
+                </DataList.Value>
+              </DataList.Item>
+            )
+          }
+        </DataList.Root>
+      )
+    case 'incoming_claim':
+      return (
+        <>
+          <DataList.Root orientation={props.orientation} mb="4">
+            <DataList.Item>
+              <DataList.Label>Transaction id:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(transaction.assertion.transaction_id);
+                  AlertBox.open(AlertType.Info, 'Transaction id copied!')
+                }}>{ Readability.toHash(transaction.assertion.transaction_id) }</Button>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Block id:</DataList.Label>
+              <DataList.Value>{ transaction.assertion.block_id?.toString() || 'none' }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Fee paid:</DataList.Label>
+              <DataList.Value>{ Readability.toMoney(transaction.assertion.asset, transaction.assertion.fee) }</DataList.Value>
+            </DataList.Item>
+          </DataList.Root>
+          {
+            transaction.assertion.from.map((item: any, index: number) =>
+              <Card key={item.address + index} mb="4">
+                <DataList.Root orientation={props.orientation}>
+                  <DataList.Item>
+                    <DataList.Label>From address:</DataList.Label>
+                    <DataList.Value>
+                      <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                        navigator.clipboard.writeText(item.address);
+                        AlertBox.open(AlertType.Info, 'Address copied!')
+                      }}>{ Readability.toAddress(item.address) } — { Readability.toAddressIndex(item.address_index) }</Button>
+                    </DataList.Value>
+                  </DataList.Item>
+                  <DataList.Item>
+                    <DataList.Label>Value paid:</DataList.Label>
+                    <DataList.Value>{ Readability.toMoney(transaction.asset, item.value) }</DataList.Value>
+                  </DataList.Item>
+                </DataList.Root>
+              </Card>
+            )
+          }
+          {
+            transaction.assertion.to.map((item: any, index: number) =>
+              <Card key={item.address + index} mb={index == transaction.assertion.to.length - 1 ? '0' : '4'}>
+                <DataList.Root orientation={props.orientation}>
+                  <DataList.Item>
+                    <DataList.Label>To address:</DataList.Label>
+                    <DataList.Value>
+                      <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                        navigator.clipboard.writeText(item.address);
+                        AlertBox.open(AlertType.Info, 'Address copied!')
+                      }}>{ Readability.toAddress(item.address) } — { Readability.toAddressIndex(item.address_index) }</Button>
+                    </DataList.Value>
+                  </DataList.Item>
+                  <DataList.Item>
+                    <DataList.Label>Value received:</DataList.Label>
+                    <DataList.Value>{ Readability.toMoney(transaction.asset, item.value) }</DataList.Value>
+                  </DataList.Item>
+                </DataList.Root>
+              </Card>
+            )
+          }
+        </>
+      )
+    case 'outgoing_claim':
+      return (
+        <DataList.Root orientation={props.orientation}>
+          <DataList.Item>
+            <DataList.Label>Initiator transaction hash:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.transaction_hash);
+                AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+              }}>{ Readability.toHash(transaction.transaction_hash) }</Button>
+              <Box ml="2">
+                <Link className="router-link" to={'/transaction/' + transaction.transaction_hash}>▒▒</Link>
+              </Box>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>Replay transaction id:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.transaction_id);
+                AlertBox.open(AlertType.Info, 'Transaction id copied!')
+              }}>{ Readability.toHash(transaction.transaction_id) }</Button>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>Replay transaction data:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.transaction_data);
+                AlertBox.open(AlertType.Info, 'Transaction data copied!')
+              }}>{ Readability.toHash(transaction.transaction_data) }</Button>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>Replay transaction message:</DataList.Label>
+            <DataList.Value>{ transaction.transaction_message || 'none' }</DataList.Value>
+          </DataList.Item>
+        </DataList.Root>
+      )
     case 'address_account':
       return (
         <DataList.Root orientation={props.orientation}>
@@ -344,94 +470,15 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
           </DataList.Item>
         </DataList.Root>
       )
-    case 'commitment':
-      return (
-        <DataList.Root orientation={props.orientation}>
-          <DataList.Item>
-            <DataList.Label>Validator status:</DataList.Label>
-            <DataList.Value>
-              <Badge color={ transaction.status == 1 ? 'green' : (transaction.status == -1 ? 'red' : 'gray') }>{ transaction.status == 1 ? 'Online' : (transaction.status == -1 ? 'Offline' : 'Standby') }</Badge>
-            </DataList.Value>
-          </DataList.Item>
-          {
-            transaction.observers.map((observer: any) => 
-              <DataList.Item key={observer.asset.chain}>
-                <DataList.Label>{ observer.asset.chain } observer status:</DataList.Label>
-                <DataList.Value>
-                  <Badge color={ observer.status == 1 ? 'green' : (observer.status == -1 ? 'red' : 'gray') }>{ observer.status == 1 ? 'Online' : (observer.status == -1 ? 'Offline' : 'Standby') }</Badge>
-                </DataList.Value>
-              </DataList.Item>
-            )
-          }
-        </DataList.Root>
-      )
-    case 'replay':
-      return (
-        <DataList.Root orientation={props.orientation}>
-          <DataList.Item>
-            <DataList.Label>Initiator transaction hash:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.transaction_hash);
-                AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.transaction_hash) }</Button>
-              <Box ml="2">
-                <Link className="router-link" to={'/transaction/' + transaction.transaction_hash}>▒▒</Link>
-              </Box>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Replay transaction id:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.transaction_id);
-                AlertBox.open(AlertType.Info, 'Transaction id copied!')
-              }}>{ Readability.toHash(transaction.transaction_id) }</Button>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Replay transaction data:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.transaction_data);
-                AlertBox.open(AlertType.Info, 'Transaction data copied!')
-              }}>{ Readability.toHash(transaction.transaction_data) }</Button>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Replay transaction message:</DataList.Label>
-            <DataList.Value>{ transaction.transaction_message || 'none' }</DataList.Value>
-          </DataList.Item>
-        </DataList.Root>
-      )
     case 'contribution_allocation':
       return (
-        <DataList.Root orientation={props.orientation}>
-          <DataList.Item>
-            <DataList.Label>1st public key:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.public_key_1);
-                AlertBox.open(AlertType.Info, 'Key copied!')
-              }}>{ Readability.toHash(transaction.public_key_1) }</Button>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>1st private key:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.encrypted_private_key_1_for_1);
-                AlertBox.open(AlertType.Info, 'Key copied!')
-              }}>{ Readability.toHash(transaction.encrypted_private_key_1_for_1) } (encrypted)</Button>
-            </DataList.Value>
-          </DataList.Item>
-        </DataList.Root>
+        <Text size="1" color="gray">No additional contract fields</Text>
       )
-    case 'contribution_activation':
+    case 'contribution_selection':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
-            <DataList.Label>Initiator transaction hash:</DataList.Label>
+            <DataList.Label>Parent transaction hash:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.contribution_allocation_hash);
@@ -443,6 +490,50 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
+            <DataList.Label>Proposer:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.proposer);
+                AlertBox.open(AlertType.Info, 'Address copied!')
+              }}>{ Readability.toAddress(transaction.proposer) }</Button>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>1st public key:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.public_key_1);
+                AlertBox.open(AlertType.Info, 'Key copied!')
+              }}>{ Readability.toHash(transaction.public_key_1) }</Button>
+            </DataList.Value>
+          </DataList.Item>
+        </DataList.Root>
+      )
+    case 'contribution_activation':
+      return (
+        <DataList.Root orientation={props.orientation}>
+          <DataList.Item>
+            <DataList.Label>Parent transaction hash:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.contribution_selection_hash);
+                AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+              }}>{ Readability.toHash(transaction.contribution_selection_hash) }</Button>
+              <Box ml="2">
+                <Link className="router-link" to={'/transaction/' + transaction.contribution_selection_hash}>▒▒</Link>
+              </Box>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>Proposer:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.proposer);
+                AlertBox.open(AlertType.Info, 'Address copied!')
+              }}>{ Readability.toAddress(transaction.proposer) }</Button>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
             <DataList.Label>2nd public key:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
@@ -451,22 +542,13 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               }}>{ Readability.toHash(transaction.public_key_2) }</Button>
             </DataList.Value>
           </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>2nd private key:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.encrypted_private_key_2_for_2);
-                AlertBox.open(AlertType.Info, 'Key copied!')
-              }}>{ Readability.toHash(transaction.encrypted_private_key_2_for_2) } (encrypted)</Button>
-            </DataList.Value>
-          </DataList.Item>
           {
-            transaction.contribution_wallet &&
+            transaction.verifying_wallet &&
             <>
               {
-                transaction.contribution_wallet.addresses.map((item: any, index: number) =>
+                transaction.verifying_wallet.addresses.map((item: any, index: number) =>
                   <DataList.Item key={item} style={{ marginTop: index == 0 ? '6px' : '0' }}>
-                    <DataList.Label>Contribution address v{transaction.contribution_wallet.addresses.length - index}:</DataList.Label>
+                    <DataList.Label>Contribution address v{transaction.verifying_wallet.addresses.length - index}:</DataList.Label>
                     <DataList.Value>
                       <Button size="2" variant="ghost" color="indigo" onClick={() => {
                         navigator.clipboard.writeText(item);
@@ -478,15 +560,15 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               }
               <DataList.Item>
                 <DataList.Label>Contribution address index:</DataList.Label>
-                <DataList.Value>{ Readability.toAddressIndex(transaction.contribution_wallet.address_index) }</DataList.Value>
+                <DataList.Value>{ Readability.toAddressIndex(transaction.verifying_wallet.address_index) }</DataList.Value>
               </DataList.Item>
               <DataList.Item>
                 <DataList.Label>Contribution verifying key:</DataList.Label>
                 <DataList.Value>
-                  <Button size="2" variant="ghost" color="indigo" disabled={!transaction.contribution_wallet.verifying_key} onClick={() => {
-                    navigator.clipboard.writeText(transaction.contribution_wallet.verifying_key || 'none');
+                  <Button size="2" variant="ghost" color="indigo" disabled={!transaction.verifying_wallet.verifying_key} onClick={() => {
+                    navigator.clipboard.writeText(transaction.verifying_wallet.verifying_key || 'none');
                     AlertBox.open(AlertType.Info, 'Address copied!')
-                  }}>{ Readability.toHash(transaction.contribution_wallet.verifying_key) }</Button>
+                  }}>{ Readability.toHash(transaction.verifying_wallet.verifying_key) }</Button>
                 </DataList.Value>
               </DataList.Item>
             </>
@@ -497,7 +579,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
-            <DataList.Label>Initiator transaction hash:</DataList.Label>
+            <DataList.Label>Parent transaction hash:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.contribution_activation_hash);
@@ -510,11 +592,11 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
           </DataList.Item>
         </DataList.Root>
       )
-    case 'contribution_deactivation':
+    case 'contribution_deselection':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
-            <DataList.Label>Initiator transaction hash:</DataList.Label>
+            <DataList.Label>Parent transaction hash:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.contribution_deallocation_hash);
@@ -526,17 +608,43 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>2nd private key for 1st:</DataList.Label>
+            <DataList.Label>1st private key:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.encrypted_private_key_2_for_1);
+                navigator.clipboard.writeText(transaction.encrypted_secret_key_1);
                 AlertBox.open(AlertType.Info, 'Key copied!')
-              }}>{ Readability.toHash(transaction.encrypted_private_key_2_for_1) } (encrypted)</Button>
+              }}>{ Readability.toHash(transaction.encrypted_secret_key_1) } (encrypted)</Button>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
       )
-    case 'contribution_adjustment':
+    case 'contribution_deactivation':
+      return (
+        <DataList.Root orientation={props.orientation}>
+          <DataList.Item>
+            <DataList.Label>Parent transaction hash:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.contribution_deselection_hash);
+                AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+              }}>{ Readability.toHash(transaction.contribution_deselection_hash) }</Button>
+              <Box ml="2">
+                <Link className="router-link" to={'/transaction/' + transaction.contribution_deselection_hash}>▒▒</Link>
+              </Box>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>2nd private key:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.encrypted_secret_key_2);
+                AlertBox.open(AlertType.Info, 'Key copied!')
+              }}>{ Readability.toHash(transaction.encrypted_secret_key_2) } (encrypted)</Button>
+            </DataList.Value>
+          </DataList.Item>
+        </DataList.Root>
+      )
+    case 'depository_adjustment':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
@@ -549,31 +657,7 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
           </DataList.Item>
         </DataList.Root>
       )
-    case 'contribution_allowance':
-      return (
-        <DataList.Root orientation={props.orientation}>
-          <DataList.Item>
-            <DataList.Label>To account:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" disabled={transaction.to == null} onClick={() => {
-                navigator.clipboard.writeText(transaction.to);
-                AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ Readability.toAddress(transaction.to) }</Button>
-              {
-                transaction.to != null &&
-                <Box ml="2">
-                  <Link className="router-link" to={'/account/' + transaction.to}>▒▒</Link>
-                </Box>
-              }
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Threshold:</DataList.Label>
-            <DataList.Value>{ (Math.max(0, transaction.threshold.toNumber()) * 100).toFixed() }{ transaction.threshold.lte(0) ? ' | No threshold required' : '' }</DataList.Value>
-          </DataList.Item>
-        </DataList.Root>
-      )
-    case 'contribution_migration':
+    case 'depository_migration':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
@@ -593,72 +677,6 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
             <DataList.Value>{ Readability.toMoney(transaction.asset, transaction.value) }</DataList.Value>
           </DataList.Item>
         </DataList.Root>
-      )
-    case 'claim':
-      return (
-        <>
-          <DataList.Root orientation={props.orientation} mb="4">
-            <DataList.Item>
-              <DataList.Label>Transaction id:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(transaction.assertion.transaction_id);
-                  AlertBox.open(AlertType.Info, 'Transaction id copied!')
-                }}>{ Readability.toHash(transaction.assertion.transaction_id) }</Button>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Block id:</DataList.Label>
-              <DataList.Value>{ transaction.assertion.block_id?.toString() || 'none' }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Fee paid:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(transaction.assertion.asset, transaction.assertion.fee) }</DataList.Value>
-            </DataList.Item>
-          </DataList.Root>
-          {
-            transaction.assertion.from.map((item: any, index: number) =>
-              <Card key={item.address + index} mb="4">
-                <DataList.Root orientation={props.orientation}>
-                  <DataList.Item>
-                    <DataList.Label>From address:</DataList.Label>
-                    <DataList.Value>
-                      <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                        navigator.clipboard.writeText(item.address);
-                        AlertBox.open(AlertType.Info, 'Address copied!')
-                      }}>{ Readability.toAddress(item.address) } — { Readability.toAddressIndex(item.address_index) }</Button>
-                    </DataList.Value>
-                  </DataList.Item>
-                  <DataList.Item>
-                    <DataList.Label>Value paid:</DataList.Label>
-                    <DataList.Value>{ Readability.toMoney(transaction.asset, item.value) }</DataList.Value>
-                  </DataList.Item>
-                </DataList.Root>
-              </Card>
-            )
-          }
-          {
-            transaction.assertion.to.map((item: any, index: number) =>
-              <Card key={item.address + index} mb={index == transaction.assertion.to.length - 1 ? '0' : '4'}>
-                <DataList.Root orientation={props.orientation}>
-                  <DataList.Item>
-                    <DataList.Label>To address:</DataList.Label>
-                    <DataList.Value>
-                      <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                        navigator.clipboard.writeText(item.address);
-                        AlertBox.open(AlertType.Info, 'Address copied!')
-                      }}>{ Readability.toAddress(item.address) } — { Readability.toAddressIndex(item.address_index) }</Button>
-                    </DataList.Value>
-                  </DataList.Item>
-                  <DataList.Item>
-                    <DataList.Label>Value received:</DataList.Label>
-                    <DataList.Value>{ Readability.toMoney(transaction.asset, item.value) }</DataList.Value>
-                  </DataList.Item>
-                </DataList.Root>
-              </Card>
-            )
-          }
-        </>
       )
     default:
       return <Text size="1" color="gray">No additional contract fields</Text>
@@ -685,7 +703,7 @@ function EventField(props: { orientation: 'horizontal' | 'vertical', event: any 
         </Card>
       )
     }
-    case States.AccountBalance.type: {
+    case Types.AccountBalance: {
       if (data.args.length >= 4 && (data.args[0] instanceof BigNumber || typeof data.args[0] == 'string') && typeof data.args[1] == 'string' && typeof data.args[2] == 'string' && data.args[3] instanceof BigNumber) {
         const [assetId, from, to, value] = data.args;
         const fromAddress = Signing.encodeAddress(new Pubkeyhash(from)) || from;
@@ -776,7 +794,7 @@ function EventField(props: { orientation: 'horizontal' | 'vertical', event: any 
       }
       break;
     }
-    case States.AccountContribution.type: {
+    case Types.AccountDepository: {
       if (data.args.length >= 4 && (data.args[0] instanceof BigNumber || typeof data.args[0] == 'string') && typeof data.args[1] == 'string' && data.args[2] instanceof BigNumber && data.args[3] instanceof BigNumber) {
         const [assetId, owner, custody, coverage] = data.args;
         const ownerAddress = Signing.encodeAddress(new Pubkeyhash(owner)) || owner;
@@ -819,7 +837,7 @@ function EventField(props: { orientation: 'horizontal' | 'vertical', event: any 
       }
       break;
     }
-    case States.WitnessAddress.type: {
+    case Types.WitnessAddress: {
       if (data.args.length >= 2 && (data.args[0] instanceof BigNumber || typeof data.args[0] == 'string') && data.args[1] instanceof BigNumber) {
         const [assetId, addressIndex, addressAliases] = [data.args[0], data.args[1], data.args.slice(2)];
         const asset = new AssetId(assetId);
@@ -858,7 +876,7 @@ function EventField(props: { orientation: 'horizontal' | 'vertical', event: any 
       }
       break;
     }
-    case States.WitnessTransaction.type: {
+    case Types.WitnessTransaction: {
       if (data.args.length == 2 && (data.args[0] instanceof BigNumber || typeof data.args[0] == 'string') && typeof data.args[1] == 'string') {
         const [assetId, transactionId] = data.args;
         const asset = new AssetId(assetId);
@@ -893,7 +911,7 @@ function EventField(props: { orientation: 'horizontal' | 'vertical', event: any 
       }
       break;
     }
-    case Transactions.Rollup.__type__: {
+    case Types.Rollup: {
       if (data.args.length == 3 && typeof data.args[0] == 'string' && data.args[1] instanceof BigNumber && data.args[2] instanceof BigNumber) {
         const [transactionHash, relativeGasUse, relativeGasPaid] = data.args;
         return (
@@ -931,7 +949,7 @@ function EventField(props: { orientation: 'horizontal' | 'vertical', event: any 
       }
       break;
     }
-    case Transactions.ContributionAllocation.__type__: {
+    case Types.ContributionAllocation: {
       if (data.args.length == 1 && typeof data.args[0] == 'string') {
         const [owner] = data.args;
         const ownerAddress = Signing.encodeAddress(new Pubkeyhash(owner)) || owner;
@@ -1022,10 +1040,8 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               state != null &&
               <Flex gap="2" wrap="wrap">
                 {
-                  Object.keys(state.witnesses.addresses).map((asset) => {
-                    const aliases = state.witnesses.addresses[asset].aliases;
-                    return aliases.map((alias) => <Badge key={alias} size="1" radius="medium" color="green">+{ Readability.toAddress(alias) }</Badge>)
-                  })
+                  state.errors.length > 0 &&
+                  <Badge size="1" radius="medium" color="red">{ Readability.toCount('execution error', state.errors.length) }</Badge>
                 }
                 {
                   state.balances[ownerAddress] && Object.keys(state.balances[ownerAddress]).map((asset) => {
@@ -1036,7 +1052,39 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   })
                 }
                 {
-                  !state.balances[ownerAddress] && !Object.keys(state.witnesses.addresses).length &&
+                  Object.keys(state.transactions).map((hash) => {
+                    const pending = state.transactions[hash];
+                    return <Badge key={hash} size="1" radius="medium" color={pending ? 'jade' : 'tomato'}>{ pending ? '+' : '-' }{ Readability.toAddress(hash) }</Badge>
+                  })
+                }
+                {
+                  Object.keys(state.witnesses.transactions).map((asset) => {
+                    const transactions = state.witnesses.transactions[asset];
+                    return transactions.map((tx) => <Badge key={tx.asset.toHex() + tx.transactionId} size="1" radius="medium" color="gold">&{ Readability.toAddress(tx.transactionId) }</Badge>)
+                  })
+                }
+                {
+                  Object.keys(state.witnesses.addresses).map((asset) => {
+                    const aliases = state.witnesses.addresses[asset].aliases;
+                    return aliases.map((alias) => <Badge key={alias} size="1" radius="medium" color="green">+{ Readability.toAddress(alias) }</Badge>)
+                  })
+                }
+                {
+                  Object.keys(state.program.receipts).length > 0 &&
+                  <Badge size="1" radius="medium" color="gold">{ Readability.toCount('receipt', Object.keys(state.program.receipts).length) }</Badge>
+                }
+                {
+                  state.program.elections.size > 0 &&
+                  <Badge size="1" radius="medium" color="green">{ Readability.toCount('election', state.program.elections.size) }</Badge>
+                }
+                {
+                  !state.errors.length &&
+                  !state.balances[ownerAddress] &&
+                  !Object.keys(state.transactions).length &&
+                  !Object.keys(state.witnesses.addresses).length &&
+                  !Object.keys(state.witnesses.transactions).length &&
+                  !Object.keys(state.program.receipts).length &&
+                  !state.program.elections.size &&
                   <Badge size="1" radius="medium" color="gray">Eventless program interaction</Badge>
                 }
               </Flex>

@@ -1,9 +1,9 @@
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
-import { AspectRatio, Avatar, Badge, Box, Callout, Card, Flex, Heading, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, DropdownMenu, Flex, Heading, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { Interface, InterfaceUtil, SummaryState } from "../core/wallet";
 import { useEffectAsync } from "../core/extensions/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowRightBoldHexagonOutline, mdiCubeOutline, mdiFormatListText, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan } from "@mdi/js";
+import { mdiAlphaEBox, mdiArrowRightBoldHexagonOutline, mdiCubeOutline, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan } from "@mdi/js";
 import { Readability } from "../core/text";
 import { AssetId } from "../core/tangent/algorithm";
 import InfiniteScroll from 'react-infinite-scroll-component';
@@ -20,14 +20,14 @@ function toAddressType(type: string): string {
     case 'contribution':
       return 'For contribution';
     case 'witness':
-      return 'Dismissed';
+      return 'Witness - dismissed';
     default:
       return 'Unknown';
   }
 }
 
 const TRANSACTION_COUNT = 48;
-const Account = forwardRef((props: { ownerAddress: string }, ref) => {
+const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref) => {
   const ownerAddress = props.ownerAddress;
   const [loading, setLoading] = useState(true);
   const [assets, setAssets] = useState<any[]>([]);
@@ -41,6 +41,9 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
   const [mempoolTransactions, setMempoolTransactions] = useState<any[]>([]);
   const [moreTransactions, setMoreTransactions] = useState(true);
   const addressPurpose = useCallback((address: any) => {
+    if (!address)
+      return <>None</>;
+
     const ownerType = address.owner == ownerAddress ? ' (this account)' : '';
     const proposerType = address.proposer == ownerAddress ? ' (this account)' : ' (validator)';
     if (address.purpose == 'witness' && address.proposer == address.owner)
@@ -66,7 +69,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
       }
 
       const candidateTransactions = data.map((value) => { return { ...value, state: InterfaceUtil.calculateSummaryState(value?.receipt?.events) } });
-      setTransactions(refresh ? candidateTransactions : candidateTransactions.concat(transactions));
+      setTransactions(refresh ? candidateTransactions : transactions.concat(candidateTransactions));
       setMoreTransactions(candidateTransactions.length >= TRANSACTION_COUNT);
       return candidateTransactions.length > 0;
     } catch (exception) {
@@ -98,7 +101,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
             assetData = assetData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
             assetData = assetData.filter((item) => item.balance?.gt(0) || item.reserve?.gt(0) || item.supply?.gt(0));
             setAssets(assetData);
-            if (!assetData.length)
+            if (props.owns && !assetData.length)
               setControl('address');
           }
         } catch (exception) {
@@ -173,8 +176,8 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
               }}>
               {
                 !assets.length &&
-                <Flex justify="between" align="center">
-                  <Icon path={mdiFormatListText} size={1} style={{ color: 'var(--gray-11)' }} />
+                <Flex justify="between" align="center" py="2" px="2">
+                  <Icon path={mdiAlphaEBox} size={1.5} style={{ color: 'var(--gray-11)' }} />
                   <Text size="3" color="gray" ml="2" my="2" as="div" align="right">Zero balance</Text>
                 </Flex>
               }
@@ -229,7 +232,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                 }}>
                 <Box px="2" py="2">
                   <Flex justify="center" mb="4">
-                    <Heading size="4" align="center">QR code of a { selectedAddress == -1 ? 'Tangent' : Readability.toAssetName(addresses[selectedAddress].asset) } address</Heading>
+                    <Heading size="4" align="center">{ selectedAddress == -1 ? 'Tangent' : Readability.toAssetName(addresses[selectedAddress].asset) } address QR code</Heading>
                   </Flex>
                   <Flex justify="center" width="100%">
                     <Box width="80%" maxWidth="280px" px="3" py="3" style={{ borderRadius: '16px', backgroundColor: 'white' }}>
@@ -241,7 +244,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                   {
                     selectedAddress != -1 &&
                     <Flex justify="center" mt="2">
-                      <Text size="2" align="center" color="gray" style={{ textTransform: 'uppercase' }}>{ toAddressType(addresses[selectedAddress].purpose) }</Text>
+                      <Badge size="3" color={addresses[selectedAddress].purpose != 'witness' ? 'orange' : 'red'} radius="medium" style={{ textTransform: 'uppercase' }}>{ toAddressType(addresses[selectedAddress].purpose) }</Badge>
                     </Flex>
                   }
                   <Box width="100%" mt="6">
@@ -329,7 +332,38 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                 borderRadius: '28px'
               }}>
               <Box position="absolute" top="14px" right="14px">
-                <Badge size="2" color={work ? (work.online ? 'jade' : 'red') : 'orange'}>{ work ? (work.online ? 'ONLINE' : 'OFFLINE') : 'STANDBY' }</Badge>
+                {
+                  props.owns &&
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger>
+                      <Button variant="ghost" color={work ? (work.online ? 'jade' : 'red') : 'orange'}>
+                        <Badge size="2" color={work ? (work.online ? 'jade' : 'red') : 'orange'}>VALIDATOR { work ? (work.online ? 'ONLINE' : 'OFFLINE') : 'STANDBY' }</Badge>
+                      </Button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content side="left">
+                      <Tooltip content="Change validator and/or observer status(-es)">
+                        <DropdownMenu.Item shortcut="⟳ ₿" color={ work && work.online ? 'red' : undefined }>{ work && work.online ? 'Disable' : 'Enable' } validator</DropdownMenu.Item>
+                      </Tooltip>
+                      <DropdownMenu.Separator />
+                      <Tooltip content="Configure fee policy for a bridge">
+                        <DropdownMenu.Item shortcut="⇌ ₿">Configure bridge</DropdownMenu.Item>
+                      </Tooltip>
+                      <Tooltip content="Migrate bridge's custodial funds to another bridge for deallocation">
+                        <DropdownMenu.Item shortcut="→ ₿" color="red">Migrate bridge</DropdownMenu.Item>
+                      </Tooltip>
+                      <DropdownMenu.Separator />
+                      <Tooltip content="Contribute to a bridge by locking coverage funds">
+                        <DropdownMenu.Item shortcut="↘ ₿">Lock bridge contribution</DropdownMenu.Item>
+                      </Tooltip>
+                      <Tooltip content="Deallocate bridge and unlock contributed coverage funds">
+                        <DropdownMenu.Item shortcut="↖ ₿" color="red">Unlock bridge contribution</DropdownMenu.Item>
+                      </Tooltip>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
+                }
+                {
+                  !props.owns && <Badge size="2" color={work ? (work.online ? 'jade' : 'red') : 'orange'}>VALIDATOR { work ? (work.online ? 'ONLINE' : 'OFFLINE') : 'STANDBY' }</Badge>
+                }
               </Box>
               <Flex px="2" py="2" gap="3">
                 <Icon path={mdiArrowRightBoldHexagonOutline} size={1.5} style={{ color: 'var(--orange-11)' }} />
@@ -346,9 +380,9 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                   <Icon path={mdiCubeOutline} size={1.5} style={{ color: 'var(--gray-11)' }} />
                   <Box width="100%">
                     <Flex justify="between" align="center">
-                      <Text as="div" size="2" weight="light">{ work.online ? 'Uptime' : 'Downtime' }</Text>
+                      <Text as="div" size="2" weight="light">{ work.online ? 'Latest activity' : 'Downtime' }</Text>
                     </Flex>
-                    <Text as="div" size="2" weight="medium">From block { Math.max(work.block_number.toNumber(), work.penalty.toNumber()) }</Text>
+                    <Text as="div" size="2" weight="medium">{ work.online ? 'In' : 'From'} block { Math.max(work.block_number.toNumber(), work.penalty.toNumber()) }</Text>
                   </Box>
                 </Flex>
               }
@@ -366,7 +400,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                       <Flex justify="between" align="center">
                         <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } observer</Text>
                       </Flex>
-                      <Badge size="1" radius="medium" color={item.online ? 'jade' : 'red'}>{ item.online ? 'ONLINE' : 'OFFLINE' }</Badge>
+                      <Badge size="1" radius="medium" color={item.observing ? 'jade' : 'red'}>{ item.observing ? 'ONLINE' : 'OFFLINE' }</Badge>
                     </Box>
                   </Flex>
                 )

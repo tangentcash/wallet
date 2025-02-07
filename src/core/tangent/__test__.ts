@@ -1,5 +1,5 @@
 import BigNumber from 'bignumber.js';
-import { Chain, Hashing, Signing, Uint256, ByteUtil, Sighash, Pubkeyhash, AssetId } from './algorithm';
+import { Chain, Hashing, Signing, Uint256, ByteUtil, Pubkeyhash, AssetId, Recsighash } from './algorithm';
 import { SchemaUtil, Stream } from './serialization';
 import { Transactions } from './schema';
 
@@ -9,19 +9,17 @@ export default function test() {
 
   let mnemonic = 'chimney clerk liberty defense gesture risk disorder switch raven chapter document admit win swing forward please clerk vague online coil material tone sibling intact';
   let secretKey = Signing.deriveSecretKeyFromMnemonic(mnemonic);
-  let rootPublicKey = secretKey ? Signing.derivePublicKey(secretKey) : null;
-  let publicKey = secretKey && rootPublicKey ? Signing.deriveTweakedPublicKey(secretKey, rootPublicKey) : null;
+  let publicKey = secretKey ? Signing.derivePublicKey(secretKey) : null;
   let publicKeyHash = publicKey ? Signing.derivePublicKeyHash(publicKey) : null;
   let message = 'Hello, World!';
   let messageHash = new Uint256(Hashing.hash256(ByteUtil.utf8StringToUint8Array(message)));
-  let signature = secretKey ? Signing.signTweaked(messageHash, secretKey) : null;
-  let recoverPublicKey = signature ? Signing.recoverTweaked(messageHash, signature) : null;
-  let recoverPublicKeyHash = signature ? Signing.recoverTweakedHash(messageHash, signature) : null;
+  let signature = secretKey ? Signing.sign(messageHash, secretKey) : null;
+  let recoverPublicKey = signature ? Signing.recover(messageHash, signature) : null;
+  let recoverPublicKeyHash = signature ? Signing.recoverHash(messageHash, signature) : null;
   let cryptography = {
     mnemonic: mnemonic,
     mnemonicTest: Signing.verifyMnemonic(mnemonic) ? 'passed' : 'failed',
     secretKey: secretKey ? Signing.encodeSecretKey(secretKey) : null,
-    secretKeyTest: secretKey && Signing.verifySecretKey(secretKey) ? 'passed' : 'failed',
     publicKey: publicKey ? Signing.encodePublicKey(publicKey) : null,
     publicKeyTest: publicKey && Signing.verifyPublicKey(publicKey) ? 'passed' : 'failed',
     address: publicKeyHash ? Signing.encodeAddress(publicKeyHash) : null,
@@ -29,7 +27,7 @@ export default function test() {
     message: message,
     messageHash: messageHash.toHex(),
     signature: signature ? ByteUtil.uint8ArrayToHexString(signature.data) : null,
-    signatureTest: publicKey && signature && Signing.verifyTweaked(messageHash, publicKey, signature) ? 'passed' : 'failed',
+    signatureTest: publicKey && signature && Signing.verify(messageHash, publicKey, signature) ? 'passed' : 'failed',
     recoverPublicKey: recoverPublicKey ? Signing.encodePublicKey(recoverPublicKey) : null,
     recoverPublicKeyTest: recoverPublicKey && publicKey && recoverPublicKey.equals(publicKey) ? 'passed' : 'failed',
     recoverAddress: recoverPublicKeyHash ? Signing.encodeAddress(recoverPublicKeyHash) : null,
@@ -37,7 +35,7 @@ export default function test() {
   };
   
   let transfer = {
-    signature: new Sighash('0xb628aed6c1501b728d54bb106201cb5ba1be6f1670fe013c5f370bbc9b76b6434d77455a21cbe9a3533dede41e8727a9815d782b58bb958637dc9f88936d73da01'),
+    signature: new Recsighash('0xfb302946de3850cf8bfbf38e1920e169240c1ecf184f7def0bb6e109c58f2e2f7535ed6d78070bed307976bbbee82f3daa3befbe57ed6cb068f7451026b7520755dfaf58d275a5d1cea975e87a750a660670e2f561b8aa9e55acad6fe6d23ac1'),
     asset: AssetId.fromHandle('BTC'),
     gasPrice: new BigNumber('0.0000000005'),
     gasLimit: new Uint256(10000),
