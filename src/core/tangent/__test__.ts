@@ -35,7 +35,7 @@ export default function test() {
   };
   
   let transfer = {
-    signature: new Recsighash('0xfb302946de3850cf8bfbf38e1920e169240c1ecf184f7def0bb6e109c58f2e2f7535ed6d78070bed307976bbbee82f3daa3befbe57ed6cb068f7451026b7520755dfaf58d275a5d1cea975e87a750a660670e2f561b8aa9e55acad6fe6d23ac1'),
+    signature: new Recsighash('0x2ea73e535ea3abb4edb4bcb6b2f831fff37a1c0334f294837698afad7aa10a9a435f7fa05c42ace2465dca25beca60b50134e4b067e5c17c083ba58c4b602bd900'),
     asset: AssetId.fromHandle('BTC'),
     gasPrice: new BigNumber('0.0000000005'),
     gasLimit: new Uint256(10000),

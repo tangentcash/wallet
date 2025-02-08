@@ -1,4 +1,4 @@
-import * as ed25519 from '@noble/ed25519';
+import secp256k1 from 'secp256k1';
 import * as bip39 from '@scure/bip39';
 import { Base64 } from 'js-base64';
 import { wordlist } from '@scure/bip39/wordlists/english';
@@ -7,13 +7,10 @@ import { UInt256 } from 'uint256';
 import { bech32m } from 'bech32';
 import { sha1 } from '@noble/hashes/sha1';
 import { sha3_512 } from '@noble/hashes/sha3';
-import { sha512 } from '@noble/hashes/sha512';
 import { blake2b } from '@noble/hashes/blake2b';
 import { ripemd160 } from '@noble/hashes/ripemd160';
 import { TextUtil } from './text';
 import BigNumber from 'bignumber.js';
-
-ed25519.etc.sha512Sync = (...m) => sha512(ed25519.etc.concatBytes(...m));
 
 export type ChainParams = {
   NAME: string,
@@ -63,7 +60,7 @@ export class Chain {
   };
   static size = {
     SIGHASH: 64,
-    RECSIGHASH: 96,
+    RECSIGHASH: 65,
     SECKEY: 32,
     PUBKEY: 32,
     PUBKEYHASH: 20,
@@ -580,13 +577,32 @@ export class Signing {
     return bip39.generateMnemonic(wordlist, strength);
   }
   static keygen(): Seckey {
-    return new Seckey(randomBytes(32));
+    let key = new Seckey();
+    while (true) {
+      let data: Uint8Array = randomBytes(key.data.length);
+      if (!data || data.length != key.data.length)
+        break;
+      
+      key.data = Uint8Array.from(data);
+      if (this.verifySecretKey(key))
+        break;
+    }
+    return key;
   }
   static recover(hash: Uint256, signature: Recsighash): Pubkey | null {
-    const publicKey = new Pubkey(signature.data.slice(64));
-    for (let i = 0; i < publicKey.data.length; i++)
-      publicKey.data[i] ^= signature.data[i] ^ signature.data[i + Chain.size.SIGHASH / 2];
-    return this.verify(hash, publicKey, signature) ? publicKey : null;
+    let recoveryId = signature.data[signature.data.length - 1];
+    if (recoveryId > 4)
+      return null;
+
+    try {
+      const result = secp256k1.ecdsaRecover(signature.data.slice(0, 64), recoveryId, hash.toUint8Array(), true);
+      if (!result)
+        return null;
+
+      return new Pubkey(result);
+    } catch {
+      return null;
+    }
   }
   static recoverHash(hash: Uint256, signature: Recsighash): Pubkeyhash | null {
     let publicKey = this.recover(hash, signature);
@@ -597,15 +613,9 @@ export class Signing {
   }
   static sign(hash: Uint256, secretKey: Seckey): Recsighash | null {
     try {
-      const publicKey = this.derivePublicKey(secretKey);
-      if (!publicKey)
-        return null;
-
-      const result = ed25519.sign(hash.toUint8Array(), secretKey.data);
+      const result = secp256k1.ecdsaSign(hash.toUint8Array(), secretKey.data);
       const signature = new Recsighash();
-      signature.data = Uint8Array.from([...result, ...publicKey.data]);
-      for (let i = result.length; i < signature.data.length; i++)
-        signature.data[i] ^= signature.data[i - result.length / 1] ^ signature.data[i - result.length / 2];
+      signature.data = Uint8Array.from([...result.signature, result.recid]);
       return signature;
     } catch {
       return null;
@@ -613,7 +623,7 @@ export class Signing {
   }
   static verify(hash: Uint256, publicKey: Pubkey, signature: Recsighash): boolean {
     try {
-      return ed25519.verify(signature.data.slice(0, 64), hash.toUint8Array(), publicKey.data);
+      return secp256k1.ecdsaVerify(signature.data.slice(0, 64), hash.toUint8Array(), publicKey.data);
     } catch {
       return false;
     }
@@ -621,9 +631,16 @@ export class Signing {
   static verifyMnemonic(mnemonic: string): boolean {
     return bip39.validateMnemonic(mnemonic, wordlist);
   }
+  static verifySecretKey(secretKey: Seckey): boolean {
+    try {
+      return secp256k1.privateKeyVerify(secretKey.data);
+    } catch {
+      return false;
+    }
+  }
   static verifyPublicKey(publicKey: Pubkey): boolean {
     try {
-      return publicKey != null;
+      return secp256k1.publicKeyVerify(publicKey.data);
     } catch {
       return false;
     }
@@ -636,10 +653,17 @@ export class Signing {
     return this.deriveSecretKey(seed);
   }
   static deriveSecretKey(seed: Uint8Array): Seckey {
-    return new Seckey(Hashing.hash256(seed));
+    let secretKey = new Seckey();
+    secretKey.data = seed;
+    while (true) {
+      secretKey.data = Hashing.hash256(secretKey.data);
+      if (this.verifySecretKey(secretKey))
+        break;
+    }
+    return secretKey;
   }
   static derivePublicKey(secretKey: Seckey): Pubkey {
-    return new Pubkey(ed25519.getPublicKey(secretKey.data));
+    return new Pubkey(secp256k1.publicKeyCreate(secretKey.data, true));
   }
   static derivePublicKeyHash(publicKey: Pubkey): Pubkeyhash {
     let publicKeyHash = new Pubkeyhash();

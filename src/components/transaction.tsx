@@ -590,6 +590,24 @@ function ContractFields(props: { orientation: 'horizontal' | 'vertical', transac
               </Box>
             </DataList.Value>
           </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>1st cipher public key:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.cipher_public_key_1);
+                AlertBox.open(AlertType.Info, 'Key copied!')
+              }}>{ Readability.toAddress(transaction.cipher_public_key_1) }</Button>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>2nd cipher public key:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.cipher_public_key_2);
+                AlertBox.open(AlertType.Info, 'Key copied!')
+              }}>{ Readability.toAddress(transaction.cipher_public_key_2) }</Button>
+            </DataList.Value>
+          </DataList.Item>
         </DataList.Root>
       )
     case 'contribution_deselection':
