@@ -3,7 +3,7 @@ import { Chain, Hashing, Signing, Uint256, ByteUtil, Pubkeyhash, AssetId, Recsig
 import { SchemaUtil, Stream } from './serialization';
 import { Transactions } from './schema';
 
-export default function test() {
+export async function test() {
   let props = Chain.props;
   Chain.props = Chain.regtest;
 
@@ -16,22 +16,35 @@ export default function test() {
   let signature = secretKey ? Signing.sign(messageHash, secretKey) : null;
   let recoverPublicKey = signature ? Signing.recover(messageHash, signature) : null;
   let recoverPublicKeyHash = signature ? Signing.recoverHash(messageHash, signature) : null;
+  let cipherNonce = new Uint256(1);
+  let cipherKeypair = secretKey ? await Signing.deriveCipherKeypair(secretKey, cipherNonce) : null;
+  let ciphertext = cipherKeypair ? await Signing.publicEncrypt(cipherKeypair.cipherPublicKey, ByteUtil.byteStringToUint8Array(message), Signing.keygen().data) : null;
+  let recoverPlaintext = cipherKeypair && ciphertext ? await Signing.privateDecrypt(cipherKeypair.cipherSecretKey, cipherKeypair.cipherPublicKey, ciphertext) : null;
   let cryptography = {
     mnemonic: mnemonic,
-    mnemonicTest: Signing.verifyMnemonic(mnemonic) ? 'passed' : 'failed',
     secretKey: secretKey ? Signing.encodeSecretKey(secretKey) : null,
     publicKey: publicKey ? Signing.encodePublicKey(publicKey) : null,
-    publicKeyTest: publicKey && Signing.verifyPublicKey(publicKey) ? 'passed' : 'failed',
     address: publicKeyHash ? Signing.encodeAddress(publicKeyHash) : null,
-    addressTest: publicKeyHash && Signing.verifyAddress(Signing.encodeAddress(publicKeyHash) || '') ? 'passed' : 'failed',
     message: message,
     messageHash: messageHash.toHex(),
     signature: signature ? ByteUtil.uint8ArrayToHexString(signature.data) : null,
-    signatureTest: publicKey && signature && Signing.verify(messageHash, publicKey, signature) ? 'passed' : 'failed',
     recoverPublicKey: recoverPublicKey ? Signing.encodePublicKey(recoverPublicKey) : null,
-    recoverPublicKeyTest: recoverPublicKey && publicKey && recoverPublicKey.equals(publicKey) ? 'passed' : 'failed',
     recoverAddress: recoverPublicKeyHash ? Signing.encodeAddress(recoverPublicKeyHash) : null,
-    recoverAddressTest: recoverPublicKeyHash && publicKeyHash && recoverPublicKeyHash.equals(publicKeyHash) ? 'passed' : 'failed'
+    cipherNonce: cipherNonce.toString(),
+    cipherSecretKey: cipherKeypair ? ByteUtil.uint8ArrayToHexString(cipherKeypair.cipherSecretKey.data) : null,
+    cipherPublicKey: cipherKeypair ? ByteUtil.uint8ArrayToHexString(cipherKeypair.cipherPublicKey.data) : null,
+    ciphertext: ciphertext ? ByteUtil.uint8ArrayToHexString(ciphertext) : null,
+    recoverPlaintext: recoverPlaintext ? ByteUtil.uint8ArrayToByteString(recoverPlaintext) : null,
+    tests: {
+      mnemonic: Signing.verifyMnemonic(mnemonic) ? 'passed' : 'failed',
+      secretKey: secretKey && Signing.verifySecretKey(secretKey) ? 'passed' : 'failed',
+      publicKey: publicKey && Signing.verifyPublicKey(publicKey) ? 'passed' : 'failed',
+      address: publicKeyHash && Signing.verifyAddress(Signing.encodeAddress(publicKeyHash) || '') ? 'passed' : 'failed',
+      signature: publicKey && signature && Signing.verify(messageHash, publicKey, signature) ? 'passed' : 'failed',
+      recoverPublicKey: recoverPublicKey && publicKey && recoverPublicKey.equals(publicKey) ? 'passed' : 'failed',
+      recoverAddress: recoverPublicKeyHash && publicKeyHash && recoverPublicKeyHash.equals(publicKeyHash) ? 'passed' : 'failed',
+      recoverPlaintext: recoverPlaintext && ByteUtil.uint8ArrayToByteString(recoverPlaintext) == message ? 'passed' : 'failed',
+    }
   };
   
   let transfer = {
@@ -66,13 +79,15 @@ export default function test() {
   let hexAsset = new AssetId('0x425443');
   let assets = {
     btcAsset: btcAsset,
-    btcAssetTest: btcAsset.isValid(),
     ethAssetId: ethAsset,
-    ethAssetTest: ethAsset.isValid(),
     numberAssetId: numberAsset,
-    numberAssetTest: numberAsset.isValid(),
     hexAssetId: hexAsset,
-    hexAssetTest: hexAsset.isValid(),
+    tests: {
+      btcAsset: btcAsset.isValid() ? 'passed' : 'failed',
+      ethAsset: ethAsset.isValid() ? 'passed' : 'failed',
+      numberAsset: numberAsset.isValid() ? 'passed' : 'failed',
+      hexAsset: hexAsset.isValid() ? 'passed' : 'failed',
+    }
   };
 
   Chain.props = props;
