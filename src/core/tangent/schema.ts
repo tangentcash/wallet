@@ -77,6 +77,17 @@ export namespace Transactions {
     getType() { return Withdrawal.typename; }
   }
 
+  export class Commitment extends Ledger.Transaction {
+    static typename: string = 'commitment';
+    online: string = 'uint8';
+    observers: string[] = [
+      'asset', 'assetid',
+      'online', 'boolean'
+    ];
+
+    getType() { return Commitment.typename; }
+  }
+
   export class Rollup extends Ledger.Transaction {
     static typename: string = 'rollup';
 
@@ -109,5 +120,15 @@ export namespace Transactions {
     static typename: string = 'contribution_allocation';
 
     getType() { return ContributionAllocation.typename; }
+  }
+
+  export class DepositoryAdjustment extends Ledger.Transaction {
+    static typename: string = 'depository_adjustment';
+    incomingAbsoluteFee: string = 'decimal';
+    incomingRelativeFee: string = 'decimal';
+    outgoingAbsoluteFee: string = 'decimal';
+    outgoingRelativeFee: string = 'decimal';
+
+    getType() { return DepositoryAdjustment.typename; }
   }
 }

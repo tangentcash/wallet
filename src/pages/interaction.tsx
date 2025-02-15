@@ -11,51 +11,47 @@ import { AlertBox, AlertType } from "../components/alert";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
 
+export class MixedProgramTransfer {
+  to: { address: string, memo: string | null, value: string }[] = [];
+}
+
+export class ProgramWithdrawal {
+  routing: { chain: string, policy: string }[] = [];
+  to: { address: string, value: string }[] = [];
+}
+
+export class ProgramCommitment {
+  assets: AssetId[] = []
+  observers: { asset: AssetId, online: 'online' | 'offline' }[] = [];
+  reservations: Set<string> = new Set<string>();
+  online: 'standby' | 'online' | 'offline' = 'standby';
+}
+
+export class ProgramContributionAllocation {
+}
+
+export class ProgramDepositoryAdjustment {
+  incomingAbsoluteFee: string = '';
+  incomingRelativeFee: string = '';
+  outgoingAbsoluteFee: string = '';
+  outgoingRelativeFee: string = '';
+}
+
 export default function InteractionPage() {
   const ownerAddress = Wallet.getAddress() || '';
   const [query] = useSearchParams();
-  const [blockchains, setBlockchains] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [asset, setAsset] = useState(-1);
-  const [program, setProgram] = useState<'transfer' | 'withdrawal'>('transfer');
   const [sequence, setSequence] = useState<BigNumber | null>();
   const [gasPrice, setGasPrice] = useState('');
   const [gasLimit, setGasLimit] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loadingTransaction, setLoadingTransaction] = useState(false);
   const [loadingGasPrice, setLoadingGasPrice] = useState(false);
   const [loadingGasLimit, setLoadingGasLimit] = useState(false);
   const [conservative, setConservative] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
-  const [to, setTo] = useState<{ address: string, memo: string | null, value: string }[]>([{ address: '', memo: null, value: '' }]);
+  const [program, setProgram] = useState<MixedProgramTransfer | ProgramWithdrawal | ProgramCommitment | ProgramContributionAllocation | ProgramDepositoryAdjustment | null>(null);
   const navigate = useNavigate();
-  const maySendToMany = useMemo((): boolean => {
-    if (asset == -1)
-      return false;
-
-    if (program == 'withdrawal') {
-      const blockchain = blockchains.find((item) => item.chain == assets[asset].asset.chain);
-      return blockchain != null && blockchain.routing_policy == 'utxo';
-    }
-
-    return program == 'transfer';
-  }, [asset, program, blockchains]);
-  const transactionType = useMemo((): string => {
-    if (program == 'transfer')
-      return to.length > 1 ? 'Send to many' : 'Send to one';
-    else if (program == 'withdrawal')
-      return to.length > 1 ? 'Withdraw to many' : 'Withdraw to one';
-    return 'Bad program';
-  }, [program, to]);
-  const sendingValue = useMemo((): BigNumber => {
-    return to.reduce((value, next) => {
-      try {
-        const numeric = new BigNumber(next.value.trim());
-        return numeric.isPositive() ? value.plus(numeric) : value;
-      } catch {
-        return value;
-      }
-    }, new BigNumber(0));
-  }, [to, assets]);
   const maxFeeValue = useMemo((): BigNumber => {
     try {
       const price = new BigNumber(gasPrice.trim());
@@ -71,42 +67,162 @@ export default function InteractionPage() {
       return new BigNumber(0);
     }
   }, [gasPrice, gasLimit]);
-  const paymentsReady = useMemo((): boolean => {
+  const omniTransaction = useMemo((): boolean => {
+    if (asset == -1)
+      return false;
+    
+    if (program instanceof MixedProgramTransfer) {
+      return true;
+    }
+    else if (program instanceof ProgramWithdrawal) {
+      const blockchain = program.routing.find((item) => item.chain == assets[asset].asset.chain);
+      return blockchain != null && blockchain.policy == 'utxo';
+    }
+
+    return false;
+  }, [asset, program]);
+  const transactionType = useMemo((): string => {
+    if (program instanceof MixedProgramTransfer) {
+      return program.to.length > 1 ? 'Send to many' : 'Send to one';
+    } else if (program instanceof ProgramWithdrawal) {
+      return program.to.length > 1 ? 'Withdraw to many' : 'Withdraw to one';
+    } else if (program instanceof ProgramCommitment) {
+      return 'Manage validator';
+    } else if (program instanceof ProgramContributionAllocation) {
+      return 'Lock contribution';
+    } else if (program instanceof ProgramDepositoryAdjustment) {
+      return 'Bridge adjustment';
+    }
+    return 'Bad program';
+  }, [program]);
+  const sendingValue = useMemo((): BigNumber => {
+    if (program instanceof MixedProgramTransfer) {
+      return program.to.reduce((value, next) => {
+        try {
+          const numeric = new BigNumber(next.value.trim());
+          return numeric.isPositive() ? value.plus(numeric) : value;
+        } catch {
+          return value;
+        }
+      }, new BigNumber(0));
+    } else if (program instanceof ProgramWithdrawal) {
+      return program.to.reduce((value, next) => {
+        try {
+          const numeric = new BigNumber(next.value.trim());
+          return numeric.isPositive() ? value.plus(numeric) : value;
+        } catch {
+          return value;
+        }
+      }, new BigNumber(0));
+    }
+
+    return new BigNumber(0);
+  }, [assets, program]);
+  const programReady = useMemo((): boolean => {
     if (asset == -1)
       return false;
 
-    for (let i = 0; i < to.length; i++) {
-      const payment = to[i];
-      const paymentAddress = payment.address.trim();
-      if (paymentAddress == ownerAddress)
-        return false;
-
-      const publicKeyHash = Signing.decodeAddress(paymentAddress);
-      if (program == 'transfer') {
+    if (program instanceof MixedProgramTransfer) {
+      for (let i = 0; i < program.to.length; i++) {
+        const payment = program.to[i];
+        if (payment.address.trim() == ownerAddress)
+          return false;
+  
+        const publicKeyHash = Signing.decodeAddress(payment.address.trim());
         if (!publicKeyHash || publicKeyHash.data.length != 20)
           return false;
-      } else if (publicKeyHash != null || !paymentAddress.length) {
+
+        try {
+          const numeric = new BigNumber(payment.value.trim());
+          if (numeric.isNaN() || !numeric.isPositive())
+            return false;
+        } catch {
+          return false;
+        }
+      }
+  
+      return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
+    } else if (program instanceof ProgramWithdrawal) {
+      for (let i = 0; i < program.to.length; i++) {
+        const payment = program.to[i];
+        if (payment.address.trim() == ownerAddress)
+          return false;
+  
+        const publicKeyHash = Signing.decodeAddress(payment.address.trim());
+        if (publicKeyHash != null || !payment.address.length)
+          return false;
+
+        try {
+          const numeric = new BigNumber(payment.value.trim());
+          if (numeric.isNaN() || !numeric.isPositive())
+            return false;
+        } catch {
+          return false;
+        }
+      }
+      
+      const proposer = query.get('proposer');
+      if (proposer == null)
+        return false;
+  
+      return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
+    } else if (program instanceof ProgramCommitment) {
+      return program.online != 'standby' || program.observers.length > 0;
+    } else if (program instanceof ProgramContributionAllocation) {
+      return true;
+    } else if (program instanceof ProgramDepositoryAdjustment) {
+      try {
+        if (program.incomingAbsoluteFee.length > 0) {
+          const numeric = new BigNumber(program.incomingAbsoluteFee.trim());
+          if (numeric.isNaN() || numeric.isNegative())
+            return false;
+        }
+      } catch {
         return false;
       }
 
       try {
-        const numeric = new BigNumber(payment.value.trim());
-        if (!numeric.isPositive())
-          return false;
+        if (program.incomingRelativeFee.length > 0) {
+          const numeric = new BigNumber(program.incomingRelativeFee.replace(/%/g, '').trim());
+          if (numeric.isNaN() || numeric.lt(0) || numeric.gt(100))
+            return false;
+        }
       } catch {
         return false;
       }
+
+      try {
+        if (program.outgoingAbsoluteFee.length > 0) {
+          const numeric = new BigNumber(program.outgoingAbsoluteFee.trim());
+          if (numeric.isNaN() || numeric.isNegative())
+            return false;
+        }
+      } catch {
+        return false;
+      }
+
+      try {
+        if (program.outgoingRelativeFee.length > 0) {
+          const numeric = new BigNumber(program.outgoingRelativeFee.replace(/%/g, '').trim());
+          if (numeric.isNaN() || numeric.lt(0) || numeric.gt(100))
+            return false;
+        }
+      } catch {
+        return false;
+      }
+
+      return true;
     }
-    
-    return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
-  }, [asset, to, gasPrice, gasLimit, conservative, assets]);
+
+    return false;
+  }, [asset, gasPrice, gasLimit, conservative, assets, program]);
   const transactionReady = useMemo((): boolean => {
-    if (!paymentsReady)
+    if (!programReady)
       return false;
 
     try {
       const numeric = new BigNumber(gasPrice.trim());
-      if (!numeric.gte(0))
+      if (numeric.isNaN() || !numeric.gte(0))
         return false;
     } catch {
       return false;
@@ -114,34 +230,29 @@ export default function InteractionPage() {
     
     try {
       const numeric = new BigNumber(gasLimit.trim());
-      if (!numeric.gt(0) || !numeric.isInteger())
+      if (numeric.isNaN() || !numeric.gt(0) || !numeric.isInteger())
         return false;
     } catch {
       return false;
     }
 
-    if (program == 'withdrawal') {
-      const proposer = query.get('proposer');
-      if (proposer == null)
-        return false;
-    }
-
     return maxFeeValue.plus(sendingValue).lte(assets[asset].balance);
-  }, [paymentsReady, gasPrice, gasLimit, maxFeeValue, sendingValue, assets, asset, program]);
+  }, [programReady, gasPrice, gasLimit, maxFeeValue, sendingValue]);
   const setRemainingValue = useCallback((index: number) => {
     const balance = assets[asset].balance;
-    let value = balance.minus(sendingValue);
-    try {
-      const numeric = new BigNumber(to[index].value.trim());
-      if (numeric.isPositive())
-        value = value.minus(numeric);
-    } catch { }
-    
-    const copy = [...to];
-    copy[index].value = value.lt(0) ? '0' : value.toString();
-    console.log(sendingValue.toString());
-    setTo(copy);
-  }, [assets, asset, to]);
+    if (program instanceof MixedProgramTransfer || program instanceof ProgramWithdrawal) {
+      let value = balance.minus(sendingValue);
+      try {
+        const numeric = new BigNumber(program.to[index].value.trim());
+        if (!numeric.isNaN() && numeric.isPositive())
+          value = value.minus(numeric);
+      } catch { }
+      
+      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+      copy.to[index].value = value.lt(0) ? '0' : value.toString();
+      setProgram(copy);
+    }
+  }, [assets, asset, program]);
   const setEstimatedGasPrice = useCallback(async (percentile: number) => {
     if (loadingGasPrice)
       return false;
@@ -200,49 +311,72 @@ export default function InteractionPage() {
 
     setLoadingGasLimit(false);
     return true;
-  }, [loadingGasLimit, to, transactionReady, loading, sequence, assets, asset]);
+  }, [loadingGasLimit, programReady, transactionReady, loadingTransaction, sequence, assets, asset, program]);
   const buildTransaction = useCallback(async (prebuilt?: TransactionOutput): Promise<TransactionOutput | null> => {
-    if (!paymentsReady || loading)
+    if (!programReady || loadingTransaction)
       return null;
     
-    setLoading(true);
+    setLoadingTransaction(true);
     try {
       let method: { type: Ledger.Transaction, args: { [key: string]: any } };
-      switch (program) {
-        case 'transfer':
-          method = to.length > 1 ? {
-            type: new Transactions.Omnitransfer(),
-            args: {
-              to: to.map((payment) => ({
-                memo: payment.memo || '',
-                value: new BigNumber(payment.value),
-                to: Signing.decodeAddress(payment.address)
-              }))
-            }
-          } : {
-            type: new Transactions.Transfer(),
-            args: {
-              memo: to[0].memo || '',
-              value: new BigNumber(to[0].value),
-              to: Signing.decodeAddress(to[0].address)
-            }
+      if (program instanceof MixedProgramTransfer) {
+        method = program.to.length > 1 ? {
+          type: new Transactions.Omnitransfer(),
+          args: {
+            to: program.to.map((payment) => ({
+              memo: payment.memo || '',
+              value: new BigNumber(payment.value),
+              to: Signing.decodeAddress(payment.address)
+            }))
           }
-          break;
-        case 'withdrawal':
-          method = {
-            type: new Transactions.Withdrawal(),
-            args: {
-              proposer: Signing.decodeAddress(query.get('proposer') || ''),
-              to: to.map((payment) => ({
-                to: payment.address,
-                value: new BigNumber(payment.value)
-              }))
-            }
+        } : {
+          type: new Transactions.Transfer(),
+          args: {
+            memo: program.to[0].memo || '',
+            value: new BigNumber(program.to[0].value),
+            to: Signing.decodeAddress(program.to[0].address)
           }
-          break;
-        default:
-          throw new TypeError('bad program');
+        };
+      } else if (program instanceof ProgramWithdrawal) {
+        method = {
+          type: new Transactions.Withdrawal(),
+          args: {
+            proposer: Signing.decodeAddress(query.get('proposer') || ''),
+            to: program.to.map((payment) => ({
+              to: payment.address,
+              value: new BigNumber(payment.value)
+            }))
+          }
+        };
+      } else if (program instanceof ProgramCommitment) {
+        method = {
+          type: new Transactions.Commitment(),
+          args: {
+            online: program.online == 'standby' ? 2 : (program.online == 'online' ? 1 : 0),
+            observers: program.observers.map((observer) => ({
+              asset: observer.asset,
+              online: observer.online == 'online'
+            }))
+          }
+        };
+      } else if (program instanceof ProgramContributionAllocation) {
+        method = {
+          type: new Transactions.ContributionAllocation(),
+          args: { }
+        };
+      } else if (program instanceof ProgramDepositoryAdjustment) {
+        method = {
+          type: new Transactions.DepositoryAdjustment(),
+          args: {
+            incomingAbsoluteFee: program.incomingAbsoluteFee.length > 0 ? new BigNumber(program.incomingAbsoluteFee) : new BigNumber(0),
+            incomingRelativeFee: program.incomingRelativeFee.length > 0 ? new BigNumber(program.incomingRelativeFee.replace(/%/g, '')) : new BigNumber(0),
+            outgoingAbsoluteFee: program.outgoingAbsoluteFee.length > 0 ? new BigNumber(program.outgoingAbsoluteFee) : new BigNumber(0),
+            outgoingRelativeFee: program.outgoingRelativeFee.length > 0 ? new BigNumber(program.outgoingRelativeFee.replace(/%/g, '')) : new BigNumber(0),
+          }
+        };
       }
+      else throw new Error('bad program type');
+
       const output = await Wallet.buildTransaction({
         asset: new AssetId(assets[asset].asset.id),
         sequence: prebuilt ? prebuilt.body.sequence.toString() : (sequence || undefined),
@@ -253,16 +387,16 @@ export default function InteractionPage() {
       });
       setSequence(new BigNumber(output.body.sequence.toString()));
       setTransactionData(output);
-      setLoading(false);
+      setLoadingTransaction(false);
       return output;
     } catch (exception) {
       AlertBox.open(AlertType.Error, (exception as Error).message);
-      setLoading(false);
+      setLoadingTransaction(false);
       return null;
     }
-  }, [paymentsReady, loading, assets, asset, sequence, conservative, gasPrice, gasLimit, to, program]);
+  }, [programReady, loadingTransaction, assets, asset, sequence, conservative, gasPrice, gasLimit, program]);
   const submitTransaction = useCallback(async () => {
-    if (loading)
+    if (loadingTransaction)
       return false;
 
     const output = await buildTransaction();
@@ -271,7 +405,7 @@ export default function InteractionPage() {
       return false;
     }
 
-    setLoading(true);
+    setLoadingTransaction(true);
     try {
       const hash = await Interface.submitTransaction(output.data, true);
       if (hash != null) {
@@ -283,21 +417,10 @@ export default function InteractionPage() {
     } catch (exception) {
       AlertBox.open(AlertType.Error, 'Failed to send transaction: ' + (exception as Error).message);
     }
-    setLoading(false);
+    setLoadingTransaction(false);
     return true;
-  }, [loading, to, transactionReady, loading, sequence, assets, asset]);
+  }, [loadingTransaction, transactionReady, loadingTransaction, sequence, assets, asset, program]);
   useEffectAsync(async () => {
-    const queryAsset = query.get('asset');
-    const queryType = query.get('type');
-    switch (queryType) {
-      case 'transfer':
-      case 'withdrawal':
-        setProgram(queryType);
-        break;
-      default:
-        break;
-    }
-
     try {
       let assetData = await Interface.fetchAll((offset, count) => Interface.getAccountBalances(ownerAddress, offset, count));
       if (Array.isArray(assetData)) {
@@ -305,6 +428,7 @@ export default function InteractionPage() {
         assetData = assetData.filter((item) => item.balance?.gt(0) || item.reserve?.gt(0) || item.supply?.gt(0));
       }
 
+      const queryAsset = query.get('asset');
       if (queryAsset != null) {
         const target: AssetId = new AssetId(queryAsset);
         if (Array.isArray(assetData)) {
@@ -333,11 +457,37 @@ export default function InteractionPage() {
       setAssets(assetData || []);
     } catch { }
 
-    try {
-      const blockchainData = await Interface.getBlockchains();
-      if (Array.isArray(blockchainData))
-        setBlockchains(blockchainData);
-    } catch { }
+    const queryType = query.get('type');
+    switch (queryType) {
+      case 'transfer': 
+      default: {
+        const result = new MixedProgramTransfer();
+        result.to = [{ address: '', memo: null, value: '' }];
+        setProgram(result);
+       break; 
+      }
+      case 'withdrawal': {
+        const result = new ProgramWithdrawal();
+        result.to = [{ address: '', value: '' }];
+        try { result.routing = ((await Interface.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
+        setProgram(result);
+        break;
+      }
+      case 'commitment': {
+        const result = new ProgramCommitment();
+        try { result.assets = ((await Interface.getBlockchains()) || []).map((v) => AssetId.fromHandle(v.chain)); } catch { }
+        setProgram(result);
+        break;
+      }
+      case 'contribution_allocation': {
+        setProgram(new ProgramContributionAllocation());
+        break;
+      }
+      case 'depository_adjustment': {
+        setProgram(new ProgramDepositoryAdjustment());
+        break;
+      }
+    }
   }, [query]);
 
   return (
@@ -374,22 +524,22 @@ export default function InteractionPage() {
         </Select.Root>
       </Card>
       {
-        asset != -1 && to.map((item, index) =>
+        asset != -1 && program instanceof MixedProgramTransfer && program.to.map((item, index) =>
           <Card mt="4" key={index}>
-            <Heading size="4" mb="2">Recepient account{ to.length > 1 ? ' #' + (index + 1) : ''}</Heading>
+            <Heading size="4" mb="2">Send to account{ program.to.length > 1 ? ' #' + (index + 1) : ''}</Heading>
             <Flex gap="2" mb="3">
               <Box width="100%">
-                <Tooltip content={program == 'transfer' ? 'Send to account address' : 'Withdraw to Your pre-registered address'}>
-                  <TextField.Root size="3" placeholder={program == 'transfer' ? 'Send to account' : 'Withdraw to address'} type="text" value={item.address} onChange={(e) => {
-                    const copy = [...to];
-                    copy[index].address = e.target.value;
-                    setTo(copy);
+                <Tooltip content="Send to account address">
+                  <TextField.Root size="3" placeholder="Send to account" type="text" value={item.address} onChange={(e) => {
+                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                    copy.to[index].address = e.target.value;
+                    setProgram(copy);
                   }} />
                 </Tooltip>
               </Box>
               {
-                paymentsReady &&
-                <Button size="3" variant="outline" color="gray" disabled={!paymentsReady}>
+                programReady &&
+                <Button size="3" variant="outline" color="gray" disabled={!programReady}>
                   <Link className="router-link" to={'/account/' + item.address}>▒▒</Link>
                 </Button>
               }
@@ -398,9 +548,9 @@ export default function InteractionPage() {
               item.memo != null &&
               <Tooltip content="Attach a message to payment">
                 <TextField.Root mb="3" size="3" placeholder="Payment message" type="text" value={item.memo} onChange={(e) => {
-                  const copy = [...to];
-                  copy[index].memo = e.target.value;
-                  setTo(copy);
+                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                  copy.to[index].memo = e.target.value;
+                  setProgram(copy);
                 }} />
               </Tooltip>
             }
@@ -408,42 +558,39 @@ export default function InteractionPage() {
               <Box width="100%">
                 <Tooltip content="Payment value received by account">
                   <TextField.Root mb="3" size="3" placeholder={'Payment value in ' + (assets[asset].asset.token || assets[asset].asset.chain)} type="number" value={item.value} onChange={(e) => {
-                    const copy = [...to];
-                    copy[index].value = e.target.value;
-                    setTo(copy);
+                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                    copy.to[index].value = e.target.value;
+                    setProgram(copy);
                   }} />
                 </Tooltip>
               </Box>
               <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
             </Flex>
             {
-              maySendToMany &&
+              omniTransaction &&
               <Flex justify="between">
                 <Box px="1">
-                  {
-                    program == 'transfer' &&
-                    <Tooltip content="Identify payment by number">
-                      <Text as="label" size="2" color={item.memo != null ? 'jade' : 'gray'}>
-                        <Flex gap="2" align="center" justify="end">
-                          <Checkbox size="3" checked={item.memo != null} onCheckedChange={(value) => {
-                            const copy = [...to];
-                            copy[index].memo = value ? '' : null;
-                            setTo(copy);
-                          }} />
-                          <Text>Attach message</Text>
-                        </Flex>
-                      </Text>
-                    </Tooltip>
-                  }
+                  <Tooltip content="Identify payment by number">
+                    <Text as="label" size="2" color={item.memo != null ? 'jade' : 'gray'}>
+                      <Flex gap="2" align="center" justify="end">
+                        <Checkbox size="3" checked={item.memo != null} onCheckedChange={(value) => {
+                          const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                          copy.to[index].memo = value ? '' : null;
+                          setProgram(copy);
+                        }} />
+                        <Text>Attach message</Text>
+                      </Flex>
+                    </Text>
+                  </Tooltip>
                 </Box>
-                <IconButton variant="soft" color={index != 0 ? 'red' : 'jade'} disabled={!maySendToMany && index == 0} onClick={() => {
-                  const copy = [...to];
+                <IconButton variant="soft" color={index != 0 ? 'red' : 'jade'} disabled={!omniTransaction && index == 0} onClick={() => {
+                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                   if (index == 0) {
-                    copy.push({ address: '', memo: null, value: '' });
+                    copy.to.push({ address: '', memo: null, value: '' });
                   } else {
-                    copy.splice(index, 1);
+                    copy.to.splice(index, 1);
                   }
-                  setTo(copy);
+                  setProgram(copy);
                 }}>
                   <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
                 </IconButton>
@@ -453,7 +600,185 @@ export default function InteractionPage() {
         )
       }
       {
-        paymentsReady &&
+        asset != -1 && program instanceof ProgramWithdrawal && program.to.map((item, index) =>
+          <Card mt="4" key={index}>
+            <Heading size="4" mb="2">Withdraw to account{ program.to.length > 1 ? ' #' + (index + 1) : ''}</Heading>
+            <Flex gap="2" mb="3">
+              <Box width="100%">
+                <Tooltip content="Withdraw to Your pre-registered address">
+                  <TextField.Root size="3" placeholder="Withdraw to address" type="text" value={item.address} onChange={(e) => {
+                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                    copy.to[index].address = e.target.value;
+                    setProgram(copy);
+                  }} />
+                </Tooltip>
+              </Box>
+              {
+                programReady &&
+                <Button size="3" variant="outline" color="gray" disabled={!programReady}>
+                  <Link className="router-link" to={'/account/' + item.address}>▒▒</Link>
+                </Button>
+              }
+            </Flex>
+            <Flex gap="2">
+              <Box width="100%">
+                <Tooltip content="Payment value received by account">
+                  <TextField.Root mb="3" size="3" placeholder={'Payment value in ' + (assets[asset].asset.token || assets[asset].asset.chain)} type="number" value={item.value} onChange={(e) => {
+                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                    copy.to[index].value = e.target.value;
+                    setProgram(copy);
+                  }} />
+                </Tooltip>
+              </Box>
+              <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
+            </Flex>
+            {
+              omniTransaction &&
+              <Flex justify="end">
+                <IconButton variant="soft" color={index != 0 ? 'red' : 'jade'} disabled={!omniTransaction && index == 0} onClick={() => {
+                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                  if (index == 0) {
+                    copy.to.push({ address: '', value: '' });
+                  } else {
+                    copy.to.splice(index, 1);
+                  }
+                  setProgram(copy);
+                }}>
+                  <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
+                </IconButton>
+              </Flex>
+            }
+          </Card>
+        )
+      }
+      {
+        asset != -1 && program instanceof ProgramCommitment &&
+        <Card mt="4">
+          <Heading size="4" mb="2">Validator status</Heading>
+          <Select.Root size="3" value={program.online} onValueChange={(value) => {
+            const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+            copy.online = value as any;
+            setProgram(copy);
+          }}>
+            <Select.Trigger variant="surface" placeholder="Select new validator status" style={{ width: '100%' }}>
+            </Select.Trigger>
+            <Select.Content>
+              <Select.Item value="standby">No status change</Select.Item>
+              <Select.Item value="online">
+                Set validator <Text color="jade">ONLINE</Text>
+              </Select.Item>
+              <Select.Item value="offline">
+                Set validator <Text color="red">OFFLINE</Text>
+              </Select.Item>
+            </Select.Content>
+          </Select.Root>
+          {
+            program.observers.map((item, index) =>
+              <Box mt="4" key={index}>
+                <Heading size="4" mb="2">
+                  <Flex align="center">
+                    <Avatar mr="1" size="1" radius="full" fallback={(item.asset.chain || '?')[0]} src={'/cryptocurrency/' + (item.asset.chain || '').toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
+                    { item.asset.chain || '' } observer status
+                  </Flex>
+                </Heading>
+                <Select.Root size="3" value={item.online} onValueChange={(value) => {
+                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                    if (value == 'standby') {
+                      copy.reservations.delete(item.asset.chain || '');
+                      copy.observers.splice(index, 1);
+                    }
+                    else {
+                      copy.observers[index].online = value as any;
+                    }
+                    setProgram(copy);
+                  }}>
+                  <Select.Trigger variant="surface" placeholder="Select new observer status" style={{ width: '100%' }}>
+                  </Select.Trigger>
+                  <Select.Content>
+                    <Select.Item value="standby">No status change</Select.Item>
+                    <Select.Item value="online">
+                      Set observer <Text color="jade">ONLINE</Text>
+                    </Select.Item>
+                    <Select.Item value="offline">
+                      Set observer <Text color="red">OFFLINE</Text>
+                    </Select.Item>
+                  </Select.Content>
+                </Select.Root>
+              </Box>
+            )
+          }
+          <Box mt="4">
+            <Select.Root size="3" onValueChange={(value) => {
+              const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+              copy.observers.push({ asset: AssetId.fromHandle(value), online: 'online' });
+              copy.reservations.add(copy.observers[copy.observers.length - 1].asset.chain || '');
+              setProgram(copy);
+            }}>
+              <Select.Trigger variant="surface" placeholder="Change observer status" style={{ width: '100%' }}>
+              </Select.Trigger>
+              <Select.Content variant="soft">
+                <Select.Group>
+                  <Select.Item value="0" disabled={true}>Select blockchain observer</Select.Item>
+                  {
+                    program.assets.map((item) =>
+                      <Select.Item key={item.chain + '_select'} value={item.chain || ''} disabled={program.reservations.has(item.chain || '')}>
+                        <Flex align="center" gap="1">
+                          <Avatar mr="1" size="1" radius="full" fallback={(item.chain || '?')[0]} src={'/cryptocurrency/' + (item.chain || '').toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
+                          <Text size="4">{ item.chain || '' } observer update</Text>
+                        </Flex>
+                      </Select.Item>
+                    )
+                  }
+                </Select.Group>
+              </Select.Content>
+            </Select.Root>
+          </Box>
+        </Card>
+      }
+      {
+        asset != -1 && program instanceof ProgramDepositoryAdjustment &&
+        <Card mt="4">
+          <Heading size="4" mb="2">Bridge fee policy</Heading>
+          <Box width="100%">
+            <Tooltip content="Fee charged for deposits (absolute value)">
+              <TextField.Root size="3" placeholder="Incoming absolute fee 0.0-∞" type="text" value={program.incomingAbsoluteFee} onChange={(e) => {
+                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                copy.incomingAbsoluteFee = e.target.value;
+                setProgram(copy);
+              }} />
+            </Tooltip>
+          </Box>
+          <Box width="100%" mt="3">
+            <Tooltip content="Fee charged for deposits (relative % value)">
+              <TextField.Root size="3" placeholder="Incoming relative fee 0%-100%" type="text" value={program.incomingRelativeFee} onChange={(e) => {
+                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                copy.incomingRelativeFee = e.target.value;
+                setProgram(copy);
+              }} />
+            </Tooltip>
+          </Box>
+          <Box width="100%" mt="3">
+            <Tooltip content="Fee charged for withdrawals (absolute value)">
+              <TextField.Root size="3" placeholder="Outgoing absolute fee 0.0-∞" type="text" value={program.outgoingAbsoluteFee} onChange={(e) => {
+                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                copy.outgoingAbsoluteFee = e.target.value;
+                setProgram(copy);
+              }} />
+            </Tooltip>
+          </Box>
+          <Box width="100%" mt="3">
+            <Tooltip content="Fee charged for withdrawals (relative % value)">
+              <TextField.Root size="3" placeholder="Outgoing relative fee 0%-100%" type="text" value={program.outgoingRelativeFee} onChange={(e) => {
+                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                copy.outgoingRelativeFee = e.target.value;
+                setProgram(copy);
+              }} />
+            </Tooltip>
+          </Box>
+        </Card>
+      }
+      {
+        programReady &&
         <Card mt="4">
           <Heading size="4" mb="2">Transaction cost</Heading>
           <Flex gap="2" mt="2">
@@ -464,17 +789,17 @@ export default function InteractionPage() {
             </Box>
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>
-                <Button size="3" variant="outline" color="gray" disabled={loading || loadingGasLimit} loading={loadingGasPrice}>
+                <Button size="3" variant="outline" color="gray" disabled={loadingTransaction || loadingGasLimit} loading={loadingGasPrice}>
                   Estimate
                   <DropdownMenu.TriggerIcon />
                 </Button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Content>
-                <DropdownMenu.Item disabled={loading || loadingGasPrice || loadingGasLimit} onClick={() => setEstimatedGasPrice(0.95)} shortcut="> 95%">Fastest</DropdownMenu.Item>
-                <DropdownMenu.Item disabled={loading || loadingGasPrice || loadingGasLimit} onClick={() => setEstimatedGasPrice(0.75)} shortcut="> 75%">Fast</DropdownMenu.Item>
-                <DropdownMenu.Item disabled={loading || loadingGasPrice || loadingGasLimit} onClick={() => setEstimatedGasPrice(0.50)} shortcut="> 50%">Medium</DropdownMenu.Item>
-                <DropdownMenu.Item disabled={loading || loadingGasPrice || loadingGasLimit} onClick={() => setEstimatedGasPrice(0.25)} shortcut="> 25%">Slow</DropdownMenu.Item>
-                <DropdownMenu.Item disabled={loading || loadingGasPrice || loadingGasLimit} onClick={() => setEstimatedGasPrice(0.10)} shortcut="> 10%">Slowest</DropdownMenu.Item>
+                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPrice || loadingGasLimit} onClick={() => setEstimatedGasPrice(0.95)} shortcut="> 95%">Fastest</DropdownMenu.Item>
+                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPrice || loadingGasLimit} onClick={() => setEstimatedGasPrice(0.75)} shortcut="> 75%">Fast</DropdownMenu.Item>
+                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPrice || loadingGasLimit} onClick={() => setEstimatedGasPrice(0.50)} shortcut="> 50%">Medium</DropdownMenu.Item>
+                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPrice || loadingGasLimit} onClick={() => setEstimatedGasPrice(0.25)} shortcut="> 25%">Slow</DropdownMenu.Item>
+                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPrice || loadingGasLimit} onClick={() => setEstimatedGasPrice(0.10)} shortcut="> 10%">Slowest</DropdownMenu.Item>
               </DropdownMenu.Content>
             </DropdownMenu.Root>
           </Flex>
@@ -484,10 +809,10 @@ export default function InteractionPage() {
                 <TextField.Root mb="3" size="3" placeholder="Gas limit" type="number" disabled={loadingGasPrice} value={gasLimit} onChange={(e) => setGasLimit(e.target.value)} />
               </Tooltip>
             </Box>
-            <Button size="3" variant="outline" color="gray" disabled={loading || loadingGasPrice} loading={loadingGasLimit} onClick={() => setCalculatedGasLimit()}>Calculate</Button>
+            <Button size="3" variant="outline" color="gray" disabled={loadingTransaction || loadingGasPrice} loading={loadingGasLimit} onClick={() => setCalculatedGasLimit()}>Calculate</Button>
           </Flex>
           <Box px="1" mt="2">
-            <Tooltip content="If transaction fails do not include it in a block">
+            <Tooltip content="If transaction fails do not include it in a block (without error report)">
               <Text as="label" size="2" color={conservative ? 'red' : 'jade'}>
                 <Flex gap="2">
                   <Checkbox size="3" checked={!conservative} onCheckedChange={(value) => setConservative(!(value.valueOf() as boolean))} />
@@ -518,7 +843,7 @@ export default function InteractionPage() {
                   }}/>
                 </Tooltip>
               </Box>
-              <Button size="3" variant="outline" color="gray" disabled={loadingGasPrice || loadingGasLimit} loading={loading} onClick={() => buildTransaction()}>Redo</Button>
+              <Button size="3" variant="outline" color="gray" disabled={loadingGasPrice || loadingGasLimit} loading={loadingTransaction} onClick={() => buildTransaction()}>Redo</Button>
             </Flex>
             <Tooltip content="Transaction data that will be sent to a node">
               <TextField.Root mb="3" size="3" placeholder="Transaction data" readOnly={true} value={Readability.toHash(transactionData?.data)} onClick={() => {
@@ -539,12 +864,15 @@ export default function InteractionPage() {
                 <Link className="router-link" to={'/account/' + ownerAddress}>▒▒</Link>
               </Button>
             </Flex>
-            <Tooltip content="Total transaction payment value">
-              <TextField.Root mb="3" size="3" placeholder="Payment value" readOnly={true} value={ '— ' + Readability.toMoney(assets[asset].asset, sendingValue) + ' as payment' } onClick={() => {
-                navigator.clipboard.writeText(sendingValue.toString());
-                AlertBox.open(AlertType.Info, 'Value copied!')
-              }}/>
-            </Tooltip>
+            {
+              (program instanceof MixedProgramTransfer || program instanceof ProgramWithdrawal) &&
+              <Tooltip content="Total transaction payment value">
+                <TextField.Root mb="3" size="3" placeholder="Payment value" readOnly={true} value={ '— ' + Readability.toMoney(assets[asset].asset, sendingValue) + ' as payment' } onClick={() => {
+                  navigator.clipboard.writeText(sendingValue.toString());
+                  AlertBox.open(AlertType.Info, 'Value copied!')
+                }}/>
+              </Tooltip>
+            }
             <Tooltip content="Max possible transaction fee">
               <TextField.Root mb="3" size="3" placeholder="Max fee value" readOnly={true} value={ '— ' + Readability.toMoney(assets[asset].asset, maxFeeValue) + ' as max fee' } onClick={() => {
                 navigator.clipboard.writeText(maxFeeValue.toString());
@@ -561,30 +889,48 @@ export default function InteractionPage() {
           <Flex justify="center" mt="4">
             <Dialog.Root>
               <Dialog.Trigger>
-                <Button variant="outline" size="3" color="jade" disabled={loadingGasPrice || loadingGasLimit} loading={loading} onClick={() => buildTransaction()}>Submit transaction</Button>
+                <Button variant="outline" size="3" color="jade" disabled={loadingGasPrice || loadingGasLimit} loading={loadingTransaction} onClick={() => buildTransaction()}>Submit transaction</Button>
               </Dialog.Trigger>
               <Dialog.Content maxWidth="450px">
                 <Dialog.Title mb="0">Confirmation</Dialog.Title>
                 <Dialog.Description mb="3" size="2" color="gray">This transaction will be sent to one of the nodes</Dialog.Description>
-                {
-                  asset != -1 &&
-                  <Box>
-                    <Text as="div" weight="light" size="4" mb="1">— { program == 'withdrawal' ? 'Withdraw' : 'Send' } <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', to.length) }</Text></Text>
-                    <Text as="div" weight="light" size="4" mb="1">— Pay up to <Text color="orange">{ Readability.toMoney(assets[asset].asset, maxFeeValue) }</Text> to <Text color="sky">miner as fee</Text></Text>
-                    {
-                      program == 'withdrawal' &&
+                <Box>
+                  {
+                    asset != -1 && program instanceof MixedProgramTransfer &&
+                    <Text as="div" weight="light" size="4" mb="1">— Send <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', program.to.length) }</Text></Text>        
+                  }
+                  {
+                    asset != -1 && program instanceof ProgramWithdrawal &&
+                    <>
+                      <Text as="div" weight="light" size="4" mb="1">— Withdraw <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', program.to.length) }</Text></Text>
                       <Text as="div" weight="light" size="4" mb="1">— Withdraw through <Badge radius="medium" variant="surface" size="2">{ 
-                        (query.get('proposer') || 'NULL').substring((query.get('proposer') || 'NULL').length - 6).toUpperCase()
+                          (query.get('proposer') || 'NULL').substring((query.get('proposer') || 'NULL').length - 6).toUpperCase()
                       }</Badge> node</Text>
-                    }
-                  </Box>
-                }
+                    </>
+                  }
+                  {
+                    asset != -1 && program instanceof ProgramCommitment &&
+                    <>
+                      <Text as="div" weight="light" size="4" mb="1">— { program.online == 'online' ? 'Enable' : (program.online == 'offline' ? 'Disable' : 'No change to') } <Text color="red">validator from this address</Text></Text>
+                      <Text as="div" weight="light" size="4" mb="1">— Update state of <Text color="red">{ Readability.toCount('observer', program.observers.length) }</Text></Text>
+                    </>
+                  }
+                  {
+                    asset != -1 && program instanceof ProgramContributionAllocation &&
+                    <Text as="div" weight="light" size="4" mb="1">— Allocate a { assets[asset].chain } bridge contribution wallet</Text>        
+                  }
+                  {
+                    asset != -1 && program instanceof ProgramDepositoryAdjustment &&
+                    <Text as="div" weight="light" size="4" mb="1">— Adjust a { assets[asset].chain } bridge by using { ((program.incomingAbsoluteFee.length > 0 && new BigNumber(program.incomingAbsoluteFee).gt(0)) || (program.incomingRelativeFee.length > 0 && new BigNumber(program.incomingRelativeFee.replace(/%/g, '')).gt(0))) ? 'paid' : 'free' } deposits and { ((program.outgoingAbsoluteFee.length > 0 && new BigNumber(program.outgoingAbsoluteFee).gt(0)) || (program.outgoingRelativeFee.length > 0 && new BigNumber(program.outgoingRelativeFee.replace(/%/g, '')).gt(0))) ? 'paid' : 'free' } withdrawals</Text>        
+                  }
+                  <Text as="div" weight="light" size="4" mb="1">— Pay up to <Text color="orange">{ Readability.toMoney(assets[asset].asset, maxFeeValue) }</Text> to <Text color="sky">miner as fee</Text></Text>
+                </Box>
                 <Flex gap="3" mt="4" justify="between">
                   <Dialog.Close>
                     <Button variant="soft" color="gray">Cancel</Button>
                   </Dialog.Close>
                   <Dialog.Close>
-                    <Button color="red" disabled={loadingGasPrice || loadingGasLimit} loading={loading} onClick={() => submitTransaction()}>Submit</Button>
+                    <Button color="red" disabled={loadingGasPrice || loadingGasLimit} loading={loadingTransaction} onClick={() => submitTransaction()}>Submit</Button>
                   </Dialog.Close>
                 </Flex>
               </Dialog.Content>

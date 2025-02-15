@@ -10,6 +10,7 @@ import InfiniteScroll from 'react-infinite-scroll-component';
 import QRCode from "react-qr-code";
 import Icon from "@mdi/react";
 import Transaction from "../components/transaction";
+import { useNavigate } from "react-router";
 
 function toAddressType(type: string): string {
   switch (type) {
@@ -40,6 +41,7 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
   const [transactions, setTransactions] = useState<{ transaction: any, receipt?: any, state?: SummaryState }[]>([]);
   const [mempoolTransactions, setMempoolTransactions] = useState<any[]>([]);
   const [moreTransactions, setMoreTransactions] = useState(true);
+  const navigate = useNavigate();
   const addressPurpose = useCallback((address: any) => {
     if (!address)
       return <>None</>;
@@ -342,21 +344,21 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content side="left">
                       <Tooltip content="Change validator and/or observer status(-es)">
-                        <DropdownMenu.Item shortcut="⟳ ₿" color={ work && work.online ? 'red' : undefined }>{ work && work.online ? 'Disable' : 'Enable' } validator</DropdownMenu.Item>
+                        <DropdownMenu.Item shortcut="⟳ ₿" color={ work && work.online ? 'red' : undefined } onClick={() => navigate('/interaction?type=commitment')}>{ work && work.online ? 'Disable' : 'Enable' } validator</DropdownMenu.Item>
                       </Tooltip>
                       <DropdownMenu.Separator />
                       <Tooltip content="Configure fee policy for a bridge">
-                        <DropdownMenu.Item shortcut="⇌ ₿">Configure bridge</DropdownMenu.Item>
+                        <DropdownMenu.Item shortcut="⇌ ₿" onClick={() => navigate('/interaction?type=depository_adjustment')}>Configure bridge</DropdownMenu.Item>
                       </Tooltip>
                       <Tooltip content="Migrate bridge's custodial funds to another bridge for deallocation">
-                        <DropdownMenu.Item shortcut="→ ₿" color="red">Migrate bridge</DropdownMenu.Item>
+                        <DropdownMenu.Item shortcut="→ ₿" color="red" onClick={() => navigate('/interaction?type=depository_migration')}>Migrate bridge</DropdownMenu.Item>
                       </Tooltip>
                       <DropdownMenu.Separator />
                       <Tooltip content="Contribute to a bridge by locking coverage funds">
-                        <DropdownMenu.Item shortcut="↘ ₿">Lock bridge contribution</DropdownMenu.Item>
+                        <DropdownMenu.Item shortcut="↘ ₿" onClick={() => navigate('/interaction?type=contribution_allocation')}>Lock bridge contribution</DropdownMenu.Item>
                       </Tooltip>
                       <Tooltip content="Deallocate bridge and unlock contributed coverage funds">
-                        <DropdownMenu.Item shortcut="↖ ₿" color="red">Unlock bridge contribution</DropdownMenu.Item>
+                        <DropdownMenu.Item shortcut="↖ ₿" color="red" onClick={() => navigate('/interaction?type=contribution_deallocation')}>Unlock bridge contribution</DropdownMenu.Item>
                       </Tooltip>
                     </DropdownMenu.Content>
                   </DropdownMenu.Root>
