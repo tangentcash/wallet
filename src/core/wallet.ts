@@ -867,8 +867,11 @@ export class Interface {
   static getBlockchains(): Promise<any[] | null> {
     return this.fetch('cache', 'getblockchains', []);
   }
-  static getBestAccountDepositoriesWithRewards(asset: AssetId, offset: number, count: number): Promise<any[] | null> {
-    return this.fetch('no-cache', 'getbestaccountdepositorieswithrewards', [asset.handle, offset, count]);
+  static getBestAccountRewardsForSelection(asset: AssetId, offset: number, count: number): Promise<any[] | null> {
+    return this.fetch('no-cache', 'getbestaccountrewardsforselection', [asset.handle, offset, count]);
+  }
+  static getBestAccountDepositoriesForSelection(asset: AssetId, offset: number, count: number): Promise<any[] | null> {
+    return this.fetch('no-cache', 'getbestaccountdepositoriesforselection', [asset.handle, offset, count]);
   }
   static getNextAccountSequence(address: string): Promise<{ min: BigNumber | string, max: BigNumber | string } | null> {
     return this.fetch('no-cache', 'getnextaccountsequence', [address]);
@@ -878,6 +881,9 @@ export class Interface {
   }
   static getAccountObservers(address: string, offset: number, count: number): Promise<any[] | null> {
     return this.fetch('no-cache', 'getaccountobservers', [address, offset, count]);
+  }
+  static getAccountDepositories(address: string, offset: number, count: number): Promise<any[] | null> {
+    return this.fetch('no-cache', 'getaccountdepositories', [address, offset, count]);
   }
   static getAccountBalance(address: string, asset: AssetId): Promise<{ supply: BigNumber, reserve: BigNumber, balance: BigNumber } | null> {
     return this.fetch('no-cache', 'getaccountbalance', [address, asset.handle]);

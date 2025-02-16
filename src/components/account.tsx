@@ -3,7 +3,7 @@ import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, DropdownMenu, F
 import { Interface, InterfaceUtil, SummaryState } from "../core/wallet";
 import { useEffectAsync } from "../core/extensions/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiAlphaEBox, mdiArrowRightBoldHexagonOutline, mdiCubeOutline, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan } from "@mdi/js";
+import { mdiAlertOctagonOutline, mdiAlphaEBox, mdiArrowLeftBoldHexagonOutline, mdiArrowRightBoldHexagonOutline, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan } from "@mdi/js";
 import { Readability } from "../core/text";
 import { AssetId } from "../core/tangent/algorithm";
 import InfiniteScroll from 'react-infinite-scroll-component';
@@ -339,7 +339,7 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger>
                       <Button variant="ghost" color={work ? (work.online ? 'jade' : 'red') : 'orange'}>
-                        <Badge size="2" color={work ? (work.online ? 'jade' : 'red') : 'orange'}>VALIDATOR { work ? (work.online ? 'ONLINE' : 'OFFLINE') : 'STANDBY' }</Badge>
+                        <Badge size="2" color={work ? (work.online ? 'jade' : 'red') : 'orange'}>{ work ? (work.online ? 'VALIDATOR ONLINE' : 'VALIDATOR OFFLINE') : 'NOT A VALIDATOR' }</Badge>
                       </Button>
                     </DropdownMenu.Trigger>
                     <DropdownMenu.Content side="left">
@@ -368,7 +368,7 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
                 }
               </Box>
               <Flex px="2" py="2" gap="3">
-                <Icon path={mdiArrowRightBoldHexagonOutline} size={1.5} style={{ color: 'var(--orange-11)' }} />
+                <Icon path={mdiArrowRightBoldHexagonOutline} size={1.5} style={{ color: 'var(--red-10)' }} />
                 <Box width="100%">
                   <Flex justify="between" align="center">
                     <Text as="div" size="2" weight="light">Gas</Text>
@@ -378,15 +378,26 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
               </Flex>
               {
                 work &&
-                <Flex px="2" py="2" gap="3" align="center">
-                  <Icon path={mdiCubeOutline} size={1.5} style={{ color: 'var(--gray-11)' }} />
-                  <Box width="100%">
-                    <Flex justify="between" align="center">
-                      <Text as="div" size="2" weight="light">{ work.online ? 'Latest activity' : 'Downtime' }</Text>
-                    </Flex>
-                    <Text as="div" size="2" weight="medium">{ work.online ? 'In' : 'From'} block { Math.max(work.block_number.toNumber(), work.penalty.toNumber()) }</Text>
-                  </Box>
-                </Flex>
+                <>
+                  <Flex px="2" py="2" gap="3" align="center">
+                    <Icon path={mdiAlertOctagonOutline} size={1.5} style={{ color: 'var(--yellow-11)' }} />
+                    <Box width="100%">
+                      <Flex justify="between" align="center">
+                        <Text as="div" size="2" weight="light">Reliability</Text>
+                      </Flex>
+                      <Text as="div" size="2" weight="medium">{ work.flags.findIndex((a: string) => a == 'founder') ? 'Founder' : (work.flags.findIndex((a: string) => a == 'outlaw') ? 'Unreliable' : 'Normal') }</Text>
+                    </Box>
+                  </Flex>
+                  <Flex px="2" py="2" gap="3" align="center">
+                    <Icon path={mdiArrowLeftBoldHexagonOutline} size={1.5} style={{ color: 'var(--jade-10)' }} />
+                    <Box width="100%">
+                      <Flex justify="between" align="center">
+                        <Text as="div" size="2" weight="light">{ work.online ? 'Activity' : 'Downtime' }</Text>
+                      </Flex>
+                      <Text as="div" size="2" weight="medium">{ work.online ? 'In' : 'From'} block { Math.max(work.block_number.toNumber(), work.penalty.toNumber()) }</Text>
+                    </Box>
+                  </Flex>
+                </>
               }
               {
                 observers.length > 0 &&

@@ -19,7 +19,8 @@ const BRIDGE_COUNT = 48;
 export default function BridgePage() {
   const ownerAddress = Wallet.getAddress() || '';
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
-  const [mode, setMode] = useState('bridges');
+  const [mode, setMode] = useState<'bridges' | 'register' | 'deposit'>('bridges');
+  const [preference, setPreference] = useState<'security' | 'cost'>('security');
   const [registrationType, setRegistrationType] = useState<'address' | 'pubkey'>('address');
   const [registrationTarget, setRegistrationTarget] = useState('');
   const [registrationSignature, setRegistrationSignature] = useState('');
@@ -29,6 +30,7 @@ export default function BridgePage() {
   const [proposer, setProposer] = useState<string | null>(null);
   const [bridgeAddress, setBridgeAddress] = useState<any | null>(null);
   const [walletAddresses, setWalletAddresses] = useState<any[]>([]);
+  const [cachedAddresses, setCachedAddresses] = useState<any[] | null>(null);
   const [acquiredBridges, setAcquiredBridges] = useState<{ [key: string]: any }>({ });
   const [candidateBridges, setCandidateBridges] = useState<any[]>([]);
   const [moreBridges, setMoreBridges] = useState(true);
@@ -54,7 +56,17 @@ export default function BridgePage() {
       if (asset == -1)
         return null;
 
-      const data = await Interface.getBestAccountDepositoriesWithRewards(new AssetId(assets[asset].id), refresh ? 0 : candidateBridges.length, BRIDGE_COUNT);
+      let data;
+      switch (preference) {
+        case 'security':
+          data = await Interface.getBestAccountDepositoriesForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateBridges.length, BRIDGE_COUNT);
+          break;
+        case 'cost':
+          data = await Interface.getBestAccountRewardsForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateBridges.length, BRIDGE_COUNT);
+          break;
+        default:
+          return null;
+      }
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setCandidateBridges([]);
@@ -62,7 +74,17 @@ export default function BridgePage() {
         return null;
       }
 
-      const result = refresh ? data : data.concat(candidateBridges);
+      const values = data.map((v) => {
+        const honest = v.work && v.work.flags.find((a: string) => a == 'outlaw') != -1;
+        const founder = v.work && v.work.flags.findIndex((a: string) => a == 'founder') != -1;
+        return {
+          ...v,
+          threshold: honest && founder ? 0.0 : 1.0,
+          founder: founder,
+          honest: honest
+        }
+      });
+      const result = refresh ? values : values.concat(candidateBridges);
       setCandidateBridges(result);
       setMoreBridges(data.length >= BRIDGE_COUNT);
       return result;
@@ -72,7 +94,7 @@ export default function BridgePage() {
       setMoreBridges(false);
       return null;
     }
-  }, [asset, candidateBridges]);
+  }, [asset, preference, candidateBridges]);
   const findBridgeAddress = useCallback(async (owner: string) => {
     try {
       if (loading)
@@ -184,10 +206,16 @@ export default function BridgePage() {
     } catch { }
   }, []);
   useEffectAsync(async () => {
+    if (asset == -1)
+      return;
+
     await findBridges(true);
     try {
-      const addressData = await Interface.fetchAll((offset, count) => Interface.getWitnessAddresses(ownerAddress, offset, count));
-      if (!Array.isArray(addressData))
+      const addressData = cachedAddresses ? cachedAddresses : await Interface.fetchAll((offset, count) => Interface.getWitnessAddresses(ownerAddress, offset, count));
+      if (!cachedAddresses && Array.isArray(addressData)) {
+        setCachedAddresses(addressData);
+      }
+      if (!addressData)
         throw false;
 
       const bridges = addressData.filter((item) => item.asset.id.toString() == assets[asset].id.toString() && item.purpose == 'custodian').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
@@ -209,7 +237,7 @@ export default function BridgePage() {
       setAcquiredBridges([]);
       setWalletAddresses([]);
     }
-  }, [asset]);
+  }, [asset, preference, cachedAddresses]);
 
   return (
     <Box px="4" pt="4" mx="auto" maxWidth="640px">
@@ -297,7 +325,7 @@ export default function BridgePage() {
                         <Card>
                           <Flex align="center" gap="2" mb="3">
                             <Heading size="4">Deposit bridge</Heading>
-                            <Badge radius="medium" variant="surface" size="3">{ bridge.proposer.substring(bridge.proposer.length - 6).toUpperCase() }</Badge>
+                            <Badge radius="medium" variant="surface" size="2">{ bridge.proposer.substring(bridge.proposer.length - 6).toUpperCase() }</Badge>
                           </Flex>
                           <DataList.Root orientation={orientation}>
                             <DataList.Item>
@@ -387,7 +415,19 @@ export default function BridgePage() {
                 }
               </Box>
               <Box width="100%" mb="4">
-                <Heading size="6" mb="3">Bridges</Heading>
+                <Flex justify="between" align="center" mb="3">
+                  <Heading size="6">Bridges</Heading>
+                  <Select.Root value={preference} onValueChange={(value) => setPreference(value as ('security' | 'cost'))}>
+                    <Select.Trigger />
+                    <Select.Content>
+                      <Select.Group>
+                        <Select.Label>Bridge preference</Select.Label>
+                        <Select.Item value="security">Security</Select.Item>
+                        <Select.Item value="cost">Cost</Select.Item>
+                      </Select.Group>
+                    </Select.Content>
+                  </Select.Root>
+                </Flex>
                 <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
               </Box>
               {
@@ -399,19 +439,20 @@ export default function BridgePage() {
               <InfiniteScroll dataLength={candidateBridges.length} hasMore={moreBridges} next={findBridges} loader={<div></div>}>
                 {
                   candidateBridges.map((item, index) =>
-                    <Box width="100%" key={item.contribution.hash + index} mb="4">
+                    <Box width="100%" key={item.depository.hash + index} mb="4">
                       <Card>
-                        <Flex justify="between">
-                          <Flex align="center" gap="2" mb="4">
-                            <Heading size="4">Bridge</Heading>
-                            <Badge radius="medium" variant="surface" size="3">{ item.contribution.owner.substring(item.contribution.owner.length - 6).toUpperCase() }</Badge>
+                        <Flex justify="between" align="center" mb="4">
+                          <Flex align="center" gap="2">
+                            <Heading size="4">{ item.founder ? 'Founder bridge' : 'Bridge' }</Heading>
+                            <Badge radius="medium" variant="surface" size="2">{ item.depository.owner.substring(item.depository.owner.length - 6).toUpperCase() }</Badge>
                           </Flex>
+                          <Badge size="2" radius="medium" color={item.work && item.work.online ? 'jade' : 'red'}>{ item.work && item.work.online ? 'ONLINE' : 'OFFLINE' }</Badge>
                         </Flex>
                         <DataList.Root orientation={orientation}>
                           <DataList.Item align="center">
                             <DataList.Label>Deposit capacity:</DataList.Label>
                             <DataList.Value>
-                              <Badge radius="small" size="3" color={item.contribution.coverage.gt(0) ? 'green' : 'red'}>MAX — { Readability.toMoney(new AssetId(assets[asset].id), item.contribution.coverage) }</Badge>
+                              <Badge radius="small" size="2" color={item.depository.coverage.gt(0) ? 'green' : 'red'}>MAX — { Readability.toMoney(new AssetId(assets[asset].id), item.depository.coverage) }</Badge>
                             </DataList.Value>
                           </DataList.Item>
                           {
@@ -431,7 +472,7 @@ export default function BridgePage() {
                           <DataList.Item align="center">
                             <DataList.Label>Withdrawal capacity:</DataList.Label>
                             <DataList.Value>
-                              <Badge radius="small" size="3" color={item.contribution.custody.gt(0) ? 'green' : 'red'}>MAX — { Readability.toMoney(new AssetId(assets[asset].id), item.contribution.custody) }</Badge>
+                              <Badge radius="small" size="2" color={item.depository.custody.gt(0) ? 'green' : 'red'}>MAX — { Readability.toMoney(new AssetId(assets[asset].id), item.depository.custody) }</Badge>
                             </DataList.Value>
                           </DataList.Item>
                           {
@@ -454,19 +495,26 @@ export default function BridgePage() {
                                 </Flex>
                               </Button>
                             </Collapsible.Trigger>
-                            <DropdownMenu.Root>
-                              <DropdownMenu.Trigger>
-                                <Button size="2" variant="surface" color="yellow">
-                                  Request
-                                  <DropdownMenu.TriggerIcon />
-                                </Button>
-                              </DropdownMenu.Trigger>
-                              <DropdownMenu.Content>
-                                <DropdownMenu.Item shortcut="→" onClick={() => useBridge(item.contribution.owner, 'register')}>Registration</DropdownMenu.Item>
-                                <DropdownMenu.Item shortcut="↙" disabled={acquiredBridges[item.contribution.owner] != null} onClick={() => !acquiredBridges[item.contribution.owner] && useBridge(item.contribution.owner, 'deposit')}>Deposit</DropdownMenu.Item>
-                                <DropdownMenu.Item shortcut="↗" onClick={() => navigate(`/interaction?asset=${new AssetId(assets[asset].id).toHex()}&type=withdrawal&proposer=${item.contribution.owner}`)}>Withdrawal</DropdownMenu.Item>
-                              </DropdownMenu.Content>
-                            </DropdownMenu.Root>
+                            {
+                              item.honest &&
+                              <DropdownMenu.Root>
+                                <DropdownMenu.Trigger>
+                                  <Button size="2" variant="surface" color="yellow">
+                                    Request
+                                    <DropdownMenu.TriggerIcon />
+                                  </Button>
+                                </DropdownMenu.Trigger>
+                                <DropdownMenu.Content>
+                                  <DropdownMenu.Item shortcut="→" onClick={() => useBridge(item.depository.owner, 'register')}>Registration</DropdownMenu.Item>
+                                  <DropdownMenu.Item shortcut="↙" disabled={acquiredBridges[item.depository.owner] != null} onClick={() => !acquiredBridges[item.depository.owner] && useBridge(item.depository.owner, 'deposit')}>Deposit</DropdownMenu.Item>
+                                  <DropdownMenu.Item shortcut="↗" onClick={() => navigate(`/interaction?asset=${new AssetId(assets[asset].id).toHex()}&type=withdrawal&proposer=${item.depository.owner}`)}>Withdrawal</DropdownMenu.Item>
+                                </DropdownMenu.Content>
+                              </DropdownMenu.Root>
+                            }
+                            {
+                              !item.honest &&
+                              <Badge size="3" color="red">PERMANENT BAN</Badge>
+                            }
                           </Flex>
                           <Collapsible.Content>
                             <Box width="100%" my="4">
@@ -478,11 +526,11 @@ export default function BridgePage() {
                                   <DataList.Label>Holder account:</DataList.Label>
                                   <DataList.Value>
                                     <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                      navigator.clipboard.writeText(item.contribution.owner);
+                                      navigator.clipboard.writeText(item.depository.owner);
                                       AlertBox.open(AlertType.Info, 'Address copied!')
-                                    }}>{ Readability.toAddress(item.contribution.owner) }</Button>
+                                    }}>{ Readability.toAddress(item.depository.owner) }</Button>
                                     <Box ml="2">
-                                      <Link className="router-link" to={'/account/' + item.contribution.owner}>▒▒</Link>
+                                      <Link className="router-link" to={'/account/' + item.depository.owner}>▒▒</Link>
                                     </Box>
                                   </DataList.Value>
                                 </DataList.Item>
@@ -490,8 +538,8 @@ export default function BridgePage() {
                                   <DataList.Label>Custodial balance:</DataList.Label>
                                   <DataList.Value>
                                     <Flex gap="2">
-                                      <Text>{ Readability.toMoney(new AssetId(assets[asset].id), item.contribution.custody) }</Text>
-                                      <Badge size="1" radius="medium" color={ item.contribution.contribution.lte(0) || !item.contribution.custody.dividedBy(item.contribution.contribution).lt(item.contribution.threshold) ? 'red' : 'green' }>FULLNESS: { ((item.contribution.contribution.gt(0) ? item.contribution.custody.multipliedBy(item.contribution.threshold).dividedBy(item.contribution.contribution).toNumber() : 0) * 100).toFixed(2) }%</Badge>
+                                      <Text>{ Readability.toMoney(new AssetId(assets[asset].id), item.depository.custody) }</Text>
+                                      <Badge size="1" radius="medium" color={ item.depository.contribution.lte(0) || !item.depository.custody.dividedBy(item.depository.contribution).lt(item.threshold) ? 'red' : 'green' }>FULLNESS: { ((item.depository.contribution.gt(0) ? item.depository.custody.multipliedBy(item.threshold).dividedBy(item.depository.contribution).toNumber() : 0) * 100).toFixed(2) }%</Badge>
                                     </Flex>
                                   </DataList.Value>
                                 </DataList.Item>
@@ -499,35 +547,27 @@ export default function BridgePage() {
                                   <DataList.Label>Locked balance:</DataList.Label>
                                   <DataList.Value>
                                     <Flex gap="2">
-                                      { Readability.toMoney(new AssetId(assets[asset].id), item.contribution.contribution) }
-                                      <Badge size="1" radius="medium" color={ item.contribution.custody.lte(0) || item.contribution.contribution.dividedBy(item.contribution.custody).gte(item.contribution.threshold) ? 'green' : 'red' }>COVERAGE: { ((item.contribution.custody.gt(0) ? item.contribution.contribution.dividedBy(item.contribution.custody).toNumber() : 1) * 100).toFixed(2) }%</Badge>
+                                      { Readability.toMoney(new AssetId(assets[asset].id), item.depository.contribution) }
+                                      <Badge size="1" radius="medium" color={ item.depository.custody.lte(0) || item.depository.contribution.dividedBy(item.depository.custody).gte(item.threshold) ? 'green' : 'red' }>COVERAGE: { ((item.depository.custody.gt(0) ? item.depository.contribution.dividedBy(item.depository.custody).toNumber() : 1) * 100).toFixed(2) }%</Badge>
                                     </Flex>
                                   </DataList.Value>
                                 </DataList.Item>
                                 <DataList.Item>
                                   <DataList.Label>Balance at risk:</DataList.Label>
                                   <DataList.Value>
-                                    { Readability.toMoney(new AssetId(assets[asset].id), item.contribution.reservation.plus(BigNumber.max(BigNumber.min(item.contribution.custody.multipliedBy(item.contribution.threshold).minus(item.contribution.contribution), item.contribution.custody), 0))) }
+                                    { Readability.toMoney(new AssetId(assets[asset].id), item.depository.reservation.plus(BigNumber.max(BigNumber.min(item.depository.custody.multipliedBy(item.threshold).minus(item.depository.contribution), item.depository.custody), 0))) }
                                   </DataList.Value>
                                 </DataList.Item>
                                 <DataList.Item>
                                   <DataList.Label>Coverage threshold:</DataList.Label>
                                   <DataList.Value>
-                                  { ((item.contribution.custody.gt(0) ? item.contribution.contribution.dividedBy(item.contribution.custody).toNumber() : 1) * 100).toFixed(2) }% ≥ { (item.contribution.threshold.toNumber() * 100).toFixed(2) }%
+                                  { ((item.depository.custody.gt(0) ? item.depository.contribution.dividedBy(item.depository.custody).toNumber() : 1) * 100).toFixed(2) }% ≥ { (item.threshold * 100).toFixed(2) }%
                                   </DataList.Value>
                                 </DataList.Item>
                               </DataList.Root>
                             </Card>
                           </Collapsible.Content>
                         </Collapsible.Root>
-                        {
-                          !item.contribution.honest &&
-                          <Box position="absolute" top="0" left="0" right="0" bottom="0" px="4" py="4" style={{ backgroundColor: 'var(--tomato-3)', opacity: '0.7' }}>
-                            <Flex align="end" justify="end" height="100%" width="100%">
-                              <Heading style={{ textTransform: 'uppercase' }}>BANNED</Heading>
-                            </Flex>
-                          </Box>
-                        }
                       </Card>
                     </Box>
                   )
@@ -542,7 +582,7 @@ export default function BridgePage() {
                 <Flex justify="between" align="center" mb="3">
                   <Flex align="center" gap="2">
                     <Heading size="6">Bridge</Heading>
-                    <Badge radius="medium" variant="surface" size="3">{ proposer.substring(proposer.length - 6).toUpperCase() }</Badge>
+                    <Badge radius="medium" variant="surface" size="2">{ proposer.substring(proposer.length - 6).toUpperCase() }</Badge>
                   </Flex>
                   <Button variant="surface" color="gray" onClick={() => useBridge(null, 'bridges')}>
                     <Icon path={mdiBackburger} size={0.7} />
@@ -633,7 +673,7 @@ export default function BridgePage() {
                 <Flex justify="between" align="center" mb="3">
                   <Flex align="center" gap="2">
                     <Heading size="6">Bridge</Heading>
-                    <Badge radius="medium" variant="surface" size="3">{ proposer.substring(proposer.length - 6).toUpperCase() }</Badge>
+                    <Badge radius="medium" variant="surface" size="2">{ proposer.substring(proposer.length - 6).toUpperCase() }</Badge>
                   </Flex>
                   <Button variant="surface" color="gray" onClick={() => useBridge(null, 'bridges')}>
                     <Icon path={mdiBackburger} size={0.7} />
@@ -657,7 +697,7 @@ export default function BridgePage() {
                   <Card>
                     <Flex align="center" gap="2" mb="3">
                       <Heading size="4">Bridge</Heading>
-                      <Badge radius="medium" variant="surface" size="3">{ proposer.substring(proposer.length - 6).toUpperCase() }</Badge>
+                      <Badge radius="medium" variant="surface" size="2">{ proposer.substring(proposer.length - 6).toUpperCase() }</Badge>
                     </Flex>
                     <DataList.Root orientation={orientation}>
                       <DataList.Item>

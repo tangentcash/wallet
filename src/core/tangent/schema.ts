@@ -121,6 +121,15 @@ export namespace Transactions {
 
     getType() { return ContributionAllocation.typename; }
   }
+  
+  export class ContributionDeallocation extends Ledger.Transaction {
+    static typename: string = 'contribution_deallocation';
+    contributionActivationHash: string = 'uint256';
+    cipherPublicKey1: string = 'pubkey';
+    cipherPublicKey2: string = 'pubkey';
+
+    getType() { return ContributionDeallocation.typename; }
+  }
 
   export class DepositoryAdjustment extends Ledger.Transaction {
     static typename: string = 'depository_adjustment';
@@ -130,5 +139,13 @@ export namespace Transactions {
     outgoingRelativeFee: string = 'decimal';
 
     getType() { return DepositoryAdjustment.typename; }
+  }
+
+  export class DepositoryMigration extends Ledger.Transaction {
+    static typename: string = 'depository_migration';
+    proposer: string = 'pubkeyhash';
+    value: string = 'decimal';
+
+    getType() { return DepositoryMigration.typename; }
   }
 }

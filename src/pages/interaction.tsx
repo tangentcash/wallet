@@ -3,7 +3,7 @@ import { Avatar, Badge, Box, Button, Card, Checkbox, Dialog, DropdownMenu, Flex,
 import { useCallback, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/extensions/react";
 import { Interface, TransactionOutput, Wallet } from "../core/wallet";
-import { AssetId, Signing, Uint256 } from "../core/tangent/algorithm";
+import { AssetId, Hashing, Signing, Uint256 } from "../core/tangent/algorithm";
 import { Readability } from "../core/text";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { Ledger, Transactions } from "../core/tangent/schema";
@@ -30,11 +30,21 @@ export class ProgramCommitment {
 export class ProgramContributionAllocation {
 }
 
+export class ProgramContributionDeallocation {
+  contributionActivationHash: string = '';
+}
+
 export class ProgramDepositoryAdjustment {
   incomingAbsoluteFee: string = '';
   incomingRelativeFee: string = '';
   outgoingAbsoluteFee: string = '';
   outgoingRelativeFee: string = '';
+}
+
+export class ProgramDepositoryMigration {
+  depositories: { asset: AssetId, value: BigNumber }[] = [];
+  proposer: string = '';
+  value: string = '';
 }
 
 export default function InteractionPage() {
@@ -50,7 +60,7 @@ export default function InteractionPage() {
   const [loadingGasLimit, setLoadingGasLimit] = useState(false);
   const [conservative, setConservative] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
-  const [program, setProgram] = useState<MixedProgramTransfer | ProgramWithdrawal | ProgramCommitment | ProgramContributionAllocation | ProgramDepositoryAdjustment | null>(null);
+  const [program, setProgram] = useState<MixedProgramTransfer | ProgramWithdrawal | ProgramCommitment | ProgramContributionAllocation | ProgramContributionDeallocation | ProgramDepositoryAdjustment | ProgramDepositoryMigration | null>(null);
   const navigate = useNavigate();
   const maxFeeValue = useMemo((): BigNumber => {
     try {
@@ -90,8 +100,12 @@ export default function InteractionPage() {
       return 'Manage validator';
     } else if (program instanceof ProgramContributionAllocation) {
       return 'Lock contribution';
+    } else if (program instanceof ProgramContributionDeallocation) {
+      return 'Unlock contribution';
     } else if (program instanceof ProgramDepositoryAdjustment) {
       return 'Bridge adjustment';
+    } else if (program instanceof ProgramDepositoryMigration) {
+      return 'Bridge migration';
     }
     return 'Bad program';
   }, [program]);
@@ -114,6 +128,13 @@ export default function InteractionPage() {
           return value;
         }
       }, new BigNumber(0));
+    } else if (program instanceof ProgramDepositoryMigration) {
+      try {
+        const numeric = new BigNumber(program.value.trim());
+        return numeric.isPositive() ? numeric : new BigNumber(0);
+      } catch {
+        return new BigNumber(0);
+      }
     }
 
     return new BigNumber(0);
@@ -170,6 +191,9 @@ export default function InteractionPage() {
       return program.online != 'standby' || program.observers.length > 0;
     } else if (program instanceof ProgramContributionAllocation) {
       return true;
+    } else if (program instanceof ProgramContributionDeallocation) {
+      const hash = new Uint256(program.contributionActivationHash, 16);
+      return hash.gt(0);
     } else if (program instanceof ProgramDepositoryAdjustment) {
       try {
         if (program.incomingAbsoluteFee.length > 0) {
@@ -212,6 +236,20 @@ export default function InteractionPage() {
       }
 
       return true;
+    } else if (program instanceof ProgramDepositoryMigration) {
+      const publicKeyHash = Signing.decodeAddress(program.proposer.trim());
+      if (!publicKeyHash || publicKeyHash.data.length != 20)
+        return false;
+
+      try {
+        const numeric = new BigNumber(program.value.trim());
+        if (numeric.isNaN() || !numeric.isPositive())
+          return false;
+        
+        return true;
+      } catch {
+        return false;
+      }
     }
 
     return false;
@@ -239,8 +277,8 @@ export default function InteractionPage() {
     return maxFeeValue.plus(sendingValue).lte(assets[asset].balance);
   }, [programReady, gasPrice, gasLimit, maxFeeValue, sendingValue]);
   const setRemainingValue = useCallback((index: number) => {
-    const balance = assets[asset].balance;
     if (program instanceof MixedProgramTransfer || program instanceof ProgramWithdrawal) {
+      const balance = assets[asset].balance;
       let value = balance.minus(sendingValue);
       try {
         const numeric = new BigNumber(program.to[index].value.trim());
@@ -250,6 +288,18 @@ export default function InteractionPage() {
       
       const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
       copy.to[index].value = value.lt(0) ? '0' : value.toString();
+      setProgram(copy);
+    } else if (program instanceof ProgramDepositoryMigration) {
+      const balance = program.depositories.find((v) => v.asset.id == assets[asset].id)?.value || new BigNumber(0);
+      let value = balance.minus(sendingValue);
+      try {
+        const numeric = new BigNumber(program.value.trim());
+        if (!numeric.isNaN() && numeric.isPositive())
+          value = value.minus(numeric);
+      } catch { }
+      
+      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+      copy.value = value.lt(0) ? '0' : value.toString();
       setProgram(copy);
     }
   }, [assets, asset, program]);
@@ -364,6 +414,29 @@ export default function InteractionPage() {
           type: new Transactions.ContributionAllocation(),
           args: { }
         };
+      } else if (program instanceof ProgramContributionDeallocation) {
+        const secretKey = Wallet.getSecretKey();
+        if (!secretKey)
+          throw new Error('cannot fetch the secret key');
+
+        const hash1 = new Uint256(program.contributionActivationHash, 16);
+        const keypair1 = await Signing.deriveCipherKeypair(secretKey, hash1);
+        if (!keypair1)
+          throw new Error('cannot derive the cipher keypair 1');
+
+        const hash2 = new Uint256(Hashing.hash256(hash1.toUint8Array()), 16);
+        const keypair2 = await Signing.deriveCipherKeypair(secretKey, hash2);
+        if (!keypair2)
+          throw new Error('cannot derive the cipher keypair 2');
+
+        method = {
+          type: new Transactions.ContributionDeallocation(),
+          args: {
+            contributionActivationHash: hash1,
+            cipherPublicKey1: keypair1.cipherPublicKey,
+            cipherPublicKey2: keypair2.cipherPublicKey
+          }
+        };
       } else if (program instanceof ProgramDepositoryAdjustment) {
         method = {
           type: new Transactions.DepositoryAdjustment(),
@@ -372,6 +445,14 @@ export default function InteractionPage() {
             incomingRelativeFee: program.incomingRelativeFee.length > 0 ? new BigNumber(program.incomingRelativeFee.replace(/%/g, '')) : new BigNumber(0),
             outgoingAbsoluteFee: program.outgoingAbsoluteFee.length > 0 ? new BigNumber(program.outgoingAbsoluteFee) : new BigNumber(0),
             outgoingRelativeFee: program.outgoingRelativeFee.length > 0 ? new BigNumber(program.outgoingRelativeFee.replace(/%/g, '')) : new BigNumber(0),
+          }
+        };
+      } else if (program instanceof ProgramDepositoryMigration) {
+        method = {
+          type: new Transactions.DepositoryAdjustment(),
+          args: {
+            proposer: Signing.decodeAddress(program.proposer),
+            value: program.value.length > 0 ? new BigNumber(program.value) : new BigNumber(0),
           }
         };
       }
@@ -483,8 +564,20 @@ export default function InteractionPage() {
         setProgram(new ProgramContributionAllocation());
         break;
       }
+      case 'contribution_deallocation': {
+        setProgram(new ProgramContributionDeallocation());
+        break;
+      }
       case 'depository_adjustment': {
         setProgram(new ProgramDepositoryAdjustment());
+        break;
+      }
+      case 'depository_migration': {
+        const result = new ProgramDepositoryMigration();
+        try { result.depositories = ((await Interface.fetchAll((offset, count) => Interface.getAccountDepositories(ownerAddress, offset, count))) || []).map((v) => { return { asset: new AssetId(v.asset.id), value: v.custody }}); } catch { }
+        setAssets(result.depositories.map((v) => { return { asset: v.asset, balance: v.value } }));
+        setAsset(-1);
+        setProgram(result);
         break;
       }
     }
@@ -736,6 +829,21 @@ export default function InteractionPage() {
         </Card>
       }
       {
+        asset != -1 && program instanceof ProgramContributionDeallocation &&
+        <Card mt="4">
+          <Heading size="4" mb="2">Contribution reference</Heading>
+          <Box width="100%">
+            <Tooltip content="Hash of contribution activation transaction">
+              <TextField.Root size="3" placeholder="Activation hash" type="text" value={program.contributionActivationHash} onChange={(e) => {
+                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                copy.contributionActivationHash = e.target.value;
+                setProgram(copy);
+              }} />
+            </Tooltip>
+          </Box>
+        </Card>
+      }
+      {
         asset != -1 && program instanceof ProgramDepositoryAdjustment &&
         <Card mt="4">
           <Heading size="4" mb="2">Bridge fee policy</Heading>
@@ -775,6 +883,33 @@ export default function InteractionPage() {
               }} />
             </Tooltip>
           </Box>
+        </Card>
+      }
+      {
+        asset != -1 && program instanceof ProgramDepositoryMigration &&
+        <Card mt="4">
+          <Heading size="4" mb="2">Bridge custody migration</Heading>  
+          <Box width="100%" mb="3">
+            <Tooltip content="Migrate to this proposer's bridge address">
+              <TextField.Root size="3" placeholder="Migrate to proposer" type="text" value={program.proposer} onChange={(e) => {
+                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                copy.proposer = e.target.value;
+                setProgram(copy);
+              }} />
+            </Tooltip>
+          </Box>
+          <Flex gap="2">
+            <Box width="100%">
+              <Tooltip content="Custodial value to migrate">
+                <TextField.Root mb="3" size="3" placeholder={'Value in ' + (assets[asset].asset.token || assets[asset].asset.chain)} type="number" value={program.value} onChange={(e) => {
+                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                  copy.value = e.target.value;
+                  setProgram(copy);
+                }} />
+              </Tooltip>
+            </Box>
+            <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(0) }>Remaining</Button>
+          </Flex>
         </Card>
       }
       {
@@ -920,8 +1055,16 @@ export default function InteractionPage() {
                     <Text as="div" weight="light" size="4" mb="1">— Allocate a { assets[asset].chain } bridge contribution wallet</Text>        
                   }
                   {
+                    asset != -1 && program instanceof ProgramContributionDeallocation &&
+                    <Text as="div" weight="light" size="4" mb="1">— Deallocate a { assets[asset].chain } bridge contribution wallet of <Text color="red">{ Readability.toHash(program.contributionActivationHash).toUpperCase() }</Text> for later withdrawal</Text>        
+                  }
+                  {
                     asset != -1 && program instanceof ProgramDepositoryAdjustment &&
                     <Text as="div" weight="light" size="4" mb="1">— Adjust a { assets[asset].chain } bridge by using { ((program.incomingAbsoluteFee.length > 0 && new BigNumber(program.incomingAbsoluteFee).gt(0)) || (program.incomingRelativeFee.length > 0 && new BigNumber(program.incomingRelativeFee.replace(/%/g, '')).gt(0))) ? 'paid' : 'free' } deposits and { ((program.outgoingAbsoluteFee.length > 0 && new BigNumber(program.outgoingAbsoluteFee).gt(0)) || (program.outgoingRelativeFee.length > 0 && new BigNumber(program.outgoingRelativeFee.replace(/%/g, '')).gt(0))) ? 'paid' : 'free' } withdrawals</Text>        
+                  }
+                  {
+                    asset != -1 && program instanceof ProgramDepositoryMigration &&
+                    <Text as="div" weight="light" size="4" mb="1">— Migrate <Text color="red">{ Readability.toMoney(assets[asset].asset, program.value) }</Text> of custody to a <Text color="red">{ Readability.toAddress(program.proposer, 6).toUpperCase() }</Text> bridge</Text>
                   }
                   <Text as="div" weight="light" size="4" mb="1">— Pay up to <Text color="orange">{ Readability.toMoney(assets[asset].asset, maxFeeValue) }</Text> to <Text color="sky">miner as fee</Text></Text>
                 </Box>
