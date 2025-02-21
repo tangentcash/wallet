@@ -35,6 +35,8 @@ export type AppState = {
 }
 
 export type AppProps = {
+  resolver: string | null,
+  server: string | null,
   appearance: 'dark' | 'light'
 }
 
@@ -49,6 +51,8 @@ export class AppData {
     setAppearance: null
   };
   static props: AppProps = {
+    resolver: 'nds.tanchain.org',
+    server: '127.0.0.1:18419',
     appearance: 'dark'
   };
 
@@ -111,6 +115,8 @@ export class AppData {
     Interface.onNodeRequest = this.request;
     Interface.onNodeResponse = this.response;
     Interface.onNodeError = this.error;
+    Interface.applyResolver(this.props.resolver);
+    Interface.applyServer(this.props.server);
     if (true)
       await Wallet.restore('123456', NetworkType.Regtest);
    
@@ -125,6 +131,16 @@ export class AppData {
   }
   static openDevTools(): void {
     core.invoke('devtools');
+  }
+  static setResolver(value: string): void {
+    this.props.resolver = value;
+    Interface.applyResolver(this.props.resolver);
+    this.save();
+  }
+  static setServer(value: string): void {
+    this.props.server = value;
+    Interface.applyServer(this.props.server);
+    this.save();
   }
   static setAppearance(value: 'dark' | 'light'): void {
     this.props.appearance = value;

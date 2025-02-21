@@ -1,14 +1,14 @@
 import { mdiAlertOctagram, mdiAlertOctagramOutline, mdiBackburger, mdiBugOutline, mdiCached, mdiInformationOutline, mdiLocationExit, mdiLockOpenAlertOutline, mdiMagnifyExpand, mdiReloadAlert } from "@mdi/js";
-import { Badge, Box, Button, Card, DataList, Flex, Heading, Switch, Table, Text } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, DataList, Flex, Heading, Switch, Table, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useNavigate } from "react-router";
 import { AppData } from "../app";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Interface, Wallet } from "../core/wallet";
 import { AlertBox, AlertType } from "../components/alert";
 import { Readability } from "../core/text";
-import Icon from "@mdi/react";
 import { SafeStorage, StorageField } from "../core/storage";
 import { ByteUtil, Signing } from "../core/tangent/algorithm";
+import Icon from "@mdi/react";
 
 function toServerInfo(url: string): string {
   try {
@@ -131,6 +131,18 @@ export default function ConfigurePage() {
               <Switch size="3" variant="soft" checked={Interface.getProps().streaming} onCheckedChange={(value) => setWsStreaming(value)}/>
             </Flex>
           </Text>
+          <Tooltip content="Use only this server as a resolver of public servers">
+            <TextField.Root size="2" placeholder="Resolver server address" type="text" mt="3" value={AppData.props.resolver || ''} onChange={(e) => {
+              AppData.setResolver(e.target.value);
+              setCounter(new Date().getTime());
+            }} />
+          </Tooltip>
+          <Tooltip content="Use only this server as a validator">
+            <TextField.Root size="2" placeholder="Validator server address" type="text" mt="2" value={AppData.props.server || ''} onChange={(e) => {
+              AppData.setServer(e.target.value);
+              setCounter(new Date().getTime());
+            }} />
+          </Tooltip>
         </Box>
       </Card>
       <Card mt="4">

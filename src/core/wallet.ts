@@ -5,8 +5,6 @@ import { Ledger, Messages } from "./tangent/schema";
 import { SchemaUtil, Stream } from "./tangent/serialization";
 import { Types } from "./tangent/types";
 
-const DEFAULT_DISCOVERERS = ['nds.tanchain.org'];
-const DEFAULT_INTERFACES = ['127.0.0.1:18419'];
 const CACHE_PREFIX = 'cache';
 const WEBSOCKET_TIMEOUT = 24000;
 
@@ -58,6 +56,13 @@ export type TransactionOutput = {
   } & { [key: string]: any }
 }
 
+export type ServerInfo = {
+  online: Set<string>;
+  offline: Set<string>;
+  overrider: string | null;
+  preload: boolean;
+}
+
 export enum WalletType {
   Mnemonic = 'mnemonic',
   SecretKey = 'secretkey',
@@ -75,7 +80,7 @@ export class InterfaceProps {
   streaming: boolean = true;
 }
 
-class Keychain {
+export class Keychain {
   type: WalletType | null = null;
   secretKey: Seckey | null = null;
   publicKey: Pubkey | null = null;
@@ -424,18 +429,17 @@ export class Wallet {
 }
 
 export class Interface {
-  static discoverers = {
-    online: new Set<string>(DEFAULT_DISCOVERERS),
-    offline: new Set<string>()
-  };
-  static httpInterfaces = {
-    online: new Set<string>(DEFAULT_INTERFACES),
+  static resolver: string | null = null;
+  static httpInterfaces: ServerInfo = {
+    online: new Set<string>(),
     offline: new Set<string>(),
+    overrider: null,
     preload: false
   };
-  static wsInterfaces = {
-    online: new Set<string>(DEFAULT_INTERFACES),
+  static wsInterfaces: ServerInfo = {
+    online: new Set<string>(),
     offline: new Set<string>(),
+    overrider: null,
     preload: false
   };
   static requests = {
@@ -501,19 +505,32 @@ export class Interface {
       return null;
     }
   }
-  private static fetchDiscoverer(type: 'ws' | 'http'): [string, string] | null {
+  private static fetchResolver(type: 'ws' | 'http'): [string, string] | null {
     try {
-      const nodes = Array.from(this.discoverers.online.keys());
-      const node = nodes[Math.floor(Math.random() * nodes.length)];
-      const location = new URL('tcp://' + node);
+      if (!this.resolver)
+        return null;
+      
+      const location = new URL('tcp://' + this.resolver);
       const secure = (location.port == '443');
-      return [`${secure ? 'https' : 'http'}://${node}/?interface=1&public=1${type == 'ws' ? '&streaming=1' : ''}`, node];
+      return [`${secure ? 'https' : 'http'}://${this.resolver}/?interface=1&public=1${type == 'ws' ? '&streaming=1' : ''}`, this.resolver];
     } catch {
       return null;
     }
   }
   private static async fetchIpset(type: 'ws' | 'http', mode: 'preload' | 'fetch'): Promise<number> {
     const interfaces = type == 'ws' ? this.wsInterfaces : this.httpInterfaces;
+    if (interfaces.overrider != null) {
+      try {
+        const scheme = new URL('tcp://' + interfaces.overrider);
+        const address = scheme.hostname + (scheme.port.length > 0 ? ':' + scheme.port : '');
+        const retry = interfaces.offline.has(address);
+        interfaces.offline.delete(address);
+        interfaces.online.add(address);
+        return retry ? 0 : 1;
+      } catch {
+        return 0;
+      }
+    }
     switch (mode) {
       case 'preload': {
         if (interfaces.preload)
@@ -540,11 +557,8 @@ export class Interface {
         return results;
       }
       case 'fetch': {
-        while (this.discoverers.offline.size < this.discoverers.online.size) {
-          const location = this.fetchDiscoverer(type);
-          if (!location)
-            continue;
-        
+        const location = this.fetchResolver(type);
+        if (location != null) {
           try {
             if (this.onNodeRequest)
               this.onNodeRequest(location[0], 'discover', null, 0);
@@ -554,7 +568,6 @@ export class Interface {
             const data = JSON.parse(dataContent);
             if (this.onNodeResponse)
               this.onNodeResponse(location[0], 'discover', data, dataContent.length);
-    
             if (!Array.isArray(data))
               throw false;
     
@@ -573,23 +586,13 @@ export class Interface {
     
             if (results > 0)
               return results;
-            else
-              continue;
           } catch (exception) {
             if (this.onNodeResponse)
               this.onNodeResponse(location[0], 'discover', exception, (exception as Error).message.length);
           }
-    
-          this.discoverers.online.delete(location[1]);
-          this.discoverers.offline.add(location[1]);
         }
     
-        if (this.discoverers.offline.size >= this.discoverers.online.size) {
-            this.discoverers.online = new Set<string>([...this.discoverers.online, ...this.discoverers.offline]);
-            this.discoverers.offline.clear();
-        }
-    
-        Storage.set(type =='ws' ? StorageField.Streaming : StorageField.Polling, [...interfaces.online, ...interfaces.offline]);
+        Storage.set(type == 'ws' ? StorageField.Streaming : StorageField.Polling, [...interfaces.online, ...interfaces.offline]);
         return 0;
       }
       default:
@@ -836,6 +839,13 @@ export class Interface {
     this.socket.close();
     this.socket = null;
     return true;
+  }
+  static applyResolver(resolver: string | null): void {
+    this.resolver = resolver;
+  }
+  static applyServer(server: string | null): void {
+    this.httpInterfaces.overrider = server;
+    this.wsInterfaces.overrider = server;
   }
   static saveProps(props: InterfaceProps): void {
     Storage.set(StorageField.InterfaceProps, props);
