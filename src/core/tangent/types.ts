@@ -10,4 +10,8 @@ export class Types
   static WitnessTransaction = Hashing.hash32(ByteUtil.byteStringToUint8Array(States.WitnessTransaction.typename));
   static Rollup = Hashing.hash32(ByteUtil.byteStringToUint8Array(Transactions.Rollup.typename));
   static ContributionAllocation = Hashing.hash32(ByteUtil.byteStringToUint8Array(Transactions.ContributionAllocation.typename));
+  static ContributionSelection = Hashing.hash32(ByteUtil.byteStringToUint8Array(Transactions.ContributionSelection.typename));
+  static ContributionActivation = Hashing.hash32(ByteUtil.byteStringToUint8Array(Transactions.ContributionActivation.typename));
+  static ContributionDeselection = Hashing.hash32(ByteUtil.byteStringToUint8Array(Transactions.ContributionDeselection.typename));
+  static ContributionDeactivation = Hashing.hash32(ByteUtil.byteStringToUint8Array(Transactions.ContributionDeactivation.typename));
 }

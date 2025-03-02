@@ -122,6 +122,18 @@ export namespace Transactions {
     getType() { return ContributionAllocation.typename; }
   }
   
+  export class ContributionSelection extends Ledger.Transaction {
+    static typename: string = 'contribution_selection';
+
+    getType() { return ContributionSelection.typename; }
+  }
+  
+  export class ContributionActivation extends Ledger.Transaction {
+    static typename: string = 'contribution_activation';
+
+    getType() { return ContributionActivation.typename; }
+  }
+  
   export class ContributionDeallocation extends Ledger.Transaction {
     static typename: string = 'contribution_deallocation';
     contributionActivationHash: string = 'uint256';
@@ -131,6 +143,18 @@ export namespace Transactions {
     getType() { return ContributionDeallocation.typename; }
   }
 
+  export class ContributionDeselection extends Ledger.Transaction {
+    static typename: string = 'contribution_deselection';
+
+    getType() { return ContributionDeselection.typename; }
+  }
+  
+  export class ContributionDeactivation extends Ledger.Transaction {
+    static typename: string = 'contribution_deactivation';
+
+    getType() { return ContributionDeactivation.typename; }
+  }
+  
   export class DepositoryAdjustment extends Ledger.Transaction {
     static typename: string = 'depository_adjustment';
     incomingAbsoluteFee: string = 'decimal';

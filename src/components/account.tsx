@@ -15,13 +15,13 @@ import { useNavigate } from "react-router";
 function toAddressType(type: string): string {
   switch (type) {
     case 'router':
-      return 'For withdrawals';
+      return 'Withdrawal receiver or deposit sender';
     case 'custodian':
-      return 'For deposits';
+      return 'Deposit receiver';
     case 'contribution':
-      return 'For contribution';
+      return 'Contribution receiver';
     case 'witness':
-      return 'Witness - dismissed';
+      return 'Dismissed witness';
     default:
       return 'Unknown';
   }
@@ -245,8 +245,8 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
                   </Flex>
                   {
                     selectedAddress != -1 &&
-                    <Flex justify="center" mt="2">
-                      <Badge size="3" color={addresses[selectedAddress].purpose != 'witness' ? 'orange' : 'red'} radius="medium" style={{ textTransform: 'uppercase' }}>{ toAddressType(addresses[selectedAddress].purpose) }</Badge>
+                    <Flex justify="center" mt="3">
+                      <Badge size="2" color={addresses[selectedAddress].purpose != 'witness' ? 'orange' : 'red'} radius="medium" style={{ textTransform: 'uppercase' }}>{ toAddressType(addresses[selectedAddress].purpose) }</Badge>
                     </Flex>
                   }
                   <Box width="100%" mt="6">

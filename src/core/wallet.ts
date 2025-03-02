@@ -18,12 +18,12 @@ export type ClearCallback = () => any;
 
 export type SummaryState = {
   witnesses: {
-    addresses: Record<string, { asset: AssetId, index: BigNumber, aliases: string[] }>
+    addresses: Record<string, { asset: AssetId, purpose: string, index: BigNumber, aliases: string[] }>
     transactions: Record<string, { asset: AssetId, transactionId: string }[]>
   },
   program: {
     receipts: Record<string, { relativeGasUse: BigNumber, relativeGasPaid: BigNumber }>,
-    elections: Set<string>,
+    participants: Set<string>,
   },
   contributions: Record<string, Record<string, { asset: AssetId, custody: BigNumber, coverage: BigNumber }>>,
   balances: Record<string, Record<string, { asset: AssetId, supply: BigNumber, reserve: BigNumber, balance: BigNumber }>>,
@@ -960,7 +960,7 @@ export class InterfaceUtil {
       },
       program: {
         receipts: { },
-        elections: new Set(),
+        participants: new Set(),
       },
       contributions: { },
       balances: { },
@@ -1050,16 +1050,34 @@ export class InterfaceUtil {
           break;
         }
         case Types.WitnessAddress: {
-          if (event.args.length >= 2 && (event.args[0] instanceof BigNumber || typeof event.args[0] == 'string') && event.args[1] instanceof BigNumber) {
-            const [assetId, addressIndex, addressAliases] = [event.args[0], event.args[1], event.args.slice(2)];
+          if (event.args.length >= 3 && (event.args[0] instanceof BigNumber || typeof event.args[0] == 'string') && event.args[1] instanceof BigNumber && event.args[2] instanceof BigNumber) {
+            const [assetId, addressPurpose, addressIndex, addressAliases] = [event.args[0], event.args[1], event.args[2], event.args.slice(3)];
             const asset = new AssetId(assetId);
             if (!asset.handle)
               break;
             
+            let purpose: string;
+            switch (addressPurpose.toNumber()) {
+              case 1:
+                purpose = 'router';
+                break;
+              case 2:
+                purpose = 'custodian';
+                break;
+              case 3:
+                purpose = 'contribution';
+                break;
+              case 0:
+              default:
+                purpose = 'witness';
+                break;
+            }
+            
             if (!result.witnesses.addresses[asset.handle])
-              result.witnesses.addresses[asset.handle] = { asset: asset, index: new BigNumber(0), aliases: [] };
+              result.witnesses.addresses[asset.handle] = { asset: asset, purpose: purpose, index: new BigNumber(0), aliases: [] };
 
             const addressState = result.witnesses.addresses[asset.handle];
+            addressState.purpose = purpose;
             addressState.index = addressIndex;
             for (let i = 0; i < addressAliases.length; i++) {
               if (typeof addressAliases[i] == 'string')
@@ -1092,11 +1110,28 @@ export class InterfaceUtil {
           }
           break;
         }
-        case Types.ContributionAllocation: {
+        case Types.ContributionAllocation:
+        case Types.ContributionSelection:
+        case Types.ContributionActivation: {
           if (event.args.length == 1 && typeof event.args[0] == 'string') {
-            const [proposer] = event.args;
-            const proposerAddress = Signing.encodeAddress(new Pubkeyhash(proposer)) || proposer;
-            result.program.elections.add(proposerAddress);
+            const [owner] = event.args;
+            const ownerAddress = Signing.encodeAddress(new Pubkeyhash(owner)) || owner;
+            result.program.participants.add(ownerAddress);
+          }
+          break;
+        }
+        case Types.ContributionDeselection:
+        case Types.ContributionDeactivation: {
+          if (event.args.length == 2 && typeof event.args[0] == 'string' && typeof event.args[1] == 'string') {
+            const [owner1, owner2] = event.args;
+            const ownerAddress1 = Signing.encodeAddress(new Pubkeyhash(owner1)) || owner1;
+            const ownerAddress2 = Signing.encodeAddress(new Pubkeyhash(owner2)) || owner2;
+            result.program.participants.add(ownerAddress1);
+            result.program.participants.add(ownerAddress2);
+          } else if (event.args.length == 1 && typeof event.args[0] == 'string') {
+            const [owner] = event.args;
+            const ownerAddress = Signing.encodeAddress(new Pubkeyhash(owner)) || owner;
+            result.program.participants.add(ownerAddress);
           }
           break;
         }
