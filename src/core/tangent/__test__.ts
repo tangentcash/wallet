@@ -60,14 +60,14 @@ export async function test() {
   };
   let stream = new Stream();
   let serialization = null;
-  SchemaUtil.store(stream, transfer, new Transactions.Transfer());
+  SchemaUtil.store(stream, transfer, new Transactions.Transfer.One());
   try {
     serialization = {
       hash: stream.hash().toHex(),
       data: stream.encode(),
       vars: SchemaUtil.array(stream.rewind(0)),
       storeObject: transfer,
-      loadObject: SchemaUtil.load(stream.rewind(0), new Transactions.Transfer())
+      loadObject: SchemaUtil.load(stream.rewind(0), new Transactions.Transfer.One())
     };
   } catch (exception) {
     serialization = exception;

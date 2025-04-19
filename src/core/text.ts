@@ -40,8 +40,8 @@ export class Readability {
         return 'Delegation';
       case 'consensus':
         return 'Consensus';
-      case 'aggregation':
-        return 'Aggregation';
+      case 'attestation':
+        return 'Attestation';
       default:
         return 'Non-standard';
     }
@@ -50,46 +50,36 @@ export class Readability {
     switch (type) {
       case 'transfer':
         return 'Transfer';
-      case 'omnitransfer':
-        return 'Bulk transfer';
       case 'deployment':
         return 'Contract deployment';
       case 'invocation':
         return 'Contract call';
-      case 'withdrawal':
-        return 'Withdrawal';
       case 'rollup':
         return 'Rollup';
-      case 'commitment':
-        return 'Validator activity';
-      case 'incoming_claim':
-        return 'Incoming transaction';
-      case 'outgoing_claim':
-        return 'Outgoing transaction';
-      case 'address_account':
-        return 'Address registration';
-      case 'pubkey_account':
-        return 'Pubkey registration';
-      case 'delegation_account':
-        return 'Deposit wallet delegation';
-      case 'custodian_account':
-        return 'Deposit wallet creation';
-      case 'contribution_allocation':
-        return 'Contribution allocation';
-      case 'contribution_selection':
-        return 'Contribution election';
-      case 'contribution_activation':
-        return 'Contribution wallet creation';
-      case 'contribution_deallocation':
-        return 'Contribution deallocation';
-      case 'contribution_deselection':
-        return 'Contribution 1st disposal';
-      case 'contribution_deactivation':
-        return 'Contribution 2nd disposal';
+      case 'certification':
+        return 'Validator certification';
+      case 'routing_account':
+        return 'Routing address registration';
+      case 'depository_account':
+        return 'Depository address selection';
+      case 'depository_account_finalization':
+        return 'Depository address registration';
+      case 'depository_withdrawal':
+        return 'Depository withdrawal';
+      case 'depository_withdrawal_finalization':
+        return 'Depository withdrawal confirmation';
+      case 'depository_transaction':
+        return 'Depository transaction';
       case 'depository_adjustment':
-        return 'Custodial policy activity';
+        return 'Depository policy renewal';
       case 'depository_migration':
-        return 'Custodial funds migration';
+        return 'Depository MPC selection';
+      case 'depository_migration_preparation':
+        return 'Depository MPC announcement';
+      case 'depository_migration_commitment':
+        return 'Depository MPC migration';
+      case 'depository_migration_finalization':
+        return 'Depository MPC confirmation';
       default:
         return 'Non-standard';
     }
@@ -151,12 +141,12 @@ export class Readability {
     if (!value)
       return 'none';
 
-    return value.substring(0, size || 16) + '...' + value.substring(value.length - (size || 16));
+    return value.length <= (size || 16) ? value : (value.substring(0, size || 16) + '...' + value.substring(value.length - (size || 16)));
   }
   static toAddress(value?: string, size?: number): string {
     if (!value)
       return 'none';
     
-    return value.substring(0, size || 8) + '...' + value.substring(value.length - (size || 8));
+    return value.length <= (size || 8) ? value : (value.substring(0, size || 8) + '...' + value.substring(value.length - (size || 8)));
   }
 }

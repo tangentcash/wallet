@@ -8,6 +8,7 @@ import { AlertBox, AlertType } from "../components/alert";
 import { Readability } from "../core/text";
 import { Chain } from "../core/tangent/algorithm";
 import Icon from "@mdi/react";
+import BigNumber from "bignumber.js";
 
 function lerp(a: number, b: number, t: number): number {
   return a * (1 - t) + b * t;
@@ -51,13 +52,14 @@ export default function BlockPage() {
   }, [params]);
 
   if (block != null) {
+    if (block.number.gt(Netstat.blockTipNumber))
+      Netstat.blockTipNumber = block.number;
+
     const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
     const time = block.approval_time.minus(block.proposal_time).toNumber();
     const priority = block.priority.toNumber();
-    const possibility = 100 * Math.min(1, Math.max(0, (priority > 0 ? 0.4 : 0.0) + lerp(0.0, 0.5, priority / (Chain.props.PROPOSER_COMMITTEE - 1))));
-    if (block.number.gt(Netstat.blockTipNumber))
-      Netstat.blockTipNumber = block.number;
-    
+    const subpriority = priority == 0 && (Netstat.blockTipNumber || new BigNumber(0)).lte(block.number) ? 1 : priority;
+    const possibility = 100 * Math.min(1, Math.max(0, (subpriority > 0 ? 0.4 : 0.0) + lerp(0.0, 0.5, subpriority / (Chain.props.PROPOSER_COMMITTEE - 1))));
     return (
       <Box px="4" pt="4">
         <Flex justify="between" align="center">

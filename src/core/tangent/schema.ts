@@ -1,10 +1,9 @@
 export namespace Messages {
-  export class Generic {
-    version: string = 'uint32';
+  export class Uniform {
     type: string = 'uint32';
   }
 
-  export class Authentic extends Generic {
+  export class Authentic extends Uniform {
     signature: string = 'recsighash';
   }
   
@@ -32,12 +31,16 @@ export namespace States {
     static typename: string = 'account_balance';
   }
 
-  export class AccountDepository {
-    static typename: string = 'account_depository';
+  export class DepositoryBalance {
+    static typename: string = 'depository_balance';
   }
 
-  export class WitnessAddress {
-    static typename: string = 'witness_address';
+  export class DepositoryPolicy {
+    static typename: string = 'depository_policy';
+  }
+
+  export class WitnessAccount {
+    static typename: string = 'witness_account';
   }
 
   export class WitnessTransaction {
@@ -46,46 +49,26 @@ export namespace States {
 }
 
 export namespace Transactions {
-  export class Transfer extends Ledger.Transaction {
-    static typename: string = 'transfer';
-    memo: string = 'string';
-    value: string = 'decimal';
-    to: string = 'pubkeyhash';
-
-    getType() { return Transfer.typename; }
-  }
-
-  export class Omnitransfer extends Ledger.Transaction {
-    static typename: string = 'omnitransfer';
-    to: string[] = [
-      'memo', 'uint32',
-      'value', 'decimal',
-      'to', 'pubkeyhash'
-    ];
-
-    getType() { return Omnitransfer.typename; }
-  }
-
-  export class Withdrawal extends Ledger.Transaction {
-    static typename: string = 'withdrawal';
-    proposer: string = 'pubkeyhash';
-    to: string[] = [
-      'to', 'string',
-      'value', 'decimal'
-    ];
-
-    getType() { return Withdrawal.typename; }
-  }
-
-  export class Commitment extends Ledger.Transaction {
-    static typename: string = 'commitment';
-    online: string = 'uint8';
-    observers: string[] = [
-      'asset', 'assetid',
-      'online', 'boolean'
-    ];
-
-    getType() { return Commitment.typename; }
+  export namespace Transfer {
+    export class One extends Ledger.Transaction {
+      static typename: string = 'transfer';
+      memo: string = 'string';
+      value: string = 'decimal';
+      to: string = 'pubkeyhash';
+  
+      getType() { return One.typename; }
+    }
+  
+    export class Many extends Ledger.Transaction {
+      static typename: string = 'transfer';
+      to: string[] = [
+        'memo', 'uint32',
+        'value', 'decimal',
+        'to', 'pubkeyhash'
+      ];
+  
+      getType() { return Many.typename; }
+    }
   }
 
   export class Rollup extends Ledger.Transaction {
@@ -94,81 +77,59 @@ export namespace Transactions {
     getType() { return Rollup.typename; }
   }
 
-  export class AddressAccount extends Ledger.Transaction {
-    static typename: string = 'address_account';
+  export class Certification extends Ledger.Transaction {
+    static typename: string = 'certification';
+    online: string = 'uint8';
+    observers: string[] = [
+      'asset', 'assetid',
+      'online', 'boolean'
+    ];
+
+    getType() { return Certification.typename; }
+  }
+
+  export class RoutingAccount extends Ledger.Transaction {
+    static typename: string = 'routing_account';
     address: string = 'string';
 
-    getType() { return AddressAccount.typename; }
+    getType() { return RoutingAccount.typename; }
   }
 
-  export class PubkeyAccount extends Ledger.Transaction {
-    static typename: string = 'pubkey_account';
-    pubkey: string = 'string';
-    sighash: string = 'string';
-
-    getType() { return PubkeyAccount.typename; }
-  }
-
-  export class DelegationAccount extends Ledger.Transaction {
-    static typename: string = 'delegation_account';
+  export class DepositoryAccount extends Ledger.Transaction {
+    static typename: string = 'depository_account';
     proposer: string = 'pubkeyhash';
 
-    getType() { return DelegationAccount.typename; }
+    getType() { return DepositoryAccount.typename; }
   }
 
-  export class ContributionAllocation extends Ledger.Transaction {
-    static typename: string = 'contribution_allocation';
+  export class DepositoryWithdrawal extends Ledger.Transaction {
+    static typename: string = 'depository_withdrawal';
+    onlyIfNotInQueue: string = 'boolean';
+    proposer: string = 'pubkeyhash';
+    migrationProposer: string = 'pubkeyhash';
+    to: string[] = [
+      'to', 'string',
+      'value', 'decimal'
+    ];
 
-    getType() { return ContributionAllocation.typename; }
-  }
-  
-  export class ContributionSelection extends Ledger.Transaction {
-    static typename: string = 'contribution_selection';
-
-    getType() { return ContributionSelection.typename; }
-  }
-  
-  export class ContributionActivation extends Ledger.Transaction {
-    static typename: string = 'contribution_activation';
-
-    getType() { return ContributionActivation.typename; }
-  }
-  
-  export class ContributionDeallocation extends Ledger.Transaction {
-    static typename: string = 'contribution_deallocation';
-    contributionActivationHash: string = 'uint256';
-    cipherPublicKey1: string = 'pubkey';
-    cipherPublicKey2: string = 'pubkey';
-
-    getType() { return ContributionDeallocation.typename; }
+    getType() { return DepositoryWithdrawal.typename; }
   }
 
-  export class ContributionDeselection extends Ledger.Transaction {
-    static typename: string = 'contribution_deselection';
-
-    getType() { return ContributionDeselection.typename; }
-  }
-  
-  export class ContributionDeactivation extends Ledger.Transaction {
-    static typename: string = 'contribution_deactivation';
-
-    getType() { return ContributionDeactivation.typename; }
-  }
-  
   export class DepositoryAdjustment extends Ledger.Transaction {
     static typename: string = 'depository_adjustment';
     incomingAbsoluteFee: string = 'decimal';
     incomingRelativeFee: string = 'decimal';
     outgoingAbsoluteFee: string = 'decimal';
     outgoingRelativeFee: string = 'decimal';
+    securityLevel: string = 'uint8';
+    acceptsAccountRequests: string = 'boolean';
+    acceptsWithdrawalRequests: string = 'boolean';
 
     getType() { return DepositoryAdjustment.typename; }
   }
 
   export class DepositoryMigration extends Ledger.Transaction {
     static typename: string = 'depository_migration';
-    proposer: string = 'pubkeyhash';
-    value: string = 'decimal';
 
     getType() { return DepositoryMigration.typename; }
   }

@@ -22,6 +22,7 @@ export type ChainParams = {
   ADDRESS_VERSION: number,
   ADDRESS_PREFIX: string,
   PROPOSER_COMMITTEE: number,
+  MPC_COMMITTEE: [number, number]
   MESSAGE_MAGIC: number
 }
 
@@ -35,6 +36,7 @@ export class Chain {
     ADDRESS_VERSION: 0x4,
     ADDRESS_PREFIX: 'tc',
     PROPOSER_COMMITTEE: 6,
+    MPC_COMMITTEE: [2, 16],
     MESSAGE_MAGIC: 0x6a513fb6b3b71f02
   };
   static testnet: ChainParams = {
@@ -46,6 +48,7 @@ export class Chain {
     ADDRESS_VERSION: 0x5,
     ADDRESS_PREFIX: 'tct',
     PROPOSER_COMMITTEE: 6,
+    MPC_COMMITTEE: [2, 16],
     MESSAGE_MAGIC: 0x6a513fb6b3b71f02
   };
   static regtest: ChainParams = {
@@ -57,6 +60,7 @@ export class Chain {
     ADDRESS_VERSION: 0x6,
     ADDRESS_PREFIX: 'tcrt',
     PROPOSER_COMMITTEE: 6,
+    MPC_COMMITTEE: [1, 16],
     MESSAGE_MAGIC: 0x6a513fb6b3b71f02
   };
   static size = {
@@ -697,8 +701,17 @@ export class Signing {
 
     try {
       await sodium.ready;
-      const ciphertext = sodium.crypto_box_seal(body, cipherPublicKey.data.slice(0, 32));
-      return ciphertext;
+
+      const seed = Hashing.hash256(entropy);
+      const ephemeralKeypair = sodium.crypto_box_seed_keypair(seed);
+      const nonceBytes = 24;
+      const state = sodium.crypto_generichash_init(null, nonceBytes);
+      sodium.crypto_generichash_update(state, ephemeralKeypair.publicKey);
+      sodium.crypto_generichash_update(state, cipherPublicKey.data.slice(0, 32));
+
+      const nonce = sodium.crypto_generichash_final(state, nonceBytes);
+      const ciphertext = sodium.crypto_box_easy(body, nonce, cipherPublicKey.data.slice(0, 32), ephemeralKeypair.privateKey);
+      return Uint8Array.from([...ephemeralKeypair.publicKey, ...ciphertext]);
     } catch (ex) {
       return null;
     }

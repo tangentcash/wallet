@@ -3,7 +3,7 @@ import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, DropdownMenu, F
 import { Interface, InterfaceUtil, SummaryState } from "../core/wallet";
 import { useEffectAsync } from "../core/extensions/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiAlertOctagonOutline, mdiAlphaEBox, mdiArrowLeftBoldHexagonOutline, mdiArrowRightBoldHexagonOutline, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan } from "@mdi/js";
+import { mdiAlertOctagonOutline, mdiArrowLeftBoldHexagonOutline, mdiArrowRightBoldHexagonOutline, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan } from "@mdi/js";
 import { Readability } from "../core/text";
 import { AssetId } from "../core/tangent/algorithm";
 import InfiniteScroll from 'react-infinite-scroll-component';
@@ -14,12 +14,10 @@ import { useNavigate } from "react-router";
 
 function toAddressType(type: string): string {
   switch (type) {
-    case 'router':
-      return 'Withdrawal receiver or deposit sender';
-    case 'custodian':
+    case 'routing':
+      return 'Withdrawal receiver / deposit sender';
+    case 'depository':
       return 'Deposit receiver';
-    case 'contribution':
-      return 'Contribution receiver';
     case 'witness':
       return 'Dismissed witness';
     default:
@@ -50,12 +48,10 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
     const proposerType = address.proposer == ownerAddress ? ' (this account)' : ' (validator)';
     if (address.purpose == 'witness' && address.proposer == address.owner)
       return <>This is a coverage wallet that has been dismissed and disclosed earlier and is used by <Link href="#">{address.owner}</Link>{ ownerType }</>;
-    else if (address.purpose == 'router' && address.proposer == null)
-      return <>This is a router wallet that can transfer funds to and receive funds from any bridge wallet and is used exclusively by <Link href="#">{address.owner}</Link>{ ownerType }</>;
-    else if (address.purpose == 'custodian' && address.proposer != null)
-      return <>This is a custodian wallet that can receive funds from or send funds to any router wallet and is used by <Link href="#">{address.proposer}</Link>{ proposerType }</>;
-    else if (address.purpose == 'contribution' && address.proposer == address.owner)
-      return <>This is a coverage wallet that can receive funds from any wallet and use them as a collateral for custodian wallets which is used by <Link href="#">{address.owner}</Link>{ ownerType }</>;
+    else if (address.purpose == 'routing' && address.proposer == null)
+      return <>This is a routing wallet that can transfer funds to and receive funds from any depository wallet and is used exclusively by <Link href="#">{address.owner}</Link>{ ownerType }</>;
+    else if (address.purpose == 'depository' && address.proposer != null)
+      return <>This is a depository wallet that can receive funds from or send funds to any router wallet and is used by <Link href="#">{address.proposer}</Link>{ proposerType }</>;
     else if (address.proposer != null)
       return <>This is an unknown wallet which is used by <Link href="#">{address.owner}</Link>{ ownerType } and is operated by <Link href="#">{address.proposer}</Link>{ proposerType }</>;
     return <>This is an unknown wallet which is used by <Link href="#">{address.owner}</Link>{ ownerType }</>;
@@ -112,7 +108,7 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
       })(),
       (async () => {
         try {
-          let addressData = await Interface.fetchAll((offset, count) => Interface.getWitnessAddresses(ownerAddress, offset, count));
+          let addressData = await Interface.fetchAll((offset, count) => Interface.getWitnessAccounts(ownerAddress, offset, count));
           if (Array.isArray(addressData)) {
             addressData = addressData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
             setAddresses(addressData);
@@ -178,9 +174,15 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
               }}>
               {
                 !assets.length &&
-                <Flex justify="between" align="center" py="2" px="2">
-                  <Icon path={mdiAlphaEBox} size={1.5} style={{ color: 'var(--gray-11)' }} />
-                  <Text size="3" color="gray" ml="2" my="2" as="div" align="right">Zero balance</Text>
+                <Flex px="2" py="2" gap="3" align="center">
+                  <Avatar size="2" radius="large" fallback="NA" color="gray" />
+                  <Box width="100%">
+                    <Flex justify="between" align="center">
+                      <Text as="div" size="2" weight="light">N/A</Text>
+                      <Badge size="1" radius="medium">0.00%</Badge>
+                    </Flex>
+                    <Text as="div" size="2" weight="medium">0.0</Text>
+                  </Box>
                 </Flex>
               }
               { 

@@ -1,29 +1,37 @@
-import { mdiBackburger, mdiInformationOutline } from "@mdi/js";
+import { mdiBackburger } from "@mdi/js";
 import { Avatar, Badge, Box, Button, Card, DataList, Dialog, DropdownMenu, Flex, Heading, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { Link, useNavigate } from "react-router";
 import { Interface, Wallet } from "../core/wallet";
-import { useCallback, useMemo, useState } from "react";
-import { AssetId, Signing, Uint256 } from "../core/tangent/algorithm";
+import { useCallback, useState } from "react";
+import { AssetId, Chain, Signing } from "../core/tangent/algorithm";
 import { useEffectAsync } from "../core/extensions/react";
 import { AlertBox, AlertType } from "../components/alert";
 import { Readability } from "../core/text";
-import { SchemaUtil, Stream } from "../core/tangent/serialization";
-import { Messages, Transactions } from "../core/tangent/schema";
-import * as Collapsible from "@radix-ui/react-collapsible";
+import { Transactions } from "../core/tangent/schema";
 import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
-import BigNumber from "bignumber.js";
 
 const BRIDGE_COUNT = 48;
+
+function toDepositoryIndex(policy: any): string {
+  const index = policy.security_level / (Chain.props.MPC_COMMITTEE[1] * 0.83);
+  return index.toFixed(3) + (index > 0.5 ? ' prefers security' : ' prefers speed')
+}
+function toDepositoryStatus(policy: any): string {
+  let status = '';
+  if (!policy.accepts_account_requests)
+    status += 'Registrations halted, ';
+  if (!policy.accepts_withdrawal_requests)
+    status += 'Withdrawals halted, ';
+  return status.length > 0 ? status.substring(0, status.length - 2) : 'Functional';
+}
 
 export default function BridgePage() {
   const ownerAddress = Wallet.getAddress() || '';
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [mode, setMode] = useState<'bridges' | 'register' | 'deposit'>('bridges');
   const [preference, setPreference] = useState<'security' | 'cost'>('security');
-  const [registrationType, setRegistrationType] = useState<'address' | 'pubkey'>('address');
-  const [registrationTarget, setRegistrationTarget] = useState('');
-  const [registrationSignature, setRegistrationSignature] = useState('');
+  const [routingAddress, setRoutingAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [assets, setAssets] = useState<any[]>([]);
   const [asset, setAsset] = useState(-1);
@@ -35,22 +43,6 @@ export default function BridgePage() {
   const [candidateBridges, setCandidateBridges] = useState<any[]>([]);
   const [moreBridges, setMoreBridges] = useState(true);
   const navigate = useNavigate();
-  const registrationMessage = useMemo((): string => {
-    if (asset == -1 || registrationType != 'pubkey' || !registrationTarget.length)
-      return '';
-
-    const stream = new Stream();
-    SchemaUtil.store(stream, {
-      asset: new AssetId(assets[asset].id),
-      gasPrice: new BigNumber(NaN),
-      gasLimit: new Uint256(0),
-      sequence: 0,
-      conservative: false,
-      pubkey: registrationTarget.trim(),
-      sighash: ''
-    }, Messages.asSigningSchema(new Transactions.PubkeyAccount()));
-    return stream.encode();
-  }, [registrationType, registrationTarget]);
   const findBridges = useCallback(async (refresh?: boolean) => {
     try {
       if (asset == -1)
@@ -59,10 +51,10 @@ export default function BridgePage() {
       let data;
       switch (preference) {
         case 'security':
-          data = await Interface.getBestAccountDepositoriesForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateBridges.length, BRIDGE_COUNT);
+          data = await Interface.getBestDepositoryBalancesForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateBridges.length, BRIDGE_COUNT);
           break;
         case 'cost':
-          data = await Interface.getBestAccountRewardsForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateBridges.length, BRIDGE_COUNT);
+          data = await Interface.getBestDepositoryRewardsForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateBridges.length, BRIDGE_COUNT);
           break;
         default:
           return null;
@@ -101,7 +93,7 @@ export default function BridgePage() {
         return null;
 
       setLoading(true);
-      const data = await Interface.getWitnessAddressesByPurpose(owner, 'custodian', 0, 1);
+      const data = await Interface.getWitnessAccountsByPurpose(owner, 'depository', 0, 1);
       if (!Array.isArray(data) || !data.length) {
         throw null;
       }
@@ -137,16 +129,10 @@ export default function BridgePage() {
     try {
       const output = await Wallet.buildTransactionWithAutoGasLimit({
         asset: new AssetId(assets[asset].id),
-        method: registrationType == 'pubkey' ? {
-          type: new Transactions.PubkeyAccount(),
+        method: {
+          type: new Transactions.RoutingAccount(),
           args: {
-            pubkey: registrationTarget,
-            sighash: registrationSignature
-          }
-        } : {
-          type: new Transactions.AddressAccount(),
-          args: {
-            address: registrationTarget
+            address: routingAddress
           }
         }
       });
@@ -164,7 +150,7 @@ export default function BridgePage() {
       setLoading(false);
       return null;
     }
-  }, [assets, asset, registrationType, registrationTarget, registrationSignature]);
+  }, [assets, asset, routingAddress]);
   const submitDepositTransaction = useCallback(async () => {
     if (loading)
       return;
@@ -174,7 +160,7 @@ export default function BridgePage() {
       const output = await Wallet.buildTransactionWithAutoGasLimit({
         asset: new AssetId(assets[asset].id),
         method: {
-          type: new Transactions.DelegationAccount(),
+          type: new Transactions.DepositoryAccount(),
           args: {
             proposer: Signing.decodeAddress(proposer || '')
           }
@@ -211,15 +197,15 @@ export default function BridgePage() {
 
     await findBridges(true);
     try {
-      const addressData = cachedAddresses ? cachedAddresses : await Interface.fetchAll((offset, count) => Interface.getWitnessAddresses(ownerAddress, offset, count));
+      const addressData = cachedAddresses ? cachedAddresses : await Interface.fetchAll((offset, count) => Interface.getWitnessAccounts(ownerAddress, offset, count));
       if (!cachedAddresses && Array.isArray(addressData)) {
         setCachedAddresses(addressData);
       }
       if (!addressData)
         throw false;
 
-      const bridges = addressData.filter((item) => item.asset.id.toString() == assets[asset].id.toString() && item.purpose == 'custodian').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
-      const addresses = addressData.filter((item) => item.asset.id.toString() == assets[asset].id.toString() && item.purpose == 'router').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
+      const bridges = addressData.filter((item) => item.asset.id.toString() == assets[asset].id.toString() && item.purpose == 'depository').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
+      const addresses = addressData.filter((item) => item.asset.id.toString() == assets[asset].id.toString() && item.purpose == 'routing').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
       const mapping: any = { };
       for (let item in bridges) {
         let input = bridges[item];
@@ -439,20 +425,44 @@ export default function BridgePage() {
               <InfiniteScroll dataLength={candidateBridges.length} hasMore={moreBridges} next={findBridges} loader={<div></div>}>
                 {
                   candidateBridges.map((item, index) =>
-                    <Box width="100%" key={item.depository.hash + index} mb="4">
+                    <Box width="100%" key={item.policy.hash + index} mb="4">
                       <Card>
                         <Flex justify="between" align="center" mb="4">
                           <Flex align="center" gap="2">
                             <Heading size="4">{ item.founder ? 'Founder bridge' : 'Bridge' }</Heading>
-                            <Badge radius="medium" variant="surface" size="2">{ item.depository.owner.substring(item.depository.owner.length - 6).toUpperCase() }</Badge>
+                            <Badge radius="medium" variant="surface" size="2">{ item.policy.owner.substring(item.policy.owner.length - 6).toUpperCase() }</Badge>
                           </Flex>
                           <Badge size="2" radius="medium" color={item.work && item.work.online ? 'jade' : 'red'}>{ item.work && item.work.online ? 'ONLINE' : 'OFFLINE' }</Badge>
                         </Flex>
                         <DataList.Root orientation={orientation}>
-                          <DataList.Item align="center">
-                            <DataList.Label>Deposit capacity:</DataList.Label>
+                          <DataList.Item>
+                            <DataList.Label>Depository account:</DataList.Label>
                             <DataList.Value>
-                              <Badge radius="small" size="2" color={item.depository.coverage.gt(0) ? 'green' : 'red'}>MAX — { Readability.toMoney(new AssetId(assets[asset].id), item.depository.coverage) }</Badge>
+                              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                                navigator.clipboard.writeText(item.policy.owner);
+                                AlertBox.open(AlertType.Info, 'Address copied!')
+                              }}>{ Readability.toAddress(item.policy.owner) }</Button>
+                              <Box ml="2">
+                                <Link className="router-link" to={'/account/' + item.policy.owner}>▒▒</Link>
+                              </Box>
+                            </DataList.Value>
+                          </DataList.Item>
+                          <DataList.Item>
+                            <DataList.Label>Depository status:</DataList.Label>
+                            <DataList.Value>
+                              <Badge size="1" radius="medium" color={!item.policy.accepts_account_requests || !item.policy.accepts_withdrawal_requests ? 'red' : 'green'}>{ toDepositoryStatus(item.policy) }</Badge>
+                            </DataList.Value>
+                          </DataList.Item>
+                          <DataList.Item>
+                            <DataList.Label>Total locked value:</DataList.Label>
+                            <DataList.Value>
+                              <Badge size="1" radius="medium" color="yellow">{ Readability.toMoney(item.policy.asset, item.balance.supply) }</Badge>
+                            </DataList.Value>
+                          </DataList.Item>
+                          <DataList.Item>
+                            <DataList.Label>Security to speed index:</DataList.Label>
+                            <DataList.Value>
+                              <Badge size="1" radius="medium" color="tomato">{ toDepositoryIndex(item.policy) }</Badge>
                             </DataList.Value>
                           </DataList.Item>
                           {
@@ -464,110 +474,38 @@ export default function BridgePage() {
                               </DataList.Value>
                             </DataList.Item>
                           }
-                        </DataList.Root>
-                        <Box width="100%" my="4">
-                          <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-                        </Box>
-                        <DataList.Root orientation={orientation}>
-                          <DataList.Item align="center">
-                            <DataList.Label>Withdrawal capacity:</DataList.Label>
-                            <DataList.Value>
-                              <Badge radius="small" size="2" color={item.depository.custody.gt(0) ? 'green' : 'red'}>MAX — { Readability.toMoney(new AssetId(assets[asset].id), item.depository.custody) }</Badge>
-                            </DataList.Value>
-                          </DataList.Item>
                           {
                             item.reward != null && (item.reward.outgoing_relative_fee.gt(0) || item.reward.outgoing_absolute_fee.gt(0)) &&
                             <DataList.Item>
                               <DataList.Label>Withdrawal cost:</DataList.Label>
                               <DataList.Value>
-                                <Text>{ (100 * item.reward.outgoing_relative_fee.toNumber()).toFixed(2) }% + { Readability.toMoney(new AssetId(assets[asset].id), item.reward.outgoing_absolute_fee) }</Text>
+                                <Text color={item.policy.accepts_withdrawal_requests ? undefined : 'red'}>{ (100 * item.reward.outgoing_relative_fee.toNumber()).toFixed(2) }% + { Readability.toMoney(new AssetId(assets[asset].id), item.reward.outgoing_absolute_fee) }</Text>
                               </DataList.Value>
                             </DataList.Item>
                           }
                         </DataList.Root>
-                        <Collapsible.Root>
-                          <Flex justify="between" align="center" mt="4">
-                            <Collapsible.Trigger asChild={true}>
-                              <Button size="2" variant="surface" color="blue">
-                                <Flex align="center" gap="1">
-                                  <Icon path={mdiInformationOutline} size={0.8} />
-                                  <Text>Security</Text>
-                                </Flex>
-                              </Button>
-                            </Collapsible.Trigger>
-                            {
-                              item.honest &&
-                              <DropdownMenu.Root>
-                                <DropdownMenu.Trigger>
-                                  <Button size="2" variant="surface" color="yellow">
-                                    Request
-                                    <DropdownMenu.TriggerIcon />
-                                  </Button>
-                                </DropdownMenu.Trigger>
-                                <DropdownMenu.Content>
-                                  <DropdownMenu.Item shortcut="→" onClick={() => useBridge(item.depository.owner, 'register')}>Registration</DropdownMenu.Item>
-                                  <DropdownMenu.Item shortcut="↙" disabled={acquiredBridges[item.depository.owner] != null} onClick={() => !acquiredBridges[item.depository.owner] && useBridge(item.depository.owner, 'deposit')}>Deposit</DropdownMenu.Item>
-                                  <DropdownMenu.Item shortcut="↗" onClick={() => navigate(`/interaction?asset=${new AssetId(assets[asset].id).toHex()}&type=withdrawal&proposer=${item.depository.owner}`)}>Withdrawal</DropdownMenu.Item>
-                                </DropdownMenu.Content>
-                              </DropdownMenu.Root>
-                            }
-                            {
-                              !item.honest &&
-                              <Badge size="3" color="red">PERMANENT BAN</Badge>
-                            }
-                          </Flex>
-                          <Collapsible.Content>
-                            <Box width="100%" my="4">
-                              <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-                            </Box>
-                            <Card mb="1">
-                              <DataList.Root orientation={orientation}>
-                                <DataList.Item>
-                                  <DataList.Label>Holder account:</DataList.Label>
-                                  <DataList.Value>
-                                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                      navigator.clipboard.writeText(item.depository.owner);
-                                      AlertBox.open(AlertType.Info, 'Address copied!')
-                                    }}>{ Readability.toAddress(item.depository.owner) }</Button>
-                                    <Box ml="2">
-                                      <Link className="router-link" to={'/account/' + item.depository.owner}>▒▒</Link>
-                                    </Box>
-                                  </DataList.Value>
-                                </DataList.Item>
-                                <DataList.Item>
-                                  <DataList.Label>Custodial balance:</DataList.Label>
-                                  <DataList.Value>
-                                    <Flex gap="2">
-                                      <Text>{ Readability.toMoney(new AssetId(assets[asset].id), item.depository.custody) }</Text>
-                                      <Badge size="1" radius="medium" color={ item.depository.contribution.lte(0) || !item.depository.custody.dividedBy(item.depository.contribution).lt(item.threshold) ? 'red' : 'green' }>FULLNESS: { ((item.depository.contribution.gt(0) ? item.depository.custody.multipliedBy(item.threshold).dividedBy(item.depository.contribution).toNumber() : 0) * 100).toFixed(2) }%</Badge>
-                                    </Flex>
-                                  </DataList.Value>
-                                </DataList.Item>
-                                <DataList.Item>
-                                  <DataList.Label>Locked balance:</DataList.Label>
-                                  <DataList.Value>
-                                    <Flex gap="2">
-                                      { Readability.toMoney(new AssetId(assets[asset].id), item.depository.contribution) }
-                                      <Badge size="1" radius="medium" color={ item.depository.custody.lte(0) || item.depository.contribution.dividedBy(item.depository.custody).gte(item.threshold) ? 'green' : 'red' }>COVERAGE: { ((item.depository.custody.gt(0) ? item.depository.contribution.dividedBy(item.depository.custody).toNumber() : 1) * 100).toFixed(2) }%</Badge>
-                                    </Flex>
-                                  </DataList.Value>
-                                </DataList.Item>
-                                <DataList.Item>
-                                  <DataList.Label>Balance at risk:</DataList.Label>
-                                  <DataList.Value>
-                                    { Readability.toMoney(new AssetId(assets[asset].id), item.depository.reservation.plus(BigNumber.max(BigNumber.min(item.depository.custody.multipliedBy(item.threshold).minus(item.depository.contribution), item.depository.custody), 0))) }
-                                  </DataList.Value>
-                                </DataList.Item>
-                                <DataList.Item>
-                                  <DataList.Label>Coverage threshold:</DataList.Label>
-                                  <DataList.Value>
-                                  { ((item.depository.custody.gt(0) ? item.depository.contribution.dividedBy(item.depository.custody).toNumber() : 1) * 100).toFixed(2) }% ≥ { (item.threshold * 100).toFixed(2) }%
-                                  </DataList.Value>
-                                </DataList.Item>
-                              </DataList.Root>
-                            </Card>
-                          </Collapsible.Content>
-                        </Collapsible.Root>
+                        <Flex justify="end" align="center" mt="4">
+                          {
+                            item.honest &&
+                            <DropdownMenu.Root>
+                              <DropdownMenu.Trigger>
+                                <Button size="2" variant="surface" color="yellow">
+                                  Request
+                                  <DropdownMenu.TriggerIcon />
+                                </Button>
+                              </DropdownMenu.Trigger>
+                              <DropdownMenu.Content>
+                                <DropdownMenu.Item shortcut="→" onClick={() => useBridge(item.policy.owner, 'register')} disabled={!item.policy.accepts_account_requests}>Registration</DropdownMenu.Item>
+                                <DropdownMenu.Item shortcut="↙" disabled={acquiredBridges[item.policy.owner] != null || !item.policy.accepts_account_requests} onClick={() => !acquiredBridges[item.policy.owner] && useBridge(item.policy.owner, 'deposit')}>Deposit</DropdownMenu.Item>
+                                <DropdownMenu.Item shortcut="↗" onClick={() => navigate(`/interaction?asset=${new AssetId(assets[asset].id).toHex()}&type=depository_withdrawal&proposer=${item.policy.owner}`)} disabled={!item.policy.accepts_withdrawal_requests}>Withdrawal</DropdownMenu.Item>
+                              </DropdownMenu.Content>
+                            </DropdownMenu.Root>
+                          }
+                          {
+                            !item.honest &&
+                            <Badge size="3" color="red">PERMANENT BAN</Badge>
+                          }
+                        </Flex>
                       </Card>
                     </Box>
                   )
@@ -596,61 +534,25 @@ export default function BridgePage() {
               </Box>
               <Card>
                 <Box mb="4">
-                  <Flex mb="1" justify="between" align="center">
-                    <Heading size="5">{ registrationType == 'address' ? 'Address' : 'Pubkey' } registration</Heading>
-                    <Select.Root value={registrationType} onValueChange={(value) => setRegistrationType(value as ('address' | 'pubkey'))}>
-                      <Select.Trigger />
-                      <Select.Content>
-                        <Select.Group>
-                          <Select.Label>Registration type</Select.Label>
-                          <Select.Item value="address">Address</Select.Item>
-                          <Select.Item value="pubkey">Pubkey</Select.Item>
-                        </Select.Group>
-                      </Select.Content>
-                    </Select.Root>
-                  </Flex>
+                  <Heading size="5">Address registration</Heading>
                   <Text size="2" color="gray">Register Your wallet address to {assets[asset].routing_policy == 'account' ? 'deposit or ' : ''}withdraw assets</Text>
                 </Box>
-                {
-                  registrationType == 'address' &&
-                  <Box>
-                    <Tooltip content="Your wallet's address">
-                      <TextField.Root mb="3" size="3" placeholder="Wallet address" value={registrationTarget} onChange={(e) => setRegistrationTarget(e.target.value)} />
-                    </Tooltip>
-                  </Box>
-                }
-                {
-                  registrationType == 'pubkey' &&
-                  <Box>
-                    <Tooltip content="Your wallet's public key">
-                      <TextField.Root mb="3" size="3" placeholder="Public key of wallet address" value={registrationTarget} onChange={(e) => setRegistrationTarget(e.target.value)} />
-                    </Tooltip>
-                    <Tooltip content="Message that should be signed with a private key">
-                      <TextField.Root mb="3" size="3" placeholder="Message to sign" readOnly={true} value={registrationMessage} onClick={() => {
-                        navigator.clipboard.writeText(registrationMessage);
-                        AlertBox.open(AlertType.Info, 'Message copied!')
-                      }}/>
-                    </Tooltip>
-                    <Tooltip content="Signature of a message signed with Your wallet's private key">
-                      <TextField.Root mb="3" size="3" placeholder="Message signature" value={registrationSignature} onChange={(e) => setRegistrationSignature(e.target.value)} />
-                    </Tooltip>
-                  </Box>
-                }
-                <Flex justify="end" py="1" px="2">
-                  <Text align="right" size="1" color={registrationType == 'pubkey' ? 'green' : 'orange'}>{ registrationType == 'pubkey' ? 'One or more addresses derived from pubkey will be permanently linked to this account' : 'Address may be re-taken by another account using pubkey registration' }</Text>
-                </Flex>
+                <Box>
+                  <Tooltip content="Your wallet's address">
+                    <TextField.Root mb="3" size="3" placeholder="Wallet address" value={routingAddress} onChange={(e) => setRoutingAddress(e.target.value)} />
+                  </Tooltip>
+                </Box>
               </Card>
               <Flex justify="center" mt="4">
                 <Dialog.Root>
                   <Dialog.Trigger>
-                    <Button variant="outline" size="3" color="jade" loading={loading} disabled={!registrationTarget.length || (registrationType == 'pubkey' ? !registrationSignature.length : false)}>Submit transaction</Button>
+                    <Button variant="outline" size="3" color="jade" loading={loading} disabled={!routingAddress.length}>Submit transaction</Button>
                   </Dialog.Trigger>
                   <Dialog.Content maxWidth="450px">
                     <Dialog.Title mb="0">Confirmation</Dialog.Title>
                     <Dialog.Description mb="3" size="2" color="gray">This transaction will be sent to one of the nodes</Dialog.Description>
                     <Box>
-                      <Text as="div" weight="light" size="4" mb="1">— Register <Text color="red">{ Readability.toAddress(registrationTarget) }</Text> as a Your { Readability.toAssetName(assets[asset]) } { registrationType }</Text>
-                      <Text as="div" weight="light" size="4" mb="1">— { registrationType == 'pubkey' ? 'Permanently linked to this account' : 'Pubkey registration overrides ownership' }</Text>
+                      <Text as="div" weight="light" size="4" mb="1">— Register <Text color="red">{ Readability.toAddress(routingAddress) }</Text> as a Your { Readability.toAssetName(assets[asset]) } address</Text>
                       <Text as="div" weight="light" size="4" mb="1">— Delegate work to <Badge radius="medium" variant="surface" size="2">{ proposer.substring(proposer.length - 6).toUpperCase() }</Badge> node</Text>
                     </Box>
                     <Flex gap="3" mt="4" justify="between">

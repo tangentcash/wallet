@@ -51,7 +51,7 @@ export class AppData {
     setAppearance: null
   };
   static props: AppProps = {
-    resolver: 'nds.tanchain.org',
+    resolver: 'nds.tangent.cash',
     server: '127.0.0.1:18419',
     appearance: 'dark'
   };
