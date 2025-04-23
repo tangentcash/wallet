@@ -25,7 +25,7 @@ export type SummaryState = {
     accounts: Record<string, Record<string, { asset: AssetId, newAccounts: number}>>,
     queues: Record<string, Record<string, { asset: AssetId, transactionHash: string | null}>>,
     policies: Record<string, Record<string, { asset: AssetId, securityLevel: number, acceptsAccountRequests: boolean, acceptsWithdrawalRequests: boolean }>>,
-    mpc: Set<string>
+    participants: Set<string>
   },
   witness: {
     accounts: Record<string, { asset: AssetId, purpose: string, aliases: string[] }>
@@ -38,7 +38,7 @@ export type SummaryState = {
 export type TransactionInput = {
   asset: AssetId;
   conservative?: boolean;
-  sequence?: string | number | BigNumber;
+  nonce?: string | number | BigNumber;
   gasPrice?: string | number | BigNumber;
   gasLimit?: string | number | BigNumber;
   method: {
@@ -53,7 +53,7 @@ export type TransactionOutput = {
   body: {
     signature: Recsighash,
     asset: AssetId,
-    sequence: Uint256,
+    nonce: Uint256,
     conservative: boolean,
     gasPrice: BigNumber,
     gasLimit: Uint256
@@ -323,18 +323,18 @@ export class Wallet {
     }
 
     try {
-      if (!props.sequence)
+      if (!props.nonce)
         throw false;
 
-      props.sequence = new BigNumber(props.sequence).integerValue(BigNumber.ROUND_DOWN);
-      if (!props.sequence.gte(1))
+      props.nonce = new BigNumber(props.nonce).integerValue(BigNumber.ROUND_DOWN);
+      if (!props.nonce.gte(1))
         throw false;
     } catch {
-      const sequence = await Interface.getNextAccountSequence(address);
-      if (sequence == null) {
-        throw new Error('Cannot fetch account sequence');
+      const nonce = await Interface.getNextAccountNonce(address);
+      if (nonce == null) {
+        throw new Error('Cannot fetch account nonce');
       } else {
-        props.sequence = typeof sequence.max == 'string' ? new BigNumber(sequence.max, 16) : sequence.max;
+        props.nonce = typeof nonce.max == 'string' ? new BigNumber(nonce.max, 16) : nonce.max;
       }
     }
     
@@ -363,7 +363,7 @@ export class Wallet {
     const transaction = {
       signature: new Recsighash(),
       asset: props.asset,
-      sequence: new Uint256(props.sequence.toString()),
+      nonce: new Uint256(props.nonce.toString()),
       conservative: props.conservative || false,
       gasPrice: props.gasPrice,
       gasLimit: new Uint256(props.gasLimit.toString()),
@@ -408,7 +408,7 @@ export class Wallet {
       throw new Error('Cannot fetch transaction gas limit: ' + (exception as Error).message);
     }
     
-    props.sequence = intermediate.body.sequence.toString();
+    props.nonce = intermediate.body.nonce.toString();
     props.gasLimit = intermediate.body.gasLimit.toString();
     return await Wallet.buildTransaction(props);
   }
@@ -880,6 +880,21 @@ export class Interface {
   static submitTransaction(hexMessage: string, validate: boolean): Promise<string | null> {
     return this.fetch('no-cache', 'submittransaction', [hexMessage, validate]);
   }
+  static buildCertificationTransaction(asset: AssetId, blockProduction: 'enable' | 'disable' | 'standby', participation: Record<string, BigNumber | null>, attestation: Record<string, BigNumber | null>): Promise<{ hash: string, data: string } | null> {
+    return this.fetch('no-cache', 'buildcertificationtransaction', [asset.handle, blockProduction, participation, attestation]);
+  }
+  static buildDepositoryAdjustmentTransaction(asset: AssetId, incomingFee: BigNumber, outgoingFee: BigNumber, securityLevel: number, acceptsAccountRequests: boolean, acceptsWithdrawalRequests: boolean): Promise<{ hash: string, data: string } | null> {
+    return this.fetch('no-cache', 'builddepositoryadjustmenttransaction', [asset.handle, incomingFee, outgoingFee, securityLevel, acceptsAccountRequests, acceptsWithdrawalRequests]);
+  }
+  static buildDepositoryRegroupingTransaction(asset: AssetId): Promise<{ hash: string, data: string } | null> {
+    return this.fetch('no-cache', 'builddepositoryregroupingtransaction', [asset.handle]);
+  }
+  static buildDepositoryWithdrawalTransaction(asset: AssetId, managerAddress: string): Promise<{ hash: string, data: string } | null> {
+    return this.fetch('no-cache', 'builddepositorywithdrawaltransaction', [asset.handle, managerAddress]);
+  }
+  static getSignerAddress(): Promise<string | null> {
+    return this.fetch('no-cache', 'getsigneraddress');
+  }
   static getBlockchains(): Promise<any[] | null> {
     return this.fetch('cache', 'getblockchains', []);
   }
@@ -889,20 +904,23 @@ export class Interface {
   static getBestDepositoryBalancesForSelection(asset: AssetId, offset: number, count: number): Promise<any[] | null> {
     return this.fetch('no-cache', 'getbestdepositorybalancesforselection', [asset.handle, offset, count]);
   }
-  static getNextAccountSequence(address: string): Promise<{ min: BigNumber | string, max: BigNumber | string } | null> {
-    return this.fetch('no-cache', 'getnextaccountsequence', [address]);
-  }
-  static getAccountWork(address: string): Promise<any | null> {
-    return this.fetch('no-cache', 'getaccountwork', [address]);
-  }
-  static getAccountObservers(address: string, offset: number, count: number): Promise<any[] | null> {
-    return this.fetch('no-cache', 'getaccountobservers', [address, offset, count]);
+  static getNextAccountNonce(address: string): Promise<{ min: BigNumber | string, max: BigNumber | string } | null> {
+    return this.fetch('no-cache', 'getnextaccountnonce', [address]);
   }
   static getAccountBalance(address: string, asset: AssetId): Promise<{ supply: BigNumber, reserve: BigNumber, balance: BigNumber } | null> {
     return this.fetch('no-cache', 'getaccountbalance', [address, asset.handle]);
   }
   static getAccountBalances(address: string, offset: number, count: number): Promise<any[] | null> {
     return this.fetch('no-cache', 'getaccountbalances', [address, offset, count]);
+  }
+  static getValidatorProduction(address: string): Promise<any | null> {
+    return this.fetch('no-cache', 'getvalidatorproduction', [address]);
+  }
+  static getValidatorParticipations(address: string, offset: number, count: number): Promise<any[] | null> {
+    return this.fetch('no-cache', 'getvalidatorparticipations', [address, offset, count]);
+  }
+  static getValidatorAttestations(address: string, offset: number, count: number): Promise<any[] | null> {
+    return this.fetch('no-cache', 'getvalidatorattestations', [address, offset, count]);
   }
   static getDepositoryBalances(address: string, offset: number, count: number): Promise<any[] | null> {
     return this.fetch('no-cache', 'getdepositorybalances', [address, offset, count]);
@@ -968,7 +986,7 @@ export class InterfaceUtil {
         accounts: { },
         queues: { },
         policies: { },
-        mpc: new Set<string>()
+        participants: new Set<string>()
       },
       witness: {
         accounts: { },
@@ -1150,11 +1168,11 @@ export class InterfaceUtil {
           break;
         }
         case Types.DepositoryAccount: 
-        case Types.DepositoryMigration: {
+        case Types.DepositoryRegrouping: {
           if (event.args.length == 1 && typeof event.args[0] == 'string') {
             const [owner] = event.args;
             const ownerAddress = Signing.encodeAddress(new Pubkeyhash(owner)) || owner;
-            result.depository.mpc.add(ownerAddress);
+            result.depository.participants.add(ownerAddress);
           }
           break;
         }
@@ -1185,7 +1203,7 @@ export class InterfaceUtil {
         !Object.keys(state.depository.queues).length &&
         !Object.keys(state.depository.accounts).length &&
         !Object.keys(state.depository.policies).length &&
-        !state.depository.mpc.size &&
+        !state.depository.participants.size &&
         !Object.keys(state.witness.accounts).length &&
         !Object.keys(state.witness.transactions).length &&
         !Object.keys(state.receipts).length &&
@@ -1196,7 +1214,7 @@ export class InterfaceUtil {
         !Object.keys(state.depository.queues).length &&
         !Object.keys(state.depository.accounts).length &&
         !Object.keys(state.depository.policies).length &&
-        !state.depository.mpc.size &&
+        !state.depository.participants.size &&
         !Object.keys(state.witness.accounts).length &&
         !Object.keys(state.witness.transactions).length &&
         !Object.keys(state.receipts).length &&

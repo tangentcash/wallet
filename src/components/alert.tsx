@@ -135,7 +135,7 @@ export function Alert() {
     <Box position="fixed" bottom="12px" right="8px" style={{ zIndex: 10000 }} id={ 'alert-' + notify }>
       {
         AlertBox.alerts.map((alert) =>
-          <Callout.Root size="1" variant="surface" mt="2" style={{ backdropFilter: 'blur(4px)' }} color={ alert.type == AlertType.Info ? 'green' : (alert.type == AlertType.Warning ? 'orange' : 'red') } className={ alert.status == AlertStatus.Opening ? 'fade-in-transition' : (alert.status == AlertStatus.Closing ? 'fade-out-transition' : undefined) } key={alert.id} onAnimationEnd={() => AlertBox.update(alert.id)}>
+          <Callout.Root size="1" variant="surface" mt="2" style={{ backdropFilter: 'blur(4px)' }} color={ alert.type == AlertType.Info ? 'jade' : (alert.type == AlertType.Warning ? 'orange' : 'red') } className={ alert.status == AlertStatus.Opening ? 'fade-in-transition' : (alert.status == AlertStatus.Closing ? 'fade-out-transition' : undefined) } key={alert.id} onAnimationEnd={() => AlertBox.update(alert.id)}>
             <Callout.Icon>
               <Icon path={alert.type == AlertType.Info ? mdiInformationOutline : mdiAlertCircleOutline } size={1} />
             </Callout.Icon>

@@ -21,8 +21,8 @@ export type ChainParams = {
   PUBKEY_PREFIX: string,
   ADDRESS_VERSION: number,
   ADDRESS_PREFIX: string,
-  PROPOSER_COMMITTEE: number,
-  MPC_COMMITTEE: [number, number]
+  PRODUCTION_COMMITTEE: number,
+  PARTICIPATION_COMMITTEE: [number, number]
   MESSAGE_MAGIC: number
 }
 
@@ -35,8 +35,8 @@ export class Chain {
     PUBKEY_PREFIX: 'pub',
     ADDRESS_VERSION: 0x4,
     ADDRESS_PREFIX: 'tc',
-    PROPOSER_COMMITTEE: 6,
-    MPC_COMMITTEE: [2, 16],
+    PRODUCTION_COMMITTEE: 12,
+    PARTICIPATION_COMMITTEE: [2, 16],
     MESSAGE_MAGIC: 0x6a513fb6b3b71f02
   };
   static testnet: ChainParams = {
@@ -47,8 +47,8 @@ export class Chain {
     PUBKEY_PREFIX: 'pubt',
     ADDRESS_VERSION: 0x5,
     ADDRESS_PREFIX: 'tct',
-    PROPOSER_COMMITTEE: 6,
-    MPC_COMMITTEE: [2, 16],
+    PRODUCTION_COMMITTEE: 12,
+    PARTICIPATION_COMMITTEE: [2, 16],
     MESSAGE_MAGIC: 0x6a513fb6b3b71f02
   };
   static regtest: ChainParams = {
@@ -59,8 +59,8 @@ export class Chain {
     PUBKEY_PREFIX: 'pubrt',
     ADDRESS_VERSION: 0x6,
     ADDRESS_PREFIX: 'tcrt',
-    PROPOSER_COMMITTEE: 6,
-    MPC_COMMITTEE: [1, 16],
+    PRODUCTION_COMMITTEE: 12,
+    PARTICIPATION_COMMITTEE: [1, 16],
     MESSAGE_MAGIC: 0x6a513fb6b3b71f02
   };
   static size = {

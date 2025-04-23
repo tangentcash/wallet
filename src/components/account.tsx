@@ -1,16 +1,15 @@
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
-import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, DropdownMenu, Flex, Heading, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { Interface, InterfaceUtil, SummaryState } from "../core/wallet";
+import { AspectRatio, Avatar, Badge, Box, Callout, Card, Flex, Heading, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Interface, InterfaceUtil, SummaryState, Wallet } from "../core/wallet";
 import { useEffectAsync } from "../core/extensions/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiAlertOctagonOutline, mdiArrowLeftBoldHexagonOutline, mdiArrowRightBoldHexagonOutline, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan } from "@mdi/js";
+import { mdiArrowLeftBoldHexagonOutline, mdiArrowRightBoldHexagonOutline, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan } from "@mdi/js";
 import { Readability } from "../core/text";
 import { AssetId } from "../core/tangent/algorithm";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import QRCode from "react-qr-code";
 import Icon from "@mdi/react";
 import Transaction from "../components/transaction";
-import { useNavigate } from "react-router";
 
 function toAddressType(type: string): string {
   switch (type) {
@@ -26,34 +25,34 @@ function toAddressType(type: string): string {
 }
 
 const TRANSACTION_COUNT = 48;
-const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref) => {
+const Account = forwardRef((props: { ownerAddress: string }, ref) => {
   const ownerAddress = props.ownerAddress;
   const [loading, setLoading] = useState(true);
   const [assets, setAssets] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<any[]>([]);
-  const [observers, setObservers] = useState<any[]>([]);
-  const [work, setWork] = useState<any>(null);
+  const [attestations, setAttestations] = useState<any[]>([]);
+  const [participations, setParticipations] = useState<any[]>([]);
+  const [production, setProduction] = useState<any>(null);
   const [selectedAddress, setSelectedAddress] = useState<number>(-1);
   const [selectedAddressVersion, setSelectedAddressVersion] = useState<number>(0);
   const [control, setControl] = useState<'balance' | 'address' | 'validator'>('balance');
   const [transactions, setTransactions] = useState<{ transaction: any, receipt?: any, state?: SummaryState }[]>([]);
   const [mempoolTransactions, setMempoolTransactions] = useState<any[]>([]);
   const [moreTransactions, setMoreTransactions] = useState(true);
-  const navigate = useNavigate();
   const addressPurpose = useCallback((address: any) => {
     if (!address)
       return <>None</>;
 
     const ownerType = address.owner == ownerAddress ? ' (this account)' : '';
-    const proposerType = address.proposer == ownerAddress ? ' (this account)' : ' (validator)';
-    if (address.purpose == 'witness' && address.proposer == address.owner)
+    const managerType = address.manager == ownerAddress ? ' (this account)' : ' (validator)';
+    if (address.purpose == 'witness' && address.manager == address.owner)
       return <>This is a coverage wallet that has been dismissed and disclosed earlier and is used by <Link href="#">{address.owner}</Link>{ ownerType }</>;
-    else if (address.purpose == 'routing' && address.proposer == null)
+    else if (address.purpose == 'routing' && address.manager == null)
       return <>This is a routing wallet that can transfer funds to and receive funds from any depository wallet and is used exclusively by <Link href="#">{address.owner}</Link>{ ownerType }</>;
-    else if (address.purpose == 'depository' && address.proposer != null)
-      return <>This is a depository wallet that can receive funds from or send funds to any router wallet and is used by <Link href="#">{address.proposer}</Link>{ proposerType }</>;
-    else if (address.proposer != null)
-      return <>This is an unknown wallet which is used by <Link href="#">{address.owner}</Link>{ ownerType } and is operated by <Link href="#">{address.proposer}</Link>{ proposerType }</>;
+    else if (address.purpose == 'depository' && address.manager != null)
+      return <>This is a depository wallet that can receive funds from or send funds to any router wallet and is used by <Link href="#">{address.manager}</Link>{ managerType }</>;
+    else if (address.manager != null)
+      return <>This is an unknown wallet which is used by <Link href="#">{address.owner}</Link>{ ownerType } and is operated by <Link href="#">{address.manager}</Link>{ managerType }</>;
     return <>This is an unknown wallet which is used by <Link href="#">{address.owner}</Link>{ ownerType }</>;
   }, [ownerAddress]);
   const findTransactions = useCallback(async (refresh?: boolean) => {
@@ -99,7 +98,7 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
             assetData = assetData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
             assetData = assetData.filter((item) => item.balance?.gt(0) || item.reserve?.gt(0) || item.supply?.gt(0));
             setAssets(assetData);
-            if (props.owns && !assetData.length)
+            if (Wallet.getAddress() == ownerAddress && !assetData.length)
               setControl('address');
           }
         } catch (exception) {
@@ -119,19 +118,29 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
       })(),
       (async () => {
         try {
-          const observerData = await Interface.fetchAll((offset, count) => Interface.getAccountObservers(ownerAddress, offset, count));
-          if (Array.isArray(observerData)) {
-            setObservers(observerData);
+          const attestationData = await Interface.fetchAll((offset, count) => Interface.getValidatorAttestations(ownerAddress, offset, count));
+          if (Array.isArray(attestationData)) {
+            setAttestations(attestationData);
           }
         } catch (exception) {
-          AlertBox.open(AlertType.Error, 'Failed to fetch account observers: ' + (exception as Error).message)
+          AlertBox.open(AlertType.Error, 'Failed to fetch account attestations: ' + (exception as Error).message)
         }
       })(),
       (async () => {
         try {
-          const workData = await Interface.getAccountWork(ownerAddress);
-          if (workData != null)
-            setWork(workData);
+          const participationData = await Interface.fetchAll((offset, count) => Interface.getValidatorParticipations(ownerAddress, offset, count));
+          if (Array.isArray(participationData)) {
+            setParticipations(participationData);
+          }
+        } catch (exception) {
+          AlertBox.open(AlertType.Error, 'Failed to fetch account participations: ' + (exception as Error).message)
+        }
+      })(),
+      (async () => {
+        try {
+          const productionData = await Interface.getValidatorProduction(ownerAddress);
+          if (productionData != null)
+            setProduction(productionData);
         } catch { }
       })(),
       findMempoolTransactions(),
@@ -166,10 +175,8 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
       <Tabs.Root value={control}>
         <Box width="100%" px="2">
           <Tabs.Content value="balance">
-            <Card mt="3" variant="surface" className="before-clear" style={{
+            <Card mt="3" variant="surface" style={{
                 border: '1px solid var(--gray-7)',
-                // @ts-ignore
-                backgroundImage: 'linear-gradient(45deg, var(--accent-3), var(--gray-3) 90%)',
                 borderRadius: '28px'
               }}>
               {
@@ -192,14 +199,17 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
                     <Box width="100%">
                       <Flex justify="between" align="center">
                         <Text as="div" size="2" weight="light">{Readability.toAssetName(item.asset)}</Text>
-                        {
-                          item.balance.gt(0) &&
-                          <Tooltip content={ 'Reservation: ' + Readability.toMoney(item.asset, item.reserve) }>
-                            <Badge size="1" radius="medium">{ (100 - item.reserve.dividedBy(item.supply).toNumber() * 100).toFixed(2) }%</Badge>
-                          </Tooltip>
-                        }
+                        <Tooltip content={
+                          <>
+                            <Box>Locked value: { Readability.toMoney(item.asset, item.reserve) }</Box>
+                            <Box>Unlocked value: { Readability.toMoney(item.asset, item.balance) }</Box>
+                            <Box mt="1">Total value: { Readability.toMoney(item.asset, item.supply) }</Box>
+                          </>
+                          }>
+                          <Badge size="1" radius="medium" color={item.reserve.gt(0) ? 'yellow' : 'jade'}>{ (Math.floor(10000 - item.reserve.dividedBy(item.supply).toNumber() * 10000) / 100).toFixed(2) }%</Badge>
+                        </Tooltip>
                       </Flex>
-                      <Text as="div" size="2" weight="medium">{ Readability.toMoney(item.asset, item.balance) }</Text>
+                      <Text as="div" size="2" weight="medium">{ Readability.toMoney(item.asset, item.supply) }</Text>
                     </Box>
                   </Flex>
                 )
@@ -213,7 +223,7 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
                 <Callout.Icon>
                   <Icon path={mdiInformationOutline} size={1} />
                 </Callout.Icon>
-                <Callout.Text>This is a wallet that is used within Tangent Chain transactions</Callout.Text>
+                <Callout.Text>This is a wallet that is used within Tangent transactions</Callout.Text>
               </Callout.Root>
             }
             {
@@ -228,12 +238,10 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
               </Callout.Root>
             }
             <Box mt="4">
-              <Card mt="3" variant="surface" className="before-clear" style={{
-                  border: '1px solid var(--gray-7)',
-                  // @ts-ignore
-                  backgroundImage: 'linear-gradient(45deg, var(--gray-2), var(--accent-4) 100%)',
-                  borderRadius: '28px'
-                }}>
+              <Card mt="3" variant="surface" style={{
+                border: '1px solid var(--gray-7)',
+                borderRadius: '28px'
+              }}>
                 <Box px="2" py="2">
                   <Flex justify="center" mb="4">
                     <Heading size="4" align="center">{ selectedAddress == -1 ? 'Tangent' : Readability.toAssetName(addresses[selectedAddress].asset) } address QR code</Heading>
@@ -329,93 +337,82 @@ const Account = forwardRef((props: { ownerAddress: string, owns?: boolean }, ref
             </Box>
           </Tabs.Content>
           <Tabs.Content value="validator">
-            <Card mt="3" variant="surface" className="before-clear" style={{
+            <Card mt="3" variant="surface" style={{
                 border: '1px solid var(--gray-7)',
-                // @ts-ignore
-                backgroundImage: 'linear-gradient(45deg, var(--accent-3), var(--gray-3) 90%)',
                 borderRadius: '28px'
               }}>
               <Box position="absolute" top="14px" right="14px">
-                {
-                  props.owns &&
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger>
-                      <Button variant="ghost" color={work ? (work.online ? 'jade' : 'red') : 'orange'}>
-                        <Badge size="2" color={work ? (work.online ? 'jade' : 'red') : 'orange'}>{ work ? (work.online ? 'VALIDATOR ONLINE' : 'VALIDATOR OFFLINE') : 'NOT A VALIDATOR' }</Badge>
-                      </Button>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Content side="left">
-                      <Tooltip content="Change validator and/or observer status(-es)">
-                        <DropdownMenu.Item shortcut="⟳ ₿" color={ work && work.online ? 'red' : undefined } onClick={() => navigate('/interaction?type=commitment')}>{ work && work.online ? 'Disable' : 'Enable' } validator</DropdownMenu.Item>
-                      </Tooltip>
-                      <DropdownMenu.Separator />
-                      <Tooltip content="Configure fee policy for a bridge">
-                        <DropdownMenu.Item shortcut="⇌ ₿" onClick={() => navigate('/interaction?type=depository_adjustment')}>Configure bridge</DropdownMenu.Item>
-                      </Tooltip>
-                      <Tooltip content="Migrate bridge's custodial funds to another bridge for deallocation">
-                        <DropdownMenu.Item shortcut="→ ₿" color="red" onClick={() => navigate('/interaction?type=depository_migration')}>Migrate bridge</DropdownMenu.Item>
-                      </Tooltip>
-                      <DropdownMenu.Separator />
-                      <Tooltip content="Contribute to a bridge by locking coverage funds">
-                        <DropdownMenu.Item shortcut="↘ ₿" onClick={() => navigate('/interaction?type=contribution_allocation')}>Lock bridge contribution</DropdownMenu.Item>
-                      </Tooltip>
-                      <Tooltip content="Deallocate bridge and unlock contributed coverage funds">
-                        <DropdownMenu.Item shortcut="↖ ₿" color="red" onClick={() => navigate('/interaction?type=contribution_deallocation')}>Unlock bridge contribution</DropdownMenu.Item>
-                      </Tooltip>
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Root>
-                }
-                {
-                  !props.owns && <Badge size="2" color={work ? (work.online ? 'jade' : 'red') : 'orange'}>VALIDATOR { work ? (work.online ? 'ONLINE' : 'OFFLINE') : 'STANDBY' }</Badge>
-                }
+                <Badge size="2" color={production ? (production.active ? 'jade' : 'red') : 'orange'}>PRODUCER { production ? (production.active ? 'ONLINE' : 'OFFLINE') : 'STANDBY' }</Badge>
               </Box>
               <Flex px="2" py="2" gap="3">
                 <Icon path={mdiArrowRightBoldHexagonOutline} size={1.5} style={{ color: 'var(--red-10)' }} />
                 <Box width="100%">
                   <Flex justify="between" align="center">
-                    <Text as="div" size="2" weight="light">Gas</Text>
+                    <Text as="div" size="2" weight="light">Gas production</Text>
                   </Flex>
-                  <Text as="div" size="2" weight="medium">{ Readability.toGas(work ? work.gas_use : 0) }</Text>
+                  <Text as="div" size="2" weight="medium">{ Readability.toGas(production ? production.gas : 0) }</Text>
                 </Box>
               </Flex>
               {
-                work &&
-                <>
-                  <Flex px="2" py="2" gap="3" align="center">
-                    <Icon path={mdiAlertOctagonOutline} size={1.5} style={{ color: 'var(--yellow-11)' }} />
-                    <Box width="100%">
-                      <Flex justify="between" align="center">
-                        <Text as="div" size="2" weight="light">Reliability</Text>
-                      </Flex>
-                      <Text as="div" size="2" weight="medium">{ work.flags.findIndex((a: string) => a == 'founder') ? 'Founder' : (work.flags.findIndex((a: string) => a == 'outlaw') ? 'Unreliable' : 'Normal') }</Text>
-                    </Box>
-                  </Flex>
-                  <Flex px="2" py="2" gap="3" align="center">
-                    <Icon path={mdiArrowLeftBoldHexagonOutline} size={1.5} style={{ color: 'var(--jade-10)' }} />
-                    <Box width="100%">
-                      <Flex justify="between" align="center">
-                        <Text as="div" size="2" weight="light">{ work.online ? 'Activity' : 'Downtime' }</Text>
-                      </Flex>
-                      <Text as="div" size="2" weight="medium">{ work.online ? 'In' : 'From'} block { Math.max(work.block_number.toNumber(), work.penalty.toNumber()) }</Text>
-                    </Box>
-                  </Flex>
-                </>
+                production &&
+                <Flex px="2" py="2" gap="3" align="center">
+                  <Icon path={mdiArrowLeftBoldHexagonOutline} size={1.5} style={{ color: 'var(--jade-10)' }} />
+                  <Box width="100%">
+                    <Flex justify="between" align="center">
+                      <Text as="div" size="2" weight="light">{ production.active ? 'Activity' : 'Downtime' }</Text>
+                    </Flex>
+                    <Text as="div" size="2" weight="medium">{ production.active ? 'In' : 'From'} block { production.block_number.toNumber() }</Text>
+                  </Box>
+                </Flex>
               }
               {
-                observers.length > 0 &&
+                participations.length > 0 &&
                 <Box px="2" my="2">
                   <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
                 </Box>
               }
               { 
-                observers.map((item) =>
+                participations.map((item) =>
                   <Flex key={item.asset.id} px="2" py="2" gap="3" align="center">
                     <Avatar size="2" radius="full" fallback={(item.asset.token || item.asset.chain)[0]} src={'/cryptocurrency/' + (item.asset.token || item.asset.chain).toLowerCase() + '.svg'} />
                     <Box width="100%" style={{ marginLeft: '2px' }}>
                       <Flex justify="between" align="center">
-                        <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } observer</Text>
+                        <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } depository participation</Text>
                       </Flex>
-                      <Badge size="1" radius="medium" color={item.observing ? 'jade' : 'red'}>{ item.observing ? 'ONLINE' : 'OFFLINE' }</Badge>
+                      {
+                        item.active &&
+                        <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.stake) } for { Readability.toCount('participation', item.participations) }</Text>
+                      }
+                      {
+                        !item.active &&
+                        <Badge size="1" radius="medium" color="red">OFFLINE { item.participations > 0 ? ' (' + Readability.toCount('participation', item.participations) + ')' : '' }</Badge>
+                      }
+                    </Box>
+                  </Flex>
+                )
+              }
+              {
+                attestations.length > 0 &&
+                <Box px="2" my="2">
+                  <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+                </Box>
+              }
+              { 
+                attestations.map((item) =>
+                  <Flex key={item.asset.id} px="2" py="2" gap="3" align="center">
+                    <Avatar size="2" radius="full" fallback={(item.asset.token || item.asset.chain)[0]} src={'/cryptocurrency/' + (item.asset.token || item.asset.chain).toLowerCase() + '.svg'} />
+                    <Box width="100%" style={{ marginLeft: '2px' }}>
+                      <Flex justify="between" align="center">
+                        <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } depository attestation</Text>
+                      </Flex>
+                      {
+                        item.active &&
+                        <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.stake) }</Text>
+                      }
+                      {
+                        !item.active &&
+                        <Badge size="1" radius="medium" color="red">OFFLINE</Badge>
+                      }
                     </Box>
                   </Flex>
                 )

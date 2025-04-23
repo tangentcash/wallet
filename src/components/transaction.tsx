@@ -78,8 +78,8 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           <DataList.Item>
             <DataList.Label>Properties:</DataList.Label>
             <DataList.Value>
-              <Badge color={ transaction.patchable ? 'red' : 'green' } mr="2">{ transaction.patchable ? 'Mutable' : 'Immutable' }</Badge>
-              <Badge color={ transaction.segregated ? 'green' : 'red' }>{ transaction.segregated ? 'Program reuse' : 'New program' }</Badge>
+              <Badge color={ transaction.patchable ? 'red' : 'jade' } mr="2">{ transaction.patchable ? 'Mutable' : 'Immutable' }</Badge>
+              <Badge color={ transaction.segregated ? 'jade' : 'red' }>{ transaction.segregated ? 'Program reuse' : 'New program' }</Badge>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
@@ -144,17 +144,27 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
-            <DataList.Label>Validator status:</DataList.Label>
+            <DataList.Label>Block production:</DataList.Label>
             <DataList.Value>
-              <Badge color={ transaction.online == 1 ? 'green' : (transaction.online == -1 ? 'gray' : 'red') }>{ transaction.online == 1 ? 'Online' : (transaction.online == -1 ? 'Standby' : 'Offline') }</Badge>
+              <Badge color={ transaction.block_production == 1 ? 'jade' : (transaction.block_production == -1 ? 'gray' : 'red') }>{ transaction.block_production == 1 ? 'Online' : (transaction.block_production == -1 ? 'Standby' : 'Offline') }</Badge>
             </DataList.Value>
           </DataList.Item>
           {
-            transaction.observers.map((observer: any) => 
-              <DataList.Item key={observer.asset.chain}>
-                <DataList.Label>{ observer.asset.chain } observer status:</DataList.Label>
+            transaction.participation_stakes.map((item: any) => 
+              <DataList.Item key={item.asset.chain}>
+                <DataList.Label>{ item.asset.chain } participation stake:</DataList.Label>
                 <DataList.Value>
-                  <Badge color={ observer.online ? 'green' : 'red' }>{ observer.online ? 'Online' : 'Offline' }</Badge>
+                  <Badge color={ item.stake != null && item.stake >= 0.0 ? 'jade' : 'red' }>{ item.stake != null ? (item.stake >= 0.0 ? 'Lock ' : 'Unlock ') + Readability.toMoney(item.asset, item.stake) : 'Unlock all' }</Badge>
+                </DataList.Value>
+              </DataList.Item>
+            )
+          }
+          {
+            transaction.attestation_stakes.map((item: any) => 
+              <DataList.Item key={item.asset.chain}>
+                <DataList.Label>{ item.asset.chain } attestation stake:</DataList.Label>
+                <DataList.Value>
+                  <Badge color={ item.stake != null && item.stake >= 0.0 ? 'jade' : 'red' }>{ item.stake != null ? (item.stake >= 0.0 ? 'Lock ' : 'Unlock ') + Readability.toMoney(item.asset, item.stake) : 'Unlock all' }</Badge>
                 </DataList.Value>
               </DataList.Item>
             )
@@ -179,16 +189,16 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
-            <DataList.Label>Delegate proposer account:</DataList.Label>
+            <DataList.Label>Delegate manager account:</DataList.Label>
             <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" disabled={!transaction.proposer} onClick={() => {
-                navigator.clipboard.writeText(transaction.proposer || 'none');
+              <Button size="2" variant="ghost" color="indigo" disabled={!transaction.manager} onClick={() => {
+                navigator.clipboard.writeText(transaction.manager || 'none');
                 AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ Readability.toAddress(transaction.proposer) }</Button>
+              }}>{ Readability.toAddress(transaction.manager) }</Button>
               {
-                transaction.proposer &&
+                transaction.manager &&
                 <Box ml="2">
-                  <Link className="router-link" to={'/account/' + transaction.proposer}>▒▒</Link>
+                  <Link className="router-link" to={'/account/' + transaction.manager}>▒▒</Link>
                 </Box>
               }
             </DataList.Value>
@@ -211,12 +221,12 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>MPC public key:</DataList.Label>
+            <DataList.Label>Public key:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.mpc_public_key || 'none');
-                AlertBox.open(AlertType.Info, 'MPC public key copied!')
-              }}>{ Readability.toHash(transaction.mpc_public_key) }</Button>
+                navigator.clipboard.writeText(transaction.public_key || 'none');
+                AlertBox.open(AlertType.Info, 'Public key copied!')
+              }}>{ Readability.toHash(transaction.public_key) }</Button>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
@@ -226,46 +236,31 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
         <>
           <DataList.Root orientation={props.orientation} mb="4">
             {
-              transaction.proposer &&
+              transaction.from_manager &&
               <DataList.Item>
-                <DataList.Label>Proposer account:</DataList.Label>
+                <DataList.Label>From manager account:</DataList.Label>
                 <DataList.Value>
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                    navigator.clipboard.writeText(transaction.proposer || 'none');
+                    navigator.clipboard.writeText(transaction.from_manager || 'none');
                     AlertBox.open(AlertType.Info, 'Address copied!')
-                  }}>{ Readability.toAddress(transaction.proposer) }</Button>
+                  }}>{ Readability.toAddress(transaction.from_manager) }</Button>
                   <Box ml="2">
-                    <Link className="router-link" to={'/account/' + transaction.proposer}>▒▒</Link>
+                    <Link className="router-link" to={'/account/' + transaction.from_manager}>▒▒</Link>
                   </Box>
                 </DataList.Value>
               </DataList.Item>
             }
             {
-              transaction.from_proposer &&
+              transaction.to_manager &&
               <DataList.Item>
-                <DataList.Label>From proposer account:</DataList.Label>
+                <DataList.Label>To manager account:</DataList.Label>
                 <DataList.Value>
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                    navigator.clipboard.writeText(transaction.from_proposer || 'none');
+                    navigator.clipboard.writeText(transaction.to_manager || 'none');
                     AlertBox.open(AlertType.Info, 'Address copied!')
-                  }}>{ Readability.toAddress(transaction.from_proposer) }</Button>
+                  }}>{ Readability.toAddress(transaction.to_manager) }</Button>
                   <Box ml="2">
-                    <Link className="router-link" to={'/account/' + transaction.from_proposer}>▒▒</Link>
-                  </Box>
-                </DataList.Value>
-              </DataList.Item>
-            }
-            {
-              transaction.to_proposer &&
-              <DataList.Item>
-                <DataList.Label>To proposer account:</DataList.Label>
-                <DataList.Value>
-                  <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                    navigator.clipboard.writeText(transaction.to_proposer || 'none');
-                    AlertBox.open(AlertType.Info, 'Address copied!')
-                  }}>{ Readability.toAddress(transaction.to_proposer) }</Button>
-                  <Box ml="2">
-                    <Link className="router-link" to={'/account/' + transaction.to_proposer}>▒▒</Link>
+                    <Link className="router-link" to={'/account/' + transaction.to_manager}>▒▒</Link>
                   </Box>
                 </DataList.Value>
               </DataList.Item>
@@ -383,6 +378,8 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           };
         })]
       }).flat();
+      let attestations = 0;
+      Object.keys(transaction.output_hashes).forEach((item) => attestations += transaction.output_hashes[item].length);
       return (
         <>
           <DataList.Root orientation={props.orientation} mb="4">
@@ -398,6 +395,10 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             <DataList.Item>
               <DataList.Label>Block id:</DataList.Label>
               <DataList.Value>{ transaction.assertion.block_id?.toString() || 'none' }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Attestations:</DataList.Label>
+              <DataList.Value>{ Readability.toCount('attestation', attestations) }</DataList.Value>
             </DataList.Item>
           </DataList.Root>
           {
@@ -450,11 +451,11 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
             <DataList.Label>Deposit fee:</DataList.Label>
-            <DataList.Value>{ ((transaction.incoming_relative_fee?.toNumber() || 0) * 100).toFixed(2) }% + { Readability.toMoney(transaction.asset, transaction.incoming_absolute_fee) }</DataList.Value>
+            <DataList.Value>{ Readability.toMoney(transaction.asset, transaction.incoming_fee) }</DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Withdrawal fee:</DataList.Label>
-            <DataList.Value>{ ((transaction.outgoing_relative_fee?.toNumber() || 0) * 100).toFixed(2) }% + { Readability.toMoney(transaction.asset, transaction.outgoing_absolute_fee) }</DataList.Value>
+            <DataList.Value>{ Readability.toMoney(transaction.asset, transaction.outgoing_fee) }</DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Security level:</DataList.Label>
@@ -463,13 +464,13 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           <DataList.Item>
             <DataList.Label>Account requests:</DataList.Label>
             <DataList.Value>
-              <Badge color={ transaction.accepts_account_requests ? 'green' : 'red' }>{ transaction.accepts_account_requests ? 'Accepting' : 'Rejecting' }</Badge>
+              <Badge color={ transaction.accepts_account_requests ? 'jade' : 'red' }>{ transaction.accepts_account_requests ? 'Accepting' : 'Rejecting' }</Badge>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Withdrawal requests:</DataList.Label>
             <DataList.Value>
-              <Badge color={ transaction.accepts_withdrawal_requests ? 'green' : 'red' }>{ transaction.accepts_account_requests ? 'Accepting' : 'Rejecting' }</Badge>
+              <Badge color={ transaction.accepts_withdrawal_requests ? 'jade' : 'red' }>{ transaction.accepts_account_requests ? 'Accepting' : 'Rejecting' }</Badge>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
@@ -477,19 +478,19 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
     case 'depository_migration':
       return (
           transaction.migrations.map((item: any, index: number) =>
-            <Card key={item.proposer + index} mb="4">
+            <Card key={item.manager + index} mb="4">
               <DataList.Root orientation={props.orientation}>
                 <DataList.Item>
-                  <DataList.Label>Proposer:</DataList.Label>
+                  <DataList.Label>Manager account:</DataList.Label>
                   <DataList.Value>
                     <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                      navigator.clipboard.writeText(item.proposer);
+                      navigator.clipboard.writeText(item.manager);
                       AlertBox.open(AlertType.Info, 'Address copied!')
-                    }}>{ Readability.toAddress(item.proposer) }</Button>
+                    }}>{ Readability.toAddress(item.manager) }</Button>
                   </DataList.Value>
                 </DataList.Item>
                 <DataList.Item>
-                  <DataList.Label>Owner:</DataList.Label>
+                  <DataList.Label>Owner account:</DataList.Label>
                   <DataList.Value>
                     <Button size="2" variant="ghost" color="indigo" onClick={() => {
                       navigator.clipboard.writeText(item.owner);
@@ -562,12 +563,12 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
                     </DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
-                    <DataList.Label>Encrypted mpc seed:</DataList.Label>
+                    <DataList.Label>Encrypted seed:</DataList.Label>
                     <DataList.Value>
                       <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                        navigator.clipboard.writeText(item.encrypted_mpc_seed);
-                        AlertBox.open(AlertType.Info, 'Encrypted mpc seed copied!')
-                      }}>{ Readability.toHash(item.encrypted_mpc_seed) }</Button>
+                        navigator.clipboard.writeText(item.encrypted_seed);
+                        AlertBox.open(AlertType.Info, 'Encrypted seed copied!')
+                      }}>{ Readability.toHash(item.encrypted_seed) }</Button>
                     </DataList.Value>
                   </DataList.Item>
                 </DataList.Root>
@@ -614,7 +615,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
       case Types.WitnessTransaction:
       case Types.Rollup:
       case Types.DepositoryAccount:
-      case Types.DepositoryMigration:
+      case Types.DepositoryRegrouping:
         return false;
       default:
         return true;
@@ -851,13 +852,13 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                   <DataList.Item>
                     <DataList.Label>Account requests:</DataList.Label>
                     <DataList.Value>
-                      <Badge color={ event.acceptsAccountRequests ? 'green' : 'red' }>{ event.acceptsAccountRequests ? 'Accepting' : 'Rejecting' }</Badge>
+                      <Badge color={ event.acceptsAccountRequests ? 'jade' : 'red' }>{ event.acceptsAccountRequests ? 'Accepting' : 'Rejecting' }</Badge>
                     </DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
                     <DataList.Label>Withdrawal requests:</DataList.Label>
                     <DataList.Value>
-                      <Badge color={ event.acceptsWithdrawalRequests ? 'green' : 'red' }>{ event.acceptsWithdrawalRequests ? 'Accepting' : 'Rejecting' }</Badge>
+                      <Badge color={ event.acceptsWithdrawalRequests ? 'jade' : 'red' }>{ event.acceptsWithdrawalRequests ? 'Accepting' : 'Rejecting' }</Badge>
                     </DataList.Value>
                   </DataList.Item>
                 </DataList.Root>
@@ -867,7 +868,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
         })
       }
       {
-        Object.entries([...state.depository.mpc]).map((inputs) => {
+        Object.entries([...state.depository.participants]).map((inputs) => {
           const address = inputs[1];
           return (
             <Card key={'Y5' + address} mt="3">
@@ -875,7 +876,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                 <DataList.Item>
                   <DataList.Label>Event:</DataList.Label>
                   <DataList.Value>
-                    <Badge color="blue">Depository MPC</Badge>
+                    <Badge color="blue">Depository participant</Badge>
                   </DataList.Value>
                 </DataList.Item>
                 <DataList.Item>
@@ -1108,7 +1109,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                     const value = state.account.balances[ownerAddress][asset];
                     return (
                       <Flex key={'X0' + transaction.hash + asset} gap="2">
-                        { !value.supply.eq(0) && <Badge size="1" radius="medium" color={value.supply.gt(0) ? 'green' : (value.supply.isNegative() ? 'red' : 'gray')} style={{ textTransform: 'uppercase' }}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge> }
+                        { !value.supply.eq(0) && <Badge size="1" radius="medium" color={value.supply.gt(0) ? 'jade' : (value.supply.isNegative() ? 'red' : 'gray')} style={{ textTransform: 'uppercase' }}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge> }
                         { !value.reserve.eq(0) && <Badge size="1" radius="medium" color="blue" style={{ textTransform: 'uppercase' }}>{ Readability.toMoney(value.asset, value.reserve.negated(), true) }</Badge> }
                       </Flex>
                     )
@@ -1135,7 +1136,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 {
                   Object.keys(state.witness.accounts).map((asset) => {
                     const aliases = state.witness.accounts[asset].aliases;
-                    return aliases.map((alias) => <Badge key={'X3' + alias} size="1" radius="medium" color="green">+{ Readability.toAddress(alias) }</Badge>)
+                    return aliases.map((alias) => <Badge key={'X3' + alias} size="1" radius="medium" color="jade">+{ Readability.toAddress(alias) }</Badge>)
                   })
                 }
                 {
@@ -1150,15 +1151,15 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 }
                 {
                   Object.keys(state.depository.accounts).length > 0 &&
-                  <Badge size="1" radius="medium" color="green">{ Readability.toCount('account', Object.keys(state.depository.accounts).length, true) }</Badge>
+                  <Badge size="1" radius="medium" color="jade">{ Readability.toCount('account', Object.keys(state.depository.accounts).length, true) }</Badge>
                 }
                 {
                   Object.keys(state.depository.policies).length > 0 &&
-                  <Badge size="1" radius="medium" color="green">{ Readability.toCount('change', Object.keys(state.depository.policies).length) }</Badge>
+                  <Badge size="1" radius="medium" color="jade">{ Readability.toCount('change', Object.keys(state.depository.policies).length) }</Badge>
                 }
                 {
-                  state.depository.mpc.size > 0 &&
-                  <Badge size="1" radius="medium" color="green">{ Readability.toCount('participant', state.depository.mpc.size) }</Badge>
+                  state.depository.participants.size > 0 &&
+                  <Badge size="1" radius="medium" color="jade">{ Readability.toCount('participant', state.depository.participants.size) }</Badge>
                 }
                 {
                   InterfaceUtil.isSummaryStateEmpty(state, ownerAddress) &&
@@ -1204,7 +1205,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 <DataList.Item>
                   <DataList.Label>Status:</DataList.Label>
                   <DataList.Value>
-                    <Badge color={receipt.successful ? 'green' : 'red'}>{ Readability.toTransactionType(transaction.type) } { receipt.successful ? 'finalized' : 'reverted' } in { Readability.toTimespan(time) }</Badge>
+                    <Badge color={receipt.successful ? 'jade' : 'red'}>{ Readability.toTransactionType(transaction.type) } { receipt.successful ? 'finalized' : 'reverted' } in { Readability.toTimespan(time) }</Badge>
                   </DataList.Value>
                 </DataList.Item>
                 <DataList.Item>
@@ -1225,7 +1226,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   <DataList.Item>
                     <DataList.Label>Confidence:</DataList.Label>
                     <DataList.Value>
-                      <Badge color={Netstat.blockTipNumber.minus(receipt.block_number).gt(0) ? 'green' : 'orange'}>{ Readability.toCount('confirmation', Netstat.blockTipNumber.minus(receipt.block_number)) }</Badge>
+                      <Badge color={Netstat.blockTipNumber.minus(receipt.block_number).gt(0) ? 'jade' : 'orange'}>{ Readability.toCount('confirmation', Netstat.blockTipNumber.minus(receipt.block_number)) }</Badge>
                     </DataList.Value>
                   </DataList.Item>
                 }
@@ -1253,8 +1254,8 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>Sequence:</DataList.Label>
-              <DataList.Value>0x{ transaction.sequence.toString(16) }</DataList.Value>
+              <DataList.Label>Nonce:</DataList.Label>
+              <DataList.Value>0x{ transaction.nonce.toString(16) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Category:</DataList.Label>
@@ -1320,7 +1321,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                     </DataList.Item>
                     <DataList.Item>
                       <DataList.Label>Attestation committee:</DataList.Label>
-                      <DataList.Value>{ Readability.toCount('proposer', consensus.committee) }</DataList.Value>
+                      <DataList.Value>{ Readability.toCount('attester', consensus.committee) }</DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
                       <DataList.Label>Attestations acquired:</DataList.Label>

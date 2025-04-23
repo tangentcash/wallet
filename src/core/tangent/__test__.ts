@@ -52,7 +52,7 @@ export async function test() {
     asset: AssetId.fromHandle('BTC'),
     gasPrice: new BigNumber('0.0000000005'),
     gasLimit: new Uint256(10000),
-    sequence: 3,
+    nonce: 3,
     conservative: false,
     memo: '',
     value: new BigNumber(0.1),

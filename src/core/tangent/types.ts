@@ -11,5 +11,5 @@ export class Types
   static WitnessTransaction = Hashing.hash32(ByteUtil.byteStringToUint8Array(States.WitnessTransaction.typename));
   static Rollup = Hashing.hash32(ByteUtil.byteStringToUint8Array(Transactions.Rollup.typename));
   static DepositoryAccount = Hashing.hash32(ByteUtil.byteStringToUint8Array(Transactions.DepositoryAccount.typename));
-  static DepositoryMigration = Hashing.hash32(ByteUtil.byteStringToUint8Array(Transactions.DepositoryMigration.typename));
+  static DepositoryRegrouping = Hashing.hash32(ByteUtil.byteStringToUint8Array(Transactions.DepositoryRegrouping.typename));
 }

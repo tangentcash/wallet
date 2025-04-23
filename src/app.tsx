@@ -14,7 +14,7 @@ import AccountPage from "./pages/account";
 import BlockPage from "./pages/block";
 import TransactionPage from "./pages/transaction";
 import InteractionPage from "./pages/interaction";
-import BridgePage from "./pages/bridge";
+import DepositoryPage from "./pages/depository"
 
 export type ConnectionState = {
   sentBytes: number;
@@ -164,7 +164,7 @@ export function App() {
 
   return (
     <StrictMode>
-      <Theme appearance={appearanceValue} accentColor="crimson" radius="full" id={state.toString()}>
+      <Theme appearance={appearanceValue} accentColor="iris" radius="full" id={state.toString()}>
         <Box minWidth="285px" maxWidth="800px" mx="auto" style={{ paddingBottom: '96px' }}>
           <BrowserRouter>
             <Routes>
@@ -178,9 +178,9 @@ export function App() {
                   <ConfigurePage />
                 </WalletReadyRoute>
               } />
-              <Route path="/bridge" element={
+              <Route path="/depository" element={
                 <WalletReadyRoute>
-                  <BridgePage />
+                  <DepositoryPage />
                 </WalletReadyRoute>
               } />
               <Route path="/interaction" element={

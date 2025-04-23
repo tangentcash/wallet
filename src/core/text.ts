@@ -73,13 +73,13 @@ export class Readability {
       case 'depository_adjustment':
         return 'Depository policy renewal';
       case 'depository_migration':
-        return 'Depository MPC selection';
+        return 'Depository group selection';
       case 'depository_migration_preparation':
-        return 'Depository MPC announcement';
+        return 'Depository group announcement';
       case 'depository_migration_commitment':
-        return 'Depository MPC migration';
+        return 'Depository group migration';
       case 'depository_migration_finalization':
-        return 'Depository MPC confirmation';
+        return 'Depository group confirmation';
       default:
         return 'Non-standard';
     }

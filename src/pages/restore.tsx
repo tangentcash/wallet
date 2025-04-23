@@ -396,7 +396,7 @@ export default function RestorePage() {
                   <Select.Group>
                     <Select.Label>Tangent network</Select.Label>
                     <Select.Item value="mainnet">
-                      <Text color="green">Main network</Text>
+                      <Text color="jade">Main network</Text>
                     </Select.Item>
                     <Select.Item value="testnet">
                       <Text color="blue">Test network</Text>

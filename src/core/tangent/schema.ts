@@ -21,7 +21,7 @@ export namespace Ledger {
     asset: string = 'assetid';
     gasPrice: string = 'decimal';
     gasLimit: string = 'uint256';
-    sequence: string = 'uint64';
+    nonce: string = 'uint64';
     conservative: string = 'boolean';
   }
 }
@@ -79,10 +79,14 @@ export namespace Transactions {
 
   export class Certification extends Ledger.Transaction {
     static typename: string = 'certification';
-    online: string = 'uint8';
-    observers: string[] = [
+    blockProduction: string = 'uint8';
+    participationStakes: string[] = [
       'asset', 'assetid',
-      'online', 'boolean'
+      'stake', 'decimal'
+    ];
+    attestationStakes: string[] = [
+      'asset', 'assetid',
+      'stake', 'decimal'
     ];
 
     getType() { return Certification.typename; }
@@ -97,7 +101,7 @@ export namespace Transactions {
 
   export class DepositoryAccount extends Ledger.Transaction {
     static typename: string = 'depository_account';
-    proposer: string = 'pubkeyhash';
+    manager: string = 'pubkeyhash';
 
     getType() { return DepositoryAccount.typename; }
   }
@@ -105,8 +109,8 @@ export namespace Transactions {
   export class DepositoryWithdrawal extends Ledger.Transaction {
     static typename: string = 'depository_withdrawal';
     onlyIfNotInQueue: string = 'boolean';
-    proposer: string = 'pubkeyhash';
-    migrationProposer: string = 'pubkeyhash';
+    fromManager: string = 'pubkeyhash';
+    toManager: string = 'pubkeyhash';
     to: string[] = [
       'to', 'string',
       'value', 'decimal'
@@ -117,10 +121,8 @@ export namespace Transactions {
 
   export class DepositoryAdjustment extends Ledger.Transaction {
     static typename: string = 'depository_adjustment';
-    incomingAbsoluteFee: string = 'decimal';
-    incomingRelativeFee: string = 'decimal';
-    outgoingAbsoluteFee: string = 'decimal';
-    outgoingRelativeFee: string = 'decimal';
+    incomingFee: string = 'decimal';
+    outgoingFee: string = 'decimal';
     securityLevel: string = 'uint8';
     acceptsAccountRequests: string = 'boolean';
     acceptsWithdrawalRequests: string = 'boolean';
@@ -128,9 +130,9 @@ export namespace Transactions {
     getType() { return DepositoryAdjustment.typename; }
   }
 
-  export class DepositoryMigration extends Ledger.Transaction {
-    static typename: string = 'depository_migration';
+  export class DepositoryRegrouping extends Ledger.Transaction {
+    static typename: string = 'depository_regrouping';
 
-    getType() { return DepositoryMigration.typename; }
+    getType() { return DepositoryRegrouping.typename; }
   }
 }

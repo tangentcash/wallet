@@ -59,7 +59,7 @@ export default function BlockPage() {
     const time = block.approval_time.minus(block.proposal_time).toNumber();
     const priority = block.priority.toNumber();
     const subpriority = priority == 0 && (Netstat.blockTipNumber || new BigNumber(0)).lte(block.number) ? 1 : priority;
-    const possibility = 100 * Math.min(1, Math.max(0, (subpriority > 0 ? 0.4 : 0.0) + lerp(0.0, 0.5, subpriority / (Chain.props.PROPOSER_COMMITTEE - 1))));
+    const possibility = 100 * Math.min(1, Math.max(0, (subpriority > 0 ? 0.4 : 0.0) + lerp(0.0, 0.5, subpriority / (Chain.props.PRODUCTION_COMMITTEE - 1))));
     return (
       <Box px="4" pt="4">
         <Flex justify="between" align="center">
@@ -77,7 +77,7 @@ export default function BlockPage() {
                 <Box ml="2">
                   <Link className="router-link" to={'/block/' + block.hash}>▒▒</Link>
                 </Box>
-                <Badge ml="2" color={priority > 0 ? (possibility > 50 ? 'red' : 'yellow') : 'green'}>{ 'Fork possibility ≈ ' + possibility.toFixed(2) }%</Badge>
+                <Badge ml="2" color={priority > 0 ? (possibility > 50 ? 'red' : 'yellow') : 'jade'}>{ 'Fork possibility ≈ ' + possibility.toFixed(2) }%</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -133,19 +133,19 @@ export default function BlockPage() {
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>Proposer account:</DataList.Label>
+              <DataList.Label>Producer account:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.proposer);
+                  navigator.clipboard.writeText(block.producer);
                   AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ Readability.toAddress(block.proposer) }</Button>
+                }}>{ Readability.toAddress(block.producer) }</Button>
                 <Box ml="2">
-                  <Link className="router-link" to={'/account/' + block.proposer}>▒▒</Link>
+                  <Link className="router-link" to={'/account/' + block.producer}>▒▒</Link>
                 </Box>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>Proposer priority:</DataList.Label>
+              <DataList.Label>Leader priority:</DataList.Label>
               <DataList.Value>Slot leader #{priority + 1}</DataList.Value>
             </DataList.Item>
             {
