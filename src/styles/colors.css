@@ -1,3 +1,12 @@
+@font-face {
+  font-family: 'PT Mono';
+  src: url('./../fonts/ptmono-regular.ttf');
+}
+
+.radix-themes {
+	--default-font-family: "PT Mono", monospace;
+}
+
 :root, .light, .light-theme {
   --iris-1: #f8fffb;
   --iris-2: #f0fdf5;
