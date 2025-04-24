@@ -117,7 +117,7 @@ export class AppData {
     Interface.onNodeError = this.error;
     Interface.applyResolver(this.props.resolver);
     Interface.applyServer(this.props.server);
-    if (true)
+    if (false)
       await Wallet.restore('123456', NetworkType.Regtest);
    
     const splashscreen = document.getElementById('splashscreen-content');
@@ -131,6 +131,18 @@ export class AppData {
   }
   static openDevTools(): void {
     core.invoke('devtools');
+  }
+  static saveFile(name: string, type: string, data: string): void {
+    const link = document.createElement("a");
+    document.body.appendChild(link);
+    link.style = "display: none";
+    
+    const target = window.URL.createObjectURL(new Blob([data], { type: type }));
+    link.href = target;
+    link.download = name;
+    link.click();
+    window.URL.revokeObjectURL(target);
+    document.body.removeChild(link);
   }
   static setResolver(value: string): void {
     this.props.resolver = value;

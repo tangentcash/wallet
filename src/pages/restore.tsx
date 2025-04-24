@@ -218,7 +218,7 @@ export default function RestorePage() {
       return;
 
     const typed = new Typed(titleRef.current, {
-      strings: ['Tangent Chain', 'Tangent Wallet'],
+      strings: ['Tangent Cash', 'Tangent Wallet'],
       typeSpeed: 100,
       backSpeed: 30,
       smartBackspace: false,
@@ -247,7 +247,7 @@ export default function RestorePage() {
                   <Box mb="6" position="relative">
                     <TextField.Root id="card-password-field" type="password" placeholder="Enter Your password" autoComplete="current-password" size="3" value={passphrase} onChange={(e) => { setPassphrase(e.target.value); }}/>    
                     <Flex justify="center" mt="2">
-                      <Text size="1" weight="light" color="gray">Wallet is encrypted with password.</Text>
+                      <Text size="1" weight="light" color="gray">Wallet is password encrypted.</Text>
                       <Link size="1" color="red" ml="1" onClick={() => resetWallet(false)}>Reset wallet.</Link>
                     </Flex>
                   </Box>
@@ -317,7 +317,7 @@ export default function RestorePage() {
                   <>
                     <TextArea resize="vertical" variant="classic" size="3" style={{ minHeight: 150 }} placeholder={ wordsList.join(' ') + ' ... and 20 other words' } value={importCandidate} onChange={(e) => setImportCandidate(e.target.value)} />
                     <Flex justify="center" mt="2">
-                    <Text size="1" weight="light" color="gray">Recovery phrase is a secret that will restore a wallet.</Text>
+                    <Text size="1" weight="light" color="gray">Recovery phrase is a secret for wallet recovery.</Text>
                       <Link size="1" color="red" ml="1" onClick={() => resetWallet(false)}>Reset wallet.</Link>
                     </Flex>
                   </>
@@ -327,7 +327,7 @@ export default function RestorePage() {
                   <>
                     <TextField.Root type="text" placeholder={Chain[networkType].SECKEY_PREFIX + ' ...'} size="3" value={importCandidate} onChange={(e) => { setImportCandidate(e.target.value); }} />
                     <Flex justify="center" mt="2">
-                    <Text size="1" weight="light" color="gray">Private key is a secret that will restore a wallet.</Text>
+                    <Text size="1" weight="light" color="gray">Private key is your wallet.</Text>
                       <Link size="1" color="red" ml="1" onClick={() => resetWallet(false)}>Reset wallet.</Link>
                     </Flex>
                   </>
@@ -337,7 +337,7 @@ export default function RestorePage() {
                   <>
                     <TextField.Root type="text" placeholder={Chain[networkType].PUBKEY_PREFIX + ' ...'} size="3" value={importCandidate} onChange={(e) => { setImportCandidate(e.target.value); }} />
                     <Flex justify="center" mt="2">
-                      <Text size="1" weight="light" color="gray">Public key is a disclosable parameter that will restore a watch-only wallet.</Text>
+                      <Text size="1" weight="light" color="gray">Public key unlocks watch-only wallet.</Text>
                       <Link size="1" color="red" ml="1" onClick={() => resetWallet(false)}>Reset wallet.</Link>
                     </Flex>
                   </>
@@ -347,7 +347,7 @@ export default function RestorePage() {
                   <>
                     <TextField.Root type="text" placeholder={Chain[networkType].ADDRESS_PREFIX + ' ...'} size="3" value={importCandidate} onChange={(e) => { setImportCandidate(e.target.value); }} />
                     <Flex justify="center" mt="2">
-                      <Text size="1" weight="light" color="gray">Address is a disclosable parameter that will restore a watch-only wallet.</Text>
+                      <Text size="1" weight="light" color="gray">Address unlocks watch-only wallet.</Text>
                       <Link size="1" color="red" ml="1" onClick={() => resetWallet(false)}>Reset wallet.</Link>
                     </Flex>
                   </>

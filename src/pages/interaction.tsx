@@ -472,7 +472,7 @@ export default function InteractionPage() {
   }, [loadingTransaction, transactionReady, loadingTransaction, nonce, assets, asset, program]);
   useEffectAsync(async () => {
     const queryType = query.get('type');
-    let queryAddress = ownerAddress;
+    let queryAddress = Wallet.getAddress() || ownerAddress;
     switch (queryType) {
       case 'transfer': 
       default: {
@@ -610,6 +610,14 @@ export default function InteractionPage() {
             </Select.Group>
           </Select.Content>
         </Select.Root>
+        {
+          asset != -1 && ownerAddress.length > 0 &&
+          <Box width="100%" mt="3">
+            <Tooltip content="Account that will send the transaction and pay for it">
+              <TextField.Root size="3" placeholder="Transaction sender account" type="text" color="red" value={Readability.toAddress(ownerAddress, 16)} readOnly={true} />
+            </Tooltip>
+          </Box>
+        }
         {
           asset != -1 && program instanceof ProgramDepositoryWithdrawal &&
           <Box width="100%" px="1" mt="3">

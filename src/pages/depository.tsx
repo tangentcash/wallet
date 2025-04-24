@@ -13,9 +13,10 @@ import InfiniteScroll from "react-infinite-scroll-component";
 
 const DEPOSITORY_COUNT = 48;
 
-function toDepositoryIndex(policy: any): string {
+function toDepositoryIndex(policy: any): [boolean, string] {
   const index = policy.security_level / (Chain.props.PARTICIPATION_COMMITTEE[1] * 0.83);
-  return index.toFixed(3) + (index > 0.5 ? ' prefers security' : ' prefers speed')
+  const speedOverSecurity = index <= 0.5;
+  return [speedOverSecurity, index.toFixed(3) + (speedOverSecurity ? ' prefers speed' : ' prefers security')];
 }
 function toDepositoryStatus(policy: any): string {
   let status = '';
@@ -452,7 +453,7 @@ export default function DepositoryPage() {
                           <DataList.Item>
                             <DataList.Label>Security to speed index:</DataList.Label>
                             <DataList.Value>
-                              <Badge size="1" radius="medium" color="tomato">{ toDepositoryIndex(item.policy) }</Badge>
+                              <Badge size="1" radius="medium" color={toDepositoryIndex(item.policy)[0] ? 'tomato' : 'jade'}>{ toDepositoryIndex(item.policy)[1] }</Badge>
                             </DataList.Value>
                           </DataList.Item>
                           <DataList.Item>

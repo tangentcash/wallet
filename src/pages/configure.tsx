@@ -1,4 +1,4 @@
-import { mdiAlertOctagram, mdiAlertOctagramOutline, mdiBackburger, mdiBugOutline, mdiCached, mdiInformationOutline, mdiLocationExit, mdiLockOpenAlertOutline, mdiMagnifyExpand, mdiReloadAlert } from "@mdi/js";
+import { mdiAlertOctagram, mdiBackburger, mdiBugOutline, mdiCached, mdiLocationExit, mdiReloadAlert } from "@mdi/js";
 import { Badge, Box, Button, Card, DataList, Flex, Heading, Switch, Table, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useNavigate } from "react-router";
 import { AppData } from "../app";
@@ -107,7 +107,7 @@ export default function ConfigurePage() {
       </Box>
       <Card mt="4">
         <Box px="2" py="2">
-          <Heading size="5" mb="1">Client options</Heading>
+          <Heading size="5" mb="2">Client options</Heading>
           <Text as="label" size="1">
             <Flex gap="2" align="center" justify="between">
               <Text size="2" color="gray">Dark theme</Text>
@@ -115,41 +115,7 @@ export default function ConfigurePage() {
             </Flex>
           </Text>
           <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Seal wallet</Text>
-            <Button size="2" variant="soft" color="red" onClick={() => Wallet.clear(() => navigate('/restore'))}>
-              <Icon path={mdiLocationExit} size={0.85} />
-            </Button>
-          </Flex>
-        </Box>
-      </Card>
-      <Card mt="4">
-        <Box px="2" py="2">
-          <Heading size="5" mb="1">Server options</Heading>
-          <Text as="label" size="1">
-            <Flex gap="2" align="center" justify="between">
-              <Text size="2" color="gray">Use ws streaming</Text>
-              <Switch size="3" variant="soft" checked={Interface.getProps().streaming} onCheckedChange={(value) => setWsStreaming(value)}/>
-            </Flex>
-          </Text>
-          <Tooltip content="Use only this server as a resolver of public servers">
-            <TextField.Root size="2" placeholder="Resolver server address" type="text" mt="3" value={AppData.props.resolver || ''} onChange={(e) => {
-              AppData.setResolver(e.target.value);
-              setCounter(new Date().getTime());
-            }} />
-          </Tooltip>
-          <Tooltip content="Use only this server as a validator">
-            <TextField.Root size="2" placeholder="Validator server address" type="text" mt="2" value={AppData.props.server || ''} onChange={(e) => {
-              AppData.setServer(e.target.value);
-              setCounter(new Date().getTime());
-            }} />
-          </Tooltip>
-        </Box>
-      </Card>
-      <Card mt="4">
-        <Box px="2" py="2">
-          <Heading size="5" mb="1">App options</Heading>
-          <Flex justify="between" align="center">
-            <Text size="2" color="gray">Clear cache</Text>
+            <Text size="2" color="gray">Clear client cache</Text>
             <Button size="2" variant="soft" color="jade" onClick={() => {
               Interface.clearCache();
               AlertBox.open(AlertType.Info, 'Application cache erased');
@@ -158,92 +124,65 @@ export default function ConfigurePage() {
             </Button>
           </Flex>
           <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Reload app</Text>
+            <Text size="2" color="gray">Reload client app</Text>
             <Button size="2" variant="soft" onClick={() => location.reload()}>
               <Icon path={mdiReloadAlert} size={0.85} />
             </Button>
           </Flex>
           <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Show debugger</Text>
+            <Text size="2" color="gray">Show client debugger</Text>
             <Button size="2" variant="soft" color="yellow" onClick={() => AppData.openDevTools()}>
               <Icon path={mdiBugOutline} size={0.85} />
+            </Button>
+          </Flex>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" color="gray">Seal wallet</Text>
+            <Button size="2" variant="soft" color="red" onClick={() => Wallet.clear(() => navigate('/restore'))}>
+              <Icon path={mdiLocationExit} size={0.85} />
+            </Button>
+          </Flex>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" color="gray">Export wallet</Text>
+            <Button size="2" variant="soft" color="red" onClick={async () => {
+                const mnemonic = await SafeStorage.get(StorageField.Mnemonic);
+                const secretKey = Wallet.getSecretKey(); 
+                const publicKey = Wallet.getPublicKey();
+                const publicKeyHash = Wallet.getPublicKeyHash();
+                const address = Wallet.getAddress();
+                AppData.saveFile('wallet.json', 'application/json', JSON.stringify({
+                  mnemonic: mnemonic != null && Array.isArray(mnemonic) ? mnemonic.join(' ') : null,
+                  privateKey: secretKey != null ? Signing.encodeSecretKey(secretKey) || null : null,
+                  publicKey: publicKey != null ? Signing.encodePublicKey(publicKey) || null : null,
+                  publicKeyHash: publicKeyHash != null ? ByteUtil.uint8ArrayToHexString(publicKeyHash.data) || null : null,
+                  address: address
+                }, null, 2));
+              }}>
+              <Icon path={mdiAlertOctagram} size={0.85} />
             </Button>
           </Flex>
         </Box>
       </Card>
       <Card mt="4">
         <Box px="2" py="2">
-          <Heading size="5" mb="1">Wallet options</Heading>
-          <Flex justify="between" align="center">
-            <Text size="2" color="gray">Copy recovery phrase</Text>
-            <Button size="2" variant="soft" color="red" onClick={() => {
-                const mnemonic = SafeStorage.get(StorageField.Mnemonic);
-                if (mnemonic != null && Array.isArray(mnemonic)) {
-                  navigator.clipboard.writeText(mnemonic.join(' '));
-                  AlertBox.open(AlertType.Info, 'Recovery phrase copied!');
-                } else {
-                  AlertBox.open(AlertType.Error, 'Recovery phrase is not present');
-                }
-              }}>
-              <Icon path={mdiAlertOctagram} size={0.85} />
-            </Button>
-          </Flex>
-          <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Copy private key</Text>
-            <Button size="2" variant="soft" color="red" onClick={() => {
-                const secretKey = Wallet.getSecretKey();
-                if (secretKey != null) {
-                  navigator.clipboard.writeText(Signing.encodeSecretKey(secretKey) || 'FAILED');
-                  AlertBox.open(AlertType.Info, 'Private key copied!');
-                } else {
-                  AlertBox.open(AlertType.Error, 'Private key is not present');
-                }
-              }}>
-              <Icon path={mdiAlertOctagramOutline} size={0.85} />
-            </Button>
-          </Flex>
-          <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Copy public key</Text>
-            <Button size="2" variant="soft" color="orange" onClick={() => {
-                const publicKey = Wallet.getPublicKey();
-                if (publicKey != null) {
-                  navigator.clipboard.writeText(Signing.encodePublicKey(publicKey) || 'FAILED');
-                  AlertBox.open(AlertType.Info, 'Public key copied!');
-                } else {
-                  AlertBox.open(AlertType.Error, 'Public key is not present');
-                }
-              }}>
-              <Icon path={mdiLockOpenAlertOutline} size={0.85} />
-            </Button>
-          </Flex>
-          <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Copy public key hash</Text>
-            <Button size="2" variant="soft" color="jade" onClick={() => {
-                const publicKeyHash = Wallet.getPublicKeyHash();
-                if (publicKeyHash != null) {
-                  navigator.clipboard.writeText(ByteUtil.uint8ArrayToHexString(publicKeyHash.data) || 'FAILED');
-                  AlertBox.open(AlertType.Info, 'Public key hash copied!');
-                } else {
-                  AlertBox.open(AlertType.Error, 'Public key hash is not present');
-                }
-              }}>
-              <Icon path={mdiMagnifyExpand} size={0.85} />
-            </Button>
-          </Flex>
-          <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Copy address</Text>
-            <Button size="2" variant="soft" color="jade" onClick={() => {
-                const address = Wallet.getAddress();
-                if (address != null) {
-                  navigator.clipboard.writeText(address);
-                  AlertBox.open(AlertType.Info, 'Address copied!');
-                } else {
-                  AlertBox.open(AlertType.Error, 'Address is not present');
-                }
-              }}>
-              <Icon path={mdiInformationOutline} size={0.85} />
-            </Button>
-          </Flex>
+          <Heading size="5" mb="1">Server options</Heading>
+          <Tooltip content="This discovery server helps the client to find validator servers">
+            <TextField.Root size="2" placeholder="Resolver server address" type="text" mt="2" value={AppData.props.resolver || ''} onChange={(e) => {
+              AppData.setResolver(e.target.value);
+              setCounter(new Date().getTime());
+            }} />
+          </Tooltip>
+          <Tooltip content="This validator server is the only one used to interact with Tangent (if present)">
+            <TextField.Root size="2" placeholder="Validator server address" type="text" mt="2" value={AppData.props.server || ''} onChange={(e) => {
+              AppData.setServer(e.target.value);
+              setCounter(new Date().getTime());
+            }} />
+          </Tooltip>
+          <Text as="label" size="1">
+            <Flex gap="2" align="center" justify="between" mt="3" pl="1">
+              <Text size="2" color="gray">Use websocket streaming</Text>
+              <Switch size="3" variant="soft" checked={Interface.getProps().streaming} onCheckedChange={(value) => setWsStreaming(value)}/>
+            </Flex>
+          </Text>
         </Box>
       </Card>
       <Card mt="4">
@@ -281,15 +220,15 @@ export default function ConfigurePage() {
               </DataList.Value>
             </DataList.Item>
             <DataList.Item align="center">
-              <DataList.Label>Latest use</DataList.Label>
-              <DataList.Value>
-                <Text size="2">{ networkInfo.maxTime ? networkInfo.maxTime.toLocaleString() : 'never' }</Text>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item align="center">
               <DataList.Label>Oldest use</DataList.Label>
               <DataList.Value>
                 <Text size="2">{ networkInfo.minTime ? networkInfo.minTime.toLocaleString() : 'never' }</Text>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item align="center">
+              <DataList.Label>Latest use</DataList.Label>
+              <DataList.Value>
+                <Text size="2">{ networkInfo.maxTime ? networkInfo.maxTime.toLocaleString() : 'never' }</Text>
               </DataList.Value>
             </DataList.Item>
           </DataList.Root>

@@ -1,6 +1,6 @@
 .text-rainbow {
-  background: -webkit-linear-gradient(70deg, var(--crimson-9), var(--mint-9) 100%);
-  background: linear-gradient(70deg, var(--crimson-9), var(--mint-9) 100%);
+  background: -webkit-linear-gradient(70deg, var(--iris-9), var(--mint-9) 100%);
+  background: linear-gradient(70deg, var(--iris-9), var(--mint-9) 100%);
   background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
