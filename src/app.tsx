@@ -117,7 +117,7 @@ export class AppData {
     Interface.onNodeError = this.error;
     Interface.applyResolver(this.props.resolver);
     Interface.applyServer(this.props.server);
-    if (false)
+    if (true)
       await Wallet.restore('123456', NetworkType.Regtest);
    
     const splashscreen = document.getElementById('splashscreen-content');

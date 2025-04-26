@@ -171,8 +171,7 @@ export default function InteractionPage() {
         }
       }
       
-      const fromManager = query.get('fromManager');
-      if (fromManager == null)
+      if (params.manager == null)
         return false;
   
       return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
@@ -399,7 +398,7 @@ export default function InteractionPage() {
           type: new Transactions.DepositoryWithdrawal(),
           args: {
             onlyIfNotInQueue: program.onlyIfNotInQueue,
-            fromManager: Signing.decodeAddress(query.get('manager') || ''),
+            fromManager: Signing.decodeAddress(params.manager || ''),
             toManager: null,
             to: program.to.map((payment) => ({
               to: payment.address,
@@ -471,9 +470,8 @@ export default function InteractionPage() {
     return true;
   }, [loadingTransaction, transactionReady, loadingTransaction, nonce, assets, asset, program]);
   useEffectAsync(async () => {
-    const queryType = query.get('type');
     let queryAddress = Wallet.getAddress() || ownerAddress;
-    switch (queryType) {
+    switch (params.type) {
       case 'transfer': 
       default: {
         const result = new ProgramTransfer();
@@ -522,9 +520,8 @@ export default function InteractionPage() {
         assetData = assetData.filter((item) => item.balance?.gt(0) || item.reserve?.gt(0) || item.supply?.gt(0));
       }
 
-      const queryAsset = query.get('asset');
-      if (queryAsset != null) {
-        const target: AssetId = new AssetId(queryAsset);
+      if (params.asset != null) {
+        const target: AssetId = new AssetId(params.asset);
         if (Array.isArray(assetData)) {
           const index = assetData.findIndex((item) => item.asset.id == target.id);
           if (index == -1) {
@@ -552,6 +549,12 @@ export default function InteractionPage() {
     } catch { }
   }, [query]);
 
+  const params = {
+    type: query.get('type'),
+    asset: query.get('asset'),
+    manager: query.get('manager'),
+
+  };
   return (
     <Box px="4" pt="4" mx="auto" maxWidth="640px">
       <Flex justify="between" align="center">
@@ -615,6 +618,14 @@ export default function InteractionPage() {
           <Box width="100%" mt="3">
             <Tooltip content="Account that will send the transaction and pay for it">
               <TextField.Root size="3" placeholder="Transaction sender account" type="text" color="red" value={Readability.toAddress(ownerAddress, 16)} readOnly={true} />
+            </Tooltip>
+          </Box>
+        }
+        {
+          asset != -1 && params.manager != null &&
+          <Box width="100%" mt="3">
+            <Tooltip content="Depository account that will process the withdrawal">
+              <TextField.Root size="3" placeholder="Transaction manager account" type="text" color="red" value={Readability.toAddress(params.manager, 16)} readOnly={true} />
             </Tooltip>
           </Box>
         }
@@ -1134,7 +1145,7 @@ export default function InteractionPage() {
                     <>
                       <Text as="div" weight="light" size="4" mb="1">— Withdraw <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', program.to.length) }</Text></Text>
                       <Text as="div" weight="light" size="4" mb="1">— Withdraw through <Badge radius="medium" variant="surface" size="2">{ 
-                          (query.get('manager') || 'NULL').substring((query.get('manager') || 'NULL').length - 6).toUpperCase()
+                          (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6).toUpperCase()
                       }</Badge> node</Text>
                     </>
                   }

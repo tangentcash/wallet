@@ -756,7 +756,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                   </DataList.Item>
                   <DataList.Item>
                     <DataList.Label>Depository accounts:</DataList.Label>
-                    <DataList.Value>{ Readability.toCount('new account', event.newAccounts, true) }</DataList.Value>
+                    <DataList.Value>{ Readability.toCount('account', event.newAccounts, true) }</DataList.Value>
                   </DataList.Item>
                 </DataList.Root>
               </Card>
@@ -898,10 +898,9 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
       }
       {
         Object.entries(state.witness.accounts).map((inputs) => {
-          const address = inputs[0];
           const event = inputs[1];
           return (
-            <Card key={'Y6' + address + event.asset.handle} mt="3">
+            <Card key={'Y6' + event.aliases[0] + event.asset.handle} mt="3">
               <DataList.Root orientation={props.orientation}>
                 <DataList.Item>
                   <DataList.Label>Event:</DataList.Label>
@@ -909,21 +908,9 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <Badge color="blue">Witness account</Badge>
                   </DataList.Value>
                 </DataList.Item>
-                <DataList.Item>
-                  <DataList.Label>Account:</DataList.Label>
-                  <DataList.Value>
-                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                      navigator.clipboard.writeText(address);
-                      AlertBox.open(AlertType.Info, 'Address copied!')
-                    }}>{ Readability.toAddress(address) }</Button>
-                    <Box ml="2">
-                      <Link className="router-link" to={'/account/' + address}>▒▒</Link>
-                    </Box>
-                  </DataList.Value>
-                </DataList.Item>
                 {
                   event.aliases.map((item, index) =>
-                    <DataList.Item key={address + event.asset.handle + item}>
+                    <DataList.Item key={event.aliases[0] + event.asset.handle + item}>
                       <DataList.Label>Address v{event.aliases.length - index}:</DataList.Label>
                       <DataList.Value>
                         <Button size="2" variant="ghost" color="indigo" onClick={() => {
@@ -1150,7 +1137,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   <Badge size="1" radius="medium" color="gold">{ Readability.toCount('receipt', Object.keys(state.receipts).length) }</Badge>
                 }
                 {
-                  Object.keys(state.depository.accounts).length > 0 &&
+                  Object.keys(state.depository.accounts).length > 0 && !Object.keys(state.witness.accounts).length &&
                   <Badge size="1" radius="medium" color="jade">{ Readability.toCount('account', Object.keys(state.depository.accounts).length, true) }</Badge>
                 }
                 {

@@ -24,6 +24,20 @@ export namespace Ledger {
     nonce: string = 'uint64';
     conservative: string = 'boolean';
   }
+
+  export class DelegationTransaction extends Messages.Authentic {
+    asset: string = 'assetid';
+    gasPrice: string = 'decimal';
+    gasLimit: string = 'uint256';
+    nonce: string = 'uint64';
+  }
+
+  export class ConsensusTransaction extends Messages.Authentic {
+    asset: string = 'assetid';
+    gasPrice: string = 'decimal';
+    gasLimit: string = 'uint256';
+    nonce: string = 'uint64';
+  }
 }
 
 export namespace States {
@@ -92,14 +106,14 @@ export namespace Transactions {
     getType() { return Certification.typename; }
   }
 
-  export class RoutingAccount extends Ledger.Transaction {
+  export class RoutingAccount extends Ledger.DelegationTransaction {
     static typename: string = 'routing_account';
     address: string = 'string';
 
     getType() { return RoutingAccount.typename; }
   }
 
-  export class DepositoryAccount extends Ledger.Transaction {
+  export class DepositoryAccount extends Ledger.DelegationTransaction {
     static typename: string = 'depository_account';
     manager: string = 'pubkeyhash';
 

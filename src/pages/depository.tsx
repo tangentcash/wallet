@@ -8,6 +8,7 @@ import { useEffectAsync } from "../core/extensions/react";
 import { AlertBox, AlertType } from "../components/alert";
 import { Readability } from "../core/text";
 import { Transactions } from "../core/tangent/schema";
+import * as Collapsible from "@radix-ui/react-collapsible";
 import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
 
@@ -195,21 +196,21 @@ export default function DepositoryPage() {
       if (!addressData)
         throw false;
 
-      const depositories = addressData.filter((item) => item.asset.id.toString() == assets[asset].id.toString() && item.purpose == 'depository').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
-      const addresses = addressData.filter((item) => item.asset.id.toString() == assets[asset].id.toString() && item.purpose == 'routing').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
+      const depositoryAddresses = addressData.filter((item) => item.asset.id.toString() == assets[asset].id.toString() && item.purpose == 'depository').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
       const mapping: any = { };
-      for (let item in depositories) {
-        let input = depositories[item];
+      for (let item in depositoryAddresses) {
+        let input = depositoryAddresses[item];
         let output = mapping[input.manager];
         if (output != null) {
-          output.addresses = [...input.addresses, ...output.addresses];
+          output.addresses = [...new Set([...input.addresses, ...output.addresses])];
         } else {
           mapping[input.manager] = input;
         }
       }
       
+      const routingAddresses = addressData.filter((item) => item.asset.id.toString() == assets[asset].id.toString() && item.purpose == 'routing').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
+      setWalletAddresses(routingAddresses);  
       setAcquiredDepositories(mapping);
-      setWalletAddresses(addresses);  
     } catch {
       setAcquiredDepositories([]);
       setWalletAddresses([]);
@@ -265,131 +266,145 @@ export default function DepositoryPage() {
                   </Flex>
                   <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
                 </Box>
-                {
-                  <Card>
-                    <Heading size="4" mb="2">Withdrawal addresses</Heading>
-                    <DataList.Root orientation={orientation}>
+                <Card mb="4">
+                  <Collapsible.Root>
+                    <Collapsible.Trigger asChild={true}>
+                      <Flex justify="between" align="center" mb="2">
+                        <Heading size="4">Deposit addresses</Heading>
+                        <Button size="1" radius="large" variant="soft" color="yellow">
+                          Preview
+                          <Box ml="1">
+                            <DropdownMenu.TriggerIcon />
+                          </Box>
+                        </Button>
+                      </Flex>
+                    </Collapsible.Trigger>
+                    <Collapsible.Content>
                       {
-                        walletAddresses.map((wallet, walletIndex: number) => {
-                          return wallet.addresses.map((walletAddress: string, addressIndex: number) =>
-                            <DataList.Item key={walletAddress}>
-                              <DataList.Label>{ assets[asset].routing_policy == 'account' ? 'Sender/withdrawal' : 'Withdrawal' } address v{wallet.addresses.length - addressIndex} of {walletIndex + 1}:</DataList.Label>
-                              <DataList.Value>
-                                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                  navigator.clipboard.writeText(walletAddress);
-                                  AlertBox.open(AlertType.Info, 'Address copied!')
-                                }}>{ Readability.toAddress(walletAddress) }</Button>
-                              </DataList.Value>
-                            </DataList.Item>
+                        Object.keys(acquiredDepositories).map((item: string) => {
+                          const depository = acquiredDepositories[item];
+                          return (
+                            <Box key={depository.hash} mt="4">
+                              <DataList.Root orientation={orientation}>
+                                <DataList.Item>
+                                  <DataList.Label>Depository account:</DataList.Label>
+                                  <DataList.Value>
+                                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                                      navigator.clipboard.writeText(depository.manager);
+                                      AlertBox.open(AlertType.Info, 'Address copied!')
+                                    }}>{ Readability.toAddress(depository.manager) }</Button>
+                                    <Box ml="2">
+                                      <Link className="router-link" to={'/account/' + depository.manager}>▒▒</Link>
+                                    </Box>
+                                  </DataList.Value>
+                                </DataList.Item>
+                                <DataList.Item>
+                                  <DataList.Label>Deposit instruction:</DataList.Label>
+                                  <DataList.Value>
+                                    {
+                                      assets[asset].routing_policy == 'utxo' &&
+                                      <Badge color="jade">Deposit from any wallet</Badge>
+                                    }
+                                    {
+                                      assets[asset].routing_policy == 'memo' &&
+                                      <Flex gap="2" wrap="wrap">
+                                        <Badge color="yellow">Deposit from any wallet with memo</Badge>
+                                        <Badge color="red">Memo — { depository.address_index.toString() }</Badge>
+                                      </Flex>
+                                    }
+                                    {
+                                      assets[asset].routing_policy == 'account' &&
+                                      <Box>
+                                        {
+                                          !walletAddresses.length &&
+                                          <Badge color="red">No wallet addresses</Badge>
+                                        }
+                                        {
+                                          walletAddresses.map((wallet, walletAddressIndex: number) => {
+                                            return wallet.addresses.map((walletAddress: string, addressIndex: number) =>
+                                              <Flex gap="1" pb={walletAddressIndex < walletAddresses.length - 1 ? '2' : '0'} key={walletAddress}>
+                                                <Text size="2">Deposit from</Text>
+                                                <Button size="1" radius="medium" variant="soft" color="yellow" onClick={() => {
+                                                  navigator.clipboard.writeText(walletAddress);
+                                                  AlertBox.open(AlertType.Info, 'Address copied!')
+                                                }}>{ Readability.toAddress(walletAddress) }</Button>
+                                                { addressIndex < wallet.addresses.length - 1 && <Text>OR</Text> }
+                                              </Flex>
+                                            )
+                                          })
+                                        }
+                                      </Box>
+                                    }
+                                  </DataList.Value>
+                                </DataList.Item>
+                                {
+                                  depository.addresses.map((address: string, addressIndex: number) =>
+                                    <DataList.Item key={address}>
+                                      <DataList.Label>Deposit address v{depository.addresses.length - addressIndex}:</DataList.Label>
+                                      <DataList.Value>
+                                        <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                                          navigator.clipboard.writeText(address);
+                                          AlertBox.open(AlertType.Info, 'Address copied!')
+                                        }}>{ Readability.toAddress(address) }</Button>
+                                      </DataList.Value>
+                                    </DataList.Item>
+                                  )
+                                }
+                              </DataList.Root>
+                              <Box width="100%" mt="4" my="3">
+                                <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+                              </Box>
+                            </Box>
                           )
                         })
                       }
-                    </DataList.Root>
-                    {
-                      walletAddresses.length > 0 &&
-                      <Box width="100%" mt="4" my="3">
-                        <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-                      </Box>
-                    }
-                    <Text size="1" weight="light"><Text color="yellow">Register</Text> more {Readability.toAssetName(assets[asset])} addresses through depositories to have more {assets[asset].routing_policy == 'account' ? 'deposit/' : ''}withdrawal options</Text>
-                  </Card>
-                }
-                {
-                  Object.keys(acquiredDepositories).map((item: string) => {
-                    const depository = acquiredDepositories[item];
-                    return (
-                      <Box key={depository.hash} mt="4">
-                        <Card>
-                          <Flex align="center" gap="2" mb="3">
-                            <Heading size="4">Deposit depository</Heading>
-                            <Badge radius="medium" variant="surface" size="2">{ depository.manager.substring(depository.manager.length - 6).toUpperCase() }</Badge>
-                          </Flex>
-                          <DataList.Root orientation={orientation}>
-                            <DataList.Item>
-                              <DataList.Label>Holder account:</DataList.Label>
-                              <DataList.Value>
-                                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                  navigator.clipboard.writeText(depository.manager);
-                                  AlertBox.open(AlertType.Info, 'Address copied!')
-                                }}>{ Readability.toAddress(depository.manager) }</Button>
-                                <Box ml="2">
-                                  <Link className="router-link" to={'/account/' + depository.manager}>▒▒</Link>
-                                </Box>
-                              </DataList.Value>
-                            </DataList.Item>
-                            {
-                              depository.addresses.map((address: string, addressIndex: number) =>
-                                <DataList.Item key={address}>
-                                  <DataList.Label>Deposit address v{depository.addresses.length - addressIndex}:</DataList.Label>
+                    </Collapsible.Content>
+                  </Collapsible.Root>
+                  <Text size="1" weight="light"><Text color="yellow">Register</Text> more {Readability.toAssetName(assets[asset])} addresses through depositories to have more deposit options</Text>
+                </Card>
+                <Card>
+                  <Collapsible.Root>
+                    <Collapsible.Trigger asChild={true}>
+                      <Flex justify="between" align="center" mb="2">
+                        <Heading size="4">Withdrawal addresses</Heading>
+                        <Button size="1" radius="large" variant="soft" color="yellow">
+                          Preview
+                          <Box ml="1">
+                            <DropdownMenu.TriggerIcon />
+                          </Box>
+                        </Button>
+                      </Flex>
+                    </Collapsible.Trigger>
+                    <Collapsible.Content>
+                      <Box mt="4">
+                        <DataList.Root orientation={orientation}>
+                          {
+                            walletAddresses.map((wallet) => {
+                              return wallet.addresses.map((walletAddress: string, addressIndex: number) =>
+                                <DataList.Item key={walletAddress}>
+                                  <DataList.Label>{ assets[asset].routing_policy == 'account' ? 'Sender/withdrawal' : 'Withdrawal' } address v{wallet.addresses.length - addressIndex}:</DataList.Label>
                                   <DataList.Value>
                                     <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                      navigator.clipboard.writeText(address);
+                                      navigator.clipboard.writeText(walletAddress);
                                       AlertBox.open(AlertType.Info, 'Address copied!')
-                                    }}>{ Readability.toAddress(address) }</Button>
+                                    }}>{ Readability.toAddress(walletAddress) }</Button>
                                   </DataList.Value>
                                 </DataList.Item>
                               )
-                            }
-                            <DataList.Item>
-                              <DataList.Label>Deposit method:</DataList.Label>
-                              <DataList.Value>
-                                {
-                                  assets[asset].routing_policy == 'utxo' &&
-                                  <Badge color="jade">Deposit from any wallet</Badge>
-                                }
-                                {
-                                  assets[asset].routing_policy == 'memo' &&
-                                  <Flex gap="2" wrap="wrap">
-                                    <Badge color="yellow">Deposit from any wallet with memo</Badge>
-                                    <Badge color="red">Memo — { depository.address_index.toString() }</Badge>
-                                  </Flex>
-                                }
-                                {
-                                  assets[asset].routing_policy == 'account' &&
-                                  <Box>
-                                    {
-                                      !walletAddresses.length &&
-                                      <Badge color="red">No wallet addresses</Badge>
-                                    }
-                                    {
-                                      walletAddresses.map((wallet, walletAddressIndex: number) => {
-                                        return wallet.addresses.map((walletAddress: string, addressIndex: number) =>
-                                          <Flex gap="1" pb={walletAddressIndex < walletAddresses.length - 1 ? '2' : '0'} key={walletAddress}>
-                                            <Text size="2">Deposit from</Text>
-                                            <Button size="1" radius="medium" variant="soft" color="yellow" onClick={() => {
-                                              navigator.clipboard.writeText(walletAddress);
-                                              AlertBox.open(AlertType.Info, 'Address copied!')
-                                            }}>{ Readability.toAddress(walletAddress) }</Button>
-                                            { addressIndex < wallet.addresses.length - 1 && <Text>OR</Text> }
-                                          </Flex>
-                                        )
-                                      })
-                                    }
-                                  </Box>
-                                }
-                              </DataList.Value>
-                            </DataList.Item>
-                          </DataList.Root>
-                          <Flex justify="end">
-                            <DropdownMenu.Root>
-                              <DropdownMenu.Trigger>
-                                <Button size="2" variant="surface" color="yellow">
-                                  Request
-                                  <DropdownMenu.TriggerIcon />
-                                </Button>
-                              </DropdownMenu.Trigger>
-                              <DropdownMenu.Content>
-                                <DropdownMenu.Item shortcut="→" onClick={() => useDepository(depository.manager, 'register')}>Registration</DropdownMenu.Item>
-                                <DropdownMenu.Item shortcut="↙" disabled={true} onClick={() => !acquiredDepositories[depository.manager] && useDepository(depository.manager, 'deposit')}>Deposit</DropdownMenu.Item>
-                                <DropdownMenu.Item shortcut="↗" onClick={() => navigate(`/interaction?asset=${new AssetId(assets[asset].id).toHex()}&type=withdrawal&from_manager=${depository.manager}`)}>Withdrawal</DropdownMenu.Item>
-                              </DropdownMenu.Content>
-                            </DropdownMenu.Root>
-                          </Flex>
-                        </Card>
+                            })
+                          }
+                        </DataList.Root>
                       </Box>
-                    )
-                  })
-                }
+                      {
+                        walletAddresses.length > 0 &&
+                        <Box width="100%" mt="4" my="3">
+                          <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+                        </Box>
+                      }
+                    </Collapsible.Content>
+                  </Collapsible.Root>
+                  <Text size="1" weight="light"><Text color="yellow">Register</Text> more {Readability.toAssetName(assets[asset])} addresses through depositories to have more {assets[asset].routing_policy == 'account' ? 'deposit/' : ''}withdrawal options</Text>
+                </Card>
               </Box>
               <Box width="100%" mb="4">
                 <Flex justify="between" align="center" mb="3">
@@ -496,7 +511,7 @@ export default function DepositoryPage() {
                                 <DropdownMenu.Content>
                                   <DropdownMenu.Item shortcut="→" onClick={() => useDepository(item.policy.owner, 'register')} disabled={!item.policy.accepts_account_requests}>Registration</DropdownMenu.Item>
                                   <DropdownMenu.Item shortcut="↙" disabled={acquiredDepositories[item.policy.owner] != null || !item.policy.accepts_account_requests} onClick={() => !acquiredDepositories[item.policy.owner] && useDepository(item.policy.owner, 'deposit')}>Deposit</DropdownMenu.Item>
-                                  <DropdownMenu.Item shortcut="↗" onClick={() => navigate(`/interaction?asset=${new AssetId(assets[asset].id).toHex()}&type=withdrawal&from_manager=${item.policy.owner}`)} disabled={!item.policy.accepts_withdrawal_requests}>Withdrawal</DropdownMenu.Item>
+                                  <DropdownMenu.Item shortcut="↗" onClick={() => navigate(`/interaction?asset=${new AssetId(assets[asset].id).toHex()}&type=withdrawal&manager=${item.policy.owner}`)} disabled={!item.policy.accepts_withdrawal_requests}>Withdrawal</DropdownMenu.Item>
                                 </DropdownMenu.Content>
                               </DropdownMenu.Root>
                           </Flex>
@@ -623,7 +638,7 @@ export default function DepositoryPage() {
                         )
                       }
                       <DataList.Item>
-                        <DataList.Label>Deposit method:</DataList.Label>
+                        <DataList.Label>Deposit instruction:</DataList.Label>
                         <DataList.Value>
                           {
                             assets[asset].routing_policy == 'utxo' &&
