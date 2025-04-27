@@ -1,4 +1,4 @@
-import { Box, Button, Dialog, Flex, Heading, IconButton, TextField } from "@radix-ui/themes";
+import { Badge, Box, Button, Dialog, Flex, Heading, TextField } from "@radix-ui/themes";
 import { Interface, Netstat, Wallet } from "../core/wallet";
 import { useNavigate } from "react-router";
 import { mdiMagnify, mdiMagnifyScan } from "@mdi/js";
@@ -105,19 +105,22 @@ export default function HomePage() {
 
   return (
     <Box px="4" pt="4" maxWidth="680px" mx="auto">
-      <Flex gap="2" align="center" px="1">
-        <Heading size="6">My Account</Heading>
+      <Flex gap="2" align="center" justify="between" px="1">
+        <Flex align="center" gap="2">
+          <Heading size="6">My account</Heading>
+          <Badge radius="medium" variant="surface" size="2">{ ownerAddress.substring(ownerAddress.length - 6).toUpperCase() }</Badge>
+        </Flex>
         <Dialog.Root>
           <Dialog.Trigger>
-            <IconButton variant="ghost" size="2" mb="1" color="gray">
-              <Icon path={mdiMagnifyScan} size={1} />
-            </IconButton>
+            <Button variant="soft" size="2" color="gray">
+              <Icon path={mdiMagnifyScan} size={0.7} /> EXPLORE
+            </Button>
           </Dialog.Trigger>
           <Dialog.Content maxWidth="450px">
             <form action="">
               <Flex justify="between" align="center" mb="2">
                 <Dialog.Title mb="0">Explorer</Dialog.Title>
-                <Button radius="medium" size="1" variant="outline" type="button" disabled={loading} onClick={() => searchLatest()}>Latest</Button>
+                <Button radius="medium" size="1" variant="outline" type="button" disabled={loading} onClick={() => searchLatest()}>Last block</Button>
               </Flex>
               <TextField.Root placeholder="Address, hash or number…" size="3" variant="soft" value={query} onChange={(e) => setQuery(e.target.value)} readOnly={loading}>
                 <TextField.Slot>

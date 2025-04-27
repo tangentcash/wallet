@@ -103,7 +103,7 @@ export class Stream {
     let numeric = value.toString().split('.');
     let type = numeric.length > 1 ? (value.isNegative() ? Viewable.DecimalNeg2 : Viewable.DecimalPos2) : (value.isNegative() ? Viewable.DecimalNeg1 : Viewable.DecimalPos1);
     this.write(new Uint8Array([type]));
-    this.writeInteger(new Uint256(numeric[0]));
+    this.writeInteger(new Uint256(numeric[0].replace('-', '')));
     if (numeric.length > 1)
       this.writeInteger(new Uint256(numeric[1].split('').reverse().join('')));
     return this;
@@ -322,7 +322,6 @@ export class StreamUtil {
 }
 
 export class SchemaUtil {
-  static VERSION = 1;
   static UINT08_MAX = new Uint256(Math.pow(2, 8) - 1);
   static UINT16_MAX = new Uint256(Math.pow(2, 16) - 1);
   static UINT32_MAX = new Uint256(Math.pow(2, 32) - 1);
@@ -470,7 +469,6 @@ export class SchemaUtil {
       }
     };
 
-    object.version = this.VERSION;
     if (typeof schema.getType == 'function')
       object.type = Hashing.hash32(ByteUtil.byteStringToUint8Array(schema.getType()));
 

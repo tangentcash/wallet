@@ -72,13 +72,13 @@ export class Readability {
         return 'Depository transaction';
       case 'depository_adjustment':
         return 'Depository policy renewal';
-      case 'depository_migration':
+      case 'depository_regrouping':
         return 'Depository group selection';
-      case 'depository_migration_preparation':
+      case 'depository_regrouping_preparation':
         return 'Depository group announcement';
-      case 'depository_migration_commitment':
+      case 'depository_regrouping_commitment':
         return 'Depository group migration';
-      case 'depository_migration_finalization':
+      case 'depository_regrouping_finalization':
         return 'Depository group confirmation';
       default:
         return 'Non-standard';

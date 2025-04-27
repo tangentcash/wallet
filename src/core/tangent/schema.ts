@@ -8,11 +8,14 @@ export namespace Messages {
   }
   
   export function asSigningSchema(schema: any): any {
-    const signingSchema = { ...schema };
+    const signingSchema = {
+      ...schema,
+      getType: schema.getType
+    };
     for (let key in new Messages.Authentic()) {
       delete signingSchema[key];
     }
-    return signingSchema;
+    return { type: 'uint32', ...signingSchema };
   }
 }
 
@@ -146,6 +149,11 @@ export namespace Transactions {
 
   export class DepositoryRegrouping extends Ledger.Transaction {
     static typename: string = 'depository_regrouping';
+    participants: string[] = [
+      'asset', 'assetid',
+      'manager', 'pubkeyhash',
+      'owner', 'pubkeyhash'
+    ];
 
     getType() { return DepositoryRegrouping.typename; }
   }

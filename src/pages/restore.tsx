@@ -1,6 +1,6 @@
 import { Badge, Box, Button, Callout, Card, Checkbox, Flex, Heading, Link, Select, Text, TextArea, TextField } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Chain, Signing } from "../core/tangent/algorithm";
+import { Chain, Pubkeyhash, Signing } from "../core/tangent/algorithm";
 import { mdiAlertCircleOutline } from '@mdi/js';
 import { AlertBox, AlertType } from "../components/alert";
 import { useNavigate } from "react-router";
@@ -10,6 +10,7 @@ import { NetworkType, Wallet, WalletType } from "../core/wallet";
 import { SafeStorage, Storage, StorageField } from "../core/storage";
 import Typed from 'typed.js';
 import Icon from '@mdi/react';
+import { AppData } from "../app";
 
 const PASSWORD_SIZE = 6;
 const COLOR_MAP = ["gray", "gold", "bronze", "brown", "yellow", "amber", "orange", "tomato", "red", "ruby", "crimson", "pink", "plum", "purple", "violet", "iris", "indigo", "blue", "cyan", "teal", "jade", "green", "grass", "lime", "mint", "sky"];
@@ -291,22 +292,56 @@ export default function RestorePage() {
               <Card className="bp-mobile-ghost600" size="4" variant="surface" mx="auto" style={{ maxWidth: 600, width: '100%' }}>
                 <Flex justify="between" align="center" mb="4">
                   <Heading as="h3" size="7">Import</Heading>
-                  <Select.Root size="3" value={importType} onValueChange={(value) => { setImportType(value as WalletType); setImportCandidate('') }}>
+                  <Select.Root size="3" value={importType} onValueChange={async (value) => {
+                      if (value == 'auto') {
+                        const file = await AppData.openFile('application/json');
+                        try {
+                          if (typeof file != 'string')
+                            throw 'not a json file';
+
+                          const wallet = JSON.parse(file);
+                          if (typeof wallet.mnemonic == 'string') {
+                            setImportType(WalletType.Mnemonic);
+                            setImportCandidate(wallet.mnemonic);
+                          } else if (typeof wallet.secret_key == 'string') {
+                            setImportType(WalletType.SecretKey);
+                            setImportCandidate(wallet.secret_key);
+                          } else if (typeof wallet.public_key == 'string') {
+                            setImportType(WalletType.PublicKey);
+                            setImportCandidate(wallet.public_key);
+                          } else if (typeof wallet.public_key_hash == 'string') {
+                            setImportType(WalletType.Address);
+                            setImportCandidate(Signing.encodeAddress(new Pubkeyhash(wallet.public_key_hash)) || '');
+                          } else if (typeof wallet.address == 'string') {
+                            setImportType(WalletType.Address);
+                            setImportCandidate(wallet.address);
+                          }
+                        } catch (e: any) {
+                          AlertBox.open(AlertType.Error, 'Bad wallet file: ' + e.toString());
+                        }
+                      } else {
+                        setImportType(value as WalletType);
+                        setImportCandidate('')
+                      }
+                    }}>
                     <Select.Trigger variant="soft" color="gray" />
                     <Select.Content>
                       <Select.Group>
                         <Select.Label>Import type</Select.Label>
+                        <Select.Item value="auto">
+                          <Text>Wallet file</Text>
+                        </Select.Item>
                         <Select.Item value="mnemonic">
-                          <Text color="red">Recovery phrase</Text>
+                          <Text>Recovery phrase</Text>
                         </Select.Item>
                         <Select.Item value="secretkey">
-                          <Text color="red">Private key</Text>
+                          <Text>Private key</Text>
                         </Select.Item>
                         <Select.Item value="publickey">
-                          <Text color="gray">Public key</Text>
+                          <Text>Public key</Text>
                         </Select.Item>
                         <Select.Item value="address">
-                          <Text color="gray">Address</Text>
+                          <Text>Address</Text>
                         </Select.Item>
                       </Select.Group>
                     </Select.Content>

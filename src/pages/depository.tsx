@@ -271,12 +271,15 @@ export default function DepositoryPage() {
                     <Collapsible.Trigger asChild={true}>
                       <Flex justify="between" align="center" mb="2">
                         <Heading size="4">Deposit addresses</Heading>
-                        <Button size="1" radius="large" variant="soft" color="yellow">
-                          Preview
-                          <Box ml="1">
-                            <DropdownMenu.TriggerIcon />
-                          </Box>
-                        </Button>
+                        {
+                          Object.keys(acquiredDepositories).length > 0 &&
+                          <Button size="1" radius="large" variant="soft" color="yellow">
+                            Preview
+                            <Box ml="1">
+                              <DropdownMenu.TriggerIcon />
+                            </Box>
+                          </Button>
+                        }
                       </Flex>
                     </Collapsible.Trigger>
                     <Collapsible.Content>
@@ -367,12 +370,15 @@ export default function DepositoryPage() {
                     <Collapsible.Trigger asChild={true}>
                       <Flex justify="between" align="center" mb="2">
                         <Heading size="4">Withdrawal addresses</Heading>
-                        <Button size="1" radius="large" variant="soft" color="yellow">
-                          Preview
-                          <Box ml="1">
-                            <DropdownMenu.TriggerIcon />
-                          </Box>
-                        </Button>
+                        {
+                          walletAddresses.length > 0 &&
+                          <Button size="1" radius="large" variant="soft" color="yellow">
+                            Preview
+                            <Box ml="1">
+                              <DropdownMenu.TriggerIcon />
+                            </Box>
+                          </Button>
+                        }
                       </Flex>
                     </Collapsible.Trigger>
                     <Collapsible.Content>

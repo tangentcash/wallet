@@ -475,9 +475,9 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           </DataList.Item>
         </DataList.Root>
       )
-    case 'depository_migration':
+    case 'depository_regrouping':
       return (
-          transaction.migrations.map((item: any, index: number) =>
+          transaction.participants.map((item: any, index: number) =>
             <Card key={item.manager + index} mb="4">
               <DataList.Root orientation={props.orientation}>
                 <DataList.Item>
@@ -506,18 +506,18 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </Card>
           )
       )
-    case 'depository_migration_preparation':
+    case 'depository_regrouping_preparation':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
             <DataList.Label>Parent hash:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.depository_migration_hash);
+                navigator.clipboard.writeText(transaction.depository_regrouping_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.depository_migration_hash) }</Button>
+              }}>{ Readability.toHash(transaction.depository_regrouping_hash) }</Button>
               <Box ml="2">
-                <Link className="router-link" to={'/transaction/' + transaction.depository_migration_hash}>▒▒</Link>
+                <Link className="router-link" to={'/transaction/' + transaction.depository_regrouping_hash}>▒▒</Link>
               </Box>
             </DataList.Value>
           </DataList.Item>
@@ -525,14 +525,14 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             <DataList.Label>Cipher public key:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.migration_cipher_public_key || 'none');
+                navigator.clipboard.writeText(transaction.cipher_public_key || 'none');
                 AlertBox.open(AlertType.Info, 'Cipher public key copied!')
-              }}>{ Readability.toHash(transaction.migration_cipher_public_key) }</Button>
+              }}>{ Readability.toHash(transaction.cipher_public_key) }</Button>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
       )
-    case 'depository_migration_commitment':
+    case 'depository_regrouping_commitment':
       return (
         <>
           <DataList.Root orientation={props.orientation}>
@@ -540,17 +540,17 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
               <DataList.Label>Parent hash:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(transaction.depository_migration_preparation_hash);
+                  navigator.clipboard.writeText(transaction.depository_regrouping_preparation_hash);
                   AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                }}>{ Readability.toHash(transaction.depository_migration_preparation_hash) }</Button>
+                }}>{ Readability.toHash(transaction.depository_regrouping_preparation_hash) }</Button>
                 <Box ml="2">
-                  <Link className="router-link" to={'/transaction/' + transaction.depository_migration_preparation_hash}>▒▒</Link>
+                  <Link className="router-link" to={'/transaction/' + transaction.depository_regrouping_preparation_hash}>▒▒</Link>
                 </Box>
               </DataList.Value>
             </DataList.Item>
           </DataList.Root>
           {
-            transaction.encrypted_migrations.map((item: any, index: number) =>
+            transaction.encrypted_shares.map((item: any, index: number) =>
               <Card key={item.account_hash + index} mt="4">
                 <DataList.Root orientation={props.orientation}>
                   <DataList.Item>
@@ -577,25 +577,25 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           }
         </>
       )
-    case 'depository_migration_finalization':
+    case 'depository_regrouping_finalization':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
             <DataList.Label>Parent hash:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.depository_migration_commitment_hash);
+                navigator.clipboard.writeText(transaction.depository_regrouping_commitment_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.depository_migration_commitment_hash) }</Button>
+              }}>{ Readability.toHash(transaction.depository_regrouping_commitment_hash) }</Button>
               <Box ml="2">
-                <Link className="router-link" to={'/transaction/' + transaction.depository_migration_commitment_hash}>▒▒</Link>
+                <Link className="router-link" to={'/transaction/' + transaction.depository_regrouping_commitment_hash}>▒▒</Link>
               </Box>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Status:</DataList.Label>
             <DataList.Value>
-              <Badge color="red">{ transaction.successful ? 'Migration successful' : 'Migration error' }</Badge>
+              <Badge color={transaction.successful ? 'jade' : 'red'}>{ transaction.successful ? 'Migration successful' : 'Migration error' }</Badge>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
@@ -1150,7 +1150,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 }
                 {
                   InterfaceUtil.isSummaryStateEmpty(state, ownerAddress) &&
-                  <Badge size="1" radius="medium" color="gray">{ receipt.successful ? 'Transaction executed successfully' : 'Transaction execution failed' }</Badge>
+                  <Badge size="1" radius="medium" color={receipt.successful ? 'bronze' : 'red'}>{ receipt.successful ? 'Eventless execution' : 'Execution error' }</Badge>
                 }
               </Flex>
             }
@@ -1232,12 +1232,15 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               <DataList.Label>Paying account:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(receipt?.from || ownerAddress);
+                  navigator.clipboard.writeText(receipt?.from || 'NULL');
                   AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ Readability.toAddress(receipt?.from || ownerAddress) }</Button>
-                <Box ml="2">
-                  <Link className="router-link" to={'/account/' + (receipt?.from || ownerAddress)}>▒▒</Link>
-                </Box>
+                }}>{ Readability.toAddress(receipt?.from || 'NULL') }</Button>
+                {
+                  receipt?.from != null &&
+                  <Box ml="2">
+                    <Link className="router-link" to={'/account/' + receipt?.from}>▒▒</Link>
+                  </Box>
+                }
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>

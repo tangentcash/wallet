@@ -8,21 +8,15 @@ import { Readability } from "../core/text";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { Ledger, Transactions } from "../core/tangent/schema";
 import { AlertBox, AlertType } from "../components/alert";
-import { SchemaUtil, Stream } from "../core/tangent/serialization";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
+import { Stream } from "../core/tangent/serialization";
 
 export class ProgramTransfer {
   to: { address: string, memo: string | null, value: string }[] = [];
 }
 
-export class ProgramDepositoryWithdrawal {
-  routing: { chain: string, policy: string }[] = [];
-  to: { address: string, value: string }[] = [];
-  onlyIfNotInQueue: boolean = true;
-}
-
-export class CallCertification {
+export class ProgramCertification {
   assets: AssetId[] = []
   blockProduction: 'standby' | 'enable' | 'disable' = 'standby';
   participationStakes: { asset: AssetId, stake: string | null }[] = [];
@@ -31,7 +25,13 @@ export class CallCertification {
   attestationReservations: Set<string> = new Set<string>();
 }
 
-export class CallDepositoryAdjustment {
+export class ProgramDepositoryWithdrawal {
+  routing: { chain: string, policy: string }[] = [];
+  to: { address: string, value: string }[] = [];
+  onlyIfNotInQueue: boolean = true;
+}
+
+export class ProgramDepositoryAdjustment {
   incomingFee: string = '';
   outgoingFee: string = '';
   securityLevel: number = 2;
@@ -39,16 +39,23 @@ export class CallDepositoryAdjustment {
   acceptsWithdrawalRequests: boolean = true;
 }
 
-export class CallDepositoryRegrouping {
+export class ProgramDepositoryRegrouping {
 }
 
-export class CallDepositoryWithdrawal {
-  manager: string = '';
+export class ProgramDepositoryWithdrawalMigration {
+  routing: { chain: string, policy: string }[] = [];
+  toManager: string = '';
+  onlyIfNotInQueue: boolean = true;
 }
 
 export default function InteractionPage() {
+  const ownerAddress = Wallet.getAddress() || '';
   const [query] = useSearchParams();
-  const [ownerAddress, setOwnerAddress] = useState<string>(Wallet.getAddress() || '');
+  const params = {
+    type: query.get('type'),
+    asset: query.get('asset'),
+    manager: query.get('manager')
+  };
   const [assets, setAssets] = useState<any[]>([]);
   const [asset, setAsset] = useState(-1);
   const [nonce, setNonce] = useState<BigNumber | null>();
@@ -59,7 +66,7 @@ export default function InteractionPage() {
   const [loadingGasLimit, setLoadingGasLimit] = useState(false);
   const [conservative, setConservative] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
-  const [program, setProgram] = useState<ProgramTransfer | ProgramDepositoryWithdrawal | CallCertification | CallDepositoryAdjustment | CallDepositoryRegrouping | CallDepositoryWithdrawal | null>(null);
+  const [program, setProgram] = useState<ProgramTransfer | ProgramCertification | ProgramDepositoryWithdrawal | ProgramDepositoryAdjustment | ProgramDepositoryRegrouping | ProgramDepositoryWithdrawalMigration | null>(null);
   const navigate = useNavigate();
   const maxFeeValue = useMemo((): BigNumber => {
     try {
@@ -93,15 +100,15 @@ export default function InteractionPage() {
   const transactionType = useMemo((): string => {
     if (program instanceof ProgramTransfer) {
       return program.to.length > 1 ? 'Send to many' : 'Send to one';
+    } else if (program instanceof ProgramCertification) {
+      return 'Validator adjustment';
     } else if (program instanceof ProgramDepositoryWithdrawal) {
       return program.to.length > 1 ? 'Withdraw to many' : 'Withdraw to one';
-    } else if (program instanceof CallCertification) {
-      return 'Validator adjustment';
-    } else if (program instanceof CallDepositoryAdjustment) {
+    } else if (program instanceof ProgramDepositoryAdjustment) {
       return 'Depository adjustment';
-    } else if (program instanceof CallDepositoryRegrouping) {
+    } else if (program instanceof ProgramDepositoryRegrouping) {
       return 'Depository regrouping';
-    } else if (program instanceof CallDepositoryWithdrawal) {
+    } else if (program instanceof ProgramDepositoryWithdrawalMigration) {
       return 'Depository migration';
     }
     return 'Bad program';
@@ -152,6 +159,35 @@ export default function InteractionPage() {
       }
   
       return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
+    } else if (program instanceof ProgramCertification) {
+        for (let i = 0; i < program.participationStakes.length; i++) {
+          let item = program.participationStakes[i];
+          try {
+            if (typeof item.stake != 'string')
+              continue;
+  
+            const numeric = new BigNumber(item.stake.trim());
+            if (numeric.isNaN())
+              return false;
+          } catch {
+            return false;
+          }
+        }
+        
+        for (let i = 0; i < program.attestationStakes.length; i++) {
+          let item = program.attestationStakes[i];
+          try {
+            if (typeof item.stake != 'string')
+              continue;
+            
+            const numeric = new BigNumber(item.stake.trim());
+            if (numeric.isNaN())
+              return false;
+          } catch {
+            return false;
+          }
+        }
+        return program.blockProduction != 'standby' || program.participationStakes.length > 0 || program.attestationStakes.length > 0;
     } else if (program instanceof ProgramDepositoryWithdrawal) {
       for (let i = 0; i < program.to.length; i++) {
         const payment = program.to[i];
@@ -175,37 +211,7 @@ export default function InteractionPage() {
         return false;
   
       return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
-    } else if (program instanceof CallCertification) {
-      for (let i = 0; i < program.participationStakes.length; i++) {
-        let item = program.participationStakes[i];
-        try {
-          if (typeof item.stake != 'string')
-            continue;
-
-          const numeric = new BigNumber(item.stake.trim());
-          if (numeric.isNaN())
-            return false;
-        } catch {
-          return false;
-        }
-      }
-      
-      for (let i = 0; i < program.attestationStakes.length; i++) {
-        let item = program.attestationStakes[i];
-        try {
-          if (typeof item.stake != 'string')
-            continue;
-          
-          const numeric = new BigNumber(item.stake.trim());
-          if (numeric.isNaN())
-            return false;
-        } catch {
-          return false;
-        }
-      }
-      return program.blockProduction != 'standby' || program.participationStakes.length > 0 || program.attestationStakes.length > 0;
-    
-    } else if (program instanceof CallDepositoryAdjustment) {
+    } else if (program instanceof ProgramDepositoryAdjustment) {
       try {
         if (program.incomingFee.length > 0) {
           const numeric = new BigNumber(program.incomingFee.trim());
@@ -230,13 +236,13 @@ export default function InteractionPage() {
         return false;
 
       return true;
-    } else if (program instanceof CallDepositoryRegrouping) {
+    } else if (program instanceof ProgramDepositoryRegrouping) {
       return true;
-    } else if (program instanceof CallDepositoryWithdrawal) {
-      if (program.manager.trim() == ownerAddress)
+    } else if (program instanceof ProgramDepositoryWithdrawalMigration) {
+      if (program.toManager.trim() == ownerAddress)
         return false;
 
-      const publicKeyHash = Signing.decodeAddress(program.manager.trim());
+      const publicKeyHash = Signing.decodeAddress(program.toManager.trim());
       if (!publicKeyHash || publicKeyHash.data.length != 20)
         return false;
 
@@ -344,7 +350,7 @@ export default function InteractionPage() {
     if (!programReady || loadingTransaction)
       return null;
     
-    const buildProgramTransaction = async (method: { type: Ledger.Transaction, args: { [key: string]: any } }) => {
+    const buildProgram = async (method: { type: Ledger.Transaction, args: { [key: string]: any } }) => {
       const output = await Wallet.buildTransaction({
         asset: new AssetId(assets[asset].asset.id),
         nonce: prebuilt ? prebuilt.body.nonce.toString() : (nonce || undefined),
@@ -358,25 +364,10 @@ export default function InteractionPage() {
       setLoadingTransaction(false);
       return output;
     };
-    const buildCallTransaction = async (schema: any, input: Promise<{ hash: string, data: string } | null>) => {
-      const data = await input;
-      if (!data)
-        throw new Error('transaction build error');
-
-      const output: TransactionOutput = {
-        hash: data.hash,
-        data: data.data,
-        body: SchemaUtil.load(Stream.decode(data.data), schema)
-      }
-      setNonce(new BigNumber(output.body.nonce.toString()));
-      setTransactionData(output);
-      setLoadingTransaction(false);
-      return output;
-    };
     setLoadingTransaction(true);
     try {
       if (program instanceof ProgramTransfer) {
-        return buildProgramTransaction(program.to.length > 1 ? {
+        return buildProgram(program.to.length > 1 ? {
           type: new Transactions.Transfer.Many(),
           args: {
             to: program.to.map((payment) => ({
@@ -393,8 +384,23 @@ export default function InteractionPage() {
             to: Signing.decodeAddress(program.to[0].address)
           }
         });
+      } else if (program instanceof ProgramCertification) {
+        return buildProgram({
+          type: new Transactions.Certification(),
+          args: {
+            blockProduction: program.blockProduction == 'enable' ? 1 : (program.blockProduction == 'disable' ? 0 : 2),
+            participationStakes: program.participationStakes.map((item) => ({
+              asset: item.asset,
+              stake: item.stake != null ? new BigNumber(item.stake) : new BigNumber(NaN)
+            })),
+            attestationStakes: program.attestationStakes.map((item) => ({
+              asset: item.asset,
+              stake: item.stake != null ? new BigNumber(item.stake) : new BigNumber(NaN)
+            }))
+          }
+        });
       } else if (program instanceof ProgramDepositoryWithdrawal) {
-        return buildProgramTransaction({
+        return buildProgram({
           type: new Transactions.DepositoryWithdrawal(),
           args: {
             onlyIfNotInQueue: program.onlyIfNotInQueue,
@@ -406,35 +412,52 @@ export default function InteractionPage() {
             }))
           }
         });
-      } else if (program instanceof CallCertification) {
-        const participation: Record<string, BigNumber | null> = { };
-        program.participationStakes.forEach((item) => {
-          participation[item.asset.handle] = item.stake != null ? new BigNumber(item.stake) : null;
+      } else if (program instanceof ProgramDepositoryAdjustment) {
+        return buildProgram({
+          type: new Transactions.DepositoryAdjustment(),
+          args: {
+            incomingFee: new BigNumber(program.incomingFee),
+            outgoingFee: new BigNumber(program.outgoingFee),
+            securityLevel: program.securityLevel,
+            acceptsAccountRequests: program.acceptsAccountRequests,
+            acceptsWithdrawalRequests: program.acceptsWithdrawalRequests
+          }
         });
-        const attestation: Record<string, BigNumber | null> = { };
-        program.attestationStakes.forEach((item) => {
-          attestation[item.asset.handle] = item.stake != null ? new BigNumber(item.stake) : null;
+      } else if (program instanceof ProgramDepositoryRegrouping) {
+        const participants = await Interface.getParticipations();
+        if (!participants)
+          throw new Error('cannot fetch participations');
+
+        return buildProgram({
+          type: new Transactions.DepositoryRegrouping(),
+          args: {
+            participants: participants.map((item) => {
+              const asset = new AssetId(item.asset.id);
+              const manager = Signing.decodeAddress(item.manager || '');
+              const owner = Signing.decodeAddress(item.owner || '');
+              const message = new Stream();
+              message.writeInteger(asset.toUint256());
+              message.writeBinaryString(manager ? manager.data : new Uint8Array());
+              message.writeBinaryString(owner ? owner.data : new Uint8Array());
+              return {
+                asset: asset,
+                manager: manager,
+                owner: owner,
+                hash: message.hash()
+              };
+            }).sort((a, b): number => a.hash.lt(b.hash) ? -1 : (a.hash.eq(b.hash) ? 0 : 1))
+          }
         });
-        return buildCallTransaction(new Transactions.Certification(), Interface.buildCertificationTransaction(
-          new AssetId(assets[asset].asset.id),
-          program.blockProduction,
-          participation,
-          attestation));
-      } else if (program instanceof CallDepositoryAdjustment) {
-        return buildCallTransaction(new Transactions.DepositoryAdjustment(), Interface.buildDepositoryAdjustmentTransaction(
-          new AssetId(assets[asset].asset.id),
-          new BigNumber(program.incomingFee),
-          new BigNumber(program.outgoingFee),
-          program.securityLevel,
-          program.acceptsAccountRequests,
-          program.acceptsWithdrawalRequests));
-      } else if (program instanceof CallDepositoryRegrouping) {
-        return buildCallTransaction(new Transactions.DepositoryRegrouping(), Interface.buildDepositoryRegroupingTransaction(
-          new AssetId(assets[asset].asset.id)));
-      } else if (program instanceof CallDepositoryWithdrawal) {
-        return buildCallTransaction(new Transactions.DepositoryWithdrawal(), Interface.buildDepositoryWithdrawalTransaction(
-          new AssetId(assets[asset].asset.id),
-          program.manager));
+      } else if (program instanceof ProgramDepositoryWithdrawalMigration) {
+        return buildProgram({
+          type: new Transactions.DepositoryWithdrawal(),
+          args: {
+            onlyIfNotInQueue: program.onlyIfNotInQueue,
+            fromManager: Signing.decodeAddress(ownerAddress || ''),
+            toManager: Signing.decodeAddress(program.toManager || ''),
+            to: []
+          }
+        });
       }
       
       throw new Error('bad program type');
@@ -470,7 +493,6 @@ export default function InteractionPage() {
     return true;
   }, [loadingTransaction, transactionReady, loadingTransaction, nonce, assets, asset, program]);
   useEffectAsync(async () => {
-    let queryAddress = Wallet.getAddress() || ownerAddress;
     switch (params.type) {
       case 'transfer': 
       default: {
@@ -479,6 +501,12 @@ export default function InteractionPage() {
         setProgram(result);
        break; 
       }
+      case 'certification': {
+        const result = new ProgramCertification();
+        try { result.assets = ((await Interface.getBlockchains()) || []).map((v) => AssetId.fromHandle(v.chain)); } catch { }
+        setProgram(result);
+        break;
+      }
       case 'withdrawal': {
         const result = new ProgramDepositoryWithdrawal();
         result.to = [{ address: '', value: '' }];
@@ -486,35 +514,22 @@ export default function InteractionPage() {
         setProgram(result);
         break;
       }
-      case 'certification': {
-        const result = new CallCertification();
-        try { result.assets = ((await Interface.getBlockchains()) || []).map((v) => AssetId.fromHandle(v.chain)); } catch { }
-        queryAddress = await Interface.getSignerAddress() || ownerAddress;
-        setProgram(result);
-        break;
-      }
       case 'adjustment': {
-        queryAddress = await Interface.getSignerAddress() || ownerAddress;
-        setProgram(new CallDepositoryAdjustment());
+        setProgram(new ProgramDepositoryAdjustment());
         break;
       }
       case 'regrouping': {
-        queryAddress = await Interface.getSignerAddress() || ownerAddress;
-        setProgram(new CallDepositoryRegrouping());
+        setProgram(new ProgramDepositoryRegrouping());
         break;
       }
       case 'migration': {
-        queryAddress = await Interface.getSignerAddress() || ownerAddress;
-        setProgram(new CallDepositoryWithdrawal());
+        setProgram(new ProgramDepositoryWithdrawalMigration());
         break;
       }
     }
 
-    if (queryAddress != ownerAddress)
-      setOwnerAddress(queryAddress);
-
     try {
-      let assetData = await Interface.fetchAll((offset, count) => Interface.getAccountBalances(queryAddress, offset, count));
+      let assetData = await Interface.fetchAll((offset, count) => Interface.getAccountBalances(ownerAddress, offset, count));
       if (Array.isArray(assetData)) {
         assetData = assetData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
         assetData = assetData.filter((item) => item.balance?.gt(0) || item.reserve?.gt(0) || item.supply?.gt(0));
@@ -549,12 +564,6 @@ export default function InteractionPage() {
     } catch { }
   }, [query]);
 
-  const params = {
-    type: query.get('type'),
-    asset: query.get('asset'),
-    manager: query.get('manager'),
-
-  };
   return (
     <Box px="4" pt="4" mx="auto" maxWidth="640px">
       <Flex justify="between" align="center">
@@ -630,7 +639,7 @@ export default function InteractionPage() {
           </Box>
         }
         {
-          asset != -1 && program instanceof ProgramDepositoryWithdrawal &&
+          asset != -1 && (program instanceof ProgramDepositoryWithdrawal || program instanceof ProgramDepositoryWithdrawalMigration) &&
           <Box width="100%" px="1" mt="3">
             <Tooltip content="If depository is busy with another withdrawal then do not withdraw">
               <Text as="label" size="2" color={program.onlyIfNotInQueue ? 'jade' : 'orange'}>
@@ -724,59 +733,7 @@ export default function InteractionPage() {
         )
       }
       {
-        asset != -1 && program instanceof ProgramDepositoryWithdrawal && program.to.map((item, index) =>
-          <Card mt="4" key={index}>
-            <Heading size="4" mb="2">Withdraw to account{ program.to.length > 1 ? ' #' + (index + 1) : ''}</Heading>
-            <Flex gap="2" mb="3">
-              <Box width="100%">
-                <Tooltip content="Withdraw to Your pre-registered address">
-                  <TextField.Root size="3" placeholder="Withdraw to address" type="text" value={item.address} onChange={(e) => {
-                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                    copy.to[index].address = e.target.value;
-                    setProgram(copy);
-                  }} />
-                </Tooltip>
-              </Box>
-              {
-                programReady &&
-                <Button size="3" variant="outline" color="gray" disabled={!programReady}>
-                  <Link className="router-link" to={'/account/' + item.address}>▒▒</Link>
-                </Button>
-              }
-            </Flex>
-            <Flex gap="2">
-              <Box width="100%">
-                <Tooltip content="Payment value received by account">
-                  <TextField.Root mb="3" size="3" placeholder={'Payment value in ' + (assets[asset].asset.token || assets[asset].asset.chain)} type="number" value={item.value} onChange={(e) => {
-                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                    copy.to[index].value = e.target.value;
-                    setProgram(copy);
-                  }} />
-                </Tooltip>
-              </Box>
-              <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
-            </Flex>
-            {
-              omniTransaction &&
-              <Flex justify="end">
-                <IconButton variant="soft" color={index != 0 ? 'red' : 'jade'} disabled={!omniTransaction && index == 0} onClick={() => {
-                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                  if (index == 0) {
-                    copy.to.push({ address: '', value: '' });
-                  } else {
-                    copy.to.splice(index, 1);
-                  }
-                  setProgram(copy);
-                }}>
-                  <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
-                </IconButton>
-              </Flex>
-            }
-          </Card>
-        )
-      }
-      {
-        asset != -1 && program instanceof CallCertification &&
+        asset != -1 && program instanceof ProgramCertification &&
         <Card mt="4">
           <Heading size="4" mb="2">Block production</Heading>
           <Select.Root size="3" value={program.blockProduction} onValueChange={(value) => {
@@ -943,7 +900,59 @@ export default function InteractionPage() {
         </Card>
       }
       {
-        asset != -1 && program instanceof CallDepositoryAdjustment &&
+        asset != -1 && program instanceof ProgramDepositoryWithdrawal && program.to.map((item, index) =>
+          <Card mt="4" key={index}>
+            <Heading size="4" mb="2">Withdraw to account{ program.to.length > 1 ? ' #' + (index + 1) : ''}</Heading>
+            <Flex gap="2" mb="3">
+              <Box width="100%">
+                <Tooltip content="Withdraw to Your pre-registered address">
+                  <TextField.Root size="3" placeholder="Withdraw to address" type="text" value={item.address} onChange={(e) => {
+                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                    copy.to[index].address = e.target.value;
+                    setProgram(copy);
+                  }} />
+                </Tooltip>
+              </Box>
+              {
+                programReady &&
+                <Button size="3" variant="outline" color="gray" disabled={!programReady}>
+                  <Link className="router-link" to={'/account/' + item.address}>▒▒</Link>
+                </Button>
+              }
+            </Flex>
+            <Flex gap="2">
+              <Box width="100%">
+                <Tooltip content="Payment value received by account">
+                  <TextField.Root mb="3" size="3" placeholder={'Payment value in ' + (assets[asset].asset.token || assets[asset].asset.chain)} type="number" value={item.value} onChange={(e) => {
+                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                    copy.to[index].value = e.target.value;
+                    setProgram(copy);
+                  }} />
+                </Tooltip>
+              </Box>
+              <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
+            </Flex>
+            {
+              omniTransaction &&
+              <Flex justify="end">
+                <IconButton variant="soft" color={index != 0 ? 'red' : 'jade'} disabled={!omniTransaction && index == 0} onClick={() => {
+                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                  if (index == 0) {
+                    copy.to.push({ address: '', value: '' });
+                  } else {
+                    copy.to.splice(index, 1);
+                  }
+                  setProgram(copy);
+                }}>
+                  <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
+                </IconButton>
+              </Flex>
+            }
+          </Card>
+        )
+      }
+      {
+        asset != -1 && program instanceof ProgramDepositoryAdjustment &&
         <Card mt="4">
           <Heading size="4" mb="2">Depository fee policy</Heading>
           <Box width="100%">
@@ -1004,14 +1013,14 @@ export default function InteractionPage() {
         </Card>
       }
       {
-        asset != -1 && program instanceof CallDepositoryWithdrawal &&
+        asset != -1 && program instanceof ProgramDepositoryWithdrawalMigration &&
         <Card mt="4">
           <Heading size="4" mb="2">Migrate to manager account</Heading>
           <Box width="100%">
             <Tooltip content="Send to depository custody funds to this manager address">
-              <TextField.Root size="3" placeholder="New manager address" type="text" value={program.manager} onChange={(e) => {
+              <TextField.Root size="3" placeholder="New manager address" type="text" value={program.toManager} onChange={(e) => {
                 const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                copy.manager = e.target.value;
+                copy.toManager = e.target.value;
                 setProgram(copy);
               }} />
             </Tooltip>
@@ -1141,16 +1150,7 @@ export default function InteractionPage() {
                     <Text as="div" weight="light" size="4" mb="1">— Send <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', program.to.length) }</Text></Text>        
                   }
                   {
-                    asset != -1 && program instanceof ProgramDepositoryWithdrawal &&
-                    <>
-                      <Text as="div" weight="light" size="4" mb="1">— Withdraw <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', program.to.length) }</Text></Text>
-                      <Text as="div" weight="light" size="4" mb="1">— Withdraw through <Badge radius="medium" variant="surface" size="2">{ 
-                          (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6).toUpperCase()
-                      }</Badge> node</Text>
-                    </>
-                  }
-                  {
-                    asset != -1 && program instanceof CallCertification &&
+                    asset != -1 && program instanceof ProgramCertification &&
                     <>
                       {
                         program.blockProduction != 'standby' &&
@@ -1167,17 +1167,26 @@ export default function InteractionPage() {
                     </>
                   }
                   {
-                    asset != -1 && program instanceof CallDepositoryAdjustment &&
+                    asset != -1 && program instanceof ProgramDepositoryWithdrawal &&
+                    <>
+                      <Text as="div" weight="light" size="4" mb="1">— Withdraw <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', program.to.length) }</Text></Text>
+                      <Text as="div" weight="light" size="4" mb="1">— Withdraw through <Badge radius="medium" variant="surface" size="2">{ 
+                          (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6).toUpperCase()
+                      }</Badge> node</Text>
+                    </>
+                  }
+                  {
+                    asset != -1 && program instanceof ProgramDepositoryAdjustment &&
                     <Text as="div" weight="light" size="4" mb="1">— Adjust a { assets[asset].chain } depository of a validator node by using { program.incomingFee.length > 0 && new BigNumber(program.incomingFee).gt(0) ? 'paid' : 'free' } deposits and { program.outgoingFee.length > 0 && new BigNumber(program.outgoingFee).gt(0) ? 'paid' : 'free' } withdrawals</Text>        
                   }
                   {
-                    asset != -1 && program instanceof CallDepositoryRegrouping &&
+                    asset != -1 && program instanceof ProgramDepositoryRegrouping &&
                     <Text as="div" weight="light" size="4" mb="1">— Regroup participation of a validator node (to possibly unstake the participation stake)</Text>        
                   }
                   {
-                    asset != -1 && program instanceof CallDepositoryWithdrawal &&
+                    asset != -1 && program instanceof ProgramDepositoryWithdrawalMigration &&
                     <Text as="div" weight="light" size="4" mb="1">— Migration a { assets[asset].chain } depository of a validator node to <Badge radius="medium" variant="surface" size="2">{ 
-                        program.manager.substring(program.manager.length - 6).toUpperCase()
+                        program.toManager.substring(program.toManager.length - 6).toUpperCase()
                     }</Badge> node</Text>
                   }
                   <Text as="div" weight="light" size="4" mb="1">— Pay up to <Text color="orange">{ Readability.toMoney(assets[asset].asset, maxFeeValue) }</Text> to <Text color="sky">miner as fee</Text></Text>

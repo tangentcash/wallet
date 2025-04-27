@@ -30,7 +30,7 @@ export class Chain {
   static mainnet: ChainParams = {
     NAME: 'mainnet',
     SECKEY_VERSION: 0xF,
-    SECKEY_PREFIX: 'prv',
+    SECKEY_PREFIX: 'sec',
     PUBKEY_VERSION: 0xE,
     PUBKEY_PREFIX: 'pub',
     ADDRESS_VERSION: 0x4,
@@ -42,7 +42,7 @@ export class Chain {
   static testnet: ChainParams = {
     NAME: 'testnet',
     SECKEY_VERSION: 0xE,
-    SECKEY_PREFIX: 'prvt',
+    SECKEY_PREFIX: 'sect',
     PUBKEY_VERSION: 0xD,
     PUBKEY_PREFIX: 'pubt',
     ADDRESS_VERSION: 0x5,
@@ -54,7 +54,7 @@ export class Chain {
   static regtest: ChainParams = {
     NAME: 'regtest',
     SECKEY_VERSION: 0xD,
-    SECKEY_PREFIX: 'prvrt',
+    SECKEY_PREFIX: 'secrt',
     PUBKEY_VERSION: 0xC,
     PUBKEY_PREFIX: 'pubrt',
     ADDRESS_VERSION: 0x6,
@@ -485,6 +485,9 @@ export class AssetId {
   }
   toUint8Array(): Uint8Array {
     return ByteUtil.byteStringToUint8Array(this.handle).reverse();
+  }
+  toUint256(): Uint256 {
+    return new Uint256(this.toUint8Array());
   }
   toHex(): string {
     return ByteUtil.uint8ArrayToHexString(this.toUint8Array().reverse());

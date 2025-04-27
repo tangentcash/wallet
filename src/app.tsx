@@ -132,6 +132,27 @@ export class AppData {
   static openDevTools(): void {
     core.invoke('devtools');
   }
+  static openFile(type: string): Promise<string | null> {
+    return new Promise((resolve) => {
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.multiple = false;
+      input.accept = type;
+      input.onchange = (e) => {
+        const target: any = e.target;
+        if (target != null && target.files != null && target.files.length > 0) {
+          const reader = new FileReader();
+          reader.readAsText(target.files[0]);
+          console.log(target.files[0])
+          reader.onload = result => resolve(result.target != null && result.target.result != null ? result.target.result?.toString() : null);
+          reader.onerror = () => resolve(null);
+        }
+        else
+          resolve(null);
+      };
+      input.click();
+    })
+  }
   static saveFile(name: string, type: string, data: string): void {
     const link = document.createElement("a");
     document.body.appendChild(link);

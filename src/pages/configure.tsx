@@ -150,10 +150,10 @@ export default function ConfigurePage() {
                 const publicKeyHash = Wallet.getPublicKeyHash();
                 const address = Wallet.getAddress();
                 AppData.saveFile('wallet.json', 'application/json', JSON.stringify({
-                  mnemonic: mnemonic != null && Array.isArray(mnemonic) ? mnemonic.join(' ') : null,
-                  privateKey: secretKey != null ? Signing.encodeSecretKey(secretKey) || null : null,
-                  publicKey: publicKey != null ? Signing.encodePublicKey(publicKey) || null : null,
-                  publicKeyHash: publicKeyHash != null ? ByteUtil.uint8ArrayToHexString(publicKeyHash.data) || null : null,
+                  mnemonic: mnemonic != null && Array.isArray(mnemonic) ? mnemonic.join(' ') : undefined,
+                  secret_key: secretKey != null ? Signing.encodeSecretKey(secretKey) || undefined : undefined,
+                  public_key: publicKey != null ? Signing.encodePublicKey(publicKey) || undefined : undefined,
+                  public_key_hash: publicKeyHash != null ? ByteUtil.uint8ArrayToHexString(publicKeyHash.data) || undefined : undefined,
                   address: address
                 }, null, 2));
               }}>

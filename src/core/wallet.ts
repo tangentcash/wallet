@@ -880,20 +880,11 @@ export class Interface {
   static submitTransaction(hexMessage: string, validate: boolean): Promise<string | null> {
     return this.fetch('no-cache', 'submittransaction', [hexMessage, validate]);
   }
-  static buildCertificationTransaction(asset: AssetId, blockProduction: 'enable' | 'disable' | 'standby', participation: Record<string, BigNumber | null>, attestation: Record<string, BigNumber | null>): Promise<{ hash: string, data: string } | null> {
-    return this.fetch('no-cache', 'buildcertificationtransaction', [asset.handle, blockProduction, participation, attestation]);
+  static getWallet(): Promise<{ secretKey: string, publicKey: string, publicKeyHash: string, address: string } | null> {
+    return this.fetch('no-cache', 'getwallet');
   }
-  static buildDepositoryAdjustmentTransaction(asset: AssetId, incomingFee: BigNumber, outgoingFee: BigNumber, securityLevel: number, acceptsAccountRequests: boolean, acceptsWithdrawalRequests: boolean): Promise<{ hash: string, data: string } | null> {
-    return this.fetch('no-cache', 'builddepositoryadjustmenttransaction', [asset.handle, incomingFee, outgoingFee, securityLevel, acceptsAccountRequests, acceptsWithdrawalRequests]);
-  }
-  static buildDepositoryRegroupingTransaction(asset: AssetId): Promise<{ hash: string, data: string } | null> {
-    return this.fetch('no-cache', 'builddepositoryregroupingtransaction', [asset.handle]);
-  }
-  static buildDepositoryWithdrawalTransaction(asset: AssetId, managerAddress: string): Promise<{ hash: string, data: string } | null> {
-    return this.fetch('no-cache', 'builddepositorywithdrawaltransaction', [asset.handle, managerAddress]);
-  }
-  static getSignerAddress(): Promise<string | null> {
-    return this.fetch('no-cache', 'getsigneraddress');
+  static getParticipations(): Promise<any[] | null> {
+    return this.fetch('no-cache', 'getparticipations');
   }
   static getBlockchains(): Promise<any[] | null> {
     return this.fetch('cache', 'getblockchains', []);
