@@ -1150,7 +1150,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 }
                 {
                   InterfaceUtil.isSummaryStateEmpty(state, ownerAddress) &&
-                  <Badge size="1" radius="medium" color={receipt.successful ? 'bronze' : 'red'}>{ receipt.successful ? 'Eventless execution' : 'Execution error' }</Badge>
+                  <Badge size="1" radius="medium" color={receipt.successful ? 'bronze' : 'red'}>{ receipt.successful ? 'Successful execution' : 'Execution error' }</Badge>
                 }
               </Flex>
             }

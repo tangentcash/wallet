@@ -32,7 +32,7 @@ export default function DepositoryPage() {
   const ownerAddress = Wallet.getAddress() || '';
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [mode, setMode] = useState<'depositories' | 'register' | 'deposit'>('depositories');
-  const [preference, setPreference] = useState<'security' | 'cost'>('security');
+  const [preference, setPreference] = useState<'security' | 'cost' | 'popularity'>('popularity');
   const [routingAddress, setRoutingAddress] = useState('');
   const [loading, setLoading] = useState(false);
   const [assets, setAssets] = useState<any[]>([]);
@@ -53,6 +53,9 @@ export default function DepositoryPage() {
       let data;
       switch (preference) {
         case 'security':
+          data = await Interface.getBestDepositoryPoliciesForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
+          break;
+        case 'popularity':
           data = await Interface.getBestDepositoryBalancesForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
           break;
         case 'cost':
@@ -415,11 +418,12 @@ export default function DepositoryPage() {
               <Box width="100%" mb="4">
                 <Flex justify="between" align="center" mb="3">
                   <Heading size="6">Depositories</Heading>
-                  <Select.Root value={preference} onValueChange={(value) => setPreference(value as ('security' | 'cost'))}>
+                  <Select.Root value={preference} onValueChange={(value) => setPreference(value as ('security' | 'cost' | 'popularity'))}>
                     <Select.Trigger />
                     <Select.Content>
                       <Select.Group>
                         <Select.Label>Depository preference</Select.Label>
+                        <Select.Item value="popularity">Popularity</Select.Item>
                         <Select.Item value="security">Security</Select.Item>
                         <Select.Item value="cost">Cost</Select.Item>
                       </Select.Group>

@@ -895,6 +895,9 @@ export class Interface {
   static getBestDepositoryBalancesForSelection(asset: AssetId, offset: number, count: number): Promise<any[] | null> {
     return this.fetch('no-cache', 'getbestdepositorybalancesforselection', [asset.handle, offset, count]);
   }
+  static getBestDepositoryPoliciesForSelection(asset: AssetId, offset: number, count: number): Promise<any[] | null> {
+    return this.fetch('no-cache', 'getbestdepositorypoliciesforselection', [asset.handle, offset, count]);
+  }
   static getNextAccountNonce(address: string): Promise<{ min: BigNumber | string, max: BigNumber | string } | null> {
     return this.fetch('no-cache', 'getnextaccountnonce', [address]);
   }

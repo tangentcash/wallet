@@ -169,7 +169,7 @@ export default function BlockPage() {
               })
             }
             <DataList.Item>
-              <DataList.Label>Transactions merkle root:</DataList.Label>
+              <DataList.Label>TX merkle root:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.transaction_root);
@@ -178,7 +178,7 @@ export default function BlockPage() {
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>Receipts merkle root:</DataList.Label>
+              <DataList.Label>RC merkle root:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.receipt_root);
@@ -187,7 +187,7 @@ export default function BlockPage() {
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>States merkle root:</DataList.Label>
+              <DataList.Label>ST merkle root:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.state_root);
@@ -214,6 +214,10 @@ export default function BlockPage() {
               <DataList.Value>{ Readability.toUnit(block.absolute_work) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
+              <DataList.Label>Gas work:</DataList.Label>
+              <DataList.Value>{ Readability.toGas(block.slot_gas_use.multipliedBy(block.slot_length)) }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
               <DataList.Label>Gas limit:</DataList.Label>
               <DataList.Value>{ Readability.toGas(block.gas_limit) }</DataList.Value>
             </DataList.Item>
@@ -221,15 +225,18 @@ export default function BlockPage() {
               <DataList.Label>Gas use:</DataList.Label>
               <DataList.Value>{ Readability.toGas(block.gas_use) } | { (block.gas_use.div(block.gas_limit.gt(0) ? block.gas_limit : 1).toNumber() * 100).toFixed(2) }%</DataList.Value>
             </DataList.Item>
+          </DataList.Root>
+          <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
+          <DataList.Root orientation={orientation}>
             <DataList.Item>
-              <DataList.Label>Slot status:</DataList.Label>
+              <DataList.Label>Slot activity:</DataList.Label>
               <DataList.Value>
                 <Badge color="yellow">{ Readability.toCount('block', block.slot_length) } in { Readability.toTimespan(block.slot_duration) }</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>Slot gas work:</DataList.Label>
-              <DataList.Value>{ Readability.toGas(block.slot_gas_use.multipliedBy(block.slot_length)) } | { Readability.toGas(block.slot_gas_target) } per block</DataList.Value>
+              <DataList.Label>Slot time target:</DataList.Label>
+              <DataList.Value>{ Readability.toTimespan(block.slot_duration_target) } per block</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Slot gas target:</DataList.Label>

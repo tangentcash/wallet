@@ -2,7 +2,7 @@ import { Badge, Box, Button, Dialog, Flex, Heading, TextField } from "@radix-ui/
 import { Interface, Netstat, Wallet } from "../core/wallet";
 import { useNavigate } from "react-router";
 import { mdiMagnify, mdiMagnifyScan } from "@mdi/js";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { Signing } from "../core/tangent/algorithm";
 import { AlertBox, AlertType } from "../components/alert";
 import Account from "../components/account";
@@ -11,8 +11,10 @@ import Icon from "@mdi/react";
 export default function HomePage() {
   const ownerAddress = Wallet.getAddress() || '';
   const [loading, setLoading] = useState(false);
+  const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
   const account = useRef<any>(null);
+  const searchInput = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
   const search = useCallback(async () => {
     if (loading)
@@ -73,6 +75,27 @@ export default function HomePage() {
       AlertBox.open(AlertType.Error, 'Block tip not found');
     }
   }, [loading]);
+  const searchFocus = useCallback(() => {
+    if (searchInput.current != null) {
+      searchInput.current.focus();
+    }
+  }, [searchInput]);
+  const searchKeydownEvent = useCallback((event: KeyboardEvent) => {
+    if (!searching && document.activeElement === document.body && event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      setQuery(event.key);
+      setSearching(true);
+      setTimeout(searchFocus, 10);
+    }
+  }, [searching]);
+  const searchPasteEvent = useCallback((event: ClipboardEvent) => {
+    if (!searching && document.activeElement === document.body) {
+      const text = ((event.clipboardData || (window as any).clipboardData) as DataTransfer).getData('text');
+      console.log(text);
+      setQuery(text);
+      setSearching(true);
+      setTimeout(searchFocus, 10);
+    }
+  }, [searching, searchInput]);
   useEffect(() => {
     Interface.onNotification = (event) => {
       switch (event.type) {
@@ -98,7 +121,11 @@ export default function HomePage() {
           break;
       }
     };
+    document.addEventListener('keydown', searchKeydownEvent as any);
+    document.addEventListener('paste', searchPasteEvent);
     return () => {
+      document.removeEventListener('keydown', searchKeydownEvent as any);
+      document.removeEventListener('paste', searchPasteEvent);
       Interface.onNotification = null;
     };
   }, []);
@@ -110,7 +137,7 @@ export default function HomePage() {
           <Heading size="6">My account</Heading>
           <Badge radius="medium" variant="surface" size="2">{ ownerAddress.substring(ownerAddress.length - 6).toUpperCase() }</Badge>
         </Flex>
-        <Dialog.Root>
+        <Dialog.Root onOpenChange={(opened) => setSearching(opened)} open={searching}>
           <Dialog.Trigger>
             <Button variant="soft" size="2" color="gray">
               <Icon path={mdiMagnifyScan} size={0.7} /> EXPLORE
@@ -122,7 +149,7 @@ export default function HomePage() {
                 <Dialog.Title mb="0">Explorer</Dialog.Title>
                 <Button radius="medium" size="1" variant="outline" type="button" disabled={loading} onClick={() => searchLatest()}>Last block</Button>
               </Flex>
-              <TextField.Root placeholder="Address, hash or number…" size="3" variant="soft" value={query} onChange={(e) => setQuery(e.target.value)} readOnly={loading}>
+              <TextField.Root placeholder="Address, hash or number…" size="3" variant="soft" value={query} onChange={(e) => setQuery(e.target.value)} readOnly={loading} ref={searchInput}>
                 <TextField.Slot>
                   <Icon path={mdiMagnify} size={0.9}  color="var(--accent-8)"/>
                 </TextField.Slot>
