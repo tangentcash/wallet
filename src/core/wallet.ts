@@ -907,6 +907,9 @@ export class Interface {
   static getAccountBalances(address: string, offset: number, count: number): Promise<any[] | null> {
     return this.fetch('no-cache', 'getaccountbalances', [address, offset, count]);
   }
+  static getAccountDelegation(address: string): Promise<any | null> {
+    return this.fetch('no-cache', 'getaccountdelegation', [address]);
+  }
   static getValidatorProduction(address: string): Promise<any | null> {
     return this.fetch('no-cache', 'getvalidatorproduction', [address]);
   }

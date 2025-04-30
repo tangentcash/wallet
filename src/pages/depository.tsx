@@ -122,11 +122,16 @@ export default function DepositoryPage() {
 
     setLoading(true);
     try {
+      const delegation = await Interface.getAccountDelegation(manager || '');
+      if (delegation.requires_zeroing)
+        throw new Error(`This depository is over delegated: wait until block ${delegation.zeroing_block_number}`);
+
       const output = await Wallet.buildTransactionWithAutoGasLimit({
         asset: new AssetId(assets[asset].id),
         method: {
           type: new Transactions.RoutingAccount(),
           args: {
+            manager: Signing.decodeAddress(manager || ''),
             address: routingAddress
           }
         }
@@ -145,13 +150,17 @@ export default function DepositoryPage() {
       setLoading(false);
       return null;
     }
-  }, [assets, asset, routingAddress]);
+  }, [assets, asset, manager, routingAddress]);
   const submitDepositTransaction = useCallback(async () => {
     if (loading)
       return;
 
     setLoading(true);
     try {
+      const delegation = await Interface.getAccountDelegation(manager || '');
+      if (delegation.requires_zeroing)
+        throw new Error(`This depository is over delegated: wait until block ${delegation.zeroing_block_number}`);
+      
       const output = await Wallet.buildTransactionWithAutoGasLimit({
         asset: new AssetId(assets[asset].id),
         method: {
