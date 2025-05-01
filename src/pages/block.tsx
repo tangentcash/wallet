@@ -214,10 +214,6 @@ export default function BlockPage() {
               <DataList.Value>{ Readability.toUnit(block.absolute_work) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>Gas work:</DataList.Label>
-              <DataList.Value>{ Readability.toGas(block.slot_gas_use.multipliedBy(block.slot_length)) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
               <DataList.Label>Gas limit:</DataList.Label>
               <DataList.Value>{ Readability.toGas(block.gas_limit) }</DataList.Value>
             </DataList.Item>
@@ -237,10 +233,6 @@ export default function BlockPage() {
             <DataList.Item>
               <DataList.Label>Slot time target:</DataList.Label>
               <DataList.Value>{ Readability.toTimespan(block.slot_duration_target) } per block</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Slot gas target:</DataList.Label>
-              <DataList.Value>{ Readability.toGas(block.slot_gas_target) } per block</DataList.Value>
             </DataList.Item>
           </DataList.Root>
           <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>

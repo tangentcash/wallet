@@ -5,7 +5,7 @@ import Icon from "@mdi/react";
 
 const types: { path: string, name: string, tip: string, color: string | undefined, icon: string, persistent: boolean }[] = [
   { path: '/', name: 'Home', tip: 'My account', color: undefined, icon: mdiSquareRoundedBadgeOutline, persistent: true },
-  { path: '/depository', name: 'Depository', tip: 'Deposit/withdrawal depositories', color: 'orange', icon: mdiSetRight, persistent: true },
+  { path: '/depository', name: 'Depository', tip: 'Deposit/withdrawal', color: 'orange', icon: mdiSetRight, persistent: true },
   { path: '/interaction', name: 'Pay', tip: 'Send transaction', color: 'jade', icon: mdiContactlessPaymentCircleOutline, persistent: true },
   { path: '/configure', name: 'Configure', tip: 'App settings', color: 'yellow', icon: mdiDotsCircle, persistent: true },
   { path: '/block', name: 'Block', tip: 'Block details', color: 'blue', icon: mdiMagnifyScan, persistent: false },

@@ -18,7 +18,8 @@ export type ClearCallback = () => any;
 
 export type SummaryState = {
   account: {
-    balances: Record<string, Record<string, { asset: AssetId, supply: BigNumber, reserve: BigNumber }>>
+    balances: Record<string, Record<string, { asset: AssetId, supply: BigNumber, reserve: BigNumber }>>,
+    fees: Record<string, Record<string, { asset: AssetId, fee: BigNumber }>>,
   },
   depository: {
     balances: Record<string, Record<string, { asset: AssetId, supply: BigNumber }>>,
@@ -976,7 +977,8 @@ export class InterfaceUtil {
   static calculateSummaryState(events?: { event: BigNumber, args: any[] }[]): SummaryState {
     const result: SummaryState = {
       account: {
-        balances: { }
+        balances: { },
+        fees: { }
       },
       depository: {
         balances: { },
@@ -1042,6 +1044,27 @@ export class InterfaceUtil {
             const ownerState = result.account.balances[ownerAddress][asset.handle];
             ownerState.supply = ownerState.supply.plus(supply)
             ownerState.reserve = ownerState.reserve.plus(reserve);
+          } else if (event.args.length >= 3 && (event.args[0] instanceof BigNumber || typeof event.args[0] == 'string') && typeof event.args[1] == 'string' && event.args[2] instanceof BigNumber) {
+            const [assetId, owner, fee] = event.args;
+            const ownerAddress = Signing.encodeAddress(new Pubkeyhash(owner)) || owner;
+            const asset = new AssetId(assetId);
+            if (!asset.handle)
+              break;
+            
+            if (!result.account.balances[ownerAddress])
+              result.account.balances[ownerAddress] = { };
+            if (!result.account.balances[ownerAddress][asset.handle])
+              result.account.balances[ownerAddress][asset.handle] = { asset: asset, supply: new BigNumber(0), reserve: new BigNumber(0) };
+
+            if (!result.account.fees[ownerAddress])
+              result.account.fees[ownerAddress] = { };
+            if (!result.account.fees[ownerAddress][asset.handle])
+              result.account.fees[ownerAddress][asset.handle] = { asset: asset, fee: new BigNumber(0) };
+
+            const balanceState = result.account.balances[ownerAddress][asset.handle];
+            const feeState = result.account.fees[ownerAddress][asset.handle];
+            balanceState.supply = balanceState.supply.plus(fee);
+            feeState.fee = feeState.fee.plus(fee);
           }
           break;
         }

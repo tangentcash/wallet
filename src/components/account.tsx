@@ -350,9 +350,30 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                   <Flex justify="between" align="center">
                     <Text as="div" size="2" weight="light">Gas production</Text>
                   </Flex>
-                  <Text as="div" size="2" weight="medium">{ Readability.toGas(production ? production.gas : 0) }</Text>
+                  <Tooltip content="Gas accumulated from every produced block">
+                    <Text as="div" size="2" weight="medium">{ Readability.toGas(production ? production.gas : 0) }</Text>
+                  </Tooltip>
                 </Box>
               </Flex>
+              {
+                production && production.stakes.length > 0 &&
+                <Box pl="5">
+                  {
+                    production.stakes.map((item: any) => {
+                      return (
+                        <Flex key={item.asset.id} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
+                          <Avatar size="2" radius="full" fallback={(item.asset.token || item.asset.chain)[0]} src={'/cryptocurrency/' + (item.asset.token || item.asset.chain).toLowerCase() + '.svg'} />
+                          <Box width="100%" style={{ marginLeft: '2px' }}>
+                            <Tooltip content={(item.asset.token || item.asset.chain) + " fees received by block producer, when unlocked block producer will lose half of their gas production"}>
+                              <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.stake) }</Text>
+                            </Tooltip>
+                          </Box>
+                        </Flex>
+                      )
+                    })
+                  }
+                </Box>
+              }
               {
                 production &&
                 <Flex px="2" py="2" gap="3" align="center">
@@ -361,7 +382,9 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                     <Flex justify="between" align="center">
                       <Text as="div" size="2" weight="light">{ production.active ? 'Activity' : 'Downtime' }</Text>
                     </Flex>
-                    <Text as="div" size="2" weight="medium">{ production.active ? 'In' : 'From'} block { production.block_number.toNumber() }</Text>
+                    <Tooltip content="Block in which producer's state has been affected">
+                      <Text as="div" size="2" weight="medium">{ production.active ? 'In' : 'From'} block { production.block_number.toNumber() }</Text>
+                    </Tooltip>
                   </Box>
                 </Flex>
               }
@@ -381,7 +404,9 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                       </Flex>
                       {
                         item.active &&
-                        <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.stake) } for { Readability.toCount('participation', item.participations) }</Text>
+                        <Tooltip content={item.asset.chain + ' stake and fees received by depository participation as a signer of withdrawal transactions'}>
+                          <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.stake) } for { Readability.toCount('participation', item.participations) }</Text>
+                        </Tooltip>
                       }
                       {
                         !item.active &&
@@ -407,7 +432,9 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                       </Flex>
                       {
                         item.active &&
-                        <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.stake) }</Text>
+                        <Tooltip content={item.asset.chain + ' stake and fees received by depository attestation as a deposit/withdrawal transaction notifications'}>
+                          <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.stake) }</Text>
+                        </Tooltip>
                       }
                       {
                         !item.active &&

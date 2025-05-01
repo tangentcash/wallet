@@ -33,6 +33,7 @@ export namespace Ledger {
     gasPrice: string = 'decimal';
     gasLimit: string = 'uint256';
     nonce: string = 'uint64';
+    manager: string = 'pubkeyhash';
   }
 
   export class ConsensusTransaction extends Messages.Authentic {
@@ -118,7 +119,6 @@ export namespace Transactions {
 
   export class DepositoryAccount extends Ledger.DelegationTransaction {
     static typename: string = 'depository_account';
-    manager: string = 'pubkeyhash';
 
     getType() { return DepositoryAccount.typename; }
   }

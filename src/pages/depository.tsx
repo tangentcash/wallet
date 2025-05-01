@@ -564,7 +564,7 @@ export default function DepositoryPage() {
               <Card>
                 <Box mb="4">
                   <Heading size="5">Address registration</Heading>
-                  <Text size="2" color="gray">Register Your wallet address to {assets[asset].routing_policy == 'account' ? 'deposit or ' : ''}withdraw assets</Text>
+                  <Text size="2" color="gray">Register Your external {assets[asset].chain} wallet address to {assets[asset].routing_policy == 'account' ? 'deposit or ' : ''}withdraw assets</Text>
                 </Box>
                 <Box>
                   <Tooltip content="Your wallet's address">

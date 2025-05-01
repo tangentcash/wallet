@@ -175,6 +175,21 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
+            <DataList.Label>Delegation account:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" disabled={!transaction.manager} onClick={() => {
+                navigator.clipboard.writeText(transaction.manager || 'none');
+                AlertBox.open(AlertType.Info, 'Address copied!')
+              }}>{ Readability.toAddress(transaction.manager) }</Button>
+              {
+                transaction.manager &&
+                <Box ml="2">
+                  <Link className="router-link" to={'/account/' + transaction.manager}>▒▒</Link>
+                </Box>
+              }
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
             <DataList.Label>Routing address:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
@@ -189,7 +204,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
-            <DataList.Label>Delegate manager account:</DataList.Label>
+            <DataList.Label>Delegation account:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" disabled={!transaction.manager} onClick={() => {
                 navigator.clipboard.writeText(transaction.manager || 'none');
@@ -624,24 +639,24 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
   return (
     <>
       {
-        Object.entries(state.account.balances).map((inputs) => {
+        Object.entries(state.account.fees).map((inputs) => {
           const address = inputs[0];
           return Object.entries(inputs[1]).map((data) => {
             const event = data[1];
             return (
-              <Card key={'Y0' + address + event.asset.handle} mt="3">
+              <Card key={'Y00' + address + event.asset.handle} mt="3">
                 <DataList.Root orientation={props.orientation}>
                   <DataList.Item>
                     <DataList.Label>Event:</DataList.Label>
                     <DataList.Value>
-                      <Badge color="blue">Transfer</Badge>
+                      <Badge color="red">Fee</Badge>
                     </DataList.Value>
                   </DataList.Item>
                   {
-                    !event.supply.eq(0) &&
+                    !event.fee.eq(0) &&
                     <>
                       <DataList.Item>
-                        <DataList.Label>{event.supply.gte(0) ? 'To' : 'From' } account:</DataList.Label>
+                        <DataList.Label>{event.fee.gte(0) ? 'To' : 'From' } account:</DataList.Label>
                         <DataList.Value>
                           <Button size="2" variant="ghost" color="indigo" onClick={() => {
                             navigator.clipboard.writeText(address);
@@ -654,7 +669,49 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                       </DataList.Item>
                       <DataList.Item>
                         <DataList.Label>Value:</DataList.Label>
-                        <DataList.Value>{ Readability.toMoney(event.asset, event.supply) }</DataList.Value>
+                        <DataList.Value>{ Readability.toMoney(event.asset, event.fee) }</DataList.Value>
+                      </DataList.Item>
+                    </>
+                  }
+                </DataList.Root>
+              </Card>
+            )
+          })
+        })
+      }
+      {
+        Object.entries(state.account.balances).map((inputs) => {
+          const address = inputs[0];
+          return Object.entries(inputs[1]).map((data) => {
+            const [asset, event] = data;
+            const supply = event.supply.minus(state.account.fees[address] ? state.account.fees[address][asset]?.fee || 0 : 0);
+            return (
+              <Card key={'Y0' + address + event.asset.handle} mt="3">
+                <DataList.Root orientation={props.orientation}>
+                  <DataList.Item>
+                    <DataList.Label>Event:</DataList.Label>
+                    <DataList.Value>
+                      <Badge color="cyan">Transfer</Badge>
+                    </DataList.Value>
+                  </DataList.Item>
+                  {
+                    !supply.eq(0) &&
+                    <>
+                      <DataList.Item>
+                        <DataList.Label>{supply.gte(0) ? 'To' : 'From' } account:</DataList.Label>
+                        <DataList.Value>
+                          <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                            navigator.clipboard.writeText(address);
+                            AlertBox.open(AlertType.Info, 'Address copied!')
+                          }}>{ Readability.toAddress(address) }</Button>
+                          <Box ml="2">
+                            <Link className="router-link" to={'/account/' + address}>▒▒</Link>
+                          </Box>
+                        </DataList.Value>
+                      </DataList.Item>
+                      <DataList.Item>
+                        <DataList.Label>Value:</DataList.Label>
+                        <DataList.Value>{ Readability.toMoney(event.asset, supply) }</DataList.Value>
                       </DataList.Item>
                     </>
                   }
@@ -699,7 +756,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                   <DataList.Item>
                     <DataList.Label>Event:</DataList.Label>
                     <DataList.Value>
-                      <Badge color="blue">Depository transfer</Badge>
+                      <Badge color="lime">Depository transfer</Badge>
                     </DataList.Value>
                   </DataList.Item>
                 <DataList.Item>
@@ -735,7 +792,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                   <DataList.Item>
                     <DataList.Label>Event:</DataList.Label>
                     <DataList.Value>
-                      <Badge color="blue">Depository account</Badge>
+                      <Badge color="jade">Depository account</Badge>
                     </DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
@@ -775,7 +832,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                   <DataList.Item>
                     <DataList.Label>Event:</DataList.Label>
                     <DataList.Value>
-                      <Badge color="blue">Depository queue</Badge>
+                      <Badge color="yellow">Depository queue</Badge>
                     </DataList.Value>
                   </DataList.Item>
                 <DataList.Item>
@@ -826,7 +883,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                   <DataList.Item>
                     <DataList.Label>Event:</DataList.Label>
                     <DataList.Value>
-                      <Badge color="blue">Depository policy</Badge>
+                      <Badge color="jade">Depository policy</Badge>
                     </DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
@@ -876,7 +933,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                 <DataList.Item>
                   <DataList.Label>Event:</DataList.Label>
                   <DataList.Value>
-                    <Badge color="blue">Depository participant</Badge>
+                    <Badge color="jade">Depository participant</Badge>
                   </DataList.Value>
                 </DataList.Item>
                 <DataList.Item>
@@ -905,7 +962,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                 <DataList.Item>
                   <DataList.Label>Event:</DataList.Label>
                   <DataList.Value>
-                    <Badge color="blue">Witness account</Badge>
+                    <Badge color="jade">Witness account</Badge>
                   </DataList.Value>
                 </DataList.Item>
                 {
@@ -942,7 +999,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                 <DataList.Item>
                   <DataList.Label>Event:</DataList.Label>
                   <DataList.Value>
-                    <Badge color="blue">Witness transaction</Badge>
+                    <Badge color="gold">Witness transaction</Badge>
                   </DataList.Value>
                 </DataList.Item>
                 <DataList.Item>
@@ -1192,7 +1249,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 <DataList.Item>
                   <DataList.Label>Status:</DataList.Label>
                   <DataList.Value>
-                    <Badge color={receipt.successful ? 'jade' : 'red'}>{ Readability.toTransactionType(transaction.type) } { receipt.successful ? 'finalized' : 'reverted' } in { Readability.toTimespan(time) }</Badge>
+                    <Badge color={receipt.successful ? 'jade' : 'red'}>Execution { receipt.successful ? 'finalized' : 'reverted' } in { Readability.toTimespan(time) }</Badge>
                   </DataList.Value>
                 </DataList.Item>
                 <DataList.Item>
