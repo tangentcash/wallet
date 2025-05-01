@@ -2,5 +2,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 fn main() {
-    tanwallet_lib::run()
+    tangentcashapp_lib::run()
 }

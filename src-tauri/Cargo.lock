@@ -3138,7 +3138,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "tanwallet"
+name = "tangentcashapp"
 version = "0.1.0"
 dependencies = [
  "serde",
