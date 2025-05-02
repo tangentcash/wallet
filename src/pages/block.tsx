@@ -110,6 +110,18 @@ export default function BlockPage() {
                 <Badge color={block.recovery.gt(0) ? 'red' : 'gray'}>{ block.recovery.gt(0) ? 'Recovery' : 'Extension' } in { Readability.toTimespan(time) }</Badge>
               </DataList.Value>
             </DataList.Item>
+            {
+              block.witnesses.map((item: any) => {
+                return (
+                  <DataList.Item key={item.asset.chain + item.number.toString()}>
+                    <DataList.Label>Witnessed by:</DataList.Label>
+                    <DataList.Value>
+                      <Badge color="gray" >{ item.asset.chain } block number #{ item.number.toString() }</Badge>
+                    </DataList.Value>
+                  </DataList.Item>
+                )
+              })
+            }
             <DataList.Item>
               <DataList.Label>Time:</DataList.Label>
               <DataList.Value>{ new Date(block.approval_time.toNumber()).toLocaleString() }</DataList.Value>
@@ -156,17 +168,6 @@ export default function BlockPage() {
                   <Badge color="orange">{ Readability.toCount('confirmation', Netstat.blockTipNumber.minus(block.number)) }</Badge>
                 </DataList.Value>
               </DataList.Item>
-            }
-            {
-              block.witnesses.length > 0 &&
-              block.witnesses.map((item: any) => {
-                <DataList.Item key={item.asset.chain + item.number.toString()}>
-                  <DataList.Label>Witnessed by:</DataList.Label>
-                  <DataList.Value>
-                    <Badge color="gray" >{ item.asset.chain } block number #{ item.number.toString() }</Badge>
-                  </DataList.Value>
-                </DataList.Item>
-              })
             }
             <DataList.Item>
               <DataList.Label>TX merkle root:</DataList.Label>

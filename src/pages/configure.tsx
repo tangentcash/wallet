@@ -43,13 +43,14 @@ export default function ConfigurePage() {
     let receivedBytes: number = 0;
     let requests: number = 0;
     let responses: number = 0;
-    let connections: number = indices.length;
+    let connections: number = 0;
     indices.map((item) => {
       const connection = item[1];
       sentBytes += connection.sentBytes;
       receivedBytes += connection.receivedBytes;
       requests += connection.requests;
       responses += connection.responses;
+      connections += connection.active ? 1 : 0;
       if (minTime == null || minTime.getTime() > connection.time.getTime())
         minTime = connection.time;
       if (maxTime == null || maxTime.getTime() < connection.time.getTime())
@@ -75,13 +76,13 @@ export default function ConfigurePage() {
     if (props.streaming) {
       const result = await Interface.connectSocket();
       if (result != null && result > 0) {
-        AlertBox.open(AlertType.Info, 'Connected to ' + (Interface.socket?.url || '[unknown]'));
+        AlertBox.open(AlertType.Info, (Interface.socket?.url || '[unknown]') + ' channel: connection acquired');
       }
     } else {
       const url = Interface.socket?.url || '[unknown]';
       const result = await Interface.disconnectSocket();
       if (result) {
-        AlertBox.open(AlertType.Info, 'Disconnected ' + url);
+        AlertBox.open(AlertType.Warning, url + ' channel: connection ended');
       }
     }
 
@@ -190,15 +191,22 @@ export default function ConfigurePage() {
           <Heading size="5" mb="3">Network statistics</Heading>
           <DataList.Root size="2" orientation={orientation}>
             <DataList.Item align="center">
-              <DataList.Label>Reliability</DataList.Label>
+              <DataList.Label>Channel</DataList.Label>
+              <DataList.Value>
+                { networkInfo.connections > 0 && <Badge size="2" color="jade">{ Readability.toCount('connection', networkInfo.connections) }</Badge> }
+                { !networkInfo.connections && <Badge size="2" color="red">OFFLINE</Badge> }
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item align="center">
+              <DataList.Label>Quality</DataList.Label>
               <DataList.Value>
                 <Badge size="2" color={(networkInfo.requests ? networkInfo.responses / networkInfo.requests < 0.9 : false) ? 'red' : 'jade'} variant="soft" radius="full">{ (100 * Math.min(1, networkInfo.requests > 0 ? networkInfo.responses / networkInfo.requests : 1)).toFixed(2) }%</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item align="center">
-              <DataList.Label>Connections</DataList.Label>
+              <DataList.Label>Bandwidth</DataList.Label>
               <DataList.Value>
-                <Text size="2">{ Readability.toCount('connection', networkInfo.connections) }</Text>
+                <Text size="2">{ Readability.toCount('byte', networkInfo.sentBytes + networkInfo.receivedBytes) }</Text>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item align="center">
@@ -211,12 +219,6 @@ export default function ConfigurePage() {
               <DataList.Label>Responses</DataList.Label>
               <DataList.Value>
                 <Text size="2">{ Readability.toCount('response', networkInfo.responses) } — { Readability.toCount('byte', networkInfo.receivedBytes) }</Text>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item align="center">
-              <DataList.Label>Bandwidth</DataList.Label>
-              <DataList.Value>
-                <Text size="2">{ Readability.toCount('byte', networkInfo.sentBytes + networkInfo.receivedBytes) }</Text>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item align="center">

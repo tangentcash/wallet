@@ -246,7 +246,7 @@ export default function RestorePage() {
                 </Heading>
                 <form action="">
                   <Box mb="6" position="relative">
-                    <TextField.Root id="card-password-field" type="password" placeholder="Enter Your password" autoComplete="current-password" size="3" value={passphrase} onChange={(e) => { setPassphrase(e.target.value); }}/>    
+                    <TextField.Root id="card-password-field" type="password" placeholder="Enter your password" autoComplete="current-password" size="3" value={passphrase} onChange={(e) => { setPassphrase(e.target.value); }}/>    
                     <Flex justify="center" mt="2">
                       <Text size="1" weight="light" color="gray">Wallet is password encrypted.</Text>
                       <Link size="1" color="red" ml="1" onClick={() => resetWallet(false)}>Reset wallet.</Link>
@@ -395,13 +395,13 @@ export default function RestorePage() {
             {
               status == 'mnemonic' &&
               <Card className="bp-mobile-ghost800" size="4" variant="surface" mx="auto" style={{ width: '100%' }}>
-                <Heading as="h3" size="7" align="center" mb="3">Remember Your recovery phrase</Heading>
+                <Heading as="h3" size="7" align="center" mb="3">Remember your recovery phrase</Heading>
                 <Callout.Root mb="5" size="1" variant="surface">
                   <Callout.Icon>
                     <Icon path={mdiAlertCircleOutline} size={1} />
                   </Callout.Icon>
                   <Callout.Text>
-                    This list of words is Your only way to restore the wallet on this device if password is lost or on any other device when You want to move Your wallet.
+                    This list of words is your only way to restore the wallet on this device if password is lost or on any other device when you want to move your wallet.
                   </Callout.Text>
                 </Callout.Root>
                 <Flex gap="2" wrap="wrap" justify={numeration ? 'center' : 'between' }>

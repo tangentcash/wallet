@@ -25,6 +25,11 @@ export class ProgramCertification {
   attestationReservations: Set<string> = new Set<string>();
 }
 
+export class ProgramDepositoryAccount {
+  routing: { chain: string, policy: string }[] = [];
+  routingAddress: string = '';
+}
+
 export class ProgramDepositoryWithdrawal {
   routing: { chain: string, policy: string }[] = [];
   to: { address: string, value: string }[] = [];
@@ -66,7 +71,7 @@ export default function InteractionPage() {
   const [loadingGasLimit, setLoadingGasLimit] = useState(false);
   const [conservative, setConservative] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
-  const [program, setProgram] = useState<ProgramTransfer | ProgramCertification | ProgramDepositoryWithdrawal | ProgramDepositoryAdjustment | ProgramDepositoryRegrouping | ProgramDepositoryWithdrawalMigration | null>(null);
+  const [program, setProgram] = useState<ProgramTransfer | ProgramCertification | ProgramDepositoryAccount | ProgramDepositoryWithdrawal | ProgramDepositoryAdjustment | ProgramDepositoryRegrouping | ProgramDepositoryWithdrawalMigration | null>(null);
   const navigate = useNavigate();
   const maxFeeValue = useMemo((): BigNumber => {
     try {
@@ -102,6 +107,8 @@ export default function InteractionPage() {
       return program.to.length > 1 ? 'Send to many' : 'Send to one';
     } else if (program instanceof ProgramCertification) {
       return 'Validator adjustment';
+    } else if (program instanceof ProgramDepositoryAccount) {
+        return 'Address claim';
     } else if (program instanceof ProgramDepositoryWithdrawal) {
       return program.to.length > 1 ? 'Withdraw to many' : 'Withdraw to one';
     } else if (program instanceof ProgramDepositoryAdjustment) {
@@ -188,6 +195,15 @@ export default function InteractionPage() {
           }
         }
         return program.blockProduction != 'standby' || program.participationStakes.length > 0 || program.attestationStakes.length > 0;
+    } else if (program instanceof ProgramDepositoryAccount) {
+      const routing = program.routing.find((item) => item.chain == assets[asset].asset.chain);
+      if (routing?.policy == 'account' && !program.routingAddress.length)
+        return false;
+
+      if (params.manager == null)
+        return false;
+  
+      return true;
     } else if (program instanceof ProgramDepositoryWithdrawal) {
       for (let i = 0; i < program.to.length; i++) {
         const payment = program.to[i];
@@ -350,7 +366,7 @@ export default function InteractionPage() {
     if (!programReady || loadingTransaction)
       return null;
     
-    const buildProgram = async (method: { type: Ledger.Transaction, args: { [key: string]: any } }) => {
+    const buildProgram = async (method: { type: Ledger.Transaction | Ledger.DelegationTransaction | Ledger.DelegationTransaction, args: { [key: string]: any } }) => {
       const output = await Wallet.buildTransaction({
         asset: new AssetId(assets[asset].asset.id),
         nonce: prebuilt ? prebuilt.body.nonce.toString() : (nonce || undefined),
@@ -397,6 +413,21 @@ export default function InteractionPage() {
               asset: item.asset,
               stake: item.stake != null ? new BigNumber(item.stake) : new BigNumber(NaN)
             }))
+          }
+        });
+      } else if (program instanceof ProgramDepositoryAccount) {
+        let includeRoutingAddress = true;
+        if (program.routingAddress.length > 0) {
+          try {
+            const accounts = await Interface.getWitnessAccount(ownerAddress, assets[asset].asset, program.routingAddress);
+            includeRoutingAddress = !accounts || !accounts.length;
+          } catch { }
+        }
+        return buildProgram({
+          type: new Transactions.DepositoryAccount(),
+          args: {
+            manager: Signing.decodeAddress(params.manager || ''),
+            routingAddress: includeRoutingAddress ? program.routingAddress : ''
           }
         });
       } else if (program instanceof ProgramDepositoryWithdrawal) {
@@ -507,6 +538,12 @@ export default function InteractionPage() {
         setProgram(result);
         break;
       }
+      case 'registration': {
+        const result = new ProgramDepositoryAccount();
+        try { result.routing = ((await Interface.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
+        setProgram(result);
+        break;
+      }
       case 'withdrawal': {
         const result = new ProgramDepositoryWithdrawal();
         result.to = [{ address: '', value: '' }];
@@ -540,27 +577,28 @@ export default function InteractionPage() {
         if (Array.isArray(assetData)) {
           const index = assetData.findIndex((item) => item.asset.id == target.id);
           if (index == -1) {
-            assetData.push({
+            assetData = [...assetData, {
               asset: target,
               balance: new BigNumber(0),
               reserve: new BigNumber(0),
               supply: new BigNumber(0)
-            });
-            setAsset(assets.length - 1);
+            }];
+            setAssets(assetData);
+            setAsset(assetData.length - 1);
           } else {
+            setAssets(assetData);
             setAsset(index);
           }
         } else {
-          assetData = [{
+          setAssets([{
             asset: target,
             balance: new BigNumber(0),
             reserve: new BigNumber(0),
             supply: new BigNumber(0)
-          }];
+          }]);
           setAsset(0);
         }
       }
-      setAssets(assetData || []);
     } catch { }
   }, [query]);
 
@@ -900,12 +938,27 @@ export default function InteractionPage() {
         </Card>
       }
       {
+        asset != -1 && program instanceof ProgramDepositoryAccount &&
+        <Card mt="4">
+          <Heading size="4" mb="2">{program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'Sender' : 'Routing'} wallet address</Heading>
+          <Box width="100%">
+            <Tooltip content={'Register ' + assets[asset].asset.chain + ' wallet address that you own to ' + (program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'deposit assets from or ' : '') + 'withdraw assets to'}>
+              <TextField.Root size="3" placeholder={assets[asset].asset.chain + " routing address"} type="text" value={program.routingAddress} onChange={(e) => {
+                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                copy.routingAddress = e.target.value;
+                setProgram(copy);
+              }} />
+            </Tooltip>
+          </Box>
+        </Card>
+      }
+      {
         asset != -1 && program instanceof ProgramDepositoryWithdrawal && program.to.map((item, index) =>
           <Card mt="4" key={index}>
             <Heading size="4" mb="2">Withdraw to account{ program.to.length > 1 ? ' #' + (index + 1) : ''}</Heading>
             <Flex gap="2" mb="3">
               <Box width="100%">
-                <Tooltip content="Withdraw to Your pre-registered address">
+                <Tooltip content="Withdraw to your pre-registered address">
                   <TextField.Root size="3" placeholder="Withdraw to address" type="text" value={item.address} onChange={(e) => {
                     const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                     copy.to[index].address = e.target.value;
@@ -1033,7 +1086,7 @@ export default function InteractionPage() {
           <Heading size="4" mb="2">Transaction cost</Heading>
           <Flex gap="2" mt="2">
             <Box width="100%">
-              <Tooltip content="Higher gas price speeds up transactions">
+              <Tooltip content="Higher gas price increases transaction priority">
                 <TextField.Root mb="3" size="3" placeholder="Gas price" type="number" value={gasPrice} onChange={(e) => setGasPrice(e.target.value)} />
               </Tooltip>
             </Box>
@@ -1062,7 +1115,7 @@ export default function InteractionPage() {
             <Button size="3" variant="outline" color="gray" disabled={loadingTransaction || loadingGasPrice} loading={loadingGasLimit} onClick={() => setCalculatedGasLimit()}>Calculate</Button>
           </Flex>
           <Box px="1" mt="2">
-            <Tooltip content="If transaction fails do not include it in a block (without error report)">
+            <Tooltip content="If transaction fails do not include it in a block (store and pay only good transactions)">
               <Text as="label" size="2" color={conservative ? 'red' : 'jade'}>
                 <Flex gap="2">
                   <Checkbox size="3" checked={!conservative} onCheckedChange={(value) => setConservative(!(value.valueOf() as boolean))} />
@@ -1141,7 +1194,7 @@ export default function InteractionPage() {
               <Dialog.Trigger>
                 <Button variant="outline" size="3" color="jade" disabled={loadingGasPrice || loadingGasLimit} loading={loadingTransaction} onClick={() => buildTransaction()}>Submit transaction</Button>
               </Dialog.Trigger>
-              <Dialog.Content maxWidth="450px">
+              <Dialog.Content maxWidth="500px">
                 <Dialog.Title mb="0">Confirmation</Dialog.Title>
                 <Dialog.Description mb="3" size="2" color="gray">This transaction will be sent to one of the nodes</Dialog.Description>
                 <Box>
@@ -1164,6 +1217,16 @@ export default function InteractionPage() {
                         program.attestationStakes.length > 0 &&
                         <Text as="div" weight="light" size="4" mb="1">— Update stake of <Text color="red">{ Readability.toCount('attestation', program.attestationStakes.length) }</Text> of a validator node</Text>
                       }
+                    </>
+                  }
+                  {
+                    asset != -1 && program instanceof ProgramDepositoryAccount &&
+                    <>
+                      <Text as="div" weight="light" size="4" mb="1">— Claim { Readability.toAssetName(assets[asset].asset) } deposit address</Text>
+                      { program.routingAddress.length > 0 && <Text as="div" weight="light" size="4" mb="1">— Claim <Text color="red">{ Readability.toAddress(program.routingAddress) }</Text> { Readability.toAssetName(assets[asset].asset) } {program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'sender/withdrawal' : 'withdrawal'} address</Text> }
+                      <Text as="div" weight="light" size="4" mb="1">— Register through <Badge radius="medium" variant="surface" size="2">{ 
+                          (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6).toUpperCase()
+                      }</Badge> node</Text>
                     </>
                   }
                   {

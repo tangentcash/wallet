@@ -492,7 +492,7 @@ export class Interface {
     const message = data.error.message ? data.error.message : '';
     const code = data.error.code ? data.error.code.toString() : '0';
     const hash = ByteUtil.uint8ArrayToHexString(Hashing.hash160(ByteUtil.byteStringToUint8Array(message + ' / ' + code)));
-    return new Error(message + ' causing layer_exception ' + hash.substring(0, 8));
+    return new Error(`${message} (E${hash.substring(0, 8).toUpperCase()})`);
   }
   private static fetchResult(hash: string, data: any): any[] | undefined {    
     if (Array.isArray(data) || data.result === undefined) {
@@ -802,8 +802,8 @@ export class Interface {
           const events = await this.fetch<number>('no-cache', 'subscribe', [address]);
           return events;
         } catch (exception) {
-          if (this.onNodeResponse)
-            this.onNodeResponse(location[0], method, exception, (exception as Error).message.length);
+          if (this.onNodeError)
+            this.onNodeError(location[0], method, exception);
         }
 
         this.wsInterfaces.online.delete(location[1]);
@@ -922,6 +922,9 @@ export class Interface {
   }
   static getDepositoryBalances(address: string, offset: number, count: number): Promise<any[] | null> {
     return this.fetch('no-cache', 'getdepositorybalances', [address, offset, count]);
+  }
+  static getWitnessAccount(address: string, asset: AssetId, walletAddress: string): Promise<any | null> {
+    return this.fetch('no-cache', 'getwitnessaccount', [address, asset.handle, walletAddress]);
   }
   static getWitnessAccounts(address: string, offset: number, count: number): Promise<any[] | null> {
     return this.fetch('no-cache', 'getwitnessaccounts', [address, offset, count]);

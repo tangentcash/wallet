@@ -110,15 +110,9 @@ export namespace Transactions {
     getType() { return Certification.typename; }
   }
 
-  export class RoutingAccount extends Ledger.DelegationTransaction {
-    static typename: string = 'routing_account';
-    address: string = 'string';
-
-    getType() { return RoutingAccount.typename; }
-  }
-
   export class DepositoryAccount extends Ledger.DelegationTransaction {
     static typename: string = 'depository_account';
+    routingAddress: string = 'string';
 
     getType() { return DepositoryAccount.typename; }
   }

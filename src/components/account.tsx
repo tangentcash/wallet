@@ -181,16 +181,18 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
               }}>
               {
                 !assets.length &&
-                <Flex px="2" py="2" gap="3" align="center">
-                  <Avatar size="2" radius="large" fallback="NA" color="gray" />
-                  <Box width="100%">
-                    <Flex justify="between" align="center">
-                      <Text as="div" size="2" weight="light">N/A</Text>
-                      <Badge size="1" radius="medium">0.00%</Badge>
-                    </Flex>
-                    <Text as="div" size="2" weight="medium">0.0</Text>
-                  </Box>
-                </Flex>
+                <Tooltip content="Account does not have any non-zero asset balances">
+                  <Flex px="2" py="2" gap="3" align="center">
+                    <Avatar size="2" radius="large" fallback="NA" color="gray" />
+                    <Box width="100%">
+                      <Flex justify="between" align="center">
+                        <Text as="div" size="2" weight="light">N/A</Text>
+                        <Badge size="1" radius="medium">0.00%</Badge>
+                      </Flex>
+                      <Text as="div" size="2" weight="medium">0.0</Text>
+                    </Box>
+                  </Flex>
+                </Tooltip>
               }
               { 
                 assets.map((item) =>
@@ -309,7 +311,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                   <Select.Trigger variant="soft" />
                   <Select.Content variant="soft">
                     <Select.Group>
-                      <Select.Label>Witness addresses</Select.Label>
+                      <Select.Label>Account addresses</Select.Label>
                       <Select.Item value="-1">
                         <Flex align="center" gap="1">
                           <Text style={{ color: 'var(--accent-9)' }}>{ ownerAddress.substring(ownerAddress.length - 2).toUpperCase() }</Text>

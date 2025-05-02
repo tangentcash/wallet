@@ -22,6 +22,7 @@ export type ConnectionState = {
   requests: number;
   responses: number;
   time: Date;
+  active: boolean;
 };
 
 export type ServerState = {
@@ -62,12 +63,13 @@ export class AppData {
     if (server != null) {
       server.sentBytes += bytes;
       server.time = new Date();
+      server.active = true;
       ++server.requests;
     } else {
-      AppData.server.connections[address] = { sentBytes: bytes, receivedBytes: 0, requests: 1, responses: 0, time: new Date() };
+      AppData.server.connections[address] = { sentBytes: bytes, receivedBytes: 0, requests: 1, responses: 0, time: new Date(), active: true };
     }
     
-    console.log('[rpc]', `${method} on node ${address} call:`, message);
+    console.log('[rpc]', `${address}${address.endsWith('/') ? '' : '/'}${method} call:`, message);
   }
   private static response(address: string, method: string, message: any, size: number): void {
     const bytes = 40 + size;
@@ -75,12 +77,13 @@ export class AppData {
     if (server != null) {
       server.receivedBytes += bytes;
       server.time = new Date();
+      server.active = message != null && size > 0;
       ++server.responses;
     } else {
-      AppData.server.connections[address] = { sentBytes: 0, receivedBytes: bytes, requests: 0, responses: 1, time: new Date() };
+      AppData.server.connections[address] = { sentBytes: 0, receivedBytes: bytes, requests: 0, responses: 1, time: new Date(), active: true };
     }
 
-    console.log('[rpc]', `${method} on node ${address} return:`, message);
+    console.log('[rpc]', `${address}${address.endsWith('/') ? '' : '/'}${method} return:`, message);
   }
   private static error(address: string, method: string, error: unknown): void {
     const bytes = 40 + (error as any)?.message?.length || 0;
@@ -90,14 +93,15 @@ export class AppData {
     if (server != null) {
       server.receivedBytes += bytes;
       server.time = new Date();
+      server.active = !networkError;
       if (!networkError)
         ++server.responses;
     } else {
-      AppData.server.connections[address] = { sentBytes: 0, receivedBytes: bytes, requests: 0, responses: networkError ? 0 : 1, time: new Date() };
+      AppData.server.connections[address] = { sentBytes: 0, receivedBytes: bytes, requests: 0, responses: networkError ? 0 : 1, time: new Date(), active: !networkError };
     }
 
-    console.log('[rpc]', `${method} on node ${address} return:`, (error as any)?.message || error);
-    AlertBox.open(AlertType.Error, `${method} on node ${address} has failed: ${(error as any)?.message || error}`);
+    console.log('[rpc]', `${address}${address.endsWith('/') ? '' : '/'}${method} return:`, (error as any)?.message || error);
+    AlertBox.open(AlertType.Error, `${address}${address.endsWith('/') ? '' : '/'}${method} error: ${(error as any)?.message || error}`);
   }
   private static save(): void {
     Storage.set(StorageField.Props, this.props);
