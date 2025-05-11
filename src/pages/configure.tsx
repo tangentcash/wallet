@@ -1,13 +1,12 @@
 import { mdiAlertOctagram, mdiBackburger, mdiBugOutline, mdiCached, mdiLocationExit, mdiReloadAlert } from "@mdi/js";
 import { Badge, Box, Button, Card, DataList, Flex, Heading, Switch, Table, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useNavigate } from "react-router";
-import { AppData } from "../app";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Interface, Wallet } from "../core/wallet";
 import { AlertBox, AlertType } from "../components/alert";
 import { Readability } from "../core/text";
 import { SafeStorage, StorageField } from "../core/storage";
-import { ByteUtil, Signing } from "../core/tangent/algorithm";
+import { AppData } from "../core/app";
+import { ByteUtil, RPC, Signing } from "tangentsdk";
 import Icon from "@mdi/react";
 
 function toServerInfo(url: string): string {
@@ -70,24 +69,24 @@ export default function ConfigurePage() {
     if (loadingStreaming)
       return false;
 
-    const props = Interface.getProps();
+    const props = RPC.getProps();
     props.streaming = streaming;
     setLoadingStreaming(true);
     if (props.streaming) {
-      const result = await Interface.connectSocket();
+      const result = await AppData.stream();
       if (result != null && result > 0) {
-        AlertBox.open(AlertType.Info, (Interface.socket?.url || '[unknown]') + ' channel: connection acquired');
+        AlertBox.open(AlertType.Info, (RPC.socket?.url || '[unknown]') + ' channel: connection acquired');
       }
     } else {
-      const url = Interface.socket?.url || '[unknown]';
-      const result = await Interface.disconnectSocket();
+      const url = RPC.socket?.url || '[unknown]';
+      const result = await RPC.disconnectSocket();
       if (result) {
         AlertBox.open(AlertType.Warning, url + ' channel: connection ended');
       }
     }
 
     setLoadingStreaming(false);
-    Interface.saveProps(props);
+    RPC.saveProps(props);
     return true;
   }, [loadingStreaming]);
   useEffect(() => {
@@ -118,7 +117,7 @@ export default function ConfigurePage() {
           <Flex justify="between" align="center" mt="2">
             <Text size="2" color="gray">Clear client cache</Text>
             <Button size="2" variant="soft" color="jade" onClick={() => {
-              Interface.clearCache();
+              RPC.clearCache();
               AlertBox.open(AlertType.Info, 'Application cache erased');
             }}>
               <Icon path={mdiCached} size={0.85} />
@@ -138,7 +137,7 @@ export default function ConfigurePage() {
           </Flex>
           <Flex justify="between" align="center" mt="2">
             <Text size="2" color="gray">Seal wallet</Text>
-            <Button size="2" variant="soft" color="red" onClick={() => Wallet.clear(() => navigate('/restore'))}>
+            <Button size="2" variant="soft" color="red" onClick={() => AppData.clearWallet(() => navigate('/restore'))}>
               <Icon path={mdiLocationExit} size={0.85} />
             </Button>
           </Flex>
@@ -146,10 +145,10 @@ export default function ConfigurePage() {
             <Text size="2" color="gray">Export wallet</Text>
             <Button size="2" variant="soft" color="red" onClick={async () => {
                 const mnemonic = await SafeStorage.get(StorageField.Mnemonic);
-                const secretKey = Wallet.getSecretKey(); 
-                const publicKey = Wallet.getPublicKey();
-                const publicKeyHash = Wallet.getPublicKeyHash();
-                const address = Wallet.getAddress();
+                const secretKey = AppData.getWalletSecretKey(); 
+                const publicKey = AppData.getWalletPublicKey();
+                const publicKeyHash = AppData.getWalletPublicKeyHash();
+                const address = AppData.getWalletAddress();
                 AppData.saveFile('wallet.json', 'application/json', JSON.stringify({
                   mnemonic: mnemonic != null && Array.isArray(mnemonic) ? mnemonic.join(' ') : undefined,
                   secret_key: secretKey != null ? Signing.encodeSecretKey(secretKey) || undefined : undefined,
@@ -181,7 +180,7 @@ export default function ConfigurePage() {
           <Text as="label" size="1">
             <Flex gap="2" align="center" justify="between" mt="3" pl="1">
               <Text size="2" color="gray">Use websocket streaming</Text>
-              <Switch size="3" variant="soft" checked={Interface.getProps().streaming} onCheckedChange={(value) => setWsStreaming(value)}/>
+              <Switch size="3" variant="soft" checked={RPC.getProps().streaming} onCheckedChange={(value) => setWsStreaming(value)}/>
             </Flex>
           </Text>
         </Box>

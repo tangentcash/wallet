@@ -1,10 +1,10 @@
 import { Navigate, useLocation } from "react-router";
 import { SafeStorage } from "../core/storage";
-import { Wallet } from "../core/wallet";
+import { AppData } from "../core/app";
 import { Navbar } from "./navbar";
 
 function hasWallet(): boolean {
-  return SafeStorage.hasDecryptedKey() && Wallet.isReady();
+  return SafeStorage.hasDecryptedKey() && AppData.isWalletReady();
 }
 
 export function WalletReadyRoute(props: { children: React.ReactNode }): JSX.Element {

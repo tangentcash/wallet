@@ -1,16 +1,14 @@
 import { mdiBackburger, mdiMinus, mdiPlus } from "@mdi/js";
 import { Avatar, Badge, Box, Button, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useMemo, useState } from "react";
-import { useEffectAsync } from "../core/extensions/react";
-import { Interface, TransactionOutput, Wallet } from "../core/wallet";
-import { AssetId, Chain, Signing, Uint256 } from "../core/tangent/algorithm";
+import { useEffectAsync } from "../core/react";
 import { Readability } from "../core/text";
 import { Link, useNavigate, useSearchParams } from "react-router";
-import { Ledger, Transactions } from "../core/tangent/schema";
 import { AlertBox, AlertType } from "../components/alert";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
-import { Stream } from "../core/tangent/serialization";
+import { AssetId, Chain, Ledger, RPC, Signing, Stream, TransactionOutput, Transactions, Uint256 } from "tangentsdk";
+import { AppData } from "../core/app";
 
 export class ProgramTransfer {
   to: { address: string, memo: string | null, value: string }[] = [];
@@ -54,7 +52,7 @@ export class ProgramDepositoryWithdrawalMigration {
 }
 
 export default function InteractionPage() {
-  const ownerAddress = Wallet.getAddress() || '';
+  const ownerAddress = AppData.getWalletAddress() || '';
   const [query] = useSearchParams();
   const params = {
     type: query.get('type'),
@@ -309,7 +307,7 @@ export default function InteractionPage() {
 
     setLoadingGasPrice(true);
     try {
-      const price = await Interface.getGasPrice(new AssetId(assets[asset].asset.id), percentile);
+      const price = await RPC.getGasPrice(new AssetId(assets[asset].asset.id), percentile);
       if (price != null && price instanceof BigNumber && price.gte(0)) {
         setGasPrice(price.toString());
       } else {
@@ -334,13 +332,13 @@ export default function InteractionPage() {
 
     setLoadingGasLimit(true);
     try {
-      let gas = await Interface.getOptimalTransactionGas(output.data);
+      let gas = await RPC.getOptimalTransactionGas(output.data);
       if (typeof gas == 'string') {
         gas = new BigNumber(gas, 16);
       }
 
       if (!gas || !(gas instanceof BigNumber) || !gas.gte(0)) {
-        gas = await Interface.getEstimateTransactionGas(output.data);
+        gas = await RPC.getEstimateTransactionGas(output.data);
         if (typeof gas == 'string') {
           gas = new BigNumber(gas, 16);
         }
@@ -367,7 +365,7 @@ export default function InteractionPage() {
       return null;
     
     const buildProgram = async (method: { type: Ledger.Transaction | Ledger.DelegationTransaction | Ledger.DelegationTransaction, args: { [key: string]: any } }) => {
-      const output = await Wallet.buildTransaction({
+      const output = await AppData.buildWalletTransaction({
         asset: new AssetId(assets[asset].asset.id),
         nonce: prebuilt ? prebuilt.body.nonce.toString() : (nonce || undefined),
         conservative: conservative,
@@ -419,7 +417,7 @@ export default function InteractionPage() {
         let includeRoutingAddress = true;
         if (program.routingAddress.length > 0) {
           try {
-            const accounts = await Interface.getWitnessAccount(ownerAddress, assets[asset].asset, program.routingAddress);
+            const accounts = await RPC.getWitnessAccount(ownerAddress, assets[asset].asset, program.routingAddress);
             includeRoutingAddress = !accounts || !accounts.length;
           } catch { }
         }
@@ -455,7 +453,7 @@ export default function InteractionPage() {
           }
         });
       } else if (program instanceof ProgramDepositoryRegrouping) {
-        const participants = await Interface.getParticipations();
+        const participants = await RPC.getParticipations();
         if (!participants)
           throw new Error('cannot fetch participations');
 
@@ -510,7 +508,7 @@ export default function InteractionPage() {
 
     setLoadingTransaction(true);
     try {
-      const hash = await Interface.submitTransaction(output.data, true);
+      const hash = await RPC.submitTransaction(output.data, true);
       if (hash != null) {
         AlertBox.open(AlertType.Info, 'Transaction ' + hash + ' sent!');
         navigate('/');
@@ -534,20 +532,20 @@ export default function InteractionPage() {
       }
       case 'certification': {
         const result = new ProgramCertification();
-        try { result.assets = ((await Interface.getBlockchains()) || []).map((v) => AssetId.fromHandle(v.chain)); } catch { }
+        try { result.assets = ((await RPC.getBlockchains()) || []).map((v) => AssetId.fromHandle(v.chain)); } catch { }
         setProgram(result);
         break;
       }
       case 'registration': {
         const result = new ProgramDepositoryAccount();
-        try { result.routing = ((await Interface.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
+        try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
         setProgram(result);
         break;
       }
       case 'withdrawal': {
         const result = new ProgramDepositoryWithdrawal();
         result.to = [{ address: '', value: '' }];
-        try { result.routing = ((await Interface.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
+        try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
         setProgram(result);
         break;
       }
@@ -566,7 +564,7 @@ export default function InteractionPage() {
     }
 
     try {
-      let assetData = await Interface.fetchAll((offset, count) => Interface.getAccountBalances(ownerAddress, offset, count));
+      let assetData = await RPC.fetchAll((offset, count) => RPC.getAccountBalances(ownerAddress, offset, count));
       if (Array.isArray(assetData)) {
         assetData = assetData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
         assetData = assetData.filter((item) => item.balance?.gt(0) || item.reserve?.gt(0) || item.supply?.gt(0));

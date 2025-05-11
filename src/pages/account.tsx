@@ -1,13 +1,13 @@
 import { Navigate, useNavigate, useParams } from "react-router";
-import { Wallet } from "../core/wallet";
 import { Badge, Box, Button, Flex, Heading } from "@radix-ui/themes";
 import { mdiBackburger } from "@mdi/js";
+import { AppData } from "../core/app";
 import Account from "../components/account";
 import Icon from "@mdi/react";
 
 export default function AccountPage() {
   const id = useParams().id || '';
-  const ownerAddress = Wallet.getAddress() || '';
+  const ownerAddress = AppData.getWalletAddress() || '';
   const navigate = useNavigate();
   if (ownerAddress == id || !id)
     return <Navigate replace={true} to="/" state={{ from: `${location.pathname}${location.search}` }} />;

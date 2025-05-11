@@ -1,12 +1,12 @@
 import { mdiBackburger } from "@mdi/js";
 import { Avatar, Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Heading, Select, Text } from "@radix-ui/themes";
 import { Link, useNavigate } from "react-router";
-import { Interface, Wallet } from "../core/wallet";
 import { useCallback, useState } from "react";
-import { AssetId, Chain } from "../core/tangent/algorithm";
-import { useEffectAsync } from "../core/extensions/react";
+import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
 import { Readability } from "../core/text";
+import { AssetId, Chain, RPC } from "tangentsdk";
+import { AppData } from "../core/app";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
@@ -28,7 +28,7 @@ function toDepositoryStatus(policy: any): string {
 }
 
 export default function DepositoryPage() {
-  const ownerAddress = Wallet.getAddress() || '';
+  const ownerAddress = AppData.getWalletAddress() || '';
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [preference, setPreference] = useState<'security' | 'cost' | 'popularity'>('popularity');
   const [assets, setAssets] = useState<any[]>([]);
@@ -47,13 +47,13 @@ export default function DepositoryPage() {
       let data;
       switch (preference) {
         case 'security':
-          data = await Interface.getBestDepositoryPoliciesForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
+          data = await RPC.getBestDepositoryPoliciesForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
           break;
         case 'popularity':
-          data = await Interface.getBestDepositoryBalancesForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
+          data = await RPC.getBestDepositoryBalancesForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
           break;
         case 'cost':
-          data = await Interface.getBestDepositoryRewardsForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
+          data = await RPC.getBestDepositoryRewardsForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
           break;
         default:
           return null;
@@ -79,7 +79,7 @@ export default function DepositoryPage() {
   useEffectAsync(async () => {
     try {
       if (!assets.length) {
-        const assetData = await Interface.getBlockchains();
+        const assetData = await RPC.getBlockchains();
         if (Array.isArray(assetData)) {
           setAssets(assetData.sort((a, b) => new AssetId(a.id).handle.localeCompare(new AssetId(b.id).handle)));
         }
@@ -92,7 +92,7 @@ export default function DepositoryPage() {
 
     await findDepositories(true);
     try {
-      const addressData = cachedAddresses ? cachedAddresses : await Interface.fetchAll((offset, count) => Interface.getWitnessAccounts(ownerAddress, offset, count));
+      const addressData = cachedAddresses ? cachedAddresses : await RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count));
       if (!cachedAddresses && Array.isArray(addressData)) {
         setCachedAddresses(addressData);
       }

@@ -1,6 +1,6 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { randomBytes } from '@ethersproject/random';
-import { ByteUtil } from './tangent/algorithm';
+import { ByteUtil } from 'tangentsdk';
 
 export enum StorageField {
   Network = '__network__',

@@ -1,15 +1,15 @@
 import { Badge, Box, Button, Dialog, Flex, Heading, TextField } from "@radix-ui/themes";
-import { Interface, Netstat, Wallet } from "../core/wallet";
 import { useNavigate } from "react-router";
 import { mdiMagnify, mdiMagnifyScan } from "@mdi/js";
 import { KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
-import { Signing } from "../core/tangent/algorithm";
 import { AlertBox, AlertType } from "../components/alert";
+import { AppData } from "../core/app";
+import { RPC, Signing } from "tangentsdk";
 import Account from "../components/account";
 import Icon from "@mdi/react";
 
 export default function HomePage() {
-  const ownerAddress = Wallet.getAddress() || '';
+  const ownerAddress = AppData.getWalletAddress() || '';
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
@@ -31,7 +31,7 @@ export default function HomePage() {
     if (!isNaN(blockNumber) && blockNumber > 0) {
       setLoading(true);
       try {
-        const block = await Interface.getBlockByNumber(blockNumber);
+        const block = await RPC.getBlockByNumber(blockNumber);
         setLoading(false);
         if (block != null) {
           navigate('/block/' + value);
@@ -44,7 +44,7 @@ export default function HomePage() {
 
     setLoading(true);
     try {
-      const transaction = await Interface.getTransactionByHash(value);
+      const transaction = await RPC.getTransactionByHash(value);
       if (transaction != null) {
         navigate('/transaction/' + value);
         setLoading(false);
@@ -55,7 +55,7 @@ export default function HomePage() {
     }
 
     try {
-      const block = await Interface.getBlockByHash(value);
+      const block = await RPC.getBlockByHash(value);
       setLoading(false);
       if (block != null) {
         navigate('/block/' + value);
@@ -68,9 +68,9 @@ export default function HomePage() {
     AlertBox.open(AlertType.Error, 'No blockchain data found');
   }, [query, loading]);
   const searchLatest = useCallback(async () => {
-    const status = await Netstat.sync();
-    if (status && Netstat.blockTipNumber != null) {
-      setQuery(Netstat.blockTipNumber.toString());
+    const status = await AppData.sync();
+    if (status && AppData.tip != null) {
+      setQuery(AppData.tip.toString());
     } else {
       AlertBox.open(AlertType.Error, 'Block tip not found');
     }
@@ -97,10 +97,10 @@ export default function HomePage() {
     }
   }, [searching, searchInput]);
   useEffect(() => {
-    Interface.onNotification = (event) => {
+    RPC.onNodeMessage = (event) => {
       switch (event.type) {
         case 'block': {
-          Netstat.sync().then(() => {
+          AppData.sync().then(() => {
             if (account.current != null) {
               if (typeof account.current.updateFinalizedTransactions == 'function')
                 account.current.updateFinalizedTransactions();
@@ -111,7 +111,7 @@ export default function HomePage() {
           break;
         }
         case 'transaction': {
-          Netstat.sync().then(() => {
+          AppData.sync().then(() => {
             if (account.current != null && typeof account.current.updateMempoolTransactions == 'function')
               account.current.updateMempoolTransactions();
           });
@@ -126,7 +126,7 @@ export default function HomePage() {
     return () => {
       document.removeEventListener('keydown', searchKeydownEvent as any);
       document.removeEventListener('paste', searchPasteEvent);
-      Interface.onNotification = null;
+      RPC.onNodeMessage = null;
     };
   }, []);
 

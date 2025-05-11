@@ -1,12 +1,12 @@
 import { Link, useNavigate, useParams } from "react-router";
-import { useEffectAsync } from "../core/extensions/react";
+import { useEffectAsync } from "../core/react";
 import { useCallback, useState } from "react";
-import { Interface, Netstat } from "../core/wallet";
 import { Badge, Box, Button, Card, DataList, Flex, Heading, IconButton, Spinner, Table } from "@radix-ui/themes";
 import { mdiArrowLeftBoldCircleOutline, mdiArrowRightBoldCircleOutline, mdiBackburger } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
 import { Readability } from "../core/text";
-import { Chain } from "../core/tangent/algorithm";
+import { Chain, RPC } from "tangentsdk";
+import { AppData } from "../core/app";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
 
@@ -33,13 +33,13 @@ export default function BlockPage() {
         throw false;
 
       const number = parseInt(id);
-      const result = await (!isNaN(number) && number > 0 ? Interface.getBlockByNumber(number, 1) : Interface.getBlockByHash(id, 1));
+      const result = await (!isNaN(number) && number > 0 ? RPC.getBlockByNumber(number, 1) : RPC.getBlockByHash(id, 1));
       if (!result)
         throw false;
 
       setBlock(result);
       try {
-        const childBlock = await Interface.getBlockByNumber(result.number.toNumber() + 1);
+        const childBlock = await RPC.getBlockByNumber(result.number.toNumber() + 1);
         setHasChildBlock(childBlock != null);
       } catch {
         setHasChildBlock(false);
@@ -52,13 +52,13 @@ export default function BlockPage() {
   }, [params]);
 
   if (block != null) {
-    if (block.number.gt(Netstat.blockTipNumber))
-      Netstat.blockTipNumber = block.number;
+    if (block.number.gt(AppData.tip))
+      AppData.tip = block.number;
 
     const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
     const time = block.approval_time.minus(block.proposal_time).toNumber();
     const priority = block.priority.toNumber();
-    const subpriority = priority == 0 && (Netstat.blockTipNumber || new BigNumber(0)).lte(block.number) ? 1 : priority;
+    const subpriority = priority == 0 && (AppData.tip || new BigNumber(0)).lte(block.number) ? 1 : priority;
     const possibility = 100 * Math.min(1, Math.max(0, (subpriority > 0 ? 0.4 : 0.0) + lerp(0.0, 0.5, subpriority / (Chain.props.PRODUCTION_COMMITTEE - 1))));
     return (
       <Box px="4" pt="4">
@@ -161,11 +161,11 @@ export default function BlockPage() {
               <DataList.Value>Slot leader #{priority + 1}</DataList.Value>
             </DataList.Item>
             {
-              Netstat.blockTipNumber != null &&
+              AppData.tip != null &&
               <DataList.Item>
                 <DataList.Label>Confidence:</DataList.Label>
                 <DataList.Value>
-                  <Badge color="orange">{ Readability.toCount('confirmation', Netstat.blockTipNumber.minus(block.number)) }</Badge>
+                  <Badge color="orange">{ Readability.toCount('confirmation', AppData.tip.minus(block.number)) }</Badge>
                 </DataList.Value>
               </DataList.Item>
             }

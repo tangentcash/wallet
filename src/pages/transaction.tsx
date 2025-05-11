@@ -1,10 +1,11 @@
 import { useNavigate, useParams } from "react-router";
-import { useEffectAsync } from "../core/extensions/react";
+import { useEffectAsync } from "../core/react";
 import { useState } from "react";
-import { Interface, InterfaceUtil, Wallet } from "../core/wallet";
 import { Box, Button, Flex, Heading, Spinner } from "@radix-ui/themes";
 import { mdiBackburger } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
+import { EventResolver, RPC } from "tangentsdk";
+import { AppData } from "../core/app";
 import Transaction from "../components/transaction";
 import Icon from "@mdi/react";
 
@@ -19,11 +20,11 @@ export default function TransactionPage() {
 
       let result = null;
       try {
-        result = await Interface.getTransactionByHash(id, 2);
+        result = await RPC.getTransactionByHash(id, 2);
         if (!result)
           throw false;
       } catch {
-        result = await Interface.getMempoolTransactionByHash(id);
+        result = await RPC.getMempoolTransactionByHash(id);
         if (!result)
           throw false;
       }
@@ -31,7 +32,7 @@ export default function TransactionPage() {
       if (!result.transaction) {
         result = { transaction: result };
       } else {
-        result.state = InterfaceUtil.calculateSummaryState(result.receipt?.events);
+        result.state = EventResolver.calculateSummaryState(result.receipt?.events);
       }
       
       setData(result);
@@ -50,7 +51,7 @@ export default function TransactionPage() {
             <Icon path={mdiBackburger} size={0.7} /> BACK
           </Button>
         </Flex>
-        <Transaction ownerAddress={Wallet.getAddress() || ''} transaction={data.transaction} receipt={data.receipt} state={data.state} open={true}></Transaction>
+        <Transaction ownerAddress={AppData.getWalletAddress() || ''} transaction={data.transaction} receipt={data.receipt} state={data.state} open={true}></Transaction>
       </Box>
     )
   } else {

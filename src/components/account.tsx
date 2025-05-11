@@ -1,11 +1,11 @@
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { AspectRatio, Avatar, Badge, Box, Callout, Card, Flex, Heading, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { Interface, InterfaceUtil, SummaryState, Wallet } from "../core/wallet";
-import { useEffectAsync } from "../core/extensions/react";
+import { RPC, EventResolver, SummaryState, AssetId } from 'tangentsdk';
+import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
 import { mdiArrowLeftBoldHexagonOutline, mdiArrowRightBoldHexagonOutline, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan } from "@mdi/js";
 import { Readability } from "../core/text";
-import { AssetId } from "../core/tangent/algorithm";
+import { AppData } from "../core/app";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import QRCode from "react-qr-code";
 import Icon from "@mdi/react";
@@ -57,7 +57,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
   }, [ownerAddress]);
   const findTransactions = useCallback(async (refresh?: boolean) => {
     try {
-      const data = await Interface.getTransactionsByOwner(ownerAddress, refresh ? 0 : transactions.length, TRANSACTION_COUNT, 0, 2);
+      const data = await RPC.getTransactionsByOwner(ownerAddress, refresh ? 0 : transactions.length, TRANSACTION_COUNT, 0, 2);
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setTransactions([]);
@@ -65,7 +65,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
         return false;
       }
 
-      const candidateTransactions = data.map((value) => { return { ...value, state: InterfaceUtil.calculateSummaryState(value?.receipt?.events) } });
+      const candidateTransactions = data.map((value) => { return { ...value, state: EventResolver.calculateSummaryState(value?.receipt?.events) } });
       setTransactions(refresh ? candidateTransactions : transactions.concat(candidateTransactions));
       setMoreTransactions(candidateTransactions.length >= TRANSACTION_COUNT);
       return candidateTransactions.length > 0;
@@ -79,7 +79,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
   }, [ownerAddress, transactions]);
   const findMempoolTransactions = useCallback(async () => {
     try {
-      const data = await Interface.getMempoolTransactionsByOwner(ownerAddress, 0, TRANSACTION_COUNT, 0, 1);
+      const data = await RPC.getMempoolTransactionsByOwner(ownerAddress, 0, TRANSACTION_COUNT, 0, 1);
       if (Array.isArray(data)) {
         setMempoolTransactions(data);
         return data.length > 0;
@@ -93,12 +93,12 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
     await Promise.all([
       (async () => {
         try {
-          let assetData = await Interface.fetchAll((offset, count) => Interface.getAccountBalances(ownerAddress, offset, count));
+          let assetData = await RPC.fetchAll((offset, count) => RPC.getAccountBalances(ownerAddress, offset, count));
           if (Array.isArray(assetData)) {
             assetData = assetData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
             assetData = assetData.filter((item) => item.balance?.gt(0) || item.reserve?.gt(0) || item.supply?.gt(0));
             setAssets(assetData);
-            if (Wallet.getAddress() == ownerAddress && !assetData.length)
+            if (AppData.getWalletAddress() == ownerAddress && !assetData.length)
               setControl('address');
           }
         } catch (exception) {
@@ -107,7 +107,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
       })(),
       (async () => {
         try {
-          let addressData = await Interface.fetchAll((offset, count) => Interface.getWitnessAccounts(ownerAddress, offset, count));
+          let addressData = await RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count));
           if (Array.isArray(addressData)) {
             addressData = addressData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
             setAddresses(addressData);
@@ -118,7 +118,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
       })(),
       (async () => {
         try {
-          const attestationData = await Interface.fetchAll((offset, count) => Interface.getValidatorAttestations(ownerAddress, offset, count));
+          const attestationData = await RPC.fetchAll((offset, count) => RPC.getValidatorAttestations(ownerAddress, offset, count));
           if (Array.isArray(attestationData)) {
             setAttestations(attestationData);
           }
@@ -128,7 +128,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
       })(),
       (async () => {
         try {
-          const participationData = await Interface.fetchAll((offset, count) => Interface.getValidatorParticipations(ownerAddress, offset, count));
+          const participationData = await RPC.fetchAll((offset, count) => RPC.getValidatorParticipations(ownerAddress, offset, count));
           if (Array.isArray(participationData)) {
             setParticipations(participationData);
           }
@@ -138,7 +138,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
       })(),
       (async () => {
         try {
-          const productionData = await Interface.getValidatorProduction(ownerAddress);
+          const productionData = await RPC.getValidatorProduction(ownerAddress);
           if (productionData != null)
             setProduction(productionData);
         } catch { }

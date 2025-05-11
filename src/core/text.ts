@@ -1,4 +1,4 @@
-import { AssetId } from "./tangent/algorithm";
+import { AssetId } from 'tangentsdk';
 import BigNumber from "bignumber.js";
 import Names from '../assets/cryptocurrency/names.json';
 import Colors from '../assets/cryptocurrency/colors.json';

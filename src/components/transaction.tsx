@@ -1,13 +1,12 @@
 import { Avatar, Badge, Box, Button, Card, Code, DataList, DropdownMenu, Flex, Spinner, Text } from "@radix-ui/themes";
 import { Readability } from "../core/text";
-import { Interface, InterfaceUtil, Netstat, SummaryState } from "../core/wallet";
+import { RPC, EventResolver, SummaryState, Types, AssetId } from 'tangentsdk';
 import { AlertBox, AlertType } from "./alert";
-import { AssetId } from "../core/tangent/algorithm";
 import { Link } from "react-router";
 import { useState } from "react";
-import { Types } from "../core/tangent/types";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
+import { AppData } from "../core/app";
 
 function InputFields(props: { orientation: 'horizontal' | 'vertical', transaction: any }) {
   const transaction = props.transaction;
@@ -1120,8 +1119,8 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const aggregation = transaction.category == 'aggregation';
   const [consensus, setConsensus] = aggregation ? useState<{ branch: string, threshold: BigNumber, progress: BigNumber, committee: BigNumber, reached: boolean } | null>(null) : [undefined, undefined];
-  if (receipt != null && receipt.block_number.gt(Netstat.blockTipNumber))
-    Netstat.blockTipNumber = receipt.block_number;
+  if (receipt != null && receipt.block_number.gt(AppData.tip))
+    AppData.tip = receipt.block_number;
 
   return (
     <Card variant="surface" mt="4">
@@ -1206,7 +1205,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   <Badge size="1" radius="medium" color="jade">{ Readability.toCount('participant', state.depository.participants.size) }</Badge>
                 }
                 {
-                  InterfaceUtil.isSummaryStateEmpty(state, ownerAddress) &&
+                  EventResolver.isSummaryStateEmpty(state, ownerAddress) &&
                   <Badge size="1" radius="medium" color={receipt.successful ? 'bronze' : 'red'}>{ receipt.successful ? 'Successful execution' : 'Execution error' }</Badge>
                 }
               </Flex>
@@ -1266,11 +1265,11 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   </DataList.Value>
                 </DataList.Item>
                 {
-                  Netstat.blockTipNumber != null &&
+                  AppData.tip != null &&
                   <DataList.Item>
                     <DataList.Label>Confidence:</DataList.Label>
                     <DataList.Value>
-                      <Badge color={Netstat.blockTipNumber.minus(receipt.block_number).gt(0) ? 'jade' : 'orange'}>{ Readability.toCount('confirmation', Netstat.blockTipNumber.minus(receipt.block_number)) }</Badge>
+                      <Badge color={AppData.tip.minus(receipt.block_number).gt(0) ? 'jade' : 'orange'}>{ Readability.toCount('confirmation', AppData.tip.minus(receipt.block_number)) }</Badge>
                     </DataList.Value>
                   </DataList.Item>
                 }
@@ -1344,7 +1343,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                     <DataList.Value>
                       <Button size="1" variant="outline" color="yellow" onClick={async () => {
                         try {
-                          const consensusData = await Interface.getMempoolCumulativeConsensus(transaction.hash);
+                          const consensusData = await RPC.getMempoolCumulativeConsensus(transaction.hash);
                           if (setConsensus != null && consensusData != null)
                             setConsensus(consensusData);
                         } catch {
@@ -1390,7 +1389,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
           <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
           <InputFields orientation={orientation} transaction={transaction}></InputFields>
           {
-            state != null && (!InterfaceUtil.isSummaryStateEmpty(state) || (receipt && receipt.events.length > 0)) &&
+            state != null && (!EventResolver.isSummaryStateEmpty(state) || (receipt && receipt.events.length > 0)) &&
             <>
               <Box mt="4" mb="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
               <OutputFields orientation={orientation} state={state} events={receipt ? receipt.events : null}></OutputFields>

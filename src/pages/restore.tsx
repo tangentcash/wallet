@@ -1,16 +1,15 @@
 import { Badge, Box, Button, Callout, Card, Checkbox, Flex, Heading, Link, Select, Text, TextArea, TextField } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Chain, Pubkeyhash, Signing } from "../core/tangent/algorithm";
 import { mdiAlertCircleOutline } from '@mdi/js';
 import { AlertBox, AlertType } from "../components/alert";
 import { useNavigate } from "react-router";
 import { wordlist } from '@scure/bip39/wordlists/english';
 import { CSSTransition, SwitchTransition } from "react-transition-group";
-import { NetworkType, Wallet, WalletType } from "../core/wallet";
 import { SafeStorage, Storage, StorageField } from "../core/storage";
+import { Chain, NetworkType, Pubkeyhash, Signing, WalletType } from "tangentsdk";
+import { AppData } from "../core/app";
 import Typed from 'typed.js';
 import Icon from '@mdi/react';
-import { AppData } from "../app";
 
 const PASSWORD_SIZE = 6;
 const COLOR_MAP = ["gray", "gold", "bronze", "brown", "yellow", "amber", "orange", "tomato", "red", "ruby", "crimson", "pink", "plum", "purple", "violet", "iris", "indigo", "blue", "cyan", "teal", "jade", "green", "grass", "lime", "mint", "sky"];
@@ -39,7 +38,7 @@ export default function RestorePage() {
   const [numeration, setNumeration] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
-  const [status, setStatus] = useState<'reset' | 'restore' | 'import' | 'mnemonic'>(Wallet.isExists() ? 'restore' : 'reset');
+  const [status, setStatus] = useState<'reset' | 'restore' | 'import' | 'mnemonic'>(AppData.isWalletExists() ? 'restore' : 'reset');
   const [importType, setImportType] = useState<WalletType>(WalletType.Mnemonic);
   const [importCandidate, setImportCandidate] = useState('');
   const [networkType, setNetworkType] = useState<NetworkType>(Storage.get(StorageField.Network) || NetworkType.Mainnet);
@@ -56,7 +55,7 @@ export default function RestorePage() {
       return;
 
     setLoading(true);
-    let status = await Wallet.restore(passphrase, networkType);
+    let status = await AppData.restoreWallet(passphrase, networkType);
     if (!status) {
       AlertBox.open(AlertType.Error, 'Wallet password did not unlock the secure storage');
       reportError();
@@ -73,14 +72,14 @@ export default function RestorePage() {
     let status = await SafeStorage.reset(passphrase);
     if (status) {
       if (importValid) {
-        status = await Wallet.reset(importType == WalletType.Mnemonic ? importCandidate.split(' ') : importCandidate, importType, networkType);
+        status = await AppData.resetWallet(importType == WalletType.Mnemonic ? importCandidate.split(' ') : importCandidate, importType, networkType);
         if (status)
             return navigate('/');
 
         AlertBox.open(AlertType.Error, 'Wallet recovery phrase could not be securely saved');
         reportError();
       } else if (mnemonic.length == 24) {
-        status = await Wallet.reset(mnemonic, WalletType.Mnemonic, networkType);
+        status = await AppData.resetWallet(mnemonic, WalletType.Mnemonic, networkType);
         if (status)
             return navigate('/');
 
@@ -109,7 +108,7 @@ export default function RestorePage() {
       await new Promise((resolve) => setTimeout(resolve, 200));
     }
 
-    let status = await Wallet.reset(mnemonic.split(' '), WalletType.Mnemonic);
+    let status = await AppData.resetWallet(mnemonic.split(' '), WalletType.Mnemonic);
     if (!status) {
       AlertBox.open(AlertType.Error, 'Wallet recovery phrase could not be securely saved');
       reportError();
@@ -267,14 +266,14 @@ export default function RestorePage() {
                 <Box mb="5" position="relative">
                   <TextField.Root id="card-password-field" type="password" placeholder="Come up with a password" autoComplete="new-password" size="3" value={passphrase} onChange={(e) => { setPassphrase(e.target.value); }} />
                   {
-                    Wallet.isExists() &&
+                    AppData.isWalletExists() &&
                     <Flex justify="center" mt="2">
                       <Text size="1" weight="light" color="gray">At any cost, do not forget.</Text>
                       <Link size="1" ml="1" onClick={tryRestoreWallet}>Restore wallet.</Link>
                     </Flex>
                   }
                   {
-                    !Wallet.isExists() &&
+                    !AppData.isWalletExists() &&
                     <Flex justify="center" mt="2">
                       <Text size="1" weight="light" color="gray">At any cost, do not forget.</Text>
                       <Link size="1" ml="1" onClick={importWallet}>{ importValid ? 'Re-import wallet.' : 'Import wallet.' }</Link>
@@ -283,7 +282,7 @@ export default function RestorePage() {
                 </Box>
                 <Flex mt="4" justify="start" align="center" direction="column" gap="3">
                   <Button size="3" variant="surface" loading={loading} style={{ paddingLeft: '24px', paddingRight: '24px' }} disabled={passphrase.length < PASSWORD_SIZE} className={error ? 'shadow-rainbow-hover animation-horizontal-shake' : (passphrase.length < PASSWORD_SIZE ? 'shadow-rainbow-hover' :  'shadow-rainbow-animation')} onClick={createWallet}>{ importValid ? 'Import wallet' : 'Create wallet' }</Button>
-                  { Wallet.isExists() && <Link size="1" ml="1" color="gray" onClick={importWallet}>{ importValid ? 'Re-import wallet' : 'Import wallet' }</Link> }
+                  { AppData.isWalletExists() && <Link size="1" ml="1" color="gray" onClick={importWallet}>{ importValid ? 'Re-import wallet' : 'Import wallet' }</Link> }
                 </Flex>
               </Card>
             }
