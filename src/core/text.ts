@@ -86,7 +86,7 @@ export class Readability {
   }
   static toValue(asset: AssetId, value: string | number | BigNumber | null, delta: boolean, trailing: boolean): string {
     if (value == null)
-      return '[null]';
+      return 'NULL';
 
     const numeric: BigNumber = value instanceof BigNumber ? value : new BigNumber(value);
     const places = numeric.decimalPlaces();
@@ -102,7 +102,7 @@ export class Readability {
   }
   static toUnit(value: string | number | BigNumber | null, delta?: boolean): string {
     if (value == null)
-      return '[null]';
+      return 'NULL';
 
     const numeric: BigNumber = value instanceof BigNumber ? value : new BigNumber(value);
     const asset = new AssetId();
@@ -111,7 +111,7 @@ export class Readability {
   }
   static toGas(value: string | number | BigNumber | null, delta?: boolean): string {
     if (value == null)
-      return '[null]';
+      return 'NULL';
 
     const numeric: BigNumber = value instanceof BigNumber ? value : new BigNumber(value);
     const asset = new AssetId();
@@ -120,7 +120,7 @@ export class Readability {
   }
   static toTimespan(value: string | number | BigNumber | null, delta?: boolean): string {
     if (value == null)
-      return '[null]';
+      return 'NULL';
 
     const numeric: BigNumber = value instanceof BigNumber ? value : new BigNumber(value);
     const seconds = numeric.gte(1000);
@@ -130,7 +130,7 @@ export class Readability {
   }
   static toCount(name: string, value: string | number | BigNumber | null, delta?: boolean): string {
     if (value == null)
-      return '[null]';
+      return 'NULL';
 
     const numeric: BigNumber = value instanceof BigNumber ? value : new BigNumber(value);
     const asset = new AssetId();
@@ -139,13 +139,13 @@ export class Readability {
   }
   static toHash(value?: string, size?: number): string {
     if (!value)
-      return 'none';
+      return 'NULL';
 
     return value.length <= (size || 16) ? value : (value.substring(0, size || 16) + '...' + value.substring(value.length - (size || 16)));
   }
   static toAddress(value?: string, size?: number): string {
     if (!value)
-      return 'none';
+      return 'NULL';
     
     return value.length <= (size || 8) ? value : (value.substring(0, size || 8) + '...' + value.substring(value.length - (size || 8)));
   }

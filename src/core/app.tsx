@@ -7,6 +7,7 @@ import { Chain, ClearCallback, InterfaceProps, Messages, NetworkType, Pubkey, Pu
 import { SafeStorage, Storage, StorageField } from "./storage";
 import { WalletReadyRoute, WalletNotReadyRoute } from "./../components/guards";
 import { Alert, AlertBox, AlertType } from "./../components/alert";
+import BigNumber from "bignumber.js";
 import RestorePage from "./../pages/restore";
 import HomePage from "./../pages/home";
 import ConfigurePage from "./../pages/configure";

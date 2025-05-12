@@ -165,7 +165,7 @@ export default function BlockPage() {
               <DataList.Item>
                 <DataList.Label>Confidence:</DataList.Label>
                 <DataList.Value>
-                  <Badge color="orange">{ Readability.toCount('confirmation', AppData.tip.minus(block.number)) }</Badge>
+                  <Badge color="orange">{ Readability.toCount('confirmation', AppData.tip.minus(block.number).plus(1)) }</Badge>
                 </DataList.Value>
               </DataList.Item>
             }

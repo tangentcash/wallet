@@ -177,7 +177,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             <DataList.Label>Delegation account:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" disabled={!transaction.manager} onClick={() => {
-                navigator.clipboard.writeText(transaction.manager || 'none');
+                navigator.clipboard.writeText(transaction.manager || 'NULL');
                 AlertBox.open(AlertType.Info, 'Address copied!')
               }}>{ Readability.toAddress(transaction.manager) }</Button>
               {
@@ -206,7 +206,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             <DataList.Label>Delegation account:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" disabled={!transaction.manager} onClick={() => {
-                navigator.clipboard.writeText(transaction.manager || 'none');
+                navigator.clipboard.writeText(transaction.manager || 'NULL');
                 AlertBox.open(AlertType.Info, 'Address copied!')
               }}>{ Readability.toAddress(transaction.manager) }</Button>
               {
@@ -238,7 +238,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             <DataList.Label>Public key:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.public_key || 'none');
+                navigator.clipboard.writeText(transaction.public_key || 'NULL');
                 AlertBox.open(AlertType.Info, 'Public key copied!')
               }}>{ Readability.toHash(transaction.public_key) }</Button>
             </DataList.Value>
@@ -255,7 +255,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
                 <DataList.Label>From manager account:</DataList.Label>
                 <DataList.Value>
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                    navigator.clipboard.writeText(transaction.from_manager || 'none');
+                    navigator.clipboard.writeText(transaction.from_manager || 'NULL');
                     AlertBox.open(AlertType.Info, 'Address copied!')
                   }}>{ Readability.toAddress(transaction.from_manager) }</Button>
                   <Box ml="2">
@@ -270,7 +270,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
                 <DataList.Label>To manager account:</DataList.Label>
                 <DataList.Value>
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                    navigator.clipboard.writeText(transaction.to_manager || 'none');
+                    navigator.clipboard.writeText(transaction.to_manager || 'NULL');
                     AlertBox.open(AlertType.Info, 'Address copied!')
                   }}>{ Readability.toAddress(transaction.to_manager) }</Button>
                   <Box ml="2">
@@ -393,6 +393,10 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
         })]
       }).flat();
       let attestations = 0;
+      const executionBlockId = new BigNumber(Array.isArray(transaction.assertion.block_id) ? transaction.assertion.block_id[0] || 0 : 0);
+      const finalizationBlockId = new BigNumber(Array.isArray(transaction.assertion.block_id) ? transaction.assertion.block_id[1] || 0 : 0);
+      const finalized = executionBlockId.gt(0) && finalizationBlockId.gt(0) && executionBlockId.lte(finalizationBlockId);
+      console.log(executionBlockId.toString(), finalizationBlockId.toString());
       Object.keys(transaction.output_hashes).forEach((item) => attestations += transaction.output_hashes[item].length);
       return (
         <>
@@ -408,7 +412,14 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Block id:</DataList.Label>
-              <DataList.Value>{ transaction.assertion.block_id?.toString() || 'none' }</DataList.Value>
+              <DataList.Value>{ executionBlockId.gt(0) ? executionBlockId.toString() || 'NULL' : 'NULL' }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Status:</DataList.Label>
+              <DataList.Value>
+                { finalized && <Badge color="jade">Attestation finalized in { Readability.toCount('block', finalizationBlockId.minus(executionBlockId)) }</Badge> }
+                { !finalized && <Badge color="yellow">Pending finalization</Badge> }
+              </DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Attestations:</DataList.Label>
@@ -539,7 +550,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             <DataList.Label>Cipher public key:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.cipher_public_key || 'none');
+                navigator.clipboard.writeText(transaction.cipher_public_key || 'NULL');
                 AlertBox.open(AlertType.Info, 'Cipher public key copied!')
               }}>{ Readability.toHash(transaction.cipher_public_key) }</Button>
             </DataList.Value>
@@ -1074,7 +1085,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                 </DataList.Item>
                 <DataList.Item>
                   <DataList.Label>Message:</DataList.Label>
-                  <DataList.Value>{ message?.toString() || 'none' }</DataList.Value>
+                  <DataList.Value>{ message?.toString() || 'NULL' }</DataList.Value>
                 </DataList.Item>
               </DataList.Root>
             </Card>
@@ -1269,7 +1280,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   <DataList.Item>
                     <DataList.Label>Confidence:</DataList.Label>
                     <DataList.Value>
-                      <Badge color={AppData.tip.minus(receipt.block_number).gt(0) ? 'jade' : 'orange'}>{ Readability.toCount('confirmation', AppData.tip.minus(receipt.block_number)) }</Badge>
+                      <Badge color={AppData.tip.minus(receipt.block_number).gt(0) ? 'jade' : 'orange'}>{ Readability.toCount('confirmation', AppData.tip.minus(receipt.block_number).plus(1)) }</Badge>
                     </DataList.Value>
                   </DataList.Item>
                 }

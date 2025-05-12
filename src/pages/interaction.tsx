@@ -596,6 +596,8 @@ export default function InteractionPage() {
           }]);
           setAsset(0);
         }
+      } else if (Array.isArray(assetData)) {
+        setAssets(assetData);
       }
     } catch { }
   }, [query]);
@@ -1139,7 +1141,7 @@ export default function InteractionPage() {
               <Box width="100%">
                 <Tooltip content="Future transaction hash">
                   <TextField.Root mb="3" size="3" placeholder="Transaction hash" readOnly={true} value={Readability.toHash(transactionData?.hash)} onClick={() => {
-                    navigator.clipboard.writeText(transactionData?.hash || 'none');
+                    navigator.clipboard.writeText(transactionData?.hash || 'NULL');
                     AlertBox.open(AlertType.Info, 'Transaction hash copied!')
                   }}/>
                 </Tooltip>
@@ -1148,7 +1150,7 @@ export default function InteractionPage() {
             </Flex>
             <Tooltip content="Transaction data that will be sent to a node">
               <TextField.Root mb="3" size="3" placeholder="Transaction data" readOnly={true} value={Readability.toHash(transactionData?.data)} onClick={() => {
-                navigator.clipboard.writeText(transactionData?.data || 'none');
+                navigator.clipboard.writeText(transactionData?.data || 'NULL');
                 AlertBox.open(AlertType.Info, 'Transaction data copied!')
               }}/>
             </Tooltip>
