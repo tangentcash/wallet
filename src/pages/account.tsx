@@ -2,14 +2,17 @@ import { Navigate, useNavigate, useParams } from "react-router";
 import { Badge, Box, Button, Flex, Heading } from "@radix-ui/themes";
 import { mdiBackburger } from "@mdi/js";
 import { AppData } from "../core/app";
+import { Signing } from "tangentsdk";
 import Account from "../components/account";
 import Icon from "@mdi/react";
 
 export default function AccountPage() {
-  const id = useParams().id || '';
+  const keyBaseAddress = useParams().id || '';
+  const rawBaseAddress = Signing.decodeAddress(keyBaseAddress);
+  const baseAddress = rawBaseAddress ? Signing.encodeAddress(rawBaseAddress) : keyBaseAddress;
   const ownerAddress = AppData.getWalletAddress() || '';
   const navigate = useNavigate();
-  if (ownerAddress == id || !id)
+  if (ownerAddress == baseAddress || !keyBaseAddress.length || !baseAddress)
     return <Navigate replace={true} to="/" state={{ from: `${location.pathname}${location.search}` }} />;
 
   return (
@@ -17,13 +20,13 @@ export default function AccountPage() {
       <Flex justify="between" align="center">
         <Flex align="center" gap="2">
           <Heading size="6">Account</Heading>
-          <Badge radius="medium" variant="surface" color="blue" size="2">{ id.substring(id.length - 6).toUpperCase() }</Badge>
+          <Badge radius="medium" variant="surface" color="blue" size="2">{ baseAddress.substring(baseAddress.length - 6).toUpperCase() }</Badge>
         </Flex>
         <Button variant="soft" size="2" color="indigo" onClick={() => navigate(-1)}>
           <Icon path={mdiBackburger} size={0.7} /> BACK
         </Button>
       </Flex>
-      <Account ownerAddress={id}></Account>
+      <Account ownerAddress={baseAddress}></Account>
     </Box>
   );
 }

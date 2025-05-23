@@ -97,24 +97,35 @@ export default function HomePage() {
     }
   }, [searching, searchInput]);
   useEffect(() => {
+    const state: { blockId: any, transactionId: any } = { blockId: null, transactionId: null };
     RPC.onNodeMessage = (event) => {
       switch (event.type) {
         case 'block': {
-          AppData.sync().then(() => {
-            if (account.current != null) {
-              if (typeof account.current.updateFinalizedTransactions == 'function')
-                account.current.updateFinalizedTransactions();
-              if (typeof account.current.updateMempoolTransactions == 'function')
-                account.current.updateMempoolTransactions();
-            }
-          });
+          if (state.blockId != null)
+            clearTimeout(state.blockId);
+          state.blockId = setTimeout(() => {
+            AppData.sync().then(() => {
+              if (account.current != null) {
+                if (typeof account.current.updateFinalizedTransactions == 'function')
+                  account.current.updateFinalizedTransactions();
+                if (typeof account.current.updateMempoolTransactions == 'function')
+                  account.current.updateMempoolTransactions();
+              }
+            });
+            state.blockId = null;
+          }, 500);
           break;
         }
         case 'transaction': {
-          AppData.sync().then(() => {
-            if (account.current != null && typeof account.current.updateMempoolTransactions == 'function')
-              account.current.updateMempoolTransactions();
-          });
+          if (state.transactionId != null)
+            clearTimeout(state.transactionId);
+          state.transactionId = setTimeout(() => {
+            AppData.sync().then(() => {
+              if (account.current != null && typeof account.current.updateMempoolTransactions == 'function')
+                account.current.updateMempoolTransactions();
+            });
+            state.transactionId = null;
+          }, 500);
           break;
         }
         default:

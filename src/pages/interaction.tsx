@@ -11,7 +11,7 @@ import { AssetId, Chain, Ledger, RPC, Signing, Stream, TransactionOutput, Transa
 import { AppData } from "../core/app";
 
 export class ProgramTransfer {
-  to: { address: string, memo: string | null, value: string }[] = [];
+  to: { address: string, derivation: string | null, value: string }[] = [];
 }
 
 export class ProgramCertification {
@@ -385,17 +385,15 @@ export default function InteractionPage() {
           type: new Transactions.Transfer.Many(),
           args: {
             to: program.to.map((payment) => ({
-              memo: payment.memo || '',
-              value: new BigNumber(payment.value),
-              to: Signing.decodeAddress(payment.address)
+              to: Signing.maskAddressOf(payment.address, payment.derivation),
+              value: new BigNumber(payment.value)
             }))
           }
         } : {
           type: new Transactions.Transfer.One(),
           args: {
-            memo: program.to[0].memo || '',
-            value: new BigNumber(program.to[0].value),
-            to: Signing.decodeAddress(program.to[0].address)
+            to: Signing.maskAddressOf(program.to[0].address, program.to[0].derivation),
+            value: new BigNumber(program.to[0].value)
           }
         });
       } else if (program instanceof ProgramCertification) {
@@ -526,7 +524,7 @@ export default function InteractionPage() {
       case 'transfer': 
       default: {
         const result = new ProgramTransfer();
-        result.to = [{ address: '', memo: null, value: '' }];
+        result.to = [{ address: '', derivation: null, value: '' }];
         setProgram(result);
        break; 
       }
@@ -716,11 +714,11 @@ export default function InteractionPage() {
               }
             </Flex>
             {
-              item.memo != null &&
-              <Tooltip content="Attach a message to payment">
-                <TextField.Root mb="3" size="3" placeholder="Payment message" type="text" value={item.memo} onChange={(e) => {
+              item.derivation != null &&
+              <Tooltip content="Pay to a sub-address of payment recipient (e.g. pay to a custodial account)">
+                <TextField.Root mb="3" size="3" placeholder="Payment id" type="text" value={item.derivation} onChange={(e) => {
                   const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                  copy.to[index].memo = e.target.value;
+                  copy.to[index].derivation = e.target.value;
                   setProgram(copy);
                 }} />
               </Tooltip>
@@ -741,15 +739,15 @@ export default function InteractionPage() {
               omniTransaction &&
               <Flex justify="between">
                 <Box px="1">
-                  <Tooltip content="Identify payment by number">
-                    <Text as="label" size="2" color={item.memo != null ? 'jade' : 'gray'}>
+                  <Tooltip content="Attach a payment identification for a recipient">
+                    <Text as="label" size="2" color={item.derivation != null ? 'jade' : 'gray'}>
                       <Flex gap="2" align="center" justify="end">
-                        <Checkbox size="3" checked={item.memo != null} onCheckedChange={(value) => {
+                        <Checkbox size="3" checked={item.derivation != null} onCheckedChange={(value) => {
                           const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                          copy.to[index].memo = value ? '' : null;
+                          copy.to[index].derivation = value ? '' : null;
                           setProgram(copy);
                         }} />
-                        <Text>Attach message</Text>
+                        <Text>Use payment id</Text>
                       </Flex>
                     </Text>
                   </Tooltip>
@@ -757,7 +755,7 @@ export default function InteractionPage() {
                 <IconButton variant="soft" color={index != 0 ? 'red' : 'jade'} disabled={!omniTransaction && index == 0} onClick={() => {
                   const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                   if (index == 0) {
-                    copy.to.push({ address: '', memo: null, value: '' });
+                    copy.to.push({ address: '', derivation: null, value: '' });
                   } else {
                     copy.to.splice(index, 1);
                   }

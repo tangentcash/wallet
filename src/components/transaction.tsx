@@ -12,8 +12,8 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
   const transaction = props.transaction;
   switch (transaction.type) {
     case 'transfer':
-      return transaction.transfers.map((item: any, index: number) =>
-        <Card key={item.to + index} mb={index == transaction.transfers.length - 1 ? '0' : '4'}>
+      return transaction.to.map((item: any, index: number) =>
+        <Card key={item.to + index} mb={index == transaction.to.length - 1 ? '0' : '4'}>
           <DataList.Root orientation={props.orientation}>
             <DataList.Item>
               <DataList.Label>To account:</DataList.Label>
@@ -31,13 +31,6 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
               <DataList.Label>Value paid:</DataList.Label>
               <DataList.Value>{ Readability.toMoney(transaction.asset, item.value) }</DataList.Value>
             </DataList.Item>
-            {
-              item.memo != null &&
-              <DataList.Item>
-                <DataList.Label>Memo:</DataList.Label>
-                <DataList.Value>{ item.memo }</DataList.Value>
-              </DataList.Item>
-            }
           </DataList.Root>
         </Card>
       )
