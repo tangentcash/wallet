@@ -50,10 +50,10 @@ export class Readability {
     switch (type) {
       case 'transfer':
         return 'Transfer';
-      case 'deployment':
-        return 'Contract deployment';
-      case 'invocation':
-        return 'Contract call';
+      case 'upgrade':
+        return 'Program creation';
+      case 'call':
+        return 'Program call';
       case 'rollup':
         return 'Rollup';
       case 'certification':

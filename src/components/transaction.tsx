@@ -34,27 +34,23 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           </DataList.Root>
         </Card>
       )
-    case 'deployment': {
+    case 'upgrade': {
       const args = JSON.stringify(transaction.args);
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
-            <DataList.Label>Program hash:</DataList.Label>
+            <DataList.Label>Program type:</DataList.Label>
             <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.location_address);
-                AlertBox.open(AlertType.Info, 'Program hash copied!')
-              }}>{ Readability.toHash(transaction.location_address) }</Button>
+              <Badge color="red">{ transaction.from[0].toUpperCase() + transaction.from.substring(1) }</Badge>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Program calldata:</DataList.Label>
+            <DataList.Label>Program data:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                const data: any = JSON.stringify(transaction.args, null, 2);
-                navigator.clipboard.writeText(data);
+                navigator.clipboard.writeText(transaction.data);
                 AlertBox.open(AlertType.Info, 'Program calldata copied!')
-              }}>{ Readability.toHash(transaction.calldata) }</Button>
+              }}>{ Readability.toHash(transaction.data) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -67,46 +63,43 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
               }}>{ Readability.toHash(args) }</Button>
             </DataList.Value>
           </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Properties:</DataList.Label>
-            <DataList.Value>
-              <Badge color={ transaction.patchable ? 'red' : 'jade' } mr="2">{ transaction.patchable ? 'Mutable' : 'Immutable' }</Badge>
-              <Badge color={ transaction.segregated ? 'jade' : 'red' }>{ transaction.segregated ? 'Program reuse' : 'New program' }</Badge>
-            </DataList.Value>
-          </DataList.Item>
         </DataList.Root>
       )
     }
-    case 'invocation': {
+    case 'call': {
       const args = JSON.stringify(transaction.args);
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
-            <DataList.Label>Account:</DataList.Label>
+            <DataList.Label>Program account:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.to);
+                navigator.clipboard.writeText(transaction.callable);
                 AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ Readability.toAddress(transaction.to) }</Button>
+              }}>{ Readability.toAddress(transaction.callable) }</Button>
               <Box ml="2">
-                <Link className="router-link" to={'/account/' + transaction.to}>▒▒</Link>
+                <Link className="router-link" to={'/account/' + transaction.callable}>▒▒</Link>
               </Box>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Function:</DataList.Label>
+            <DataList.Label>Program function:</DataList.Label>
             <DataList.Value>
-              <Badge>{ transaction.function } 0x{ transaction.hashcode.toString(16) }</Badge>
+              <Badge>{ transaction.function.match(/[\(\)]/) != null ? transaction.function : ('address_of(@' + transaction.function + ')') }</Badge>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Arguments:</DataList.Label>
+            <DataList.Label>Program arguments:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(JSON.stringify(transaction.args, null, 2));
-                AlertBox.open(AlertType.Info, 'Invocation arguments copied!')
+                AlertBox.open(AlertType.Info, 'Program arguments copied!')
               }}>{ Readability.toHash(args) }</Button>
             </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>Value paid:</DataList.Label>
+            <DataList.Value>{ Readability.toMoney(transaction.asset, transaction.value) }</DataList.Value>
           </DataList.Item>
         </DataList.Root>
       )
@@ -1098,7 +1091,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                   </DataList.Value>
                 </DataList.Item>
                 <DataList.Item key={index}>
-                  <DataList.Label>Arguments:</DataList.Label>
+                  <DataList.Label>Data:</DataList.Label>
                   <DataList.Value>
                     <Code color="tomato" wrap="balance" size="1" variant="soft" style={{ whiteSpace: 'pre-wrap' }}>
                       <Box px="1" py="1">{ args }</Box>
