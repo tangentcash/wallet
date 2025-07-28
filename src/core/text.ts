@@ -50,6 +50,8 @@ export class Readability {
     switch (type) {
       case 'transfer':
         return 'Transfer';
+      case 'refuel':
+        return 'Refuel';
       case 'upgrade':
         return 'Program creation';
       case 'call':

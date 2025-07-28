@@ -370,7 +370,7 @@ export class AppData {
       onNodeError: this.error,
       onCacheStore: (path: string, value: any): boolean => Storage.set(CACHE_PREFIX + ':' + path, value),
       onCacheLoad: (path: string): any | null => Storage.get(CACHE_PREFIX + ':' + path),
-      onCacheKeys: (): string[] => Storage.keys().filter((v) => v.startsWith(CACHE_PREFIX)),
+      onCacheKeys: (): string[] => Storage.keys().filter((v) => v.startsWith(CACHE_PREFIX)).map((v) => v.substring(CACHE_PREFIX.length + 1)),
       onIpsetLoad: (type: 'http' | 'ws'): string[] => Storage.get(type == 'ws' ? StorageField.Streaming : StorageField.Polling),
       onIpsetStore: (type: 'http' | 'ws', ipset: string[]) => Storage.set(type == 'ws' ? StorageField.Streaming : StorageField.Polling, ipset),
       onPropsLoad: (): InterfaceProps | null => Storage.get(StorageField.InterfaceProps) as InterfaceProps | null,

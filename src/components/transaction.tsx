@@ -33,6 +33,29 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </DataList.Item>
           </DataList.Root>
         </Card>
+      )    
+    case 'refuel':
+      return transaction.to.map((item: any, index: number) =>
+        <Card key={item.to + index} mb={index == transaction.to.length - 1 ? '0' : '4'}>
+          <DataList.Root orientation={props.orientation}>
+            <DataList.Item>
+              <DataList.Label>To account:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(item.to);
+                  AlertBox.open(AlertType.Info, 'Address copied!')
+                }}>{ Readability.toAddress(item.to) }</Button>
+                <Box ml="2">
+                  <Link className="router-link" to={'/account/' + item.to}>▒▒</Link>
+                </Box>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Gas paid:</DataList.Label>
+              <DataList.Value>{ Readability.toGas(item.value) }</DataList.Value>
+            </DataList.Item>
+          </DataList.Root>
+        </Card>
       )
     case 'upgrade': {
       const args = JSON.stringify(transaction.args);
@@ -620,6 +643,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
   const events: { event: BigNumber, args: any[] }[] = (props.events || []).filter((event) => {
     switch (event.event.toNumber()) {
       case Types.AccountBalance:
+      case Types.ValidatorProduction:
       case Types.DepositoryBalance:
       case Types.DepositoryPolicy:
       case Types.WitnessAccount:
@@ -739,6 +763,44 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
               </Card>
             )
           })
+        })
+      }
+      {
+        Object.entries(state.account.refuels).map((inputs) => {
+          const [address, value] = inputs;
+          return (
+            <Card key={'Y11' + address} mt="3">
+              <DataList.Root orientation={props.orientation}>
+                <DataList.Item>
+                  <DataList.Label>Event:</DataList.Label>
+                  <DataList.Value>
+                    <Badge color="cyan">Refuel</Badge>
+                  </DataList.Value>
+                </DataList.Item>
+                {
+                  !value.eq(0) &&
+                  <>
+                    <DataList.Item>
+                      <DataList.Label>{value.gte(0) ? 'To' : 'From' } account:</DataList.Label>
+                      <DataList.Value>
+                        <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                          navigator.clipboard.writeText(address);
+                          AlertBox.open(AlertType.Info, 'Address copied!')
+                        }}>{ Readability.toAddress(address) }</Button>
+                        <Box ml="2">
+                          <Link className="router-link" to={'/account/' + address}>▒▒</Link>
+                        </Box>
+                      </DataList.Value>
+                    </DataList.Item>
+                    <DataList.Item>
+                      <DataList.Label>Value:</DataList.Label>
+                      <DataList.Value>{ Readability.toGas(value) }</DataList.Value>
+                    </DataList.Item>
+                  </>
+                }
+              </DataList.Root>
+            </Card>
+          )
         })
       }
       {
@@ -1116,6 +1178,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const aggregation = transaction.category == 'aggregation';
   const [consensus, setConsensus] = aggregation ? useState<{ branch: string, threshold: BigNumber, progress: BigNumber, committee: BigNumber, reached: boolean } | null>(null) : [undefined, undefined];
+  const refuel = state ? state.account.refuels[ownerAddress] : null;
   if (receipt != null && receipt.block_number.gt(AppData.tip))
     AppData.tip = receipt.block_number;
 
@@ -1154,6 +1217,12 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                       </Flex>
                     )
                   })
+                }
+                {
+                  refuel && !refuel.eq(0) &&
+                  <Flex gap="2">
+                    <Badge size="1" radius="medium" color={refuel.gt(0) ? 'jade' : (refuel.isNegative() ? 'red' : 'gray')}>{ Readability.toGas(refuel, true) }</Badge>
+                  </Flex>
                 }
                 {
                   state.depository.balances[ownerAddress] && Object.keys(state.depository.balances[ownerAddress]).map((asset) => {
