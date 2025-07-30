@@ -343,7 +343,7 @@ export class AppData {
     if (!address)
       return null;
 
-    return RPC.connectSocket(address);
+    return RPC.connectSocket([address]);
   }
   static async sync(): Promise<boolean> {
     try {
