@@ -405,14 +405,14 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                         <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } depository participation</Text>
                       </Flex>
                       {
-                        item.active &&
-                        <Tooltip content={item.asset.chain + ' stake and fees received by depository participation as a signer of withdrawal transactions'}>
-                          <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.stake) } for { Readability.toCount('participation', item.participations) }</Text>
-                        </Tooltip>
+                        item.stakes.map((stake: any) =>
+                          <Tooltip content={stake.asset.chain + ' stake and fees received by depository participation as a signer of withdrawal transactions'}>
+                            <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(stake.asset, stake.stake) } for { Readability.toCount('participation', item.participations) }</Text>
+                          </Tooltip>)
                       }
                       {
-                        !item.active &&
-                        <Badge size="1" radius="medium" color="red">OFFLINE { item.participations > 0 ? ' (' + Readability.toCount('participation', item.participations) + ')' : '' }</Badge>
+                        !item.stakes.length && !item.participations &&
+                        <Badge size="1" radius="medium" color="red">OFFLINE</Badge>
                       }
                     </Box>
                   </Flex>
@@ -433,13 +433,13 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                         <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } depository attestation</Text>
                       </Flex>
                       {
-                        item.active &&
-                        <Tooltip content={item.asset.chain + ' stake and fees received by depository attestation as a deposit/withdrawal transaction notifications'}>
-                          <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.stake) }</Text>
-                        </Tooltip>
+                        item.stakes.map((stake: any) =>
+                          <Tooltip content={stake.asset.chain + ' stake and fees received by depository attestation as a deposit/withdrawal transaction notifications'}>
+                            <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(stake.asset, stake.stake) }</Text>
+                          </Tooltip>)
                       }
                       {
-                        !item.active &&
+                        !item.stakes.length &&
                         <Badge size="1" radius="medium" color="red">OFFLINE</Badge>
                       }
                     </Box>
