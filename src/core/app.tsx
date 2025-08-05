@@ -318,14 +318,14 @@ export class AppData {
         gas = new BigNumber(gas, 16);
       }
 
-      if (!gas || !(gas instanceof BigNumber) || !gas.gte(0)) {
+      if (!gas || !BigNumber.isBigNumber(gas) || !gas.gte(0)) {
         gas = await RPC.getEstimateTransactionGas(intermediate.data);
         if (typeof gas == 'string') {
           gas = new BigNumber(gas, 16);
         }
       }
       
-      if (gas != null && gas instanceof BigNumber && gas.gte(0)) {
+      if (gas != null && BigNumber.isBigNumber(gas) && gas.gte(0)) {
         intermediate.body.gasLimit = new Uint256(gas.toString());
       } else {
         throw new Error('Cannot fetch transaction gas limit');
@@ -350,7 +350,7 @@ export class AppData {
       const tipNumber = await RPC.getBlockTipNumber();
       if (typeof tipNumber == 'string')
         this.tip = new BigNumber(tipNumber, 16);
-      else if (tipNumber instanceof BigNumber)
+      else if (BigNumber.isBigNumber(tipNumber))
         this.tip = tipNumber;
       return true;
     } catch {

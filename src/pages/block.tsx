@@ -56,10 +56,10 @@ export default function BlockPage() {
       AppData.tip = block.number;
 
     const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
-    const time = block.approval_time.minus(block.proposal_time).toNumber();
-    const priority = block.priority.toNumber();
+    const time = block.evaluation_time.minus(block.generation_time).toNumber();
+    const priority:number = 12;//block.priority.toNumber();
     const subpriority = priority == 0 && (AppData.tip || new BigNumber(0)).lte(block.number) ? 1 : priority;
-    const possibility = 100 * Math.min(1, Math.max(0, (subpriority > 0 ? 0.4 : 0.0) + lerp(0.0, 0.5, subpriority / (Chain.props.PRODUCTION_COMMITTEE - 1))));
+    const possibility = 100 * Math.min(1, Math.max(0, (subpriority > 0 ? 0.4 : 0.0) + Math.min(0.55, lerp(0.0, 0.55, subpriority / Chain.props.PRODUCTION_COMMITTEE))));
     return (
       <Box px="4" pt="4">
         <Flex justify="between" align="center">
@@ -105,28 +105,6 @@ export default function BlockPage() {
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>Status:</DataList.Label>
-              <DataList.Value>
-                <Badge color={block.recovery.gt(0) ? 'red' : 'gray'}>{ block.recovery.gt(0) ? 'Recovery' : 'Extension' } in { Readability.toTimespan(time) }</Badge>
-              </DataList.Value>
-            </DataList.Item>
-            {
-              block.witnesses.map((item: any) => {
-                return (
-                  <DataList.Item key={item.asset.chain + item.number.toString()}>
-                    <DataList.Label>Witnessed by:</DataList.Label>
-                    <DataList.Value>
-                      <Badge color="gray" >{ item.asset.chain } block number #{ item.number.toString() }</Badge>
-                    </DataList.Value>
-                  </DataList.Item>
-                )
-              })
-            }
-            <DataList.Item>
-              <DataList.Label>Time:</DataList.Label>
-              <DataList.Value>{ new Date(block.approval_time.toNumber()).toLocaleString() }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
               <DataList.Label>Signature:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
@@ -136,39 +114,14 @@ export default function BlockPage() {
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>Wesolowski proof:</DataList.Label>
+              <DataList.Label>Proof:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.wesolowski);
+                  navigator.clipboard.writeText(block.proof);
                   AlertBox.open(AlertType.Info, 'Block proof copied!')
-                }}>{ Readability.toHash(block.wesolowski) }</Button>
+                }}>{ Readability.toHash(block.proof) }</Button>
               </DataList.Value>
             </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Producer account:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.producer);
-                  AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ Readability.toAddress(block.producer) }</Button>
-                <Box ml="2">
-                  <Link className="router-link" to={'/account/' + block.producer}>▒▒</Link>
-                </Box>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Leader priority:</DataList.Label>
-              <DataList.Value>Slot leader #{priority + 1}</DataList.Value>
-            </DataList.Item>
-            {
-              AppData.tip != null &&
-              <DataList.Item>
-                <DataList.Label>Confidence:</DataList.Label>
-                <DataList.Value>
-                  <Badge color="orange">{ Readability.toCount('confirmation', AppData.tip.minus(block.number).plus(1)) }</Badge>
-                </DataList.Value>
-              </DataList.Item>
-            }
             <DataList.Item>
               <DataList.Label>TX merkle root:</DataList.Label>
               <DataList.Value>
@@ -188,7 +141,7 @@ export default function BlockPage() {
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>ST merkle root:</DataList.Label>
+              <DataList.Label>SV merkle root:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.state_root);
@@ -196,6 +149,62 @@ export default function BlockPage() {
                 }}>{ Readability.toHash(block.state_root) }</Button>
               </DataList.Value>
             </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Producer account:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(block.producer);
+                  AlertBox.open(AlertType.Info, 'Address copied!')
+                }}>{ Readability.toAddress(block.producer) }</Button>
+                <Box ml="2">
+                  <Link className="router-link" to={'/account/' + block.producer}>▒▒</Link>
+                </Box>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Leader priority:</DataList.Label>
+              {
+                priority >= Chain.props.PRODUCTION_COMMITTEE &&
+                <DataList.Value>
+                  <Badge color="red">Oprate leader #{ priority + 1 }</Badge>
+                </DataList.Value>
+              }
+              {
+                priority < Chain.props.PRODUCTION_COMMITTEE &&
+                <DataList.Value>Slot leader #{ priority + 1 }</DataList.Value>
+              }
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Status:</DataList.Label>
+              <DataList.Value>
+                <Badge color="gray">Extension in { Readability.toTimespan(time) }</Badge>
+              </DataList.Value>
+            </DataList.Item>
+            {
+              block.witnesses.map((item: any) => {
+                return (
+                  <DataList.Item key={item.asset.chain + item.number.toString()}>
+                    <DataList.Label>Witnessed by:</DataList.Label>
+                    <DataList.Value>
+                      <Badge color="gray">{ item.asset.chain } block number #{ item.number.toString() }</Badge>
+                    </DataList.Value>
+                  </DataList.Item>
+                )
+              })
+            }
+            <DataList.Item>
+              <DataList.Label>Time:</DataList.Label>
+              <DataList.Value>{ new Date(block.evaluation_time.toNumber()).toLocaleString() }</DataList.Value>
+            </DataList.Item>
+            {
+              AppData.tip != null &&
+              <DataList.Item>
+                <DataList.Label>Confidence:</DataList.Label>
+                <DataList.Value>
+                  <Badge color="orange">{ Readability.toCount('confirmation', AppData.tip.minus(block.number).plus(1)) }</Badge>
+                </DataList.Value>
+              </DataList.Item>
+            }
             <DataList.Item>
               <DataList.Label>Transactions:</DataList.Label>
               <DataList.Value>{ Readability.toCount('transaction', block.transaction_count) }</DataList.Value>
@@ -206,9 +215,16 @@ export default function BlockPage() {
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Proof difficulty:</DataList.Label>
-              <DataList.Value>
-                <Badge color="red">{ Readability.toUnit(block.difficulty) } in { Readability.toTimespan(block.wesolowski_time) }</Badge>
-              </DataList.Value>
+              {
+                block.difficulty_multiplier > 1 &&
+                <DataList.Value>
+                  <Badge color="red">{ Readability.toCount('op', block.difficulty) } +{ ((block.difficulty_multiplier.toNumber() * 100) - 100).toFixed(2) + '%' }</Badge>
+                </DataList.Value>
+              }
+              {
+                block.difficulty_multiplier <= 1 &&
+                <DataList.Value>{ Readability.toCount('op', block.difficulty) }</DataList.Value>
+              }
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Absolute work:</DataList.Label>
@@ -232,8 +248,8 @@ export default function BlockPage() {
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>Slot time target:</DataList.Label>
-              <DataList.Value>{ Readability.toTimespan(block.slot_duration_target) } per block</DataList.Value>
+              <DataList.Label>Slot time average:</DataList.Label>
+              <DataList.Value>{ Readability.toTimespan(block.slot_duration_average) } per block</DataList.Value>
             </DataList.Item>
           </DataList.Root>
           <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>

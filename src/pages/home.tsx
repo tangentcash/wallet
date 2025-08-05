@@ -106,6 +106,8 @@ export default function HomePage() {
           state.blockId = setTimeout(() => {
             AppData.sync().then(() => {
               if (account.current != null) {
+                if (typeof account.current.updateFullAccountData == 'function')
+                  account.current.updateFullAccountData();
                 if (typeof account.current.updateFinalizedTransactions == 'function')
                   account.current.updateFinalizedTransactions();
                 if (typeof account.current.updateMempoolTransactions == 'function')

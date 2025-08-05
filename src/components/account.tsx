@@ -89,7 +89,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
       return false;
     }
   }, [ownerAddress]);
-  useEffectAsync(async () => {
+  const updateFullAccountData = useCallback(async () => { 
     await Promise.all([
       (async () => {
         try {
@@ -146,6 +146,9 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
       findMempoolTransactions(),
       findTransactions(true)
     ]);
+  }, [ownerAddress]);
+  useEffectAsync(async () => {
+    await updateFullAccountData();
     setLoading(false);
   }, [ownerAddress]);
   if (ref != null) {

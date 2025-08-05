@@ -14,11 +14,6 @@ export class ProgramTransfer {
   to: { address: string, derivation: string | null, value: string }[] = [];
 }
 
-export class ProgramRefuel {
-  to: { address: string, derivation: string | null, value: string }[] = [];
-  gas: BigNumber = new BigNumber(0);
-}
-
 export class ProgramCertification {
   assets: AssetId[] = []
   blockProduction: 'standby' | 'enable' | 'disable' = 'standby';
@@ -57,7 +52,7 @@ export class ProgramDepositoryWithdrawalMigration {
 }
 
 export default function InteractionPage() {
-  const ownerAddress = 'tcrt1x4ajc95akrzgrz26gyrt8a49w20qwjmyk6x3pqd';//AppData.getWalletAddress() || '';
+  const ownerAddress = AppData.getWalletAddress() || '';
   const [query] = useSearchParams();
   const params = {
     type: query.get('type'),
@@ -74,7 +69,7 @@ export default function InteractionPage() {
   const [loadingGasLimit, setLoadingGasLimit] = useState(false);
   const [conservative, setConservative] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
-  const [program, setProgram] = useState<ProgramTransfer | ProgramRefuel | ProgramCertification | ProgramDepositoryAccount | ProgramDepositoryWithdrawal | ProgramDepositoryAdjustment | ProgramDepositoryRegrouping | ProgramDepositoryWithdrawalMigration | null>(null);
+  const [program, setProgram] = useState<ProgramTransfer | ProgramCertification | ProgramDepositoryAccount | ProgramDepositoryWithdrawal | ProgramDepositoryAdjustment | ProgramDepositoryRegrouping | ProgramDepositoryWithdrawalMigration | null>(null);
   const navigate = useNavigate();
   const maxFeeValue = useMemo((): BigNumber => {
     try {
@@ -98,9 +93,6 @@ export default function InteractionPage() {
     if (program instanceof ProgramTransfer) {
       return true;
     }
-    else if (program instanceof ProgramRefuel) {
-      return true;
-    }
     else if (program instanceof ProgramDepositoryWithdrawal) {
       const blockchain = program.routing.find((item) => item.chain == assets[asset].asset.chain);
       return blockchain != null && blockchain.policy == 'utxo';
@@ -110,8 +102,6 @@ export default function InteractionPage() {
   }, [asset, program]);
   const transactionType = useMemo((): string => {
     if (program instanceof ProgramTransfer) {
-      return program.to.length > 1 ? 'Send to many' : 'Send to one';
-    } else if (program instanceof ProgramRefuel) {
       return program.to.length > 1 ? 'Send to many' : 'Send to one';
     } else if (program instanceof ProgramCertification) {
       return 'Validator adjustment';
@@ -133,15 +123,6 @@ export default function InteractionPage() {
       return program.to.reduce((value, next) => {
         try {
           const numeric = new BigNumber(next.value.trim());
-          return numeric.isPositive() ? value.plus(numeric) : value;
-        } catch {
-          return value;
-        }
-      }, new BigNumber(0));
-    } else if (program instanceof ProgramRefuel) {
-      return program.to.reduce((value, next) => {
-        try {
-          const numeric = new BigNumber(next.value.trim()).integerValue();
           return numeric.isPositive() ? value.plus(numeric) : value;
         } catch {
           return value;
@@ -183,26 +164,6 @@ export default function InteractionPage() {
       }
   
       return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
-    } else if (program instanceof ProgramRefuel) {
-      for (let i = 0; i < program.to.length; i++) {
-        const payment = program.to[i];
-        if (payment.address.trim() == ownerAddress)
-          return false;
-  
-        const publicKeyHash = Signing.decodeAddress(payment.address.trim());
-        if (!publicKeyHash || publicKeyHash.data.length != 20)
-          return false;
-
-        try {
-          const numeric = new BigNumber(payment.value.trim()).integerValue();
-          if (numeric.isNaN() || !numeric.isPositive())
-            return false;
-        } catch {
-          return false;
-        }
-      }
-  
-      return sendingValue.gt(0) && sendingValue.lte(program.gas);
     } else if (program instanceof ProgramCertification) {
         for (let i = 0; i < program.participationStakes.length; i++) {
           let item = program.participationStakes[i];
@@ -323,9 +284,6 @@ export default function InteractionPage() {
       return false;
     }
 
-    if (program instanceof ProgramRefuel)
-      return maxFeeValue.lte(assets[asset].balance);
-
     return maxFeeValue.plus(sendingValue).lte(assets[asset].balance);
   }, [programReady, gasPrice, gasLimit, maxFeeValue, sendingValue]);
   const setRemainingValue = useCallback((index: number) => {
@@ -334,17 +292,6 @@ export default function InteractionPage() {
       let value = balance.minus(sendingValue);
       try {
         const numeric = new BigNumber(program.to[index].value.trim());
-        if (!numeric.isNaN() && numeric.isPositive())
-          value = value.minus(numeric);
-      } catch { }
-      
-      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-      copy.to[index].value = value.lt(0) ? '0' : value.toString();
-      setProgram(copy);
-    } else if (program instanceof ProgramRefuel) {
-      let value = program.gas.minus(sendingValue);
-      try {
-        const numeric = new BigNumber(program.to[index].value.trim()).integerValue();
         if (!numeric.isNaN() && numeric.isPositive())
           value = value.minus(numeric);
       } catch { }
@@ -361,7 +308,7 @@ export default function InteractionPage() {
     setLoadingGasPrice(true);
     try {
       const price = await RPC.getGasPrice(new AssetId(assets[asset].asset.id), percentile);
-      if (price != null && price instanceof BigNumber && price.gte(0)) {
+      if (price != null && BigNumber.isBigNumber(price) && price.gte(0)) {
         setGasPrice(price.toString());
       } else {
         setGasPrice('0');
@@ -390,14 +337,14 @@ export default function InteractionPage() {
         gas = new BigNumber(gas, 16);
       }
 
-      if (!gas || !(gas instanceof BigNumber) || !gas.gte(0)) {
+      if (!gas || !BigNumber.isBigNumber(gas) || !gas.gte(0)) {
         gas = await RPC.getEstimateTransactionGas(output.data);
         if (typeof gas == 'string') {
           gas = new BigNumber(gas, 16);
         }
       }
       
-      if (gas != null && gas instanceof BigNumber && gas.gte(0)) {
+      if (gas != null && BigNumber.isBigNumber(gas) && gas.gte(0)) {
         setGasLimit(gas.toString());
         output.body.gasLimit = new Uint256(gas.toString());
         await buildTransaction(output);
@@ -447,22 +394,6 @@ export default function InteractionPage() {
           args: {
             to: Signing.maskAddressOf(program.to[0].address, program.to[0].derivation),
             value: new BigNumber(program.to[0].value)
-          }
-        });
-      } else if (program instanceof ProgramRefuel) {
-        return buildProgram(program.to.length > 1 ? {
-          type: new Transactions.Refuel.Many(),
-          args: {
-            to: program.to.map((payment) => ({
-              to: Signing.maskAddressOf(payment.address, payment.derivation),
-              value: new Uint256(new BigNumber(payment.value).integerValue().toString(), 10)
-            }))
-          }
-        } : {
-          type: new Transactions.Refuel.One(),
-          args: {
-            to: Signing.maskAddressOf(program.to[0].address, program.to[0].derivation),
-            value: new Uint256(new BigNumber(program.to[0].value).integerValue().toString(), 10)
           }
         });
       } else if (program instanceof ProgramCertification) {
@@ -597,13 +528,6 @@ export default function InteractionPage() {
         setProgram(result);
        break; 
       }
-      case 'refuel': {
-        const result = new ProgramRefuel();
-        result.to = [{ address: '', derivation: null, value: '' }];
-        try { result.gas = (await RPC.getValidatorProduction(ownerAddress)).gas; } catch { }
-        setProgram(result);
-       break; 
-      }
       case 'certification': {
         const result = new ProgramCertification();
         try { result.assets = ((await RPC.getBlockchains()) || []).map((v) => AssetId.fromHandle(v.chain)); } catch { }
@@ -702,9 +626,6 @@ export default function InteractionPage() {
               <Tooltip content="Change block production and/or participation/attestation stake(s)">
                 <DropdownMenu.Item shortcut="⟳ ₿" onClick={() => navigate('/interaction?type=certification')}>Configure validator</DropdownMenu.Item>
               </Tooltip>
-              <Tooltip content="Transfer/pay gas to one or more (possibly validator) accounts">
-                <DropdownMenu.Item shortcut="⟳ ₿" onClick={() => navigate('/interaction?type=refuel')}>Refuel validator</DropdownMenu.Item>
-              </Tooltip>
               <DropdownMenu.Separator />
               <Tooltip content="Configure fee, security and functionality policy for a depository">
                 <DropdownMenu.Item shortcut="⇌ ₿" onClick={() => navigate('/interaction?type=adjustment')}>Configure depository</DropdownMenu.Item>
@@ -770,14 +691,6 @@ export default function InteractionPage() {
             </Tooltip>
           </Box>
         }
-        {
-          asset != -1 && (program instanceof ProgramRefuel) &&
-          <Box width="100%" mt="3">
-            <Tooltip content="Gas production balance">
-              <TextField.Root size="3" placeholder="Gas balance" type="text" color="red" value={Readability.toGas(program.gas) + ' payable'} readOnly={true} />
-            </Tooltip>
-          </Box>
-        }
       </Card>
       {
         asset != -1 && program instanceof ProgramTransfer && program.to.map((item, index) =>
@@ -814,82 +727,6 @@ export default function InteractionPage() {
               <Box width="100%">
                 <Tooltip content="Payment value received by account">
                   <TextField.Root mb="3" size="3" placeholder={'Payment value in ' + (assets[asset].asset.token || assets[asset].asset.chain)} type="number" value={item.value} onChange={(e) => {
-                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                    copy.to[index].value = e.target.value;
-                    setProgram(copy);
-                  }} />
-                </Tooltip>
-              </Box>
-              <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
-            </Flex>
-            {
-              omniTransaction &&
-              <Flex justify="between">
-                <Box px="1">
-                  <Tooltip content="Attach a payment identification for a recipient">
-                    <Text as="label" size="2" color={item.derivation != null ? 'jade' : 'gray'}>
-                      <Flex gap="2" align="center" justify="end">
-                        <Checkbox size="3" checked={item.derivation != null} onCheckedChange={(value) => {
-                          const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                          copy.to[index].derivation = value ? '' : null;
-                          setProgram(copy);
-                        }} />
-                        <Text>Use payment id</Text>
-                      </Flex>
-                    </Text>
-                  </Tooltip>
-                </Box>
-                <IconButton variant="soft" color={index != 0 ? 'red' : 'jade'} disabled={!omniTransaction && index == 0} onClick={() => {
-                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                  if (index == 0) {
-                    copy.to.push({ address: '', derivation: null, value: '' });
-                  } else {
-                    copy.to.splice(index, 1);
-                  }
-                  setProgram(copy);
-                }}>
-                  <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
-                </IconButton>
-              </Flex>
-            }
-          </Card>
-        )
-      }
-      {
-        asset != -1 && program instanceof ProgramRefuel && program.to.map((item, index) =>
-          <Card mt="4" key={index}>
-            <Heading size="4" mb="2">Send to account{ program.to.length > 1 ? ' #' + (index + 1) : ''}</Heading>
-            <Flex gap="2" mb="3">
-              <Box width="100%">
-                <Tooltip content="Send to account address">
-                  <TextField.Root size="3" placeholder="Send to account" type="text" value={item.address} onChange={(e) => {
-                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                    copy.to[index].address = e.target.value;
-                    setProgram(copy);
-                  }} />
-                </Tooltip>
-              </Box>
-              {
-                programReady &&
-                <Button size="3" variant="outline" color="gray" disabled={!programReady}>
-                  <Link className="router-link" to={'/account/' + item.address}>▒▒</Link>
-                </Button>
-              }
-            </Flex>
-            {
-              item.derivation != null &&
-              <Tooltip content="Pay to a sub-address of payment recipient (e.g. pay to a custodial account)">
-                <TextField.Root mb="3" size="3" placeholder="Payment id" type="text" value={item.derivation} onChange={(e) => {
-                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                  copy.to[index].derivation = e.target.value;
-                  setProgram(copy);
-                }} />
-              </Tooltip>
-            }
-            <Flex gap="2">
-              <Box width="100%">
-                <Tooltip content="Gas payment received by account">
-                  <TextField.Root mb="3" size="3" placeholder={'Payment value in gas units'} type="number" value={item.value} onChange={(e) => {
                     const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                     copy.to[index].value = e.target.value;
                     setProgram(copy);
@@ -1286,7 +1123,7 @@ export default function InteractionPage() {
             </Tooltip>
           </Box>
           {
-            !(program instanceof ProgramRefuel) && maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber() > 40.0 &&
+            maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber() > 40.0 &&
             <Flex justify="end" pt="4">
               <Text color="orange" size="2" weight="medium">Warning: transaction fee may cost up to {maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber().toFixed(2)}% of paying value</Text>
             </Flex>
@@ -1337,15 +1174,6 @@ export default function InteractionPage() {
                 }}/>
               </Tooltip>
             }
-            {
-              (program instanceof ProgramRefuel) &&
-              <Tooltip content="Total transaction gas payment value">
-                <TextField.Root mb="3" size="3" placeholder="Gas payment value" readOnly={true} value={ '— ' + Readability.toGas(sendingValue) + ' as payment' } onClick={() => {
-                  navigator.clipboard.writeText(sendingValue.toString());
-                  AlertBox.open(AlertType.Info, 'Value copied!')
-                }}/>
-              </Tooltip>
-            }
             <Tooltip content="Max possible transaction fee">
               <TextField.Root mb="3" size="3" placeholder="Max fee value" readOnly={true} value={ '— ' + Readability.toMoney(assets[asset].asset, maxFeeValue) + ' as max fee' } onClick={() => {
                 navigator.clipboard.writeText(maxFeeValue.toString());
@@ -1353,7 +1181,7 @@ export default function InteractionPage() {
               }}/>
             </Tooltip>
             <Tooltip content="Total transaction payment value including max possible fee">
-              <TextField.Root mb="1" size="3" placeholder="Payment value" readOnly={true} value={ '— ' + Readability.toMoney(assets[asset].asset, program instanceof ProgramRefuel ? maxFeeValue : sendingValue.plus(maxFeeValue)) + ' as max total cost' } onClick={() => {
+              <TextField.Root mb="1" size="3" placeholder="Payment value" readOnly={true} value={ '— ' + Readability.toMoney(assets[asset].asset, sendingValue.plus(maxFeeValue)) + ' as max total cost' } onClick={() => {
                 navigator.clipboard.writeText(sendingValue.plus(maxFeeValue).toString());
                 AlertBox.open(AlertType.Info, 'Value copied!')
               }}/>
@@ -1371,10 +1199,6 @@ export default function InteractionPage() {
                   {
                     asset != -1 && program instanceof ProgramTransfer &&
                     <Text as="div" weight="light" size="4" mb="1">— Send <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', program.to.length) }</Text></Text>        
-                  }
-                  {
-                    asset != -1 && program instanceof ProgramRefuel &&
-                    <Text as="div" weight="light" size="4" mb="1">— Send <Text color="red">{ Readability.toGas(sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', program.to.length) }</Text></Text>        
                   }
                   {
                     asset != -1 && program instanceof ProgramCertification &&

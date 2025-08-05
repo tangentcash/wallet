@@ -90,7 +90,7 @@ export class Readability {
     if (value == null)
       return 'NULL';
 
-    const numeric: BigNumber = value instanceof BigNumber ? value : new BigNumber(value);
+    const numeric: BigNumber = BigNumber.isBigNumber(value) ? value : new BigNumber(value);
     const places = numeric.decimalPlaces();
     const text: string[] = (places ? numeric.toFormat(places) : numeric.toString()).split('.');
     if (trailing && text.length < 2)
@@ -106,7 +106,7 @@ export class Readability {
     if (value == null)
       return 'NULL';
 
-    const numeric: BigNumber = value instanceof BigNumber ? value : new BigNumber(value);
+    const numeric: BigNumber = BigNumber.isBigNumber(value) ? value : new BigNumber(value);
     const asset = new AssetId();
     asset.chain = numeric.eq(1) ? 'unit' : 'units';
     return this.toValue(asset, numeric, delta || false, false);
@@ -115,7 +115,7 @@ export class Readability {
     if (value == null)
       return 'NULL';
 
-    const numeric: BigNumber = value instanceof BigNumber ? value : new BigNumber(value);
+    const numeric: BigNumber = BigNumber.isBigNumber(value) ? value : new BigNumber(value);
     const asset = new AssetId();
     asset.chain = numeric.eq(1) ? 'gas unit' : 'gas units';
     return this.toValue(asset, numeric, delta || false, false);
@@ -124,7 +124,7 @@ export class Readability {
     if (value == null)
       return 'NULL';
 
-    const numeric: BigNumber = value instanceof BigNumber ? value : new BigNumber(value);
+    const numeric: BigNumber = BigNumber.isBigNumber(value) ? value : new BigNumber(value);
     const seconds = numeric.gte(1000);
     const asset = new AssetId();
     asset.chain = seconds ? 'sec.' : 'ms';
@@ -134,7 +134,7 @@ export class Readability {
     if (value == null)
       return 'NULL';
 
-    const numeric: BigNumber = value instanceof BigNumber ? value : new BigNumber(value);
+    const numeric: BigNumber = BigNumber.isBigNumber(value) ? value : new BigNumber(value);
     const asset = new AssetId();
     asset.chain = numeric.eq(1) ? name : (name + 's');
     return this.toValue(asset, numeric, delta || false, false);
