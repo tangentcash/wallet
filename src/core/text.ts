@@ -1,4 +1,4 @@
-import { AssetId } from 'tangentsdk';
+import { AssetId, Transactions } from 'tangentsdk';
 import BigNumber from "bignumber.js";
 import Names from '../assets/cryptocurrency/names.json';
 import Colors from '../assets/cryptocurrency/colors.json';
@@ -6,7 +6,7 @@ import Colors from '../assets/cryptocurrency/colors.json';
 export class Readability {
   static toAssetName(asset: AssetId): string {
     const token: string | null = asset.token?.toUpperCase() || null;
-    const chain: string = asset.chain?.toUpperCase() || '[CHAIN?]';
+    const chain: string = asset.chain?.toUpperCase() || 'Unknown';
     if (token != null) {
       const name = (Names as Record<string, string>)[token];
       if (name != null)
@@ -15,7 +15,7 @@ export class Readability {
       return token + ' on ' + chain;
     }
 
-    return (Names as Record<string, string>)[chain] || chain;
+    return (Names as Record<string, string>)[chain] || chain ;
   }
   static toAssetColor(asset: AssetId): string {
     const token: string | null = asset.token?.toLowerCase() || null;
@@ -47,50 +47,16 @@ export class Readability {
     }
   }
   static toTransactionType(type: string): string {
-    switch (type) {
-      case 'transfer':
-        return 'Transfer';
-      case 'refuel':
-        return 'Refuel';
-      case 'upgrade':
-        return 'Program creation';
-      case 'call':
-        return 'Program call';
-      case 'rollup':
-        return 'Rollup';
-      case 'certification':
-        return 'Validator certification';
-      case 'routing_account':
-        return 'Routing address registration';
-      case 'depository_account':
-        return 'Depository address selection';
-      case 'depository_account_finalization':
-        return 'Depository address registration';
-      case 'depository_withdrawal':
-        return 'Depository withdrawal';
-      case 'depository_withdrawal_finalization':
-        return 'Depository withdrawal confirmation';
-      case 'depository_transaction':
-        return 'Depository transaction';
-      case 'depository_adjustment':
-        return 'Depository policy renewal';
-      case 'depository_regrouping':
-        return 'Depository group selection';
-      case 'depository_regrouping_preparation':
-        return 'Depository group announcement';
-      case 'depository_regrouping_commitment':
-        return 'Depository group migration';
-      case 'depository_regrouping_finalization':
-        return 'Depository group confirmation';
-      default:
-        return 'Non-standard';
-    }
+    return Transactions.typenames[type] || 'Non-standard';
   }
   static toValue(asset: AssetId, value: string | number | BigNumber | null, delta: boolean, trailing: boolean): string {
     if (value == null)
       return 'NULL';
 
     const numeric: BigNumber = BigNumber.isBigNumber(value) ? value : new BigNumber(value);
+    if (numeric.isNaN())
+      return 'NULL';
+
     const places = numeric.decimalPlaces();
     const text: string[] = (places ? numeric.toFormat(places) : numeric.toString()).split('.');
     if (trailing && text.length < 2)

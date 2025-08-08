@@ -1142,7 +1142,6 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
       }
       {
         events.map((event, index) => {
-          const args = JSON.stringify(event.args.length > 1 ? event.args : event.args[0], null, 2);
           return (
             <Card key={'Y10' + event.event.toString() + index} mt="3">
               <DataList.Root orientation={props.orientation}>
@@ -1152,14 +1151,17 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <Badge>0x{ event.event.toString(16) }</Badge>
                   </DataList.Value>
                 </DataList.Item>
-                <DataList.Item key={index}>
-                  <DataList.Label>Data:</DataList.Label>
-                  <DataList.Value>
-                    <Code color="tomato" wrap="balance" size="1" variant="soft" style={{ whiteSpace: 'pre-wrap' }}>
-                      <Box px="1" py="1">{ args }</Box>
-                    </Code>
-                  </DataList.Value>
-                </DataList.Item>
+                {
+                  event.args.length > 0 &&
+                  <DataList.Item key={index}>
+                    <DataList.Label>Data:</DataList.Label>
+                    <DataList.Value>
+                      <Code color="tomato" wrap="balance" size="1" variant="soft" style={{ whiteSpace: 'pre-wrap' }}>
+                        <Box px="1" py="1">{ JSON.stringify(event.args.length > 1 ? event.args : event.args[0], null, 2) }</Box>
+                      </Code>
+                    </DataList.Value>
+                  </DataList.Item>
+                }
               </DataList.Root>
             </Card>
           )

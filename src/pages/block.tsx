@@ -57,8 +57,8 @@ export default function BlockPage() {
 
     const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
     const time = block.evaluation_time.minus(block.generation_time).toNumber();
-    const priority:number = 12;//block.priority.toNumber();
-    const subpriority = priority == 0 && (AppData.tip || new BigNumber(0)).lte(block.number) ? 1 : priority;
+    const priority: number = block.priority.toNumber();
+    const subpriority = priority == 0 && (AppData.tip || new BigNumber(0)).lte(block.number) ? 0 : priority;
     const possibility = 100 * Math.min(1, Math.max(0, (subpriority > 0 ? 0.4 : 0.0) + Math.min(0.55, lerp(0.0, 0.55, subpriority / Chain.props.PRODUCTION_COMMITTEE))));
     return (
       <Box px="4" pt="4">
