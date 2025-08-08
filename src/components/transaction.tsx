@@ -643,7 +643,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
   const events: { event: BigNumber, args: any[] }[] = (props.events || []).filter((event) => {
     switch (event.event.toNumber()) {
       case Types.AccountBalance:
-      case Types.ValidatorProduction:
+      case Types.AccountProgram:
       case Types.DepositoryBalance:
       case Types.DepositoryPolicy:
       case Types.WitnessAccount:
@@ -659,52 +659,10 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
   return (
     <>
       {
-        Object.entries(state.account.fees).map((inputs) => {
-          const address = inputs[0];
-          return Object.entries(inputs[1]).map((data) => {
-            const event = data[1];
-            return (
-              <Card key={'Y00' + address + event.asset.handle} mt="3">
-                <DataList.Root orientation={props.orientation}>
-                  <DataList.Item>
-                    <DataList.Label>Event:</DataList.Label>
-                    <DataList.Value>
-                      <Badge color="red">Fee</Badge>
-                    </DataList.Value>
-                  </DataList.Item>
-                  {
-                    !event.fee.eq(0) &&
-                    <>
-                      <DataList.Item>
-                        <DataList.Label>{event.fee.gte(0) ? 'To' : 'From' } account:</DataList.Label>
-                        <DataList.Value>
-                          <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                            navigator.clipboard.writeText(address);
-                            AlertBox.open(AlertType.Info, 'Address copied!')
-                          }}>{ Readability.toAddress(address) }</Button>
-                          <Box ml="2">
-                            <Link className="router-link" to={'/account/' + address}>▒▒</Link>
-                          </Box>
-                        </DataList.Value>
-                      </DataList.Item>
-                      <DataList.Item>
-                        <DataList.Label>Value:</DataList.Label>
-                        <DataList.Value>{ Readability.toMoney(event.asset, event.fee) }</DataList.Value>
-                      </DataList.Item>
-                    </>
-                  }
-                </DataList.Root>
-              </Card>
-            )
-          })
-        })
-      }
-      {
         Object.entries(state.account.balances).map((inputs) => {
           const address = inputs[0];
           return Object.entries(inputs[1]).map((data) => {
-            const [asset, event] = data;
-            const supply = event.supply.minus(state.account.fees[address] ? state.account.fees[address][asset]?.fee || 0 : 0);
+            const [_, event] = data;
             return (
               <Card key={'Y0' + address + event.asset.handle} mt="3">
                 <DataList.Root orientation={props.orientation}>
@@ -715,10 +673,10 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     </DataList.Value>
                   </DataList.Item>
                   {
-                    !supply.eq(0) &&
+                    !event.supply.eq(0) &&
                     <>
                       <DataList.Item>
-                        <DataList.Label>{supply.gte(0) ? 'To' : 'From' } account:</DataList.Label>
+                        <DataList.Label>{event.supply.gte(0) ? 'To' : 'From' } account:</DataList.Label>
                         <DataList.Value>
                           <Button size="2" variant="ghost" color="indigo" onClick={() => {
                             navigator.clipboard.writeText(address);
@@ -731,7 +689,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                       </DataList.Item>
                       <DataList.Item>
                         <DataList.Label>Value:</DataList.Label>
-                        <DataList.Value>{ Readability.toMoney(event.asset, supply) }</DataList.Value>
+                        <DataList.Value>{ Readability.toMoney(event.asset, event.supply) }</DataList.Value>
                       </DataList.Item>
                     </>
                   }
@@ -766,38 +724,28 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
         })
       }
       {
-        Object.entries(state.account.refuels).map((inputs) => {
-          const [address, value] = inputs;
+        Array.from(state.account.programs.keys()).map((address) => {
           return (
             <Card key={'Y11' + address} mt="3">
               <DataList.Root orientation={props.orientation}>
                 <DataList.Item>
                   <DataList.Label>Event:</DataList.Label>
                   <DataList.Value>
-                    <Badge color="cyan">Refuel</Badge>
+                    <Badge color="cyan">Account upgrade</Badge>
                   </DataList.Value>
                 </DataList.Item>
-                {
-                  !value.eq(0) &&
-                  <>
-                    <DataList.Item>
-                      <DataList.Label>{value.gte(0) ? 'To' : 'From' } account:</DataList.Label>
-                      <DataList.Value>
-                        <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                          navigator.clipboard.writeText(address);
-                          AlertBox.open(AlertType.Info, 'Address copied!')
-                        }}>{ Readability.toAddress(address) }</Button>
-                        <Box ml="2">
-                          <Link className="router-link" to={'/account/' + address}>▒▒</Link>
-                        </Box>
-                      </DataList.Value>
-                    </DataList.Item>
-                    <DataList.Item>
-                      <DataList.Label>Value:</DataList.Label>
-                      <DataList.Value>{ Readability.toGas(value) }</DataList.Value>
-                    </DataList.Item>
-                  </>
-                }
+                <DataList.Item>
+                  <DataList.Label>Program account:</DataList.Label>
+                  <DataList.Value>
+                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                      navigator.clipboard.writeText(address);
+                      AlertBox.open(AlertType.Info, 'Address copied!')
+                    }}>{ Readability.toAddress(address) }</Button>
+                    <Box ml="2">
+                      <Link className="router-link" to={'/account/' + address}>▒▒</Link>
+                    </Box>
+                  </DataList.Value>
+                </DataList.Item>
               </DataList.Root>
             </Card>
           )
@@ -1180,7 +1128,6 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const aggregation = transaction.category == 'aggregation';
   const [consensus, setConsensus] = aggregation ? useState<{ branch: string, threshold: BigNumber, progress: BigNumber, committee: BigNumber, reached: boolean } | null>(null) : [undefined, undefined];
-  const refuel = state ? state.account.refuels[ownerAddress] : null;
   if (receipt != null && receipt.block_number.gt(AppData.tip))
     AppData.tip = receipt.block_number;
 
@@ -1221,12 +1168,6 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   })
                 }
                 {
-                  refuel && !refuel.eq(0) &&
-                  <Flex gap="2">
-                    <Badge size="1" radius="medium" color={refuel.gt(0) ? 'jade' : (refuel.isNegative() ? 'red' : 'gray')}>{ Readability.toGas(refuel, true) }</Badge>
-                  </Flex>
-                }
-                {
                   state.depository.balances[ownerAddress] && Object.keys(state.depository.balances[ownerAddress]).map((asset) => {
                     const value = state.depository.balances[ownerAddress][asset];
                     return (
@@ -1257,6 +1198,10 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   })
                 }
                 {
+                  state.account.programs.size > 0 && Array.from(state.account.programs).map((address) =>
+                    <Badge key={'X5' + address} size="1" radius="medium" color="jade">+{ Readability.toAddress(address) }</Badge>)
+                }
+                {
                   Object.keys(state.receipts).length > 0 &&
                   <Badge size="1" radius="medium" color="gold">{ Readability.toCount('receipt', Object.keys(state.receipts).length) }</Badge>
                 }
@@ -1274,7 +1219,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 }
                 {
                   EventResolver.isSummaryStateEmpty(state, ownerAddress) &&
-                  <Badge size="1" radius="medium" color={receipt.successful ? 'bronze' : 'red'}>{ receipt.successful ? 'Successful execution' : 'Execution error' }</Badge>
+                  <Badge size="1" radius="medium" color={receipt.successful ? 'bronze' : 'red'}>{ receipt.successful ? 'Successful' + (receipt.events.length > 0 ? ': ' + Readability.toCount('event', receipt.events.length) + ' generated' : ' without events') : 'Execution error' }</Badge>
                 }
               </Flex>
             }

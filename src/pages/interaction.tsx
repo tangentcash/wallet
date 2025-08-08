@@ -1262,7 +1262,7 @@ export default function InteractionPage() {
             </Tooltip>
           </Box>
           {
-            maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber() > 40.0 &&
+            sendingValue.gt(0) && maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber() > 40.0 &&
             <Flex justify="end" pt="4">
               <Text color="orange" size="2" weight="medium">Warning: transaction fee may cost up to {maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber().toFixed(2)}% of paying value</Text>
             </Flex>

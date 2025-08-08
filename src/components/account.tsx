@@ -46,14 +46,14 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
     const ownerType = address.owner == ownerAddress ? ' (this account)' : '';
     const managerType = address.manager == ownerAddress ? ' (this account)' : ' (validator)';
     if (address.purpose == 'witness' && address.manager == address.owner)
-      return <>This is a coverage wallet that has been dismissed and disclosed earlier and is used by <Link href="#">{address.owner}</Link>{ ownerType }</>;
+      return <>This was a usable off-chain wallet but now dismissed owned by <Link href="#">{address.owner}</Link>{ ownerType }</>;
     else if (address.purpose == 'routing' && address.manager == null)
-      return <>This is a routing wallet that can transfer funds to and receive funds from any depository wallet and is used exclusively by <Link href="#">{address.owner}</Link>{ ownerType }</>;
+      return <>This is a routing off-chain wallet that can transfer funds to and receive funds from any depository wallet owned by <Link href="#">{address.owner}</Link>{ ownerType }</>;
     else if (address.purpose == 'depository' && address.manager != null)
-      return <>This is a depository wallet that can receive funds from or send funds to any router wallet and is used by <Link href="#">{address.manager}</Link>{ managerType }</>;
+      return <>This is a depository off-chain wallet that can receive funds from or send funds to any routing wallet owned by <Link href="#">{address.manager}</Link>{ managerType }</>;
     else if (address.manager != null)
-      return <>This is an unknown wallet which is used by <Link href="#">{address.owner}</Link>{ ownerType } and is operated by <Link href="#">{address.manager}</Link>{ managerType }</>;
-    return <>This is an unknown wallet which is used by <Link href="#">{address.owner}</Link>{ ownerType }</>;
+      return <>This is an unknown off-chain wallet owned by <Link href="#">{address.owner}</Link>{ ownerType } and is operated by <Link href="#">{address.manager}</Link>{ managerType }</>;
+    return <>This is an unknown off-chain wallet owned by <Link href="#">{address.owner}</Link>{ ownerType }</>;
   }, [ownerAddress]);
   const findTransactions = useCallback(async (refresh?: boolean) => {
     try {
@@ -100,6 +100,8 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
             setAssets(assetData);
             if (AppData.getWalletAddress() == ownerAddress && !assetData.length)
               setControl('address');
+          } else {
+            setAssets([]);
           }
         } catch (exception) {
           AlertBox.open(AlertType.Error, 'Failed to fetch account balances: ' + (exception as Error).message)
@@ -111,6 +113,8 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
           if (Array.isArray(addressData)) {
             addressData = addressData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
             setAddresses(addressData);
+          } else {
+            setAddresses([]);
           }
         } catch (exception) {
           AlertBox.open(AlertType.Error, 'Failed to fetch account addresses: ' + (exception as Error).message)
@@ -119,9 +123,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
       (async () => {
         try {
           const attestationData = await RPC.fetchAll((offset, count) => RPC.getValidatorAttestations(ownerAddress, offset, count));
-          if (Array.isArray(attestationData)) {
-            setAttestations(attestationData);
-          }
+          setAttestations(Array.isArray(attestationData) ? attestationData : []);
         } catch (exception) {
           AlertBox.open(AlertType.Error, 'Failed to fetch account attestations: ' + (exception as Error).message)
         }
@@ -129,9 +131,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
       (async () => {
         try {
           const participationData = await RPC.fetchAll((offset, count) => RPC.getValidatorParticipations(ownerAddress, offset, count));
-          if (Array.isArray(participationData)) {
-            setParticipations(participationData);
-          }
+          setParticipations(Array.isArray(participationData) ? participationData : []);
         } catch (exception) {
           AlertBox.open(AlertType.Error, 'Failed to fetch account participations: ' + (exception as Error).message)
         }
@@ -139,8 +139,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
       (async () => {
         try {
           const productionData = await RPC.getValidatorProduction(ownerAddress);
-          if (productionData != null)
-            setProduction(productionData);
+          setProduction(productionData || null);
         } catch { }
       })(),
       findMempoolTransactions(),
@@ -228,7 +227,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                 <Callout.Icon>
                   <Icon path={mdiInformationOutline} size={1} />
                 </Callout.Icon>
-                <Callout.Text>This is a wallet that is used within Tangent transactions</Callout.Text>
+                <Callout.Text>This is a tangent on-chain wallet that can interact with other tangent wallets and send or receive cryptocurrency of other blockchains using off-chain wallets</Callout.Text>
               </Callout.Root>
             }
             {
@@ -323,7 +322,8 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                       </Select.Item>
                       {
                         addresses.map((item, index) => {
-                          const tag = item.addresses[0].substring(item.addresses[0].length - 2).toUpperCase();
+                          const base = item.addresses[0].split(':')[0];
+                          const tag = base.substring(base.length - 2).toUpperCase();
                           return (
                             <Select.Item key={item.hash + '_select'} value={index.toString()}>
                               <Flex align="center" gap="1">
