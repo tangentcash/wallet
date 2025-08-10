@@ -11,7 +11,7 @@ import { AssetId, ByteUtil, Chain, Hashing, Ledger, RPC, Signing, Stream, Transa
 import { AppData } from "../core/app";
 
 export class ProgramTransfer {
-  to: { address: string, derivation: string | null, value: string }[] = [];
+  to: { address: string, value: string }[] = [];
 }
 
 export class ProgramCertification {
@@ -403,14 +403,14 @@ export default function InteractionPage() {
           type: new Transactions.Transfer.Many(),
           args: {
             to: program.to.map((payment) => ({
-              to: Signing.maskAddressOf(payment.address, payment.derivation),
+              to: payment.address,
               value: new BigNumber(payment.value)
             }))
           }
         } : {
           type: new Transactions.Transfer.One(),
           args: {
-            to: Signing.maskAddressOf(program.to[0].address, program.to[0].derivation),
+            to: program.to[0].address,
             value: new BigNumber(program.to[0].value)
           }
         });
@@ -605,7 +605,7 @@ export default function InteractionPage() {
       case 'transfer':
       default: {
         const result = new ProgramTransfer();
-        result.to = [{ address: '', derivation: null, value: '' }];
+        result.to = [{ address: '', value: '' }];
         setProgram(result);
        break; 
       }
@@ -738,7 +738,7 @@ export default function InteractionPage() {
                   <Select.Item key={item.hash + '_select'} value={index.toString()}>
                     <Flex align="center" gap="1">
                       <Avatar mr="1" size="1" radius="full" fallback={(item.asset.token || item.asset.chain)[0]} src={'/cryptocurrency/' + (item.asset.token || item.asset.chain).toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
-                      <Text size="4">{ Readability.toMoney(item.asset, item.balance) }</Text>
+                      <Text size="4">{ Readability.toMoney(item.asset, item.balance) }{ item.asset.token ? ' on ' + item.asset.chain : '' }</Text>
                     </Flex>
                   </Select.Item>
                 )
@@ -809,16 +809,6 @@ export default function InteractionPage() {
                 </Button>
               }
             </Flex>
-            {
-              item.derivation != null &&
-              <Tooltip content="Pay to a sub-address of payment recipient (e.g. pay to a custodial account)">
-                <TextField.Root mb="3" size="3" placeholder="Payment id" type="text" value={item.derivation} onChange={(e) => {
-                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                  copy.to[index].derivation = e.target.value;
-                  setProgram(copy);
-                }} />
-              </Tooltip>
-            }
             <Flex gap="2">
               <Box width="100%">
                 <Tooltip content="Payment value received by account">
@@ -829,38 +819,28 @@ export default function InteractionPage() {
                   }} />
                 </Tooltip>
               </Box>
-              <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
+              {
+                omniTransaction &&
+                <Flex justify="between" gap="1">
+                  <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
+                  <IconButton variant="soft" size="3" color={index != 0 ? 'red' : 'jade'} disabled={!omniTransaction && index == 0} onClick={() => {
+                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                    if (index == 0) {
+                      copy.to.push({ address: '', derivation: null, value: '' });
+                    } else {
+                      copy.to.splice(index, 1);
+                    }
+                    setProgram(copy);
+                  }}>
+                    <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
+                  </IconButton>
+                </Flex>
+              }
+              {
+                !omniTransaction &&
+                <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
+              }
             </Flex>
-            {
-              omniTransaction &&
-              <Flex justify="between">
-                <Box px="1">
-                  <Tooltip content="Attach a payment identification for a recipient">
-                    <Text as="label" size="2" color={item.derivation != null ? 'jade' : 'gray'}>
-                      <Flex gap="2" align="center" justify="end">
-                        <Checkbox size="3" checked={item.derivation != null} onCheckedChange={(value) => {
-                          const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                          copy.to[index].derivation = value ? '' : null;
-                          setProgram(copy);
-                        }} />
-                        <Text>Use payment id</Text>
-                      </Flex>
-                    </Text>
-                  </Tooltip>
-                </Box>
-                <IconButton variant="soft" color={index != 0 ? 'red' : 'jade'} disabled={!omniTransaction && index == 0} onClick={() => {
-                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                  if (index == 0) {
-                    copy.to.push({ address: '', derivation: null, value: '' });
-                  } else {
-                    copy.to.splice(index, 1);
-                  }
-                  setProgram(copy);
-                }}>
-                  <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
-                </IconButton>
-              </Flex>
-            }
           </Card>
         )
       }
@@ -1077,24 +1057,28 @@ export default function InteractionPage() {
                   }} />
                 </Tooltip>
               </Box>
-              <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
+              {
+                omniTransaction &&
+                <Flex justify="end">
+                  <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
+                  <IconButton variant="soft" size="3" color={index != 0 ? 'red' : 'jade'} disabled={!omniTransaction && index == 0} onClick={() => {
+                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                    if (index == 0) {
+                      copy.to.push({ address: '', value: '' });
+                    } else {
+                      copy.to.splice(index, 1);
+                    }
+                    setProgram(copy);
+                  }}>
+                    <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
+                  </IconButton>
+                </Flex>
+              }
+              {
+                !omniTransaction &&
+                <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
+              }
             </Flex>
-            {
-              omniTransaction &&
-              <Flex justify="end">
-                <IconButton variant="soft" color={index != 0 ? 'red' : 'jade'} disabled={!omniTransaction && index == 0} onClick={() => {
-                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                  if (index == 0) {
-                    copy.to.push({ address: '', value: '' });
-                  } else {
-                    copy.to.splice(index, 1);
-                  }
-                  setProgram(copy);
-                }}>
-                  <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
-                </IconButton>
-              </Flex>
-            }
           </Card>
         )
       }

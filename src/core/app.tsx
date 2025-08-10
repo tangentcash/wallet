@@ -3,7 +3,7 @@ import { createRoot, Root } from "react-dom/client";
 import { BrowserRouter, Route, Routes } from "react-router";
 import { Box, Theme } from "@radix-ui/themes";
 import { core } from '@tauri-apps/api';
-import { Chain, ClearCallback, InterfaceProps, Messages, NetworkType, Pubkey, Pubkeyhash, Recsighash, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType } from "tangentsdk";
+import { Chain, ClearCallback, InterfaceProps, Messages, NetworkType, Pubkey, Pubkeyhash, Hashsig, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType } from "tangentsdk";
 import { SafeStorage, Storage, StorageField } from "./storage";
 import { WalletReadyRoute, WalletNotReadyRoute } from "./../components/guards";
 import { Alert, AlertBox, AlertType } from "./../components/alert";
@@ -287,7 +287,7 @@ export class AppData {
     }
 
     const transaction = {
-      signature: new Recsighash(),
+      signature: new Hashsig(),
       asset: props.asset,
       nonce: new Uint256(props.nonce.toString()),
       conservative: props.conservative || false,

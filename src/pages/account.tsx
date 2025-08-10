@@ -2,17 +2,14 @@ import { Navigate, useNavigate, useParams } from "react-router";
 import { Badge, Box, Button, Flex, Heading } from "@radix-ui/themes";
 import { mdiBackburger } from "@mdi/js";
 import { AppData } from "../core/app";
-import { Signing } from "tangentsdk";
 import Account from "../components/account";
 import Icon from "@mdi/react";
 
 export default function AccountPage() {
-  const keyBaseAddress = useParams().id || '';
-  const rawBaseAddress = Signing.decodeAddress(keyBaseAddress);
-  const baseAddress = rawBaseAddress ? Signing.encodeAddress(rawBaseAddress) : keyBaseAddress;
+  const baseAddress = useParams().id || '';
   const ownerAddress = AppData.getWalletAddress() || '';
   const navigate = useNavigate();
-  if (ownerAddress == baseAddress || !keyBaseAddress.length || !baseAddress)
+  if (ownerAddress == baseAddress || !baseAddress.length)
     return <Navigate replace={true} to="/" state={{ from: `${location.pathname}${location.search}` }} />;
 
   return (

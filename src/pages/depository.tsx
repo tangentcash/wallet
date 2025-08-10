@@ -345,7 +345,7 @@ export default function DepositoryPage() {
                         <Heading size="4">{ item.founder ? 'Founder depository' : 'Depository' }</Heading>
                         <Badge radius="medium" variant="surface" size="2">{ item.policy.owner.substring(item.policy.owner.length - 6).toUpperCase() }</Badge>
                       </Flex>
-                      <Badge size="2" radius="medium" color={item.attestation && item.attestation.active ? 'jade' : 'red'}>{ item.attestation && item.attestation.active ? 'ONLINE' : 'OFFLINE' }</Badge>
+                      <Badge size="2" radius="medium" color={item.attestation && item.attestation.stakes.length > 0 ? 'jade' : 'red'}>{ item.attestation && item.attestation.stakes.length > 0 ? 'ONLINE' : 'OFFLINE' }</Badge>
                     </Flex>
                     <DataList.Root orientation={orientation}>
                       <DataList.Item>
@@ -369,7 +369,12 @@ export default function DepositoryPage() {
                       <DataList.Item>
                         <DataList.Label>Total locked value:</DataList.Label>
                         <DataList.Value>
-                          <Badge size="1" radius="medium" color="yellow">{ Readability.toMoney(item.policy.asset, item.balance.supply) }</Badge>
+                          <Flex wrap="wrap" gap="1">
+                            {
+                              item.balance.balances.map((next: any) =>
+                                <Badge key={item.policy.hash + index + next.asset.id} size="1" radius="medium" color="yellow">{ Readability.toMoney(next.asset, next.supply) }</Badge>)
+                            }
+                          </Flex>
                         </DataList.Value>
                       </DataList.Item>
                       <DataList.Item>
@@ -406,7 +411,7 @@ export default function DepositoryPage() {
                       </DataList.Item>
                     </DataList.Root>
                     {
-                      item.attestation && item.attestation.active &&
+                      item.attestation && item.attestation.stakes.length > 0 &&
                       <Flex justify="end" align="center" mt="4">
                           <DropdownMenu.Root>
                             <DropdownMenu.Trigger>

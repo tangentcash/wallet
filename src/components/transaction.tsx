@@ -1323,6 +1323,10 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
+              <DataList.Label>Gas network:</DataList.Label>
+              <DataList.Value>{ Readability.toAssetName(transaction.asset, true) }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
               <DataList.Label>Gas price:</DataList.Label>
               <DataList.Value>{ Readability.toMoney(transaction.asset, transaction.gas_price) }</DataList.Value>
             </DataList.Item>

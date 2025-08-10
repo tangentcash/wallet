@@ -202,7 +202,9 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                     <Avatar size="2" radius="full" fallback={(item.asset.token || item.asset.chain)[0]} src={'/cryptocurrency/' + (item.asset.token || item.asset.chain).toLowerCase() + '.svg'} />
                     <Box width="100%">
                       <Flex justify="between" align="center">
-                        <Text as="div" size="2" weight="light">{Readability.toAssetName(item.asset)}</Text>
+                        <Tooltip content={ Readability.toAssetName(item.asset, true) + ' blockchain' }>
+                          <Text as="div" size="2" weight="light">{Readability.toAssetName(item.asset)}</Text>
+                        </Tooltip>
                         <Tooltip content={
                           <>
                             <Box>Locked value: { Readability.toMoney(item.asset, item.reserve) }</Box>

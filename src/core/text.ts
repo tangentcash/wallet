@@ -4,8 +4,8 @@ import Names from '../assets/cryptocurrency/names.json';
 import Colors from '../assets/cryptocurrency/colors.json';
 
 export class Readability {
-  static toAssetName(asset: AssetId): string {
-    const token: string | null = asset.token?.toUpperCase() || null;
+  static toAssetName(asset: AssetId, chainOnly?: boolean): string {
+    const token: string | null = chainOnly ? null : asset.token?.toUpperCase() || null;
     const chain: string = asset.chain?.toUpperCase() || 'Unknown';
     if (token != null) {
       const name = (Names as Record<string, string>)[token];
