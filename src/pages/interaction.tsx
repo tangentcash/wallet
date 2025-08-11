@@ -1,14 +1,15 @@
 import { mdiBackburger, mdiMinus, mdiPlus } from "@mdi/js";
-import { Avatar, Badge, Box, Button, Card, Checkbox, DataList, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextArea, TextField, Tooltip } from "@radix-ui/themes";
-import { useCallback, useMemo, useState } from "react";
+import { Avatar, Badge, Box, Button, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextArea, TextField, Tooltip } from "@radix-ui/themes";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Readability } from "../core/text";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
+import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, Stream, TransactionOutput, Transactions, Uint256 } from "tangentsdk";
+import { AppData } from "../core/app";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
-import { AssetId, ByteUtil, Chain, Hashing, Ledger, RPC, Signing, Stream, TransactionOutput, Transactions, Uint256, Viewable } from "tangentsdk";
-import { AppData } from "../core/app";
+import Transaction from "../components/transaction";
 
 export class ProgramTransfer {
   to: { address: string, value: string }[] = [];
@@ -51,18 +52,12 @@ export class ProgramDepositoryWithdrawalMigration {
   onlyIfNotInQueue: boolean = true;
 }
 
-export class ProgramFromTxData {
-  data: string = '';
-  base: {
-    typename: string,
-    type: number,
-    signature: Uint8Array,
-    asset: AssetId,
-    gasPrice: BigNumber,
-    gasLimit: Uint256,
-    nonce: Uint256
-  } | null = null;
-  body: Uint8Array | null = null;
+export class ApproveTransaction {
+  hexMessage: string = '';
+  transaction: any = null;
+  type: number | null = null;
+  typename: string | null = null;
+  instruction: Uint8Array | null = null;
 }
 
 export default function InteractionPage() {
@@ -71,7 +66,8 @@ export default function InteractionPage() {
   const params = {
     type: query.get('type'),
     asset: query.get('asset'),
-    manager: query.get('manager')
+    manager: query.get('manager'),
+    transaction: query.get('transaction')
   };
   const [assets, setAssets] = useState<any[]>([]);
   const [asset, setAsset] = useState(-1);
@@ -83,7 +79,7 @@ export default function InteractionPage() {
   const [loadingGasLimit, setLoadingGasLimit] = useState(false);
   const [conservative, setConservative] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
-  const [program, setProgram] = useState<ProgramTransfer | ProgramCertification | ProgramDepositoryAccount | ProgramDepositoryWithdrawal | ProgramDepositoryAdjustment | ProgramDepositoryRegrouping | ProgramDepositoryWithdrawalMigration | ProgramFromTxData | null>(null);
+  const [program, setProgram] = useState<ProgramTransfer | ProgramCertification | ProgramDepositoryAccount | ProgramDepositoryWithdrawal | ProgramDepositoryAdjustment | ProgramDepositoryRegrouping | ProgramDepositoryWithdrawalMigration | ApproveTransaction | null>(null);
   const navigate = useNavigate();
   const maxFeeValue = useMemo((): BigNumber => {
     try {
@@ -129,8 +125,8 @@ export default function InteractionPage() {
       return 'Depository regrouping';
     } else if (program instanceof ProgramDepositoryWithdrawalMigration) {
       return 'Depository migration';
-    } else if (program instanceof ProgramFromTxData) {
-      return 'Signable tx data';
+    } else if (program instanceof ApproveTransaction) {
+      return 'Approve action';
     }
     return 'Bad program';
   }, [program]);
@@ -277,8 +273,8 @@ export default function InteractionPage() {
         return false;
 
       return true;
-    } else if (program instanceof ProgramFromTxData) {
-      return program.base != null && program.body != null;
+    } else if (program instanceof ApproveTransaction) {
+      return program.hexMessage != null && program.transaction != null;
     }
     return false;
   }, [asset, gasPrice, gasLimit, conservative, assets, program]);
@@ -304,6 +300,9 @@ export default function InteractionPage() {
 
     return maxFeeValue.plus(sendingValue).lte(assets[asset].balance);
   }, [programReady, gasPrice, gasLimit, maxFeeValue, sendingValue]);
+  const readOnlyApproval = useMemo((): boolean => {
+    return program != null && program instanceof ApproveTransaction && params.transaction != null;
+  }, [program]);
   const setRemainingValue = useCallback((index: number) => {
     if (program instanceof ProgramTransfer || program instanceof ProgramDepositoryWithdrawal) {
       const balance = assets[asset].balance;
@@ -395,6 +394,8 @@ export default function InteractionPage() {
         });
         setNonce(new BigNumber(output.body.nonce.toString()));
         setTransactionData(output);
+        if (program instanceof ApproveTransaction)
+          await decodeApprovableTransaction(output.data, true);
         setLoadingTransaction(false);
         return output;
       };
@@ -503,13 +504,13 @@ export default function InteractionPage() {
             to: []
           }
         });
-      } else if (program instanceof ProgramFromTxData) {
+      } else if (program instanceof ApproveTransaction) {
         const type = new Ledger.UnknownTransaction();
-        type.getType = (): number => program.base?.type || 0;
+        type.getType = (): number => program.type || 0;
         return await buildProgram({
           type: type,
           args: {
-            typeless: program.body
+            typeless: program.instruction
           }
         });
       }
@@ -536,6 +537,9 @@ export default function InteractionPage() {
       const hash = await RPC.submitTransaction(output.data, true);
       if (hash != null) {
         AlertBox.open(AlertType.Info, 'Transaction ' + hash + ' sent!');
+        if (AppData.approveTransaction) {
+          AppData.approveTransaction({ hash: new Uint256(hash), message: ByteUtil.hexStringToUint8Array(output.data), signature: output.body.signature });
+        }
         navigate('/');
       } else {
         AlertBox.open(AlertType.Error, 'Failed to send transaction!');
@@ -546,60 +550,25 @@ export default function InteractionPage() {
     setLoadingTransaction(false);
     return true;
   }, [loadingTransaction, transactionReady, loadingTransaction, nonce, assets, asset, program]);
-  const decodeRawTransaction = useCallback((data: string) => {
-    if (!program || !(program instanceof ProgramFromTxData))
-      return;
-
+  const decodeApprovableTransaction = useCallback(async (data: string, applyOnlyIfSuccessful: boolean): Promise<void> => {
+    const result = new ApproveTransaction();
+    result.hexMessage = data;
     try {
-      const message = Stream.decode(data);
-      const readType = () => {
-        const t = message.readType();
-        return t == null ? Viewable.Invalid : t;
-      };
-      const type = message.readInteger(readType());
-      const signature = message.readBinaryString(readType());
-      const asset = message.readInteger(readType());
-      const gasPrice = message.readDecimal(readType());
-      const gasLimit = message.readInteger(readType());
-      const nonce = message.readInteger(readType());
-      if (type == null || signature == null || asset == null || gasPrice == null || gasLimit == null || nonce == null)
-        throw new Error('Not a valid transaction data');
-
-      let typename: string | null = null;
-      const type32 = type.toInteger();
-      for (let name in Transactions.typenames) {
-        if (Hashing.hash32(ByteUtil.byteStringToUint8Array(name)) == type32) {
-          typename = Transactions.typenames[name];
-          break;
-        }
-      }
-
-      if (typename == null)
-        throw new Error('Transaction type ' + type.toCompactHex() + ' is not known');
-
-      const result = new ProgramFromTxData();
-      result.data = data;
-      result.base = {
-        typename: typename,
-        type: type32,
-        signature: signature,
-        asset: asset.gt(0) ? new AssetId(asset.toUint8Array().reverse()) : new AssetId(),
-        gasPrice: gasPrice,
-        gasLimit: gasLimit,
-        nonce: nonce
-      };
-      result.body = message.data.slice(message.seek);
-      setProgram(result);
-    } catch (exception) {
-      const result = new ProgramFromTxData();
-      result.data = data;
-      result.base = null;
-      result.body = null;
-      setProgram(result);
-      AlertBox.open(AlertType.Error, (exception as Error).message);
+      const body = AppData.decodeTransaction(data);
+      const preview = await RPC.decodeTransaction(data);
+      if (!preview || !preview.transaction)
+        throw new Error('Failed to decode transaction');
+      
+      result.transaction = preview.transaction;
+      result.type = body.type;
+      result.typename = body.typename;
+      result.instruction = body.instruction;
+    } catch (exception: any) {
+      AlertBox.open(AlertType.Error, exception.message);
     }
-    program.data = data;
-  }, [program]);
+    if (!applyOnlyIfSuccessful || result.transaction != null)
+      setProgram(result);
+  }, []);
   useEffectAsync(async () => {
     switch (params.type) {
       case 'transfer':
@@ -640,8 +609,11 @@ export default function InteractionPage() {
         setProgram(new ProgramDepositoryWithdrawalMigration());
         break;
       }
-      case 'fromtxdata': {
-        setProgram(new ProgramFromTxData());
+      case 'approvetransaction': {
+        if (params.transaction && params.transaction.length > 0)
+          decodeApprovableTransaction(params.transaction, false);
+        else
+          setProgram(new ApproveTransaction());
         break;
       }
     }
@@ -684,6 +656,13 @@ export default function InteractionPage() {
       }
     } catch { }
   }, [query]);
+  useEffect(() => {
+    return () => {
+      if (AppData.approveTransaction) {
+        AppData.approveTransaction(null);
+      }
+    }
+  }, []);
 
   return (
     <Box px="4" pt="4" mx="auto" maxWidth="640px">
@@ -701,14 +680,14 @@ export default function InteractionPage() {
           <Heading size="4">Paying account</Heading>
           <DropdownMenu.Root>
             <DropdownMenu.Trigger>
-              <Button variant="ghost" size="3" color="gray">⨎⨎</Button>
+              <Button variant="ghost" size="3" color="gray" disabled={readOnlyApproval}>⨎⨎</Button>
             </DropdownMenu.Trigger>
             <DropdownMenu.Content side="left">
               <Tooltip content="Transfer/pay asset to one or more accounts">
                 <DropdownMenu.Item shortcut="⟳ ₿" onClick={() => navigate('/interaction?type=transfer')}>Transfer</DropdownMenu.Item>
               </Tooltip>
-              <Tooltip content="From unsigned transaction data">
-                <DropdownMenu.Item shortcut="⟳ ₿" onClick={() => navigate('/interaction?type=fromtxdata')}>Signable</DropdownMenu.Item>
+              <Tooltip content="Approve and submit transaction from unverified source">
+                <DropdownMenu.Item shortcut="⟳ ₿" onClick={() => navigate('/interaction?type=approvetransaction')}>Approve</DropdownMenu.Item>
               </Tooltip>
               <DropdownMenu.Separator />
               <Tooltip content="Change block production and/or participation/attestation stake(s)">
@@ -780,10 +759,10 @@ export default function InteractionPage() {
           </Box>
         }
         {
-          asset != -1 && (program instanceof ProgramFromTxData) &&
+          asset != -1 && (program instanceof ApproveTransaction) &&
           <Box width="100%" px="1" mt="3">
             <Tooltip content="Paste transaction data (hex) that was not signed by any key">
-              <TextArea resize="vertical" variant="classic" size="3" style={{ minHeight: 150 }} placeholder="Transaction data (hex) to be signed" value={program.data} onChange={(e) => decodeRawTransaction(e.target.value)} />
+              <TextArea resize="vertical" variant="classic" size="3" style={{ minHeight: 150 }} placeholder="Transaction data (hex) to be signed" readOnly={readOnlyApproval} value={program.hexMessage} onChange={(e) => decodeApprovableTransaction(e.target.value, false)} />
             </Tooltip>
           </Box>
         }
@@ -1083,47 +1062,8 @@ export default function InteractionPage() {
         )
       }
       {
-        (program instanceof ProgramFromTxData) && program.base != null &&
-        <Card mt="4">
-          <Heading size="4" mb="3">Decoded transaction properties</Heading>
-          <DataList.Root orientation={document.body.clientWidth < 500 ? 'vertical' : 'horizontal'}>
-            <DataList.Item>
-              <DataList.Label>Action:</DataList.Label>
-              <DataList.Value>
-                <Badge color="red">{ program.base.typename } ({ '0x' + program.base.type.toString(16) })</Badge>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Signature:</DataList.Label>
-              <DataList.Value>{ program.base.signature.length > 0 ? Readability.toAddress(ByteUtil.uint8ArrayToHexString(program.base.signature)) : '0x0' }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Instruction:</DataList.Label>
-              <DataList.Value>{ program.body != null && program.body.length > 0 ? Readability.toAddress(ByteUtil.uint8ArrayToHexString(program.body)) : '0x0' } ({ Readability.toCount('byte', program.body?.length || 0) })</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Asset:</DataList.Label>
-              <DataList.Value>
-                <Flex align="center" gap="1">
-                  <Avatar mr="1" size="1" radius="full" fallback={(program.base.asset.token || program.base.asset.chain || '?')[0]} src={'/cryptocurrency/' + (program.base.asset.token || program.base.asset.chain || '?').toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
-                  <Text size="3">{ program.base.asset.token ? program.base.asset.token + ' on ' + program.base.asset.chain : program.base.asset.chain }</Text>
-                </Flex>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Gas price:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(program.base.asset, program.base.gasPrice) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Gas limit:</DataList.Label>
-              <DataList.Value>{ Readability.toGas(program.base.gasLimit.toString()) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Nonce:</DataList.Label>
-              <DataList.Value>{ program.base.nonce.toCompactHex() }</DataList.Value>
-            </DataList.Item>
-          </DataList.Root>
-        </Card>
+        (program instanceof ApproveTransaction) && program.transaction != null &&
+        <Transaction ownerAddress={ownerAddress} transaction={program.transaction} open={true} preview={true}></Transaction>
       }
       {
         asset != -1 && program instanceof ProgramDepositoryAdjustment &&
@@ -1374,8 +1314,8 @@ export default function InteractionPage() {
                     }</Badge> node</Text>
                   }
                   {
-                    asset != -1 && program instanceof ProgramFromTxData &&
-                    <Text as="div" weight="light" size="4" mb="1">— Execute <Badge radius="medium" variant="surface" size="2" color="red">{ program.base?.typename || 'unknown' } transaction</Badge> built from provided data (high risk)</Text>
+                    asset != -1 && program instanceof ApproveTransaction &&
+                    <Text as="div" weight="light" size="4" mb="1">— Execute <Badge radius="medium" variant="surface" size="2" color="red">{ program.typename || 'unknown' } transaction</Badge> as is (risky)</Text>
                   }
                   <Text as="div" weight="light" size="4" mb="1">— Pay up to <Text color="orange">{ Readability.toMoney(assets[asset].asset, maxFeeValue) }</Text> to <Text color="sky">miner as fee</Text></Text>
                 </Box>

@@ -1,12 +1,14 @@
-import { useState, StrictMode } from "react";
+import { useState } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { BrowserRouter, Route, Routes } from "react-router";
+import { BrowserRouter, NavigateFunction, Route, Routes } from "react-router";
 import { Box, Theme } from "@radix-ui/themes";
 import { core } from '@tauri-apps/api';
-import { Chain, ClearCallback, InterfaceProps, Messages, NetworkType, Pubkey, Pubkeyhash, Hashsig, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType } from "tangentsdk";
+import { listen } from "@tauri-apps/api/event";
+import { Chain, ClearCallback, InterfaceProps, Messages, NetworkType, Pubkey, Pubkeyhash, Hashsig, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType, Authorizer, Approval, Entity, Viewable, Transactions, Hashing, ByteUtil, AssetId, Approving } from "tangentsdk";
 import { SafeStorage, Storage, StorageField } from "./storage";
 import { WalletReadyRoute, WalletNotReadyRoute } from "./../components/guards";
 import { Alert, AlertBox, AlertType } from "./../components/alert";
+import { Prompter, PrompterBox } from "../components/prompter";
 import BigNumber from "bignumber.js";
 import RestorePage from "./../pages/restore";
 import HomePage from "./../pages/home";
@@ -18,6 +20,17 @@ import InteractionPage from "./../pages/interaction";
 import DepositoryPage from "./../pages/depository"
 
 const CACHE_PREFIX = 'cache';
+
+export type DecodedTransaction = {
+  typename: string,
+  type: number,
+  signature: Uint8Array,
+  asset: AssetId,
+  gasPrice: BigNumber,
+  gasLimit: Uint256,
+  nonce: number,
+  instruction: Uint8Array
+}
 
 export type ConnectionState = {
   sentBytes: number;
@@ -35,12 +48,14 @@ export type ServerState = {
 export type AppState = {
   count: number,
   setState: Function | null,
-  setAppearance: Function | null
+  setAppearance: Function | null,
+  navigate: NavigateFunction | null
 }
 
 export type AppProps = {
   resolver: string | null,
   server: string | null,
+  authorizer: boolean,
   appearance: 'dark' | 'light'
 }
 
@@ -52,15 +67,18 @@ export class AppData {
   static state: AppState = {
     count: 0,
     setState: null,
-    setAppearance: null
+    setAppearance: null,
+    navigate: null
   };
   static props: AppProps = {
     resolver: 'nds.tangent.cash',
     server: '127.0.0.1:18419',
+    authorizer: true,
     appearance: 'dark'
   };
   static wallet: WalletKeychain | null = null;
   static tip: BigNumber | null = null;
+  static approveTransaction: ((proof: { hash: Uint256, message: Uint8Array, signature: Hashsig } | null) => void) | null = null;
 
   private static storeWalletKeychain(type: WalletType, secret: string | string[]): boolean {
     let data: WalletKeychain | null = null;
@@ -101,7 +119,7 @@ export class AppData {
     this.wallet = data;
     return true;
   }
-  private static request(address: string, method: string, message: any, size: number): void {
+  private static nodeRequest(address: string, method: string, message: any, size: number): void {
     const bytes = 40 + size;
     const server = AppData.server.connections[address];
     if (server != null) {
@@ -115,7 +133,7 @@ export class AppData {
     
     console.log('[rpc]', `${address}${address.endsWith('/') ? '' : '/'}${method} call:`, message);
   }
-  private static response(address: string, method: string, message: any, size: number): void {
+  private static nodeResponse(address: string, method: string, message: any, size: number): void {
     const bytes = 40 + size;
     const server = AppData.server.connections[address];
     if (server != null) {
@@ -129,7 +147,7 @@ export class AppData {
 
     console.log('[rpc]', `${address}${address.endsWith('/') ? '' : '/'}${method} return:`, message);
   }
-  private static error(address: string, method: string, error: unknown): void {
+  private static nodeError(address: string, method: string, error: unknown): void {
     const bytes = 40 + (error as any)?.message?.length || 0;
     const server = AppData.server.connections[address];
     const message: string = ((error as any)?.message?.toString() || error?.toString()) || '';
@@ -146,6 +164,120 @@ export class AppData {
 
     console.log('[rpc]', `${address}${address.endsWith('/') ? '' : '/'}${method} return:`, (error as any)?.message || error);
     AlertBox.open(AlertType.Error, `${address}${address.endsWith('/') ? '' : '/'}${method} error: ${(error as any)?.message || error}`);
+  }
+  private static async authorizerEvent(request: { event: string, id: number, payload: any}): Promise<boolean> {
+    if (!this.props.authorizer)
+      return false;
+
+    return await Authorizer.try(request.payload);
+  }
+  private static async authorizerPrompt(entity: Entity): Promise<Approval> {
+    try {
+      const result = await PrompterBox.open(entity);
+      if (!result)
+        throw new Error('User refused to proceed');
+
+      const account = this.getWalletPublicKeyHash() || null;
+      if (!account)
+        throw new Error('User does not have a address');
+
+      switch (entity.kind) {
+        case Approving.account:
+          AlertBox.open(AlertType.Info, `Account address sent to ${entity.proof.hostname}`);
+          return {
+            account: account,
+            proof: {
+              hash: null,
+              message: null,
+              signature: null
+            }
+          }
+        case Approving.identity: {
+          const secretKey = this.getWalletSecretKey();
+          if (!secretKey)
+            throw new Error('User does not have a secret key');
+
+          const message = ByteUtil.byteStringToUint8Array(Authorizer.schema(entity, account));
+          const messageHash = new Uint256(Hashing.hash256(message));
+          const signature = Signing.sign(messageHash, secretKey);
+          if (!signature)
+            throw new Error('User failed to sign a message');
+
+          AlertBox.open(AlertType.Info, `Ownership proof sent to ${entity.proof.hostname}`);
+          return {
+            account: account,
+            proof: {
+              hash: messageHash,
+              message: message,
+              signature: signature
+            }
+          }
+        }
+        case Approving.message: {
+          if (!entity.sign.message)
+            throw new Error('Invalid message to sign');
+
+          const secretKey = this.getWalletSecretKey();
+          if (!secretKey)
+            throw new Error('User does not have a secret key');
+
+          const messageHash = new Uint256(Hashing.hash256(entity.sign.message));
+          const signature = Signing.sign(messageHash, secretKey);
+          if (!signature)
+            throw new Error('User failed to sign a message');
+
+          AlertBox.open(AlertType.Info, `Message proof sent to ${entity.proof.hostname}`);
+          return {
+            account: account,
+            proof: {
+              hash: messageHash,
+              message: entity.sign.message,
+              signature: signature
+            }
+          }
+        }
+        case Approving.transaction: {
+          if (!entity.sign.message)
+            throw new Error('Invalid transaction to sign');
+
+          if (this.approveTransaction)
+            throw new Error('User is busy signing another transaction');
+
+          const proof = await new Promise<{ hash: Uint256, message: Uint8Array, signature: Hashsig } | null>((resolve) => {
+            if (this.state.navigate) {          
+              this.approveTransaction = resolve;
+              this.state.navigate(`/interaction?type=approvetransaction&transaction=${ByteUtil.uint8ArrayToHexString(entity.sign.message || new Uint8Array())}`);
+            } else {
+              resolve(null);
+            }
+          });
+          this.approveTransaction = null;
+          if (!proof)
+            throw new Error('User refused to sign and send a transaction');
+
+          AlertBox.open(AlertType.Info, `Transaction proof sent to ${entity.proof.hostname}`);
+          return {
+            account: account,
+            proof: {
+              hash: proof.hash,
+              message: proof.message,
+              signature: proof.signature
+            }
+          };
+        }
+        default:
+          throw new Error('Invalid kind of entity');
+      }
+    } catch (exception) {
+      AlertBox.open(AlertType.Error, `Action from ${entity.proof.hostname} - approval denied`);
+      throw exception;
+    }
+  }
+  private static async authorizerDomain(hostname: string): Promise<string[]> {
+    const result: string[] = await core.invoke('resolve_domain_txt', {
+      hostname: hostname
+    });
+    return result;
   }
   private static save(): void {
     Storage.set(StorageField.Props, this.props);
@@ -237,6 +369,50 @@ export class AppData {
     SafeStorage.clear();
     this.wallet = null;
     return callback();
+  }
+  static decodeTransaction(data: string | Uint8Array): DecodedTransaction {
+    const message = typeof data == 'string' ? Stream.decode(data) : new Stream(data);
+    const readType = () => {
+      const t = message.readType();
+      return t == null ? Viewable.Invalid : t;
+    };
+    const type = message.readInteger(readType());
+    const signature = message.readBinaryString(readType());
+    const asset = message.readInteger(readType());
+    const gasPrice = message.readDecimal(readType());
+    const gasLimit = message.readInteger(readType());
+    const nonce = message.readInteger(readType());
+    if (type == null || signature == null || asset == null || gasPrice == null || gasLimit == null || nonce == null)
+      throw new Error('Transaction data is malformed');
+
+    let typename: string | null = null;
+    const type32 = type.toInteger();
+    for (let name in Transactions.typenames) {
+      if (Hashing.hash32(ByteUtil.byteStringToUint8Array(name)) == type32) {
+        typename = Transactions.typenames[name];
+        break;
+      }
+    }
+
+    if (typename == null)
+      throw new Error('Transaction type ' + type.toCompactHex() + ' is not among valid ones');
+
+    if (signature != null && signature.length != 0 && signature.length != Chain.size.HASHSIG)
+      throw new Error('Transaction signature is not in valid format');
+
+    if (nonce.gt(0) && !nonce.isSafeInteger())
+      throw new Error('Transaction nonce is out of range');
+
+    return {
+      typename: typename,
+      type: type32,
+      signature: signature,
+      asset: asset.gt(0) ? new AssetId(asset.toUint8Array().reverse()) : new AssetId(),
+      gasPrice: gasPrice,
+      gasLimit: gasLimit,
+      nonce: nonce.toInteger(),
+      instruction: message.data.slice(message.seek)
+    }
   }
   static async buildWalletTransaction(props: TransactionInput): Promise<TransactionOutput> {
     const address = this.getWalletAddress();
@@ -362,12 +538,14 @@ export class AppData {
     if (props != null)
       this.props = props;
 
-    RPC.applyResolver(this.props.resolver);
-    RPC.applyServer(this.props.server);
+    Authorizer.applyImplementation({
+      prompt: (entity) => this.authorizerPrompt(entity),
+      resolveDomainTXT: this.authorizerDomain
+    });
     RPC.applyImplementation({
-      onNodeRequest: this.request,
-      onNodeResponse: this.response,
-      onNodeError: this.error,
+      onNodeRequest: this.nodeRequest,
+      onNodeResponse: this.nodeResponse,
+      onNodeError: this.nodeError,
       onCacheStore: (path: string, value: any): boolean => Storage.set(CACHE_PREFIX + ':' + path, value),
       onCacheLoad: (path: string): any | null => Storage.get(CACHE_PREFIX + ':' + path),
       onCacheKeys: (): string[] => Storage.keys().filter((v) => v.startsWith(CACHE_PREFIX)).map((v) => v.substring(CACHE_PREFIX.length + 1)),
@@ -376,6 +554,8 @@ export class AppData {
       onPropsLoad: (): InterfaceProps | null => Storage.get(StorageField.InterfaceProps) as InterfaceProps | null,
       onPropsStore: (props: InterfaceProps): boolean => Storage.set(StorageField.InterfaceProps, props)
     });
+    RPC.applyResolver(this.props.resolver);
+    RPC.applyServer(this.props.server);
     if (true)
       await this.restoreWallet('123456', NetworkType.Regtest);
    
@@ -387,9 +567,11 @@ export class AppData {
     } else {
       this.render();
     }
+    
+    await listen('authorizer', (event) => this.authorizerEvent(event));
   }
   static openDevTools(): void {
-    core.invoke('devtools');
+    core.invoke('open_devtools');
   }
   static openFile(type: string): Promise<string | null> {
     return new Promise((resolve) => {
@@ -473,56 +655,55 @@ export function App() {
   AppData.state.setAppearance = setAppearance;
 
   return (
-    <StrictMode>
-      <Theme appearance={appearanceValue} accentColor="iris" radius="full" id={state.toString()}>
-        <Box minWidth="285px" maxWidth="800px" mx="auto" style={{ paddingBottom: '96px' }}>
-          <BrowserRouter>
-            <Routes>
-              <Route path="/" element={
-                <WalletReadyRoute>
-                  <HomePage />
-                </WalletReadyRoute>
-              } />
-              <Route path="/configure" element={
-                <WalletReadyRoute>
-                  <ConfigurePage />
-                </WalletReadyRoute>
-              } />
-              <Route path="/depository" element={
-                <WalletReadyRoute>
-                  <DepositoryPage />
-                </WalletReadyRoute>
-              } />
-              <Route path="/interaction" element={
-                <WalletReadyRoute>
-                  <InteractionPage />
-                </WalletReadyRoute>
-              } />
-              <Route path="/block/:id" element={
-                <WalletReadyRoute>
-                  <BlockPage />
-                </WalletReadyRoute>
-              } />
-              <Route path="/transaction/:id" element={
-                <WalletReadyRoute>
-                  <TransactionPage />
-                </WalletReadyRoute>
-              } />
-              <Route path="/account/:id" element={
-                <WalletReadyRoute>
-                  <AccountPage />
-                </WalletReadyRoute>
-              } />
-              <Route path="/restore" element={
-                <WalletNotReadyRoute>
-                  <RestorePage />
-                </WalletNotReadyRoute>
-              } />
-            </Routes>
-          </BrowserRouter>
-        </Box>
-        <Alert></Alert>
-      </Theme>
-    </StrictMode>
+    <Theme appearance={appearanceValue} accentColor="iris" radius="full" id={state.toString()}>
+      <Box minWidth="285px" maxWidth="800px" mx="auto" style={{ paddingBottom: '96px' }}>
+        <BrowserRouter>
+          <Routes>
+            <Route path="/" element={
+              <WalletReadyRoute>
+                <HomePage />
+              </WalletReadyRoute>
+            } />
+            <Route path="/configure" element={
+              <WalletReadyRoute>
+                <ConfigurePage />
+              </WalletReadyRoute>
+            } />
+            <Route path="/depository" element={
+              <WalletReadyRoute>
+                <DepositoryPage />
+              </WalletReadyRoute>
+            } />
+            <Route path="/interaction" element={
+              <WalletReadyRoute>
+                <InteractionPage />
+              </WalletReadyRoute>
+            } />
+            <Route path="/block/:id" element={
+              <WalletReadyRoute>
+                <BlockPage />
+              </WalletReadyRoute>
+            } />
+            <Route path="/transaction/:id" element={
+              <WalletReadyRoute>
+                <TransactionPage />
+              </WalletReadyRoute>
+            } />
+            <Route path="/account/:id" element={
+              <WalletReadyRoute>
+                <AccountPage />
+              </WalletReadyRoute>
+            } />
+            <Route path="/restore" element={
+              <WalletNotReadyRoute>
+                <RestorePage />
+              </WalletNotReadyRoute>
+            } />
+          </Routes>
+        </BrowserRouter>
+      </Box>
+      <Alert></Alert>
+      <Prompter></Prompter>
+    </Theme>
   )
 }

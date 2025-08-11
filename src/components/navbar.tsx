@@ -2,6 +2,7 @@ import { Box, Button, Card, Flex, IconButton, Tooltip } from "@radix-ui/themes";
 import { mdiContactlessPaymentCircleOutline, mdiDotsCircle, mdiLogin, mdiMagnifyScan, mdiSetRight, mdiSquareRoundedBadgeOutline } from "@mdi/js";
 import { useNavigate } from "react-router";
 import Icon from "@mdi/react";
+import { AppData } from "../core/app";
 
 const types: { path: string, name: string, tip: string, color: string | undefined, icon: string, persistent: boolean }[] = [
   { path: '/', name: 'Home', tip: 'My account', color: undefined, icon: mdiSquareRoundedBadgeOutline, persistent: true },
@@ -18,6 +19,7 @@ export function Navbar(props: { path: string }) {
   const path = props.path;
   const main = types.filter((item) => path.startsWith(item.path)).sort((a, b) => b.path.length - a.path.length)[0]?.path || null;
   const navigate = useNavigate();
+  AppData.state.navigate = navigate;
   return (
     <Box position="fixed" bottom="0" left="0" right="0" style={{ zIndex: 10000 }}>
       <Flex justify="center">

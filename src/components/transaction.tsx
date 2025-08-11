@@ -1119,7 +1119,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
   )
 }
 
-export default function Transaction(props: { ownerAddress: string, transaction: any, receipt?: any, state?: SummaryState, open?: boolean }) {
+export default function Transaction(props: { ownerAddress: string, transaction: any, receipt?: any, state?: SummaryState, open?: boolean, preview?: boolean }) {
   const transaction = props.transaction;
   const receipt = props.receipt || null;
   const state = props.state || null;
@@ -1139,15 +1139,18 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
           <Box width="100%">
             <Flex justify="between" align="center" mb="1">
               <Text as="div" size="2" weight="bold">{ Readability.toTransactionType(transaction.type) }</Text>
-              <Collapsible.Trigger asChild={true}>
-                <Button size="1" radius="large" variant="soft" color="gray">
-                  { receipt && <Text mr="-1" as="div" size="1" weight="light" color="gray">{ new Date(receipt.finalization_time.toNumber()).toLocaleTimeString() }</Text> }
-                  { !receipt && <Spinner /> }
-                  <Box ml="1">
-                    <DropdownMenu.TriggerIcon />
-                  </Box>
-                </Button>
-              </Collapsible.Trigger>
+              {
+                !props.preview &&
+                <Collapsible.Trigger asChild={true}>
+                  <Button size="1" radius="large" variant="soft" color="gray">
+                    { receipt && <Text mr="-1" as="div" size="1" weight="light" color="gray">{ new Date(receipt.finalization_time.toNumber()).toLocaleTimeString() }</Text> }
+                    { !receipt && <Spinner /> }
+                    <Box ml="1">
+                      <DropdownMenu.TriggerIcon />
+                    </Box>
+                  </Button>
+                </Collapsible.Trigger>
+              }
             </Flex>
             {
               state != null &&
@@ -1226,7 +1229,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
             {
               state == null &&
               <Flex gap="2" wrap="wrap" justify="between">
-                <Badge size="1" radius="medium" color="gray">Awaiting state finalization</Badge>
+                <Badge size="1" radius="medium" color={props.preview ? 'orange' : 'gray'}>{ props.preview ? 'Possible transaction preview!' : 'Awaiting state finalization' }</Badge>
               </Flex>
             }
           </Box>
