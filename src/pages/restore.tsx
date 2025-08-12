@@ -235,7 +235,7 @@ export default function RestorePage() {
   return (
     <SwitchTransition mode="out-in">
       <CSSTransition classNames="fade-transition" key={status} nodeRef={contentRef} timeout={350} appear>
-        <Flex justify="center" align="center" height="100dvh" key={status} ref={contentRef}>
+        <Flex justify="center" align="center" height="calc(100dvh - 96px)" key={status} ref={contentRef}>
           <Box maxWidth="600px" width="100%" mx="auto">
             {
               status == 'restore' &&

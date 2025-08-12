@@ -4,7 +4,7 @@ import { BrowserRouter, NavigateFunction, Route, Routes } from "react-router";
 import { Box, Theme } from "@radix-ui/themes";
 import { core } from '@tauri-apps/api';
 import { listen } from "@tauri-apps/api/event";
-import { Chain, ClearCallback, InterfaceProps, Messages, NetworkType, Pubkey, Pubkeyhash, Hashsig, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType, Authorizer, Approval, Entity, Viewable, Transactions, Hashing, ByteUtil, AssetId, Approving } from "tangentsdk";
+import { Chain, ClearCallback, InterfaceProps, Messages, NetworkType, Pubkey, Pubkeyhash, Hashsig, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType, Authorizer, Viewable, Transactions, Hashing, ByteUtil, AssetId, Approving, AuthEntity, AuthApproval } from "tangentsdk";
 import { SafeStorage, Storage, StorageField } from "./storage";
 import { WalletReadyRoute, WalletNotReadyRoute } from "./../components/guards";
 import { Alert, AlertBox, AlertType } from "./../components/alert";
@@ -171,7 +171,7 @@ export class AppData {
 
     return await Authorizer.try(request.payload);
   }
-  private static async authorizerPrompt(entity: Entity): Promise<Approval> {
+  private static async authorizerPrompt(entity: AuthEntity): Promise<AuthApproval> {
     try {
       const result = await PrompterBox.open(entity);
       if (!result)

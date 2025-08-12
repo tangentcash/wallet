@@ -1134,8 +1134,8 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
   return (
     <Card variant="surface" mt="4">
       <Collapsible.Root open={props.open}>
-        <Flex gap="3">
-          <Avatar mt="1" size="2" radius="full" fallback={(transaction.asset.token || transaction.asset.chain)[0]} src={'/cryptocurrency/' + (transaction.asset.token || transaction.asset.chain).toLowerCase() + '.svg'} />
+        <Flex gap="3" align="center">
+          <Avatar size="3" radius="full" fallback={(transaction.asset.token || transaction.asset.chain)[0]} src={'/cryptocurrency/' + (transaction.asset.token || transaction.asset.chain).toLowerCase() + '.svg'} />
           <Box width="100%">
             <Flex justify="between" align="center" mb="1">
               <Text as="div" size="2" weight="bold">{ Readability.toTransactionType(transaction.type) }</Text>

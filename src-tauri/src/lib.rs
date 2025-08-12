@@ -43,7 +43,8 @@ fn open_devtools(app: AppHandle) {
 pub fn run() {
   tauri::Builder::default()
     .plugin(tauri_plugin_shell::init())
-    .setup(|_| {
+    .setup(|app| {
+      HANDLE.set(app.handle().clone()).expect("application handle assignment error");
       tauri::async_runtime::spawn(
         actix_web::HttpServer::new(|| {
           actix_web::App::new().default_service(actix_web::web::route().to(authorizer_service))
@@ -57,12 +58,6 @@ pub fn run() {
       resolve_domain_txt,
       open_devtools
     ])
-    .build(tauri::generate_context!())
-    .expect("application runtime error")
-    .run(|handle, event| match event {
-        tauri::RunEvent::Ready => { 
-            HANDLE.set(handle.clone()).expect("application handle assignment error");
-        }
-        _ => {}
-    })
+    .run(tauri::generate_context!())
+    .expect("application runtime error");
 }
