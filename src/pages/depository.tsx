@@ -137,7 +137,7 @@ export default function DepositoryPage() {
                     assets.map((item, index) =>
                       <Select.Item key={item.id + '_select'} value={index.toString()}>
                         <Flex align="center" gap="1">
-                          <Avatar mr="1" size="1" radius="full" fallback={(item.token || item.chain)[0]} src={'/cryptocurrency/' + (item.token || item.chain).toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
+                          <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item)} src={Readability.toAssetImage(item)} style={{ width: '24px', height: '24px' }} />
                           <Text size="2" weight="light">{Readability.toAssetName(item)}</Text>
                         </Flex>
                       </Select.Item>
@@ -159,7 +159,7 @@ export default function DepositoryPage() {
                 <Button variant="surface" color="gray" onClick={() => setAsset(-1)}>
                   <Icon path={mdiBackburger} size={0.7} />
                   <Flex align="center" gap="1">
-                    <Avatar size="1" radius="full" fallback={(assets[asset].token || assets[asset].chain)[0]} src={'/cryptocurrency/' + (assets[asset].token || assets[asset].chain).toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
+                    <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(assets[asset])} src={Readability.toAssetImage(assets[asset])} style={{ width: '24px', height: '24px' }} />
                     <Text size="2" style={{ color: 'var(--gray-12)' }} weight="light">{Readability.toAssetName(assets[asset])}</Text>
                   </Flex>
                 </Button>
@@ -421,8 +421,8 @@ export default function DepositoryPage() {
                               </Button>
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Content>
-                              <DropdownMenu.Item shortcut="↙"  onClick={() => navigate(`/interaction?asset=${new AssetId(assets[asset].id).toHex()}&type=registration&manager=${item.policy.owner}`)} disabled={acquiredDepositories[item.policy.owner] != null || !item.policy.accepts_account_requests}>Deposit</DropdownMenu.Item>
-                              <DropdownMenu.Item shortcut="↗" onClick={() => navigate(`/interaction?asset=${new AssetId(assets[asset].id).toHex()}&type=withdrawal&manager=${item.policy.owner}`)} disabled={!item.policy.accepts_withdrawal_requests}>Withdrawal</DropdownMenu.Item>
+                              <DropdownMenu.Item shortcut="↙"  onClick={() => navigate(`/interaction?asset=${assets[asset].id}&type=registration&manager=${item.policy.owner}`)} disabled={acquiredDepositories[item.policy.owner] != null || !item.policy.accepts_account_requests}>Deposit</DropdownMenu.Item>
+                              <DropdownMenu.Item shortcut="↗" onClick={() => navigate(`/interaction?asset=${assets[asset].id}&type=withdrawal&manager=${item.policy.owner}`)} disabled={!item.policy.accepts_withdrawal_requests}>Withdrawal</DropdownMenu.Item>
                             </DropdownMenu.Content>
                           </DropdownMenu.Root>
                       </Flex>

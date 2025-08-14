@@ -397,17 +397,24 @@ export class AppData {
     if (typename == null)
       throw new Error('Transaction type ' + type.toCompactHex() + ' is not among valid ones');
 
-    if (signature != null && signature.length != 0 && signature.length != Chain.size.HASHSIG)
+    if (signature != null && signature.length != 0 && signature.length > Chain.size.HASHSIG)
       throw new Error('Transaction signature is not in valid format');
 
     if (nonce.gt(0) && !nonce.isSafeInteger())
       throw new Error('Transaction nonce is out of range');
 
+    let targetSignature = signature;
+    if (targetSignature.length < Chain.size.HASHSIG) {
+      targetSignature = new Uint8Array(Chain.size.HASHSIG);
+      targetSignature.set(signature);
+      targetSignature.fill(0, signature.length);
+    }
+
     return {
       typename: typename,
       type: type32,
-      signature: signature,
-      asset: asset.gt(0) ? new AssetId(asset.toUint8Array().reverse()) : new AssetId(),
+      signature: targetSignature,
+      asset: asset.gt(0) ? new AssetId(asset.toUint8Array()) : new AssetId(),
       gasPrice: gasPrice,
       gasLimit: gasLimit,
       nonce: nonce.toInteger(),
@@ -573,7 +580,7 @@ export class AppData {
   static openDevTools(): void {
     core.invoke('open_devtools');
   }
-  static openFile(type: string): Promise<string | null> {
+  static openFile(type: string): Promise<Uint8Array | null> {
     return new Promise((resolve) => {
       const input = document.createElement('input');
       input.type = 'file';
@@ -583,9 +590,11 @@ export class AppData {
         const target: any = e.target;
         if (target != null && target.files != null && target.files.length > 0) {
           const reader = new FileReader();
-          reader.readAsText(target.files[0]);
-          console.log(target.files[0])
-          reader.onload = result => resolve(result.target != null && result.target.result != null ? result.target.result?.toString() : null);
+          reader.readAsArrayBuffer(target.files[0]);
+          reader.onload = result => {
+            const buffer: ArrayBuffer | null = result.target != null && result.target.result instanceof ArrayBuffer ? result.target.result as ArrayBuffer : null;
+            resolve(buffer != null ? new Uint8Array(buffer) : null);
+          };
           reader.onerror = () => resolve(null);
         }
         else

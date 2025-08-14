@@ -1,11 +1,11 @@
 import { mdiBackburger, mdiMinus, mdiPlus } from "@mdi/js";
-import { Avatar, Badge, Box, Button, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextArea, TextField, Tooltip } from "@radix-ui/themes";
+import { Avatar, Badge, Box, Button, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Readability } from "../core/text";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
-import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, Stream, TransactionOutput, Transactions, Uint256 } from "tangentsdk";
+import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, Stream, TextUtil, TransactionOutput, Transactions, Uint256 } from "tangentsdk";
 import { AppData } from "../core/app";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
@@ -716,7 +716,7 @@ export default function InteractionPage() {
                 assets.map((item, index) =>
                   <Select.Item key={item.hash + '_select'} value={index.toString()}>
                     <Flex align="center" gap="1">
-                      <Avatar mr="1" size="1" radius="full" fallback={(item.asset.token || item.asset.chain)[0]} src={'/cryptocurrency/' + (item.asset.token || item.asset.chain).toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
+                      <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
                       <Text size="4">{ Readability.toMoney(item.asset, item.balance) }{ item.asset.token ? ' on ' + item.asset.chain : '' }</Text>
                     </Flex>
                   </Select.Item>
@@ -760,11 +760,22 @@ export default function InteractionPage() {
         }
         {
           asset != -1 && (program instanceof ApproveTransaction) &&
-          <Box width="100%" px="1" mt="3">
-            <Tooltip content="Paste transaction data (hex) that was not signed by any key">
-              <TextArea resize="vertical" variant="classic" size="3" style={{ minHeight: 150 }} placeholder="Transaction data (hex) to be signed" readOnly={readOnlyApproval} value={program.hexMessage} onChange={(e) => decodeApprovableTransaction(e.target.value, false)} />
-            </Tooltip>
-          </Box>
+          <Flex justify="between" mt="3" gap="1">
+            <Box width="100%">
+              <Tooltip content="Original approval transaction data (hex or binary)">
+                <TextField.Root size="3" placeholder="Raw transaction data" type="text" value={Readability.toAddress(program.hexMessage, 16)} readOnly={true} />
+              </Tooltip>
+            </Box>
+            <Button size="3" variant="surface" disabled={readOnlyApproval} onClick={async () => {
+              try {
+                const result = await AppData.openFile('');
+                if (result != null) {
+                  const data = ByteUtil.uint8ArrayToByteString(result);
+                  await decodeApprovableTransaction(TextUtil.isHexEncoding(data) ? data : ByteUtil.uint8ArrayToHexString(result), false);
+                }
+              } catch { }
+            }}>Browse</Button>
+          </Flex>
         }
       </Card>
       {
@@ -791,7 +802,7 @@ export default function InteractionPage() {
             <Flex gap="2">
               <Box width="100%">
                 <Tooltip content="Payment value received by account">
-                  <TextField.Root mb="3" size="3" placeholder={'Payment value in ' + (assets[asset].asset.token || assets[asset].asset.chain)} type="number" value={item.value} onChange={(e) => {
+                  <TextField.Root mb="3" size="3" placeholder={'Payment value in ' + Readability.toAssetSymbol(assets[asset].asset)} type="number" value={item.value} onChange={(e) => {
                     const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                     copy.to[index].value = e.target.value;
                     setProgram(copy);
@@ -855,7 +866,7 @@ export default function InteractionPage() {
                 </Heading>
                 <Box width="100%">
                   <Tooltip content="Locking value if positive and unlocking value if negative">
-                    <TextField.Root mb="3" size="3" placeholder={'Stake value in ' + (item.asset.token || item.asset.chain)} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
+                    <TextField.Root mb="3" size="3" placeholder={'Stake value in ' + Readability.toAssetSymbol(item.asset)} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
                       const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                       copy.participationStakes[index].stake = e.target.value;
                       setProgram(copy);
@@ -898,7 +909,7 @@ export default function InteractionPage() {
                 </Heading>
                 <Box width="100%">
                   <Tooltip content="Locking value if positive and unlocking value if negative">
-                    <TextField.Root mb="3" size="3" placeholder={'Stake value in ' + (item.asset.token || item.asset.chain)} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
+                    <TextField.Root mb="3" size="3" placeholder={'Stake value in ' + Readability.toAssetSymbol(item.asset)} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
                       const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                       copy.attestationStakes[index].stake = e.target.value;
                       setProgram(copy);
@@ -1029,7 +1040,7 @@ export default function InteractionPage() {
             <Flex gap="2">
               <Box width="100%">
                 <Tooltip content="Payment value received by account">
-                  <TextField.Root mb="3" size="3" placeholder={'Payment value in ' + (assets[asset].asset.token || assets[asset].asset.chain)} type="number" value={item.value} onChange={(e) => {
+                  <TextField.Root mb="3" size="3" placeholder={'Payment value in ' + Readability.toAssetSymbol(assets[asset].asset)} type="number" value={item.value} onChange={(e) => {
                     const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                     copy.to[index].value = e.target.value;
                     setProgram(copy);

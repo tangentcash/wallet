@@ -3,7 +3,21 @@ import BigNumber from "bignumber.js";
 import Names from '../assets/cryptocurrency/names.json';
 import Colors from '../assets/cryptocurrency/colors.json';
 
+export function lerp(a: number, b: number, t: number): number {
+  return a * (1 - t) + b * t;
+}
+
 export class Readability {
+  static toAssetSymbol(asset: AssetId): string {
+    return asset.token || asset.chain || '?';
+  }
+  static toAssetFallback(asset: AssetId): string {
+    return this.toAssetSymbol(asset)[0];
+  }
+  static toAssetImage(asset: AssetId): string {
+    const target = this.toAssetSymbol(asset);
+    return target.length > 0 && target != '?' ? '/cryptocurrency/' + target.toLowerCase() + '.svg' : '';
+  }
   static toAssetName(asset: AssetId, chainOnly?: boolean): string {
     const token: string | null = chainOnly ? null : asset.token?.toUpperCase() || null;
     const chain: string = asset.chain?.toUpperCase() || 'Unknown';
@@ -62,7 +76,7 @@ export class Readability {
     if (trailing && text.length < 2)
       text.push('0');
 
-    const result = text[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (text.length > 1 ? '.' + text[1] : '') + ' ' + (asset.token || asset.chain);
+    const result = text[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (text.length > 1 ? '.' + text[1] : '') + ' ' + this.toAssetSymbol(asset);
     return delta ? ((numeric.gt(0) ? '+' : '') + result) : result;
   }
   static toMoney(asset: AssetId, value: string | number | BigNumber | null, delta?: boolean): string {

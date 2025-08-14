@@ -1,9 +1,13 @@
 import { Box, Callout } from "@radix-ui/themes";
 import { mdiAlertCircleOutline, mdiInformationOutline } from '@mdi/js';
 import { useState } from "react";
+import { lerp } from "../core/text";
 import Icon from '@mdi/react';
 
-const ALERT_TIME = 8000;
+const MIN_ALERT_TIME = 8000;
+const MAX_ALERT_TIME = 24000;
+const MESSAGE_LENGTH_FAST = 80;
+const MESSAGE_LENGTH_SLOW = 190;
 
 export enum AlertType {
   Info = 'info',
@@ -61,6 +65,9 @@ export class AlertBox {
     };
   }
   static open(type: AlertType, message: string): number {
+    const maxHeavyness = MESSAGE_LENGTH_SLOW - MESSAGE_LENGTH_FAST;
+    const heavyness = Math.max(message.length, MESSAGE_LENGTH_FAST) - MESSAGE_LENGTH_SLOW;
+    const time = Math.floor(lerp(MIN_ALERT_TIME, MAX_ALERT_TIME, Math.max(0, Math.min(1, heavyness / maxHeavyness))));
     if (this.alerts.length > 0) {
       const top = this.alerts.find((item) => item.type == type && this.toUncountedMessage(item.message)[0] == message);
       if (top != null) {
@@ -68,7 +75,7 @@ export class AlertBox {
         clearTimeout(top.timeout);
 
         top.message = this.toCountedMessage(prevMessage[0], prevMessage[1] + 1);
-        top.timeout = setTimeout(this.destructor(top.id), ALERT_TIME);
+        top.timeout = setTimeout(this.destructor(top.id), time);
         if (top.status != AlertStatus.Opening)
           top.status = AlertStatus.Active;
         if (this.notify)
@@ -83,7 +90,7 @@ export class AlertBox {
       status: AlertStatus.Opening,
       type: type,
       message: message,
-      timeout: setTimeout(this.destructor(id), ALERT_TIME)
+      timeout: setTimeout(this.destructor(id), time)
     });
     if (this.notify)
       this.notify();
@@ -139,7 +146,7 @@ export function Alert() {
             <Callout.Icon>
               <Icon path={alert.type == AlertType.Info ? mdiInformationOutline : mdiAlertCircleOutline } size={1} />
             </Callout.Icon>
-            <Callout.Text>{ alert.message }</Callout.Text>
+            <Callout.Text style={{ whiteSpace: 'pre' }}>{ alert.message }</Callout.Text>
           </Callout.Root>
         )
       }

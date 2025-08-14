@@ -6,7 +6,7 @@ import { useNavigate } from "react-router";
 import { wordlist } from '@scure/bip39/wordlists/english';
 import { CSSTransition, SwitchTransition } from "react-transition-group";
 import { SafeStorage, Storage, StorageField } from "../core/storage";
-import { Chain, NetworkType, Pubkeyhash, Signing, WalletType } from "tangentsdk";
+import { ByteUtil, Chain, NetworkType, Pubkeyhash, Signing, WalletType } from "tangentsdk";
 import { AppData } from "../core/app";
 import Typed from 'typed.js';
 import Icon from '@mdi/react';
@@ -295,10 +295,15 @@ export default function RestorePage() {
                       if (value == 'auto') {
                         const file = await AppData.openFile('application/json');
                         try {
-                          if (typeof file != 'string')
+                          if (!file)
                             throw 'not a json file';
 
-                          const wallet = JSON.parse(file);
+                          let wallet;
+                          try {
+                            wallet = JSON.parse(ByteUtil.uint8ArrayToByteString(file));
+                          } catch {
+                            wallet = JSON.parse(ByteUtil.uint8ArrayToUtf8String(file));
+                          }
                           if (typeof wallet.mnemonic == 'string') {
                             setImportType(WalletType.Mnemonic);
                             setImportCandidate(wallet.mnemonic);

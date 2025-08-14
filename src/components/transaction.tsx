@@ -62,6 +62,18 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
+            <DataList.Label>Program target:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.callable);
+                AlertBox.open(AlertType.Info, 'Address copied!')
+              }}>{ Readability.toAddress(transaction.callable) }</Button>
+              <Box ml="2">
+                <Link className="router-link" to={'/account/' + transaction.callable}>▒▒</Link>
+              </Box>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
             <DataList.Label>Program type:</DataList.Label>
             <DataList.Value>
               <Badge color="red">{ transaction.from[0].toUpperCase() + transaction.from.substring(1) }</Badge>
@@ -135,7 +147,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             {
               transaction.transactions.map((item: any, index: number) =>
                 <Flex align="center" gap="2" key={item.to + index} mb={index == transaction.transactions.length - 1 ? '0' : '4'}>
-                  <Avatar size="1" radius="full" fallback={(item.asset.token || item.asset.chain)[0]} src={'/cryptocurrency/' + (item.asset.token || item.asset.chain).toLowerCase() + '.svg'} />
+                  <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                   <Badge size="2" variant="soft">{ Readability.toTransactionType(item.type) }</Badge>
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(item.hash);
@@ -534,7 +546,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
                 </DataList.Item>
                 <DataList.Item>
                   <DataList.Label>Asset:</DataList.Label>
-                  <DataList.Value>{ (item.asset.token || item.asset.chain) }</DataList.Value>
+                  <DataList.Value>{ Readability.toAssetName(item.asset) }</DataList.Value>
                 </DataList.Item>
               </DataList.Root>
             </Card>
@@ -643,7 +655,6 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
   const events: { event: BigNumber, args: any[] }[] = (props.events || []).filter((event) => {
     switch (event.event.toNumber()) {
       case Types.AccountBalance:
-      case Types.AccountProgram:
       case Types.DepositoryBalance:
       case Types.DepositoryPolicy:
       case Types.WitnessAccount:
@@ -721,34 +732,6 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
               </Card>
             )
           })
-        })
-      }
-      {
-        Array.from(state.account.programs.keys()).map((address) => {
-          return (
-            <Card key={'Y11' + address} mt="3">
-              <DataList.Root orientation={props.orientation}>
-                <DataList.Item>
-                  <DataList.Label>Event:</DataList.Label>
-                  <DataList.Value>
-                    <Badge color="cyan">Account upgrade</Badge>
-                  </DataList.Value>
-                </DataList.Item>
-                <DataList.Item>
-                  <DataList.Label>Program account:</DataList.Label>
-                  <DataList.Value>
-                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                      navigator.clipboard.writeText(address);
-                      AlertBox.open(AlertType.Info, 'Address copied!')
-                    }}>{ Readability.toAddress(address) }</Button>
-                    <Box ml="2">
-                      <Link className="router-link" to={'/account/' + address}>▒▒</Link>
-                    </Box>
-                  </DataList.Value>
-                </DataList.Item>
-              </DataList.Root>
-            </Card>
-          )
         })
       }
       {
@@ -1135,7 +1118,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
     <Card variant="surface" mt="4">
       <Collapsible.Root open={props.open}>
         <Flex gap="3" align="center">
-          <Avatar size="3" radius="full" fallback={(transaction.asset.token || transaction.asset.chain)[0]} src={'/cryptocurrency/' + (transaction.asset.token || transaction.asset.chain).toLowerCase() + '.svg'} />
+          <Avatar size="3" radius="full" fallback={Readability.toAssetFallback(transaction.asset)} src={Readability.toAssetImage(transaction.asset)} />
           <Box width="100%">
             <Flex justify="between" align="center" mb="1">
               <Text as="div" size="2" weight="bold">{ Readability.toTransactionType(transaction.type) }</Text>
@@ -1199,10 +1182,6 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                     const event = state.witness.transactions[asset];
                     return event.transactionIds.map((tx) => <Badge key={'X4' + event.asset.toHex() + tx} size="1" radius="medium" color="gold">@{ Readability.toAddress(tx) }</Badge>)
                   })
-                }
-                {
-                  state.account.programs.size > 0 && Array.from(state.account.programs).map((address) =>
-                    <Badge key={'X5' + address} size="1" radius="medium" color="jade">+{ Readability.toAddress(address) }</Badge>)
                 }
                 {
                   Object.keys(state.receipts).length > 0 &&

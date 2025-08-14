@@ -199,7 +199,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
               { 
                 assets.map((item) =>
                   <Flex key={item.asset.id} px="2" py="2" gap="3" align="center">
-                    <Avatar size="2" radius="full" fallback={(item.asset.token || item.asset.chain)[0]} src={'/cryptocurrency/' + (item.asset.token || item.asset.chain).toLowerCase() + '.svg'} />
+                    <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                     <Box width="100%">
                       <Flex justify="between" align="center">
                         <Tooltip content={ Readability.toAssetName(item.asset, true) + ' blockchain' }>
@@ -329,7 +329,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                           return (
                             <Select.Item key={item.hash + '_select'} value={index.toString()}>
                               <Flex align="center" gap="1">
-                                <Avatar mr="1" size="1" radius="full" fallback={(item.asset.token || item.asset.chain)[0]} src={'/cryptocurrency/' + (item.asset.token || item.asset.chain).toLowerCase() + '.svg'} style={{ width: '20px', height: '20px' }} />
+                                <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '20px', height: '20px' }} />
                                 <Text style={{ color: 'var(--accent-9)' }}>{ tag }</Text>
                                 <Text>{ Readability.toAssetName(item.asset).toUpperCase() }</Text>
                               </Flex>
@@ -369,9 +369,9 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                     production.stakes.map((item: any) => {
                       return (
                         <Flex key={item.asset.id} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
-                          <Avatar size="2" radius="full" fallback={(item.asset.token || item.asset.chain)[0]} src={'/cryptocurrency/' + (item.asset.token || item.asset.chain).toLowerCase() + '.svg'} />
+                          <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                           <Box width="100%" style={{ marginLeft: '2px' }}>
-                            <Tooltip content={(item.asset.token || item.asset.chain) + " fees received by block producer, when unlocked block producer will lose half of their gas production"}>
+                            <Tooltip content={Readability.toAssetSymbol(item.asset) + " fees received by block producer, when unlocked block producer will lose half of their gas production"}>
                               <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.stake) }</Text>
                             </Tooltip>
                           </Box>
@@ -404,7 +404,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
               { 
                 participations.map((item) =>
                   <Flex key={item.asset.id} px="2" py="2" gap="3" align="center">
-                    <Avatar size="2" radius="full" fallback={(item.asset.token || item.asset.chain)[0]} src={'/cryptocurrency/' + (item.asset.token || item.asset.chain).toLowerCase() + '.svg'} />
+                    <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                     <Box width="100%" style={{ marginLeft: '2px' }}>
                       <Flex justify="between" align="center">
                         <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } depository participation</Text>
@@ -432,7 +432,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
               { 
                 attestations.map((item) =>
                   <Flex key={item.asset.id} px="2" py="2" gap="3" align="center">
-                    <Avatar size="2" radius="full" fallback={(item.asset.token || item.asset.chain)[0]} src={'/cryptocurrency/' + (item.asset.token || item.asset.chain).toLowerCase() + '.svg'} />
+                    <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                     <Box width="100%" style={{ marginLeft: '2px' }}>
                       <Flex justify="between" align="center">
                         <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } depository attestation</Text>

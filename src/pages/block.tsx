@@ -4,15 +4,11 @@ import { useCallback, useState } from "react";
 import { Badge, Box, Button, Card, DataList, Flex, Heading, IconButton, Spinner, Table } from "@radix-ui/themes";
 import { mdiArrowLeftBoldCircleOutline, mdiArrowRightBoldCircleOutline, mdiBackburger } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
-import { Readability } from "../core/text";
+import { lerp, Readability } from "../core/text";
 import { Chain, RPC } from "tangentsdk";
 import { AppData } from "../core/app";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
-
-function lerp(a: number, b: number, t: number): number {
-  return a * (1 - t) + b * t;
-}
 
 export default function BlockPage() {
   const params = useParams();
