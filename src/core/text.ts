@@ -24,7 +24,7 @@ export class Readability {
     if (token != null) {
       const name = (Names as Record<string, string>)[token];
       if (name != null)
-        return name;
+        return name + ' on ' + chain;
 
       return token + ' on ' + chain;
     }
@@ -63,7 +63,7 @@ export class Readability {
   static toTransactionType(type: string): string {
     return Transactions.typenames[type] || 'Non-standard';
   }
-  static toValue(asset: AssetId, value: string | number | BigNumber | null, delta: boolean, trailing: boolean): string {
+  static toValue(asset: AssetId | null, value: string | number | BigNumber | null, delta: boolean, trailing: boolean): string {
     if (value == null)
       return 'NULL';
 
@@ -75,11 +75,16 @@ export class Readability {
     const text: string[] = (places ? numeric.toFormat(places) : numeric.toString()).split('.');
     if (trailing && text.length < 2)
       text.push('0');
+    
+    let length = 0;
+    while (text[1][length] == '0')
+      ++length;
 
-    const result = text[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (text.length > 1 ? '.' + text[1] : '') + ' ' + this.toAssetSymbol(asset);
+    text[1] = text[1].substring(0, Math.min(12, Math.max(6, length + 1)));
+    const result = text[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (text.length > 1 ? '.' + text[1] : '') + (asset ? ' ' + this.toAssetSymbol(asset) : '');
     return delta ? ((numeric.gt(0) ? '+' : '') + result) : result;
   }
-  static toMoney(asset: AssetId, value: string | number | BigNumber | null, delta?: boolean): string {
+  static toMoney(asset: AssetId | null, value: string | number | BigNumber | null, delta?: boolean): string {
     return this.toValue(asset, value, delta || false, true);
   }
   static toUnit(value: string | number | BigNumber | null, delta?: boolean): string {

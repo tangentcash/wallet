@@ -10,21 +10,21 @@ import Transaction from "../components/transaction";
 import Icon from "@mdi/react";
 
 export default function TransactionPage() {
-  const id = useParams().id;
+  const params = useParams();
   const [data, setData] = useState<any>(null);
   const navigate = useNavigate();
   useEffectAsync(async () => {
     try {
-      if (!id)
+      if (!params.id)
         throw false;
 
       let result = null;
       try {
-        result = await RPC.getTransactionByHash(id, 2);
+        result = await RPC.getTransactionByHash(params.id, 2);
         if (!result)
           throw false;
       } catch {
-        result = await RPC.getMempoolTransactionByHash(id);
+        result = await RPC.getMempoolTransactionByHash(params.id);
         if (!result)
           throw false;
       }
@@ -40,7 +40,7 @@ export default function TransactionPage() {
       setTimeout(() => AlertBox.open(AlertType.Error, 'Transaction not found: ' + (exception as Error).message), 200);
       navigate('/');
     }
-  }, []);
+  }, [params]);
 
   if (data != null) {
     return (
