@@ -76,11 +76,13 @@ export class Readability {
     if (trailing && text.length < 2)
       text.push('0');
     
-    let length = 0;
-    while (text[1][length] == '0')
-      ++length;
-
-    text[1] = text[1].substring(0, Math.min(12, Math.max(6, length + 1)));
+    if (text.length > 1) {
+      let length = 0;
+      while (text[1][length] == '0')
+        ++length;
+      text[1] = text[1].substring(0, Math.min(12, Math.max(6, length + 1)));
+    }
+    
     const result = text[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (text.length > 1 ? '.' + text[1] : '') + (asset ? ' ' + this.toAssetSymbol(asset) : '');
     return delta ? ((numeric.gt(0) ? '+' : '') + result) : result;
   }

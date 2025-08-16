@@ -48,8 +48,7 @@ export type ServerState = {
 export type AppState = {
   count: number,
   setState: Function | null,
-  setAppearance: Function | null,
-  navigate: NavigateFunction | null
+  setNavigation: NavigateFunction | null
 }
 
 export type AppProps = {
@@ -67,8 +66,7 @@ export class AppData {
   static state: AppState = {
     count: 0,
     setState: null,
-    setAppearance: null,
-    navigate: null
+    setNavigation: null
   };
   static props: AppProps = {
     resolver: 'nds.tangent.cash',
@@ -76,6 +74,7 @@ export class AppData {
     authorizer: true,
     appearance: 'dark'
   };
+  static platform: 'desktop' | 'mobile' | 'unknown' = 'unknown';
   static wallet: WalletKeychain | null = null;
   static tip: BigNumber | null = null;
   static approveTransaction: ((proof: { hash: Uint256, message: Uint8Array, signature: Hashsig } | null) => void) | null = null;
@@ -244,9 +243,9 @@ export class AppData {
             throw new Error('User is busy signing another transaction');
 
           const proof = await new Promise<{ hash: Uint256, message: Uint8Array, signature: Hashsig } | null>((resolve) => {
-            if (this.state.navigate) {          
+            if (this.state.setNavigation) {          
               this.approveTransaction = resolve;
-              this.state.navigate(`/interaction?type=approvetransaction&transaction=${ByteUtil.uint8ArrayToHexString(entity.sign.message || new Uint8Array())}`);
+              this.state.setNavigation(`/interaction?type=approvetransaction&transaction=${ByteUtil.uint8ArrayToHexString(entity.sign.message || new Uint8Array())}`);
             } else {
               resolve(null);
             }
@@ -274,10 +273,14 @@ export class AppData {
     }
   }
   private static async authorizerDomain(hostname: string): Promise<string[]> {
-    const result: string[] = await core.invoke('resolve_domain_txt', {
-      hostname: hostname
-    });
-    return result;
+    try {
+      const result: string[] = await core.invoke('resolve_domain_txt', {
+        hostname: hostname
+      });
+      return result;
+    } catch {
+      return [];
+    }
   }
   private static save(): void {
     Storage.set(StorageField.Props, this.props);
@@ -542,6 +545,7 @@ export class AppData {
   }
   static async main(): Promise<void> {
     const props: AppProps | null = Storage.get(StorageField.Props);
+    core.invoke('platform_type').then((value) => this.platform = value as 'desktop' | 'mobile' | 'unknown');
     if (props != null)
       this.props = props;
 
@@ -627,9 +631,8 @@ export class AppData {
   }
   static setAppearance(value: 'dark' | 'light'): void {
     this.props.appearance = value;
-    if (this.state.setAppearance != null)
-      this.state.setAppearance(value);
     this.save();
+    this.setState();
   }
   static setState(): void {
     if (this.state.setState != null)
@@ -657,14 +660,10 @@ export class AppData {
 
 export function App() {
   const [state, setState] = useState(0);
-  const [appearance, setAppearance] = useState(AppData.props.appearance);
-  // @ts-ignore
-  const appearanceValue: 'dark' | 'light' = appearance;
   AppData.state.setState = setState;
-  AppData.state.setAppearance = setAppearance;
 
   return (
-    <Theme appearance={appearanceValue} accentColor="iris" radius="full" id={state.toString()}>
+    <Theme appearance={AppData.props.appearance} accentColor="iris" radius="full" id={state.toString()}>
       <Box minWidth="285px" maxWidth="800px" mx="auto" style={{ paddingBottom: '96px' }}>
         <BrowserRouter>
           <Routes>

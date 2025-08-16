@@ -1,6 +1,6 @@
 import { AlertDialog, Avatar, Badge, Button, Card, Flex, IconButton, Separator, Text } from "@radix-ui/themes";
 import { useCallback, useState } from "react";
-import { Authorizer, ByteUtil, Entity, Signing } from "tangentsdk";
+import { Authorizer, ByteUtil, AuthEntity, Signing } from "tangentsdk";
 import { Readability } from "../core/text";
 import { mdiAlertOutline, mdiCheckboxMarkedCircleOutline } from "@mdi/js";
 import { AppData, DecodedTransaction } from "../core/app";
@@ -17,12 +17,12 @@ type Metadata = {
 }
 
 export class PrompterBox {
-  static entity: Entity | null = null;
+  static entity: AuthEntity | null = null;
   static metadata: Metadata | null = null;
   static notify: (() => void) | null = null;
   static resolve: ((approve: boolean) => void) | null = null;
 
-  static open(entity?: Entity): Promise<boolean> {
+  static open(entity?: AuthEntity): Promise<boolean> {
       if (entity && this.entity) {
         throw new Error('Already prompting another approval');
       }
@@ -114,18 +114,18 @@ export function Prompter() {
             </Flex>
           </Card>
           <Flex gap="2" wrap="wrap" mb="2" ml="2">
-            <Text size="1">—— Effects:</Text>
+            <Text size="2">—— Effects:</Text>
             {
               metadata.kind == 'account' &&
-              <Badge color="yellow" radius="small">Address reveal</Badge>
+              <Badge color="yellow" radius="small" size="1">Address reveal</Badge>
             }
             {
               metadata.kind == 'identity' &&
-              <Badge color="orange" radius="small">Public key reveal</Badge>
+              <Badge color="orange" radius="small" size="1">Public key reveal</Badge>
             }
             {
               (metadata.kind == 'message' || metadata.kind == 'transaction') &&
-              <Badge color="red" radius="small">{ metadata.decodedTransaction ? 'Transaction' : 'Message' } signature</Badge>
+              <Badge color="red" radius="small" size="1">{ metadata.decodedTransaction ? 'Transaction' : 'Message' } signature</Badge>
             }
           </Flex>
           {
@@ -138,19 +138,19 @@ export function Prompter() {
           <AlertDialog.Description mt="4">
             {
               metadata.kind == 'account' &&
-              <>The <Badge color="bronze">{ entity.proof.hostname }</Badge> app asks you to see reveal your account address. Proceed?</>
+              <>The <Badge color="bronze" size="1">{ entity.proof.hostname }</Badge> app asks you to see reveal your account address. Proceed?</>
             }
             {
               metadata.kind == 'identity' &&
-              <>The <Badge color="bronze">{ entity.proof.hostname }</Badge> app asks you to sign a message to confirm you own this account address. Proceed?</>
+              <>The <Badge color="bronze" size="1">{ entity.proof.hostname }</Badge> app asks you to sign a message to confirm you own this account address. Proceed?</>
             }
             {
               metadata.kind == 'message' &&
-              <>The <Badge color="bronze">{ entity.proof.hostname }</Badge> app asks you to sign a message without knowing its content which may be used to impersonate your account. Proceed with caution.</>
+              <>The <Badge color="bronze" size="1">{ entity.proof.hostname }</Badge> app asks you to sign a message without knowing its content which may be used to impersonate your account. Proceed with caution.</>
             }
             {
               metadata.kind == 'transaction' &&
-              <>The <Badge color="bronze">{ entity.proof.hostname }</Badge> app asks you to sign and send a transaction that may have unintended side effects allowing one to perform action(s) on your behalf. Proceed with caution.</>
+              <>The <Badge color="bronze" size="1">{ entity.proof.hostname }</Badge> app asks you to sign and send a transaction that may have unintended side effects allowing one to perform action(s) on your behalf. Proceed with caution.</>
             }
           </AlertDialog.Description>
           {
