@@ -42,7 +42,7 @@ fn run_server(app: &mut App) -> std::result::Result<(), Box<dyn std::error::Erro
             actix_web::App::new()
                 .default_service(actix_web::web::route().to(authorizer_service))
         })
-        .bind(("127.0.0.1", 57673))?
+        .bind(("127.0.0.1", 47673))?
         .run(),
     );
     Ok(())
