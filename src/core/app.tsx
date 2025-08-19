@@ -165,7 +165,7 @@ export class AppData {
     AlertBox.open(AlertType.Error, `${address}${address.endsWith('/') ? '' : '/'}${method} error: ${(error as any)?.message || error}`);
   }
   private static async authorizerEvent(request: { event: string, id: number, payload: any}): Promise<boolean> {
-    if (!this.props.authorizer)
+    if (!this.props.authorizer || PrompterBox.isOpen() || this.approveTransaction)
       return false;
 
     return await Authorizer.try(request.payload);

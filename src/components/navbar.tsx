@@ -19,7 +19,7 @@ export function Navbar(props: { path: string }) {
   const path = props.path;
   const main = types.filter((item) => path.startsWith(item.path)).sort((a, b) => b.path.length - a.path.length)[0]?.path || null;
   const navigate = useNavigate();
-  AppData.state.navigate = navigate;
+  AppData.state.setNavigation = navigate;
   return (
     <Box position="fixed" bottom="0" left="0" right="0" style={{ zIndex: 10000 }}>
       <Flex justify="center">

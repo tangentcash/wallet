@@ -1063,6 +1063,11 @@
     radix-ui "^1.1.3"
     react-remove-scroll-bar "^2.3.8"
 
+"@radixdlt/uint256@^1.1.0":
+  version "1.1.0"
+  resolved "https://registry.yarnpkg.com/@radixdlt/uint256/-/uint256-1.1.0.tgz#e0d46b14b63c55b366a53692fb4cc38b37f0a475"
+  integrity sha512-jpthXXsTJhvBTQrSSi0lXA0HPTmhrYIJklTRNicZgvITosvpByinCzZEebJbYeGfWlWRsqFHsKbFWgNTRVNIUg==
+
 "@rollup/rollup-android-arm-eabi@4.46.2":
   version "4.46.2"
   resolved "https://registry.yarnpkg.com/@rollup/rollup-android-arm-eabi/-/rollup-android-arm-eabi-4.46.2.tgz#292e25953d4988d3bd1af0f5ebbd5ee4d65c90b4"
@@ -1840,10 +1845,11 @@ source-map-js@^1.2.1:
 
 "tangentsdk@http://c.lan:8929/root/tangentsdk.git":
   version "1.0.0"
-  resolved "http://c.lan:8929/root/tangentsdk.git#3067eaee19d2e86f08b910e95c27dadb5a644c6d"
+  resolved "http://c.lan:8929/root/tangentsdk.git#f99f040646eef78ae6a4f305513d8a7048eacc6e"
   dependencies:
     "@ethersproject/random" "5.8.0"
     "@noble/hashes" "1.8.0"
+    "@radixdlt/uint256" "^1.1.0"
     "@scure/bip39" "1.6.0"
     "@types/libsodium-wrappers" "0.7.14"
     "@types/secp256k1" "4.0.6"
@@ -1853,7 +1859,6 @@ source-map-js@^1.2.1:
     libsodium-wrappers "0.7.15"
     secp256k1 "5.0.1"
     typescript "5.9.2"
-    uint256 "1.0.8"
 
 throttle-debounce@^2.1.0:
   version "2.3.0"

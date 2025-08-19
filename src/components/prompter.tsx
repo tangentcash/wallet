@@ -32,7 +32,9 @@ export class PrompterBox {
         let decodedTransaction: DecodedTransaction | null = null;
         try {
           decodedTransaction = this.entity.sign.message ? AppData.decodeTransaction(this.entity.sign.message) : null;
-        } catch { }
+        } catch (exception: any) {
+          console.log(exception);
+        }
 
         const kind = decodedTransaction ? 'transaction' : (this.entity.sign.message ? (this.entity.kind == 'transaction' ? 'message' : this.entity.kind) : 'account');
         const ipAddress = Authorizer.isIpAddress(this.entity.proof.hostname);
@@ -131,8 +133,8 @@ export function Prompter() {
           {
             entity.about.description &&
             <Flex gap="2" wrap="wrap" mb="2" ml="2">
-              <Text size="1">—— Reason:</Text>
-              <Text size="1" color="gray">{ entity.about.description }</Text>
+              <Text size="2">—— Reason:</Text>
+              <Text size="2" color="gray">{ entity.about.description }</Text>
             </Flex>
           }
           <AlertDialog.Description mt="4">
