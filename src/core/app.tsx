@@ -69,7 +69,7 @@ export class AppData {
     setNavigation: null
   };
   static props: AppProps = {
-    resolver: 'nds.tangent.cash',
+    resolver: 'discovery.tangent.cash',
     server: '127.0.0.1:18419',
     authorizer: true,
     appearance: 'dark'

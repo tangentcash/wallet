@@ -568,12 +568,12 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Cipher public key:</DataList.Label>
+            <DataList.Label>Manager public key:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.cipher_public_key || 'NULL');
-                AlertBox.open(AlertType.Info, 'Cipher public key copied!')
-              }}>{ Readability.toHash(transaction.cipher_public_key) }</Button>
+                navigator.clipboard.writeText(transaction.manager_public_key || 'NULL');
+                AlertBox.open(AlertType.Info, 'Manager public key copied!')
+              }}>{ Readability.toHash(transaction.manager_public_key) }</Button>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
