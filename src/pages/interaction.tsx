@@ -381,6 +381,7 @@ export default function InteractionPage() {
     if (!programReady || loadingTransaction)
       return null;
     
+    console.log(new Uint256(0).toUint8Array());
     setLoadingTransaction(true);
     try {
       const buildProgram = async (method: { type: Ledger.Transaction | Ledger.DelegationTransaction | Ledger.DelegationTransaction | Ledger.UnknownTransaction, args: { [key: string]: any } }) => {
@@ -404,14 +405,14 @@ export default function InteractionPage() {
           type: new Transactions.Transfer.Many(),
           args: {
             to: program.to.map((payment) => ({
-              to: payment.address,
+              to: Signing.decodeAddress(payment.address || ''),
               value: new BigNumber(payment.value)
             }))
           }
         } : {
           type: new Transactions.Transfer.One(),
           args: {
-            to: program.to[0].address,
+            to: Signing.decodeAddress(program.to[0].address || ''),
             value: new BigNumber(program.to[0].value)
           }
         });
