@@ -1,5 +1,5 @@
-import { mdiBackburger } from "@mdi/js";
-import { Avatar, Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Heading, Select, Text } from "@radix-ui/themes";
+import { mdiAlertCircleOutline, mdiBackburger } from "@mdi/js";
+import { Avatar, Badge, Box, Button, Callout, Card, DataList, DropdownMenu, Flex, Heading, Select, Text } from "@radix-ui/themes";
 import { Link, useNavigate } from "react-router";
 import { useCallback, useState } from "react";
 import { useEffectAsync } from "../core/react";
@@ -79,7 +79,7 @@ export default function DepositoryPage() {
   useEffectAsync(async () => {
     try {
       if (!assets.length) {
-        const assetData = await RPC.getBlockchains();
+        const assetData = await RPC.getBlockchains(true);
         if (Array.isArray(assetData)) {
           setAssets(assetData.sort((a, b) => new AssetId(a.id).handle.localeCompare(new AssetId(b.id).handle)));
         }
@@ -312,6 +312,52 @@ export default function DepositoryPage() {
               <Text size="1" weight="light"><Text color="yellow">Register</Text> more {Readability.toAssetName(assets[asset])} addresses by requesting {assets[asset].routing_policy == 'account' ? 'deposits/' : ''}withdrawals</Text>
             </Card>
           </Box>
+          {
+            assets[asset].supports.token_transfer &&
+            <Box width="100%" mb="6">
+              <Box width="100%" mb="4">
+                <Heading size="6">Token rules</Heading>
+                <Box mt="3" style={{ border: '1px dashed var(--gray-8)' }}></Box>
+              </Box>
+              {
+                Array.isArray(assets[asset].supports.token_whitelist) && assets[asset].supports.token_whitelist.length > 0 &&
+                <Card>
+                  <Text size="1" weight="light">Only <Text color="yellow">whitelisted { assets[asset].supports.token_transfer } token</Text> deposits/withdrawals are acceptable:</Text>
+                  {
+                    assets[asset].supports.token_whitelist.map((item: AssetId & { contract_address: string }) =>
+                      <Flex key={item.id + 'accept'} mt="2" align="center" gap="2">
+                        <Text>—</Text>
+                        <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(item)} src={Readability.toAssetImage(item)} style={{ width: '24px', height: '24px' }} />
+                        <Flex align="center">
+                          <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                            navigator.clipboard.writeText(item.contract_address);
+                            AlertBox.open(AlertType.Info, 'Contract address copied!')
+                          }}>{ Readability.toAddress(item.contract_address, 6) } { item.token }</Button>
+                        </Flex>
+                      </Flex>)
+                  }
+                </Card>
+              }
+              {
+                Array.isArray(assets[asset].supports.token_whitelist) && !assets[asset].supports.token_whitelist.length &&
+                <Callout.Root size="1" variant="surface" color="orange">
+                  <Callout.Icon>
+                    <Icon path={mdiAlertCircleOutline} size={1} />
+                  </Callout.Icon>
+                  <Callout.Text style={{ whiteSpace: 'pre' }}>Token deposits/withdrawals of any kind are not acceptable</Callout.Text>
+                </Callout.Root>
+              }
+              {
+                !Array.isArray(assets[asset].supports.token_whitelist) &&
+                <Callout.Root size="1" variant="surface" color="jade">
+                  <Callout.Icon>
+                    <Icon path={mdiAlertCircleOutline} size={1} />
+                  </Callout.Icon>
+                  <Callout.Text style={{ whiteSpace: 'pre' }}>Only <Text color="yellow">{ assets[asset].supports.token_transfer } token</Text> deposits/withdrawals are acceptable</Callout.Text>
+                </Callout.Root>
+              }
+            </Box>
+          }
           <Box width="100%" mb="4">
             <Flex justify="between" align="center" mb="3">
               <Heading size="6">Depositories</Heading>
@@ -331,9 +377,7 @@ export default function DepositoryPage() {
           </Box>
           {
             !candidateDepositories.length &&
-            <Flex justify="center" mt="4">
-              <Text color="red">❌ No active depositories for {Readability.toAssetName(assets[asset])} blockchain ❌</Text>
-            </Flex>
+            <Text color="red">No active depositories for {Readability.toAssetName(assets[asset])} blockchain</Text>
           }
           <InfiniteScroll dataLength={candidateDepositories.length} hasMore={moreDepositories} next={findDepositories} loader={<div></div>}>
             {

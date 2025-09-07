@@ -581,20 +581,20 @@ export default function InteractionPage() {
       }
       case 'certification': {
         const result = new ProgramCertification();
-        try { result.assets = ((await RPC.getBlockchains()) || []).map((v) => AssetId.fromHandle(v.chain)); } catch { }
+        try { result.assets = ((await RPC.getBlockchains(false)) || []).map((v) => AssetId.fromHandle(v.chain)); } catch { }
         setProgram(result);
         break;
       }
       case 'registration': {
         const result = new ProgramDepositoryAccount();
-        try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
+        try { result.routing = ((await RPC.getBlockchains(false)) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
         setProgram(result);
         break;
       }
       case 'withdrawal': {
         const result = new ProgramDepositoryWithdrawal();
         result.to = [{ address: '', value: '' }];
-        try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
+        try { result.routing = ((await RPC.getBlockchains(false)) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
         setProgram(result);
         break;
       }

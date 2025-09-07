@@ -21,15 +21,10 @@ export class Readability {
   static toAssetName(asset: AssetId, chainOnly?: boolean): string {
     const token: string | null = chainOnly ? null : asset.token?.toUpperCase() || null;
     const chain: string = asset.chain?.toUpperCase() || 'Unknown';
-    if (token != null) {
-      const name = (Names as Record<string, string>)[token];
-      if (name != null)
-        return name + ' on ' + chain;
+    if (token != null)
+      return ((Names as Record<string, string>)[token] || token) + ' on ' + chain;
 
-      return token + ' on ' + chain;
-    }
-
-    return (Names as Record<string, string>)[chain] || chain ;
+    return (Names as Record<string, string>)[chain] || chain;
   }
   static toAssetColor(asset: AssetId): string {
     const token: string | null = asset.token?.toLowerCase() || null;
