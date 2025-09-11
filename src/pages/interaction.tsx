@@ -1,5 +1,5 @@
-import { mdiBackburger, mdiMinus, mdiPlus } from "@mdi/js";
-import { Avatar, Badge, Box, Button, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { mdiAlertCircleOutline, mdiBackburger, mdiMinus, mdiPlus } from "@mdi/js";
+import { Avatar, Badge, Box, Button, Callout, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Readability } from "../core/text";
@@ -15,7 +15,7 @@ export class ProgramTransfer {
   to: { address: string, value: string }[] = [];
 }
 
-export class ProgramCertification {
+export class ProgramValidatorAdjustment {
   assets: AssetId[] = []
   blockProduction: 'standby' | 'enable' | 'disable' = 'standby';
   participationStakes: { asset: AssetId, stake: string | null }[] = [];
@@ -36,11 +36,13 @@ export class ProgramDepositoryWithdrawal {
 }
 
 export class ProgramDepositoryAdjustment {
+  routing: { chain: string, policy: string }[] = [];
   incomingFee: string = '';
   outgoingFee: string = '';
   securityLevel: number = 2;
   acceptsAccountRequests: boolean = true;
   acceptsWithdrawalRequests: boolean = true;
+  whitelist: { symbol: string, address: string }[] = [];
 }
 
 export class ProgramDepositoryRegrouping {
@@ -79,7 +81,7 @@ export default function InteractionPage() {
   const [loadingGasLimit, setLoadingGasLimit] = useState(false);
   const [conservative, setConservative] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
-  const [program, setProgram] = useState<ProgramTransfer | ProgramCertification | ProgramDepositoryAccount | ProgramDepositoryWithdrawal | ProgramDepositoryAdjustment | ProgramDepositoryRegrouping | ProgramDepositoryWithdrawalMigration | ApproveTransaction | null>(null);
+  const [program, setProgram] = useState<ProgramTransfer | ProgramValidatorAdjustment | ProgramDepositoryAccount | ProgramDepositoryWithdrawal | ProgramDepositoryAdjustment | ProgramDepositoryRegrouping | ProgramDepositoryWithdrawalMigration | ApproveTransaction | null>(null);
   const navigate = useNavigate();
   const maxFeeValue = useMemo((): BigNumber => {
     try {
@@ -113,7 +115,7 @@ export default function InteractionPage() {
   const transactionType = useMemo((): string => {
     if (program instanceof ProgramTransfer) {
       return program.to.length > 1 ? 'Send to many' : 'Send to one';
-    } else if (program instanceof ProgramCertification) {
+    } else if (program instanceof ProgramValidatorAdjustment) {
       return 'Validator adjustment';
     } else if (program instanceof ProgramDepositoryAccount) {
         return 'Address claim';
@@ -176,7 +178,7 @@ export default function InteractionPage() {
       }
   
       return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
-    } else if (program instanceof ProgramCertification) {
+    } else if (program instanceof ProgramValidatorAdjustment) {
         for (let i = 0; i < program.participationStakes.length; i++) {
           let item = program.participationStakes[i];
           try {
@@ -256,6 +258,16 @@ export default function InteractionPage() {
         }
       } catch {
         return false;
+      }
+
+      let duplicates = new Set<string>();
+      for (let i = 0; i < program.whitelist.length; i++) {
+        const item = program.whitelist[i];
+        const id = item.symbol.trim() + item.address.trim();
+        if (!item.symbol.trim().length || !item.address.trim().length || duplicates.has(id))
+          return false;
+
+        duplicates.add(id);
       }
 
       if (program.securityLevel < Chain.props.PARTICIPATION_COMMITTEE[0] || program.securityLevel > Chain.props.PARTICIPATION_COMMITTEE[1])
@@ -416,9 +428,9 @@ export default function InteractionPage() {
             value: new BigNumber(program.to[0].value)
           }
         });
-      } else if (program instanceof ProgramCertification) {
+      } else if (program instanceof ProgramValidatorAdjustment) {
         return await buildProgram({
-          type: new Transactions.Certification(),
+          type: new Transactions.ValidatorAdjustment(),
           args: {
             blockProduction: program.blockProduction == 'enable' ? 1 : (program.blockProduction == 'disable' ? 0 : 2),
             participationStakes: program.participationStakes.map((item) => ({
@@ -467,7 +479,8 @@ export default function InteractionPage() {
             outgoingFee: new BigNumber(program.outgoingFee),
             securityLevel: program.securityLevel,
             acceptsAccountRequests: program.acceptsAccountRequests,
-            acceptsWithdrawalRequests: program.acceptsWithdrawalRequests
+            acceptsWithdrawalRequests: program.acceptsWithdrawalRequests,
+            whitelist: program.whitelist
           }
         });
       } else if (program instanceof ProgramDepositoryRegrouping) {
@@ -579,27 +592,29 @@ export default function InteractionPage() {
         setProgram(result);
        break; 
       }
-      case 'certification': {
-        const result = new ProgramCertification();
-        try { result.assets = ((await RPC.getBlockchains(false)) || []).map((v) => AssetId.fromHandle(v.chain)); } catch { }
+      case 'validator': {
+        const result = new ProgramValidatorAdjustment();
+        try { result.assets = ((await RPC.getBlockchains()) || []).map((v) => AssetId.fromHandle(v.chain)); } catch { }
         setProgram(result);
         break;
       }
       case 'registration': {
         const result = new ProgramDepositoryAccount();
-        try { result.routing = ((await RPC.getBlockchains(false)) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
+        try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
         setProgram(result);
         break;
       }
       case 'withdrawal': {
         const result = new ProgramDepositoryWithdrawal();
         result.to = [{ address: '', value: '' }];
-        try { result.routing = ((await RPC.getBlockchains(false)) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
+        try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
         setProgram(result);
         break;
       }
       case 'adjustment': {
-        setProgram(new ProgramDepositoryAdjustment());
+        const result = new ProgramDepositoryAdjustment();
+        try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.token_policy }}); } catch { }
+        setProgram(result);
         break;
       }
       case 'regrouping': {
@@ -692,7 +707,7 @@ export default function InteractionPage() {
               </Tooltip>
               <DropdownMenu.Separator />
               <Tooltip content="Change block production and/or participation/attestation stake(s)">
-                <DropdownMenu.Item shortcut="⟳ ₿" onClick={() => navigate('/interaction?type=certification')}>Configure validator</DropdownMenu.Item>
+                <DropdownMenu.Item shortcut="⟳ ₿" onClick={() => navigate('/interaction?type=validator')}>Configure validator</DropdownMenu.Item>
               </Tooltip>
               <DropdownMenu.Separator />
               <Tooltip content="Configure fee, security and functionality policy for a depository">
@@ -836,7 +851,7 @@ export default function InteractionPage() {
         )
       }
       {
-        asset != -1 && program instanceof ProgramCertification &&
+        asset != -1 && program instanceof ProgramValidatorAdjustment &&
         <Card mt="4">
           <Heading size="4" mb="2">Block production</Heading>
           <Select.Root size="3" value={program.blockProduction} onValueChange={(value) => {
@@ -1079,64 +1094,135 @@ export default function InteractionPage() {
       }
       {
         asset != -1 && program instanceof ProgramDepositoryAdjustment &&
-        <Card mt="4">
-          <Heading size="4" mb="2">Depository fee policy</Heading>
-          <Box width="100%">
-            <Tooltip content="Fee charged for deposits (absolute value)">
-              <TextField.Root size="3" placeholder="Incoming absolute fee 0.0-∞" type="text" value={program.incomingFee} onChange={(e) => {
-                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                copy.incomingFee = e.target.value;
-                setProgram(copy);
-              }} />
-            </Tooltip>
-          </Box>
-          <Box width="100%" mt="3">
-            <Tooltip content="Fee charged for withdrawals (absolute value)">
-              <TextField.Root size="3" placeholder="Outgoing absolute fee 0.0-∞" type="text" value={program.outgoingFee} onChange={(e) => {
-                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                copy.outgoingFee = e.target.value;
-                setProgram(copy);
-              }} />
-            </Tooltip>
-          </Box>
-          <Box width="100%" mt="3">
-            <Tooltip content="Determines how many participants must be present to sign transactions">
-              <TextField.Root size="3" placeholder="Security level (2-16)" type="text" value={program.securityLevel.toString()} onChange={(e) => {
-                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                copy.securityLevel = parseInt(e.target.value) || 0;
-                setProgram(copy);
-              }} />
-            </Tooltip>
-          </Box>
-          <Box width="100%" mt="3">
-            <Tooltip content="Allow others to generate depository accounts for your depository">
-              <Text as="label" size="2" color={program.acceptsAccountRequests ? 'jade' : 'red'}>
-                <Flex gap="2">
-                  <Checkbox size="3" checked={program.acceptsAccountRequests} onCheckedChange={(value) => {
+        <>
+          <Card mt="4">
+            <Heading size="4" mb="2">Depository policy</Heading>
+            <Box width="100%">
+              <Tooltip content="Fee charged for deposits (absolute value)">
+                <TextField.Root size="3" placeholder="Incoming absolute fee 0.0-∞" type="text" value={program.incomingFee} onChange={(e) => {
+                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                  copy.incomingFee = e.target.value;
+                  setProgram(copy);
+                }} />
+              </Tooltip>
+            </Box>
+            <Box width="100%" mt="3">
+              <Tooltip content="Fee charged for withdrawals (absolute value)">
+                <TextField.Root size="3" placeholder="Outgoing absolute fee 0.0-∞" type="text" value={program.outgoingFee} onChange={(e) => {
+                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                  copy.outgoingFee = e.target.value;
+                  setProgram(copy);
+                }} />
+              </Tooltip>
+            </Box>
+            <Box width="100%" mt="3">
+              <Tooltip content="Determines how many participants must be present to sign transactions">
+                <TextField.Root size="3" placeholder="Security level (2-16)" type="text" value={program.securityLevel.toString()} onChange={(e) => {
+                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                  copy.securityLevel = parseInt(e.target.value) || 0;
+                  setProgram(copy);
+                }} />
+              </Tooltip>
+            </Box>
+            <Flex width="100%" mt="3" justify="start" gap="2" wrap="wrap">
+              <Tooltip content="Allow others to generate depository accounts for your depository">
+                <Text as="label" size="2" color={program.acceptsAccountRequests ? 'jade' : 'red'}>
+                  <Flex gap="2">
+                    <Checkbox size="3" checked={program.acceptsAccountRequests} onCheckedChange={(value) => {
+                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                      copy.acceptsAccountRequests = (value.valueOf() as boolean);
+                      setProgram(copy);
+                    }} />
+                    <Text>Enable deposits</Text>
+                  </Flex>
+                </Text>
+              </Tooltip>
+              <Tooltip content="Allow others to withdraw their funds from your depository">
+                <Text as="label" size="2" color={program.acceptsWithdrawalRequests ? 'jade' : 'red'}>
+                  <Flex gap="2">
+                    <Checkbox size="3" checked={program.acceptsWithdrawalRequests} onCheckedChange={(value) => {
+                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                      copy.acceptsWithdrawalRequests = (value.valueOf() as boolean);
+                      setProgram(copy);
+                    }} />
+                    <Text>Enable withdrawals</Text>
+                  </Flex>
+                </Text>
+              </Tooltip>
+            </Flex>
+          </Card>
+          {
+            program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'program' &&        
+            <Card mt="4">
+              <Flex width="100%" align="center" justify="between">
+                <Heading size="4">Depository whitelist</Heading>
+                <Tooltip content="Add a token to permanent whitelist">
+                  <IconButton variant="soft" size="2" color="jade" onClick={() => {
                     const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                    copy.onlyIfNotInQueue = (value.valueOf() as boolean);
+                    copy.whitelist.push({ symbol: '', address: '' });
                     setProgram(copy);
-                  }} />
-                  <Text>Enable account generation</Text>
-                </Flex>
-              </Text>
-            </Tooltip>
-          </Box>
-          <Box width="100%" mt="3">
-            <Tooltip content="Allow others to withdraw their funds from your depository">
-              <Text as="label" size="2" color={program.acceptsWithdrawalRequests ? 'jade' : 'red'}>
-                <Flex gap="2">
-                  <Checkbox size="3" checked={program.acceptsWithdrawalRequests} onCheckedChange={(value) => {
-                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                    copy.onlyIfNotInQueue = (value.valueOf() as boolean);
-                    setProgram(copy);
-                  }} />
-                  <Text>Enable account withdrawals</Text>
-                </Flex>
-              </Text>
-            </Tooltip>
-          </Box>
-        </Card>
+                  }}>
+                    <Icon path={mdiPlus} size={0.7} />
+                  </IconButton>
+                </Tooltip>
+              </Flex>
+              {
+                program.whitelist.map((item, index) =>
+                  <Card mt="4" key={index}>
+                    <Flex gap="2" mb="3">
+                      <Box width="100%">
+                        <Tooltip content="Whitelisting token's symbol">
+                          <TextField.Root size="3" placeholder="Token symbol" type="text" value={item.symbol} onChange={(e) => {
+                            const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                            copy.whitelist[index].symbol = e.target.value;
+                            setProgram(copy);
+                          }} />
+                        </Tooltip>
+                      </Box>
+                    </Flex>
+                    <Flex gap="2" mb="3">
+                      <Box width="100%">
+                        <Tooltip content="Whitelisting token's contract address">
+                          <TextField.Root size="3" placeholder="Token contract address" type="text" value={item.address} onChange={(e) => {
+                            const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                            copy.whitelist[index].address = e.target.value;
+                            setProgram(copy);
+                          }} />
+                        </Tooltip>
+                      </Box>
+                      <Flex justify="between" gap="1">
+                        <IconButton variant="soft" size="3" color="red" onClick={() => {
+                          const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                          copy.whitelist.splice(index, 1);
+                          setProgram(copy);
+                        }}>
+                          <Icon path={mdiMinus} size={0.7} />
+                        </IconButton>
+                      </Flex>
+                    </Flex>
+                  </Card>
+                )
+              }
+              {
+                program.whitelist.length > 0 &&
+                <Box pt="2">
+                  <Callout.Root variant="soft" color="red">
+                    <Callout.Icon>
+                      <Icon path={mdiAlertCircleOutline} size={1} />
+                    </Callout.Icon>
+                    <Callout.Text>Added tokens are permanently whitelisted, you must ensure that token's smart contract is safe to interact with otherwise depository vault could be compromised which will cause loss of your funds and funds of others. Applicable only to blockchains with smart contract based tokens (Ethereum/ERC20, etc.)</Callout.Text>
+                  </Callout.Root>
+                </Box>
+              }
+              {
+                !program.whitelist.length &&
+                <Box pt="2">
+                  <Text color="gray">Perform no actions on withdrawal whitelist</Text>
+                </Box>
+              }  
+            </Card>
+          }
+        </>
       }
       {
         asset != -1 && program instanceof ProgramDepositoryWithdrawalMigration &&
@@ -1276,7 +1362,7 @@ export default function InteractionPage() {
                     <Text as="div" weight="light" size="4" mb="1">— Send <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', program.to.length) }</Text></Text>        
                   }
                   {
-                    asset != -1 && program instanceof ProgramCertification &&
+                    asset != -1 && program instanceof ProgramValidatorAdjustment &&
                     <>
                       {
                         program.blockProduction != 'standby' &&

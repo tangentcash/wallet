@@ -160,7 +160,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           </Card>
         </Box>
       )
-    case 'certification':
+    case 'validator_adjustment':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
@@ -519,6 +519,19 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
               <Badge color={ transaction.accepts_withdrawal_requests ? 'jade' : 'red' }>{ transaction.accepts_account_requests ? 'Accepting' : 'Rejecting' }</Badge>
             </DataList.Value>
           </DataList.Item>
+          {
+            transaction.whitelist.map((item: any) => 
+              <DataList.Item key={item.asset.token || item.asset.chain}>
+                <DataList.Label>{ item.asset.token || item.asset.chain } token whitelist:</DataList.Label>
+                <DataList.Value>
+                  <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                    navigator.clipboard.writeText(item.contract_address);
+                    AlertBox.open(AlertType.Info, 'Contract address copied!')
+                  }}>{ Readability.toAddress(item.contract_address) }</Button>
+                </DataList.Value>
+              </DataList.Item>
+            )
+          }
         </DataList.Root>
       )
     case 'depository_regrouping':
@@ -609,12 +622,12 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
                     </DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
-                    <DataList.Label>Encrypted seed:</DataList.Label>
+                    <DataList.Label>Encrypted share:</DataList.Label>
                     <DataList.Value>
                       <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                        navigator.clipboard.writeText(item.encrypted_seed);
-                        AlertBox.open(AlertType.Info, 'Encrypted seed copied!')
-                      }}>{ Readability.toHash(item.encrypted_seed) }</Button>
+                        navigator.clipboard.writeText(item.encrypted_share);
+                        AlertBox.open(AlertType.Info, 'Encrypted share copied!')
+                      }}>{ Readability.toHash(item.encrypted_share) }</Button>
                     </DataList.Value>
                   </DataList.Item>
                 </DataList.Root>
