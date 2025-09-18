@@ -58,6 +58,25 @@ export class Readability {
   static toTransactionType(type: string): string {
     return Transactions.typenames[type] || 'Non-standard';
   }
+  static toFunctionName(method: string): string {
+    let start = method.indexOf(' ');
+    if (start != -1) {
+      while (start + 1 < method.length && !method[start].trim().length)
+        ++start;
+      
+      let end = method.indexOf('(', start);
+      if (end != -1) {
+        method = method.substring(start, end);
+      }
+    }
+
+    method = method
+        .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+        .replace(/([a-z\d])([A-Z])/g, '$1 $2')
+        .replace(/_/g, ' ')
+        .trim().trim().toLowerCase();
+    return method[0].toUpperCase() + method.substring(1);
+  }
   static toValue(asset: AssetId | null, value: string | number | BigNumber | null, delta: boolean, trailing: boolean): string {
     if (value == null)
       return 'NULL';

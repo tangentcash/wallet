@@ -33,7 +33,7 @@ export class PrompterBox {
         try {
           decodedTransaction = this.entity.sign.message ? AppData.decodeTransaction(this.entity.sign.message) : null;
         } catch (exception: any) {
-          console.log(exception);
+          console.error(exception);
         }
 
         const kind = decodedTransaction ? 'transaction' : (this.entity.sign.message ? (this.entity.kind == 'transaction' ? 'message' : this.entity.kind) : 'account');

@@ -33,36 +33,19 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </DataList.Item>
           </DataList.Root>
         </Card>
-      )    
-    case 'refuel':
-      return transaction.to.map((item: any, index: number) =>
-        <Card key={item.to + index} mb={index == transaction.to.length - 1 ? '0' : '4'}>
-          <DataList.Root orientation={props.orientation}>
-            <DataList.Item>
-              <DataList.Label>To account:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(item.to);
-                  AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ Readability.toAddress(item.to) }</Button>
-                <Box ml="2">
-                  <Link className="router-link" to={'/account/' + item.to}>▒▒</Link>
-                </Box>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Gas paid:</DataList.Label>
-              <DataList.Value>{ Readability.toGas(item.value) }</DataList.Value>
-            </DataList.Item>
-          </DataList.Root>
-        </Card>
       )
     case 'upgrade': {
       const args = JSON.stringify(transaction.args);
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
-            <DataList.Label>Program target:</DataList.Label>
+            <DataList.Label>Using:</DataList.Label>
+            <DataList.Value>
+              <Badge color="red">{ transaction.from[0].toUpperCase() + transaction.from.substring(1) }</Badge>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>Program:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.callable);
@@ -74,13 +57,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Program type:</DataList.Label>
-            <DataList.Value>
-              <Badge color="red">{ transaction.from[0].toUpperCase() + transaction.from.substring(1) }</Badge>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Program data:</DataList.Label>
+            <DataList.Label>Bundle:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.data);
@@ -89,7 +66,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Program arguments:</DataList.Label>
+            <DataList.Label>Arguments:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 const data: any = JSON.stringify(transaction.args, null, 2);
@@ -102,11 +79,12 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
       )
     }
     case 'call': {
+      const method = transaction.function.match(/[\(\)]/) != null ? transaction.function : ('address_of(@' + transaction.function + ')');
       const args = JSON.stringify(transaction.args);
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
-            <DataList.Label>Program account:</DataList.Label>
+            <DataList.Label>Program:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.callable);
@@ -118,18 +96,21 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Program function:</DataList.Label>
+            <DataList.Label>Function:</DataList.Label>
             <DataList.Value>
-              <Badge>{ transaction.function.match(/[\(\)]/) != null ? transaction.function : ('address_of(@' + transaction.function + ')') }</Badge>
+              <Button size="2" variant="ghost" color="jade" onClick={() => {
+                navigator.clipboard.writeText(method);
+                AlertBox.open(AlertType.Info, 'Program function copied!')
+              }}>{ Readability.toHash(method, 20) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Program arguments:</DataList.Label>
+            <DataList.Label>Arguments:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(JSON.stringify(transaction.args, null, 2));
                 AlertBox.open(AlertType.Info, 'Program arguments copied!')
-              }}>{ Readability.toHash(args) }</Button>
+              }}>{ Readability.toHash(args, 20) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -1134,7 +1115,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
           <Avatar size="3" radius="full" fallback={Readability.toAssetFallback(transaction.asset)} src={Readability.toAssetImage(transaction.asset)} />
           <Box width="100%">
             <Flex justify="between" align="center" mb="1">
-              <Text as="div" size="2" weight="bold">{ Readability.toTransactionType(transaction.type) }</Text>
+              <Text as="div" size="2" weight="bold">{ transaction.type == 'call' && transaction.function != null ? Readability.toFunctionName(transaction.function) : Readability.toTransactionType(transaction.type) }</Text>
               {
                 !props.preview &&
                 <Collapsible.Trigger asChild={true}>

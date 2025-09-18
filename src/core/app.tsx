@@ -74,6 +74,7 @@ export class AppData {
     authorizer: true,
     appearance: 'dark'
   };
+  static mayNotify: boolean = false;
   static platform: 'desktop' | 'mobile' | 'unknown' = 'unknown';
   static wallet: WalletKeychain | null = null;
   static tip: BigNumber | null = null;
@@ -165,9 +166,13 @@ export class AppData {
     AlertBox.open(AlertType.Error, `${address}${address.endsWith('/') ? '' : '/'}${method} error: ${(error as any)?.message || error}`);
   }
   private static async authorizerEvent(request: { event: string, id: number, payload: any}): Promise<boolean> {
-    if (!this.props.authorizer || PrompterBox.isOpen() || this.approveTransaction)
+    if (!this.props.authorizer || PrompterBox.isOpen() || this.approveTransaction) {
+      console.log('FAIL');
       return false;
+    }
+      //return false;
 
+      console.log('PROMPT')
     return await Authorizer.try(request.payload);
   }
   private static async authorizerPrompt(entity: AuthEntity): Promise<AuthApproval> {
@@ -245,7 +250,7 @@ export class AppData {
           const proof = await new Promise<{ hash: Uint256, message: Uint8Array, signature: Hashsig } | null>((resolve) => {
             if (this.state.setNavigation) {          
               this.approveTransaction = resolve;
-              this.state.setNavigation(`/interaction?type=approvetransaction&transaction=${ByteUtil.uint8ArrayToHexString(entity.sign.message || new Uint8Array())}`);
+              this.state.setNavigation(`/interaction?type=approvetransaction&transaction=${ByteUtil.uint8ArrayToHexString(entity.sign.message || new Uint8Array())}${entity.sign.asset != null ? '&asset=' + entity.sign.asset.id : ''}`);
             } else {
               resolve(null);
             }
@@ -469,7 +474,7 @@ export class AppData {
       if (!props.gasLimit.gt(0))
         throw false;
     } catch {
-      props.gasLimit = new BigNumber(100_000);
+      props.gasLimit = new BigNumber(1_000_000);
     }
 
     const transaction = {

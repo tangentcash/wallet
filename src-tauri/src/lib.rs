@@ -8,15 +8,18 @@ async fn authorizer_service(
     data: Option<actix_web::web::Json<serde_json::Value>>,
 ) -> actix_web::HttpResponse {
     match request.method().as_str() {
-        "OPTIONS" => {
-          actix_web::HttpResponse::Ok()
-              .insert_header(("Access-Control-Allow-Origin", "*"))
-              .insert_header(("Access-Control-Allow-Methods", "POST"))
-              .insert_header(("Access-Control-Allow-Headers", "Content-Type, Authorization")).finish()
-        }
+        "OPTIONS" => actix_web::HttpResponse::Ok()
+            .insert_header(("Access-Control-Allow-Origin", "*"))
+            .insert_header(("Access-Control-Allow-Methods", "POST"))
+            .insert_header((
+                "Access-Control-Allow-Headers",
+                "Content-Type, Authorization",
+            ))
+            .finish(),
         "POST" => {
             if data.is_none() {
-              return actix_web::HttpResponse::NotAcceptable().json("Must use json body: { url: string }");
+                return actix_web::HttpResponse::NotAcceptable()
+                    .json("Must use json body: { url: string }");
             }
 
             if let Some(handle) = HANDLE.get() {
@@ -25,9 +28,13 @@ async fn authorizer_service(
                 }
             }
             actix_web::HttpResponse::Accepted()
-              .insert_header(("Access-Control-Allow-Origin", "*"))
-              .insert_header(("Access-Control-Allow-Methods", "POST"))
-              .insert_header(("Access-Control-Allow-Headers", "Content-Type, Authorization")).finish()
+                .insert_header(("Access-Control-Allow-Origin", "*"))
+                .insert_header(("Access-Control-Allow-Methods", "POST"))
+                .insert_header((
+                    "Access-Control-Allow-Headers",
+                    "Content-Type, Authorization",
+                ))
+                .finish()
         }
         _ => actix_web::HttpResponse::BadRequest().json("Only OPTIONS, POST methods are allowed"),
     }
@@ -39,8 +46,7 @@ fn run_server(app: &mut App) -> std::result::Result<(), Box<dyn std::error::Erro
         .expect("application handle assignment error");
     tauri::async_runtime::spawn(
         actix_web::HttpServer::new(|| {
-            actix_web::App::new()
-                .default_service(actix_web::web::route().to(authorizer_service))
+            actix_web::App::new().default_service(actix_web::web::route().to(authorizer_service))
         })
         .bind(("127.0.0.1", 47673))?
         .run(),
@@ -90,10 +96,15 @@ fn platform_type() -> Result<String, String> {
 #[cfg(any(target_os = "ios", target_os = "android"))]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_barcode_scanner::init())
         .plugin(tauri_plugin_shell::init())
         .setup(run_server)
-        .invoke_handler(tauri::generate_handler![resolve_domain_txt, open_devtools, platform_type])
+        .invoke_handler(tauri::generate_handler![
+            resolve_domain_txt,
+            open_devtools,
+            platform_type
+        ])
         .run(tauri::generate_context!())
         .expect("application runtime error");
 }
@@ -104,7 +115,11 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .setup(run_server)
-        .invoke_handler(tauri::generate_handler![resolve_domain_txt, open_devtools, platform_type])
+        .invoke_handler(tauri::generate_handler![
+            resolve_domain_txt,
+            open_devtools,
+            platform_type
+        ])
         .run(tauri::generate_context!())
         .expect("application runtime error");
 }

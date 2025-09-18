@@ -1,4 +1,4 @@
-import { mdiAlertCircleOutline, mdiBackburger, mdiMinus, mdiPlus } from "@mdi/js";
+import { mdiAlertCircleOutline, mdiBackburger, mdiMinus, mdiPlus, mdiRefresh } from "@mdi/js";
 import { Avatar, Badge, Box, Button, Callout, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
@@ -393,7 +393,6 @@ export default function InteractionPage() {
     if (!programReady || loadingTransaction)
       return null;
     
-    console.log(new Uint256(0).toUint8Array());
     setLoadingTransaction(true);
     try {
       const buildProgram = async (method: { type: Ledger.Transaction | Ledger.DelegationTransaction | Ledger.DelegationTransaction | Ledger.UnknownTransaction, args: { [key: string]: any } }) => {
@@ -723,7 +722,7 @@ export default function InteractionPage() {
           </DropdownMenu.Root>
         </Flex>
         <Select.Root size="3" value={asset.toString()} onValueChange={(value) => setAsset(parseInt(value))}>
-          <Select.Trigger variant="surface" placeholder="Select account" style={{ width: '100%' }}>
+          <Select.Trigger variant="surface" placeholder="Select account" style={{ width: '100%' }} className={asset >= 0 || !assets.length ? undefined : 'shadow-rainbow-animation'}>
           </Select.Trigger>
           <Select.Content variant="soft">
             <Select.Group>
@@ -1065,7 +1064,7 @@ export default function InteractionPage() {
               </Box>
               {
                 omniTransaction &&
-                <Flex justify="end">
+                <Flex justify="end" gap="2">
                   <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
                   <IconButton variant="soft" size="3" color={index != 0 ? 'red' : 'jade'} disabled={!omniTransaction && index == 0} onClick={() => {
                     const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
@@ -1251,7 +1250,7 @@ export default function InteractionPage() {
             </Box>
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>
-                <Button size="3" variant="outline" color="gray" disabled={loadingTransaction || loadingGasLimit} loading={loadingGasPrice}>
+                <Button size="3" variant="outline" color="gray" style={{ outlineColor: 'red' }} disabled={loadingTransaction || loadingGasLimit} loading={loadingGasPrice} className={gasPrice.length > 0 ? undefined : 'shadow-rainbow-animation'}>
                   Estimate
                   <DropdownMenu.TriggerIcon />
                 </Button>
@@ -1271,10 +1270,10 @@ export default function InteractionPage() {
                 <TextField.Root mb="3" size="3" placeholder="Gas limit" type="number" disabled={loadingGasPrice} value={gasLimit} onChange={(e) => setGasLimit(e.target.value)} />
               </Tooltip>
             </Box>
-            <Button size="3" variant="outline" color="gray" disabled={loadingTransaction || loadingGasPrice} loading={loadingGasLimit} onClick={() => setCalculatedGasLimit()}>Calculate</Button>
+            <Button size="3" variant="outline" color="gray" disabled={loadingTransaction || loadingGasPrice} loading={loadingGasLimit} onClick={() => setCalculatedGasLimit()} className={gasLimit.length > 0 || !gasPrice.length ? undefined : 'shadow-rainbow-animation'}>Calculate</Button>
           </Flex>
           <Box px="1" mt="2">
-            <Tooltip content="If transaction fails do not include it in a block (store and pay only good transactions)">
+            <Tooltip content="If transaction fails do not include it in a block (store and pay only for good transactions)">
               <Text as="label" size="2" color={conservative ? 'red' : 'jade'}>
                 <Flex gap="2">
                   <Checkbox size="3" checked={!conservative} onCheckedChange={(value) => setConservative(!(value.valueOf() as boolean))} />
@@ -1295,24 +1294,7 @@ export default function InteractionPage() {
         transactionReady &&
         <Box mt="4">
           <Card>
-            <Heading size="4" mb="2">Check transaction</Heading>
-            <Flex gap="2" mt="2">
-              <Box width="100%">
-                <Tooltip content="Future transaction hash">
-                  <TextField.Root mb="3" size="3" placeholder="Transaction hash" readOnly={true} value={Readability.toHash(transactionData?.hash)} onClick={() => {
-                    navigator.clipboard.writeText(transactionData?.hash || 'NULL');
-                    AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                  }}/>
-                </Tooltip>
-              </Box>
-              <Button size="3" variant="outline" color="gray" disabled={loadingGasPrice || loadingGasLimit} loading={loadingTransaction} onClick={() => buildTransaction()}>Redo</Button>
-            </Flex>
-            <Tooltip content="Transaction data that will be sent to a node">
-              <TextField.Root mb="3" size="3" placeholder="Transaction data" readOnly={true} value={Readability.toHash(transactionData?.data)} onClick={() => {
-                navigator.clipboard.writeText(transactionData?.data || 'NULL');
-                AlertBox.open(AlertType.Info, 'Transaction data copied!')
-              }}/>
-            </Tooltip>
+            <Heading size="4" mb="2">Review transaction</Heading>
             <Flex gap="2" mb="3">
               <Box width="100%">
                 <Tooltip content="Account that pays for transaction">
@@ -1326,6 +1308,25 @@ export default function InteractionPage() {
                 <Link className="router-link" to={'/account/' + ownerAddress}>▒▒</Link>
               </Button>
             </Flex>
+            <Flex gap="2" mt="2">
+              <Box width="100%">
+                <Tooltip content="Future transaction hash">
+                  <TextField.Root mb="3" size="3" placeholder="Transaction hash" readOnly={true} value={Readability.toHash(transactionData?.hash)} onClick={() => {
+                    navigator.clipboard.writeText(transactionData?.hash || 'NULL');
+                    AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+                  }}/>
+                </Tooltip>
+              </Box>
+              <Button size="3" variant="outline" color="gray" disabled={loadingGasPrice || loadingGasLimit} loading={loadingTransaction} onClick={() => buildTransaction()}>
+                <Icon path={mdiRefresh} size={0.8}></Icon>
+              </Button>
+            </Flex>
+            <Tooltip content="Transaction data that will be sent to a node">
+              <TextField.Root mb="3" size="3" placeholder="Transaction data" readOnly={true} value={Readability.toHash(transactionData?.data)} onClick={() => {
+                navigator.clipboard.writeText(transactionData?.data || 'NULL');
+                AlertBox.open(AlertType.Info, 'Transaction data copied!')
+              }}/>
+            </Tooltip>
             {
               (program instanceof ProgramTransfer || program instanceof ProgramDepositoryWithdrawal) &&
               <Tooltip content="Total transaction payment value">
