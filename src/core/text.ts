@@ -8,6 +8,19 @@ export function lerp(a: number, b: number, t: number): number {
 }
 
 export class Readability {
+  static subscripts = {
+    '0': '₀',
+    '1': '₁',
+    '2': '₂',
+    '3': '₃',
+    '4': '₄',
+    '5': '₅',
+    '6': '₆',
+    '7': '₇',
+    '8': '₉',
+    '9': '₉'
+  };
+
   static toAssetSymbol(asset: AssetId): string {
     return asset.token || asset.chain || '?';
   }
@@ -77,6 +90,15 @@ export class Readability {
         .trim().trim().toLowerCase();
     return method[0].toUpperCase() + method.substring(1);
   }
+  static toSubscript(value: string): string {
+    let result = '';
+    for (let i = 0; i < value.length; i++) {
+      const char = (this.subscripts as any)[value[i] as any];
+      if (typeof char == 'string')
+        result += char;
+    }
+    return result;
+  }
   static toValue(asset: AssetId | null, value: string | number | BigNumber | null, delta: boolean, trailing: boolean): string {
     if (value == null)
       return 'NULL';
@@ -94,7 +116,13 @@ export class Readability {
       let length = 0;
       while (text[1][length] == '0')
         ++length;
-      text[1] = text[1].substring(0, Math.min(12, Math.max(6, length + 1)));
+      
+      if (length >= 3) {
+        const zeros = length.toString();
+        text[1] = '0' + this.toSubscript(zeros) + text[1].substring(length, length + 6);
+      } else {
+        text[1] = text[1].substring(0, Math.min(6, text[1].length));
+      }
     }
     
     const result = text[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",") + (text.length > 1 ? '.' + text[1] : '') + (asset ? ' ' + this.toAssetSymbol(asset) : '');
