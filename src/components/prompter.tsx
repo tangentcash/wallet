@@ -1,7 +1,6 @@
 import { AlertDialog, Avatar, Badge, Button, Card, Flex, IconButton, Separator, Text } from "@radix-ui/themes";
 import { useCallback, useState } from "react";
-import { Authorizer, ByteUtil, AuthEntity, Signing } from "tangentsdk";
-import { Readability } from "../core/text";
+import { Authorizer, ByteUtil, AuthEntity, Signing, Readability } from "tangentsdk";
 import { mdiAlertOutline, mdiCheckboxMarkedCircleOutline } from "@mdi/js";
 import { AppData, DecodedTransaction } from "../core/app";
 import { AlertBox, AlertType } from "./alert";

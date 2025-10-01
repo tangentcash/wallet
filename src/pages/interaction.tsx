@@ -2,10 +2,9 @@ import { mdiAlertCircleOutline, mdiBackburger, mdiMinus, mdiPlus, mdiRefresh } f
 import { Avatar, Badge, Box, Button, Callout, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
-import { Readability } from "../core/text";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
-import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, Stream, TextUtil, TransactionOutput, Transactions, Uint256 } from "tangentsdk";
+import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, Stream, TextUtil, TransactionOutput, Transactions, Uint256, Readability } from "tangentsdk";
 import { AppData } from "../core/app";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
@@ -39,13 +38,14 @@ export class ProgramDepositoryAdjustment {
   routing: { chain: string, policy: string }[] = [];
   incomingFee: string = '';
   outgoingFee: string = '';
+  participationThreshold: string = '';
   securityLevel: number = 2;
   acceptsAccountRequests: boolean = true;
   acceptsWithdrawalRequests: boolean = true;
   whitelist: { symbol: string, address: string }[] = [];
 }
 
-export class ProgramDepositoryRegrouping {
+export class ProgramDepositoryMigration {
 }
 
 export class ProgramDepositoryWithdrawalMigration {
@@ -81,7 +81,7 @@ export default function InteractionPage() {
   const [loadingGasLimit, setLoadingGasLimit] = useState(false);
   const [conservative, setConservative] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
-  const [program, setProgram] = useState<ProgramTransfer | ProgramValidatorAdjustment | ProgramDepositoryAccount | ProgramDepositoryWithdrawal | ProgramDepositoryAdjustment | ProgramDepositoryRegrouping | ProgramDepositoryWithdrawalMigration | ApproveTransaction | null>(null);
+  const [program, setProgram] = useState<ProgramTransfer | ProgramValidatorAdjustment | ProgramDepositoryAccount | ProgramDepositoryWithdrawal | ProgramDepositoryAdjustment | ProgramDepositoryMigration | ProgramDepositoryWithdrawalMigration | ApproveTransaction | null>(null);
   const navigate = useNavigate();
   const maxFeeValue = useMemo((): BigNumber => {
     try {
@@ -123,10 +123,10 @@ export default function InteractionPage() {
       return program.to.length > 1 ? 'Withdraw to many' : 'Withdraw to one';
     } else if (program instanceof ProgramDepositoryAdjustment) {
       return 'Depository adjustment';
-    } else if (program instanceof ProgramDepositoryRegrouping) {
-      return 'Depository regrouping';
+    } else if (program instanceof ProgramDepositoryMigration) {
+      return 'Participant migration';
     } else if (program instanceof ProgramDepositoryWithdrawalMigration) {
-      return 'Depository migration';
+      return 'Manager migration';
     } else if (program instanceof ApproveTransaction) {
       return 'Approve action';
     }
@@ -260,6 +260,16 @@ export default function InteractionPage() {
         return false;
       }
 
+      try {
+        if (program.participationThreshold.length > 0) {
+          const numeric = new BigNumber(program.participationThreshold.trim());
+          if (numeric.isNaN() || numeric.isNegative())
+            return false;
+        }
+      } catch {
+        return false;
+      }
+
       let duplicates = new Set<string>();
       for (let i = 0; i < program.whitelist.length; i++) {
         const item = program.whitelist[i];
@@ -274,7 +284,7 @@ export default function InteractionPage() {
         return false;
 
       return true;
-    } else if (program instanceof ProgramDepositoryRegrouping) {
+    } else if (program instanceof ProgramDepositoryMigration) {
       return true;
     } else if (program instanceof ProgramDepositoryWithdrawalMigration) {
       if (program.toManager.trim() == ownerAddress)
@@ -474,23 +484,24 @@ export default function InteractionPage() {
         return await buildProgram({
           type: new Transactions.DepositoryAdjustment(),
           args: {
-            incomingFee: new BigNumber(program.incomingFee),
-            outgoingFee: new BigNumber(program.outgoingFee),
+            incomingFee: new BigNumber(program.incomingFee || 0),
+            outgoingFee: new BigNumber(program.outgoingFee || 0),
+            participationThreshold: new BigNumber(program.participationThreshold || 0),
             securityLevel: program.securityLevel,
             acceptsAccountRequests: program.acceptsAccountRequests,
             acceptsWithdrawalRequests: program.acceptsWithdrawalRequests,
             whitelist: program.whitelist
           }
         });
-      } else if (program instanceof ProgramDepositoryRegrouping) {
+      } else if (program instanceof ProgramDepositoryMigration) {
         const participants = await RPC.getParticipations();
         if (!participants)
           throw new Error('cannot fetch participations');
 
         return await buildProgram({
-          type: new Transactions.DepositoryRegrouping(),
+          type: new Transactions.DepositoryMigration(),
           args: {
-            participants: participants.map((item) => {
+            shares: participants.map((item) => {
               const asset = new AssetId(item.asset.id);
               const manager = Signing.decodeAddress(item.manager || '');
               const owner = Signing.decodeAddress(item.owner || '');
@@ -591,6 +602,13 @@ export default function InteractionPage() {
         setProgram(result);
        break; 
       }
+      case 'approvetransaction': {
+        if (params.transaction && params.transaction.length > 0)
+          decodeApprovableTransaction(params.transaction, false);
+        else
+          setProgram(new ApproveTransaction());
+        break;
+      }
       case 'validator': {
         const result = new ProgramValidatorAdjustment();
         try { result.assets = ((await RPC.getBlockchains()) || []).map((v) => AssetId.fromHandle(v.chain)); } catch { }
@@ -616,19 +634,12 @@ export default function InteractionPage() {
         setProgram(result);
         break;
       }
-      case 'regrouping': {
-        setProgram(new ProgramDepositoryRegrouping());
+      case 'participantmigration': {
+        setProgram(new ProgramDepositoryMigration());
         break;
       }
-      case 'migration': {
+      case 'managermigration': {
         setProgram(new ProgramDepositoryWithdrawalMigration());
-        break;
-      }
-      case 'approvetransaction': {
-        if (params.transaction && params.transaction.length > 0)
-          decodeApprovableTransaction(params.transaction, false);
-        else
-          setProgram(new ApproveTransaction());
         break;
       }
     }
@@ -699,24 +710,24 @@ export default function InteractionPage() {
             </DropdownMenu.Trigger>
             <DropdownMenu.Content side="left">
               <Tooltip content="Transfer/pay asset to one or more accounts">
-                <DropdownMenu.Item shortcut="⟳ ₿" onClick={() => navigate('/interaction?type=transfer')}>Transfer</DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => navigate('/interaction?type=transfer')}>Transfer</DropdownMenu.Item>
               </Tooltip>
               <Tooltip content="Approve and submit transaction from unverified source">
-                <DropdownMenu.Item shortcut="⟳ ₿" onClick={() => navigate('/interaction?type=approvetransaction')}>Approve</DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => navigate('/interaction?type=approvetransaction')}>Approve</DropdownMenu.Item>
               </Tooltip>
               <DropdownMenu.Separator />
               <Tooltip content="Change block production and/or participation/attestation stake(s)">
-                <DropdownMenu.Item shortcut="⟳ ₿" onClick={() => navigate('/interaction?type=validator')}>Configure validator</DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => navigate('/interaction?type=validator')}>Configure validator</DropdownMenu.Item>
               </Tooltip>
               <DropdownMenu.Separator />
               <Tooltip content="Configure fee, security and functionality policy for a depository">
-                <DropdownMenu.Item shortcut="⇌ ₿" onClick={() => navigate('/interaction?type=adjustment')}>Configure depository</DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => navigate('/interaction?type=adjustment')}>Configure depository</DropdownMenu.Item>
               </Tooltip>
-              <Tooltip content="Migrate depository participations to another manager (for participation unstaking)">
-                <DropdownMenu.Item shortcut="→ ₿" color="red" onClick={() => navigate('/interaction?type=regrouping')}>Regroup depository</DropdownMenu.Item>
+              <Tooltip content="Migrate depository participations to another participant (for participation unstaking)">
+                <DropdownMenu.Item color="red" onClick={() => navigate('/interaction?type=participantmigration')}>Migrate participant</DropdownMenu.Item>
               </Tooltip>
-              <Tooltip content="Migrate depository's custodial funds to another depository (for attestation unstaking)">
-                <DropdownMenu.Item shortcut="→ ₿" color="red" onClick={() => navigate('/interaction?type=migration')}>Migrate depository</DropdownMenu.Item>
+              <Tooltip content="Migrate depository manager to another manager along with custodial funds (for attestation unstaking)">
+                <DropdownMenu.Item color="red" onClick={() => navigate('/interaction?type=managermigration')}>Migrate manager</DropdownMenu.Item>
               </Tooltip>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
@@ -1115,6 +1126,15 @@ export default function InteractionPage() {
               </Tooltip>
             </Box>
             <Box width="100%" mt="3">
+              <Tooltip content="Participant stacking required to be included in depository account/transaction calculations (absolute value)">
+                <TextField.Root size="3" placeholder="Participation threshold 0.0-∞" type="text" value={program.participationThreshold} onChange={(e) => {
+                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                  copy.participationThreshold = e.target.value;
+                  setProgram(copy);
+                }} />
+              </Tooltip>
+            </Box>
+            <Box width="100%" mt="3">
               <Tooltip content="Determines how many participants must be present to sign transactions">
                 <TextField.Root size="3" placeholder="Security level (2-16)" type="text" value={program.securityLevel.toString()} onChange={(e) => {
                   const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
@@ -1403,8 +1423,8 @@ export default function InteractionPage() {
                     <Text as="div" weight="light" size="4" mb="1">— Adjust a { assets[asset].chain } depository of a validator node by using { program.incomingFee.length > 0 && new BigNumber(program.incomingFee).gt(0) ? 'paid' : 'free' } deposits and { program.outgoingFee.length > 0 && new BigNumber(program.outgoingFee).gt(0) ? 'paid' : 'free' } withdrawals</Text>        
                   }
                   {
-                    asset != -1 && program instanceof ProgramDepositoryRegrouping &&
-                    <Text as="div" weight="light" size="4" mb="1">— Regroup participation of a validator node (to possibly unstake the participation stake)</Text>        
+                    asset != -1 && program instanceof ProgramDepositoryMigration &&
+                    <Text as="div" weight="light" size="4" mb="1">— Migration participation of a validator node (to possibly unstake the participation stake)</Text>        
                   }
                   {
                     asset != -1 && program instanceof ProgramDepositoryWithdrawalMigration &&

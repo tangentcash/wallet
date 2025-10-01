@@ -91,7 +91,6 @@ export default function HomePage() {
   const searchPasteEvent = useCallback((event: ClipboardEvent) => {
     if (!searching && document.activeElement === document.body) {
       const text = ((event.clipboardData || (window as any).clipboardData) as DataTransfer).getData('text');
-      console.log(text);
       setQuery(text);
       setSearching(true);
       setTimeout(searchFocus, 10);

@@ -3,10 +3,9 @@ import { Badge, Box, Button, Card, DataList, Flex, Heading, Switch, Table, Text,
 import { useNavigate } from "react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
-import { Readability } from "../core/text";
 import { SafeStorage, StorageField } from "../core/storage";
 import { AppData } from "../core/app";
-import { ByteUtil, RPC, Signing } from "tangentsdk";
+import { ByteUtil, RPC, Signing, Readability } from "tangentsdk";
 import Icon from "@mdi/react";
 
 function toServerInfo(url: string): string {

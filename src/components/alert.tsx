@@ -1,7 +1,7 @@
 import { Box, Callout } from "@radix-ui/themes";
 import { mdiAlertCircleOutline, mdiInformationOutline } from '@mdi/js';
 import { useState } from "react";
-import { lerp } from "../core/text";
+import { lerp } from "tangentsdk";
 import Icon from '@mdi/react';
 
 const MIN_ALERT_TIME = 8000;

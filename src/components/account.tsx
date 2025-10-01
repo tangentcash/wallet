@@ -1,10 +1,9 @@
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
 import { AspectRatio, Avatar, Badge, Box, Callout, Card, Flex, Heading, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { RPC, EventResolver, SummaryState, AssetId } from 'tangentsdk';
+import { RPC, EventResolver, SummaryState, AssetId, Readability } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
 import { mdiArrowLeftBoldHexagonOutline, mdiArrowRightBoldHexagonOutline, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan } from "@mdi/js";
-import { Readability } from "../core/text";
 import { AppData } from "../core/app";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import QRCode from "react-qr-code";
