@@ -481,7 +481,6 @@ export class AppData {
       signature: new Hashsig(),
       asset: props.asset,
       nonce: new Uint256(props.nonce.toString()),
-      conservative: props.conservative || false,
       gasPrice: props.gasPrice,
       gasLimit: new Uint256(props.gasLimit.toString()),
       ...props.method.args

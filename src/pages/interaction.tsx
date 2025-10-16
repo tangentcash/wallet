@@ -79,7 +79,6 @@ export default function InteractionPage() {
   const [loadingTransaction, setLoadingTransaction] = useState(false);
   const [loadingGasPrice, setLoadingGasPrice] = useState(false);
   const [loadingGasLimit, setLoadingGasLimit] = useState(false);
-  const [conservative, setConservative] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
   const [program, setProgram] = useState<ProgramTransfer | ProgramValidatorAdjustment | ProgramDepositoryAccount | ProgramDepositoryWithdrawal | ProgramDepositoryAdjustment | ProgramDepositoryMigration | ProgramDepositoryWithdrawalMigration | ApproveTransaction | null>(null);
   const navigate = useNavigate();
@@ -299,7 +298,7 @@ export default function InteractionPage() {
       return program.hexMessage != null && program.transaction != null;
     }
     return false;
-  }, [asset, gasPrice, gasLimit, conservative, assets, program]);
+  }, [asset, gasPrice, gasLimit, assets, program]);
   const transactionReady = useMemo((): boolean => {
     if (!programReady)
       return false;
@@ -409,7 +408,6 @@ export default function InteractionPage() {
         const output = await AppData.buildWalletTransaction({
           asset: new AssetId(assets[asset].asset.id),
           nonce: prebuilt ? prebuilt.body.nonce.toString() : (nonce || undefined),
-          conservative: conservative,
           gasPrice: gasPrice,
           gasLimit: prebuilt ? prebuilt.body.gasLimit.toString() : gasLimit,
           method: method
@@ -545,7 +543,7 @@ export default function InteractionPage() {
       setLoadingTransaction(false);
       return null;
     }
-  }, [programReady, loadingTransaction, assets, asset, nonce, conservative, gasPrice, gasLimit, program]);
+  }, [programReady, loadingTransaction, assets, asset, nonce, gasPrice, gasLimit, program]);
   const submitTransaction = useCallback(async () => {
     if (loadingTransaction)
       return false;
@@ -1292,16 +1290,6 @@ export default function InteractionPage() {
             </Box>
             <Button size="3" variant="outline" color="gray" disabled={loadingTransaction || loadingGasPrice} loading={loadingGasLimit} onClick={() => setCalculatedGasLimit()} className={gasLimit.length > 0 || !gasPrice.length ? undefined : 'shadow-rainbow-animation'}>Calculate</Button>
           </Flex>
-          <Box px="1" mt="2">
-            <Tooltip content="If transaction fails do not include it in a block (store and pay only for good transactions)">
-              <Text as="label" size="2" color={conservative ? 'red' : 'jade'}>
-                <Flex gap="2">
-                  <Checkbox size="3" checked={!conservative} onCheckedChange={(value) => setConservative(!(value.valueOf() as boolean))} />
-                  <Text>Pay for completed only</Text>
-                </Flex>
-              </Text>
-            </Tooltip>
-          </Box>
           {
             sendingValue.gt(0) && maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber() > 40.0 &&
             <Flex justify="end" pt="4">
