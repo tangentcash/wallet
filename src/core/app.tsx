@@ -166,13 +166,9 @@ export class AppData {
     AlertBox.open(AlertType.Error, `${address}${address.endsWith('/') ? '' : '/'}${method} error: ${(error as any)?.message || error}`);
   }
   private static async authorizerEvent(request: { event: string, id: number, payload: any}): Promise<boolean> {
-    if (!this.props.authorizer || PrompterBox.isOpen() || this.approveTransaction) {
-      console.log('FAIL');
+    if (!this.props.authorizer || PrompterBox.isOpen() || this.approveTransaction)
       return false;
-    }
-      //return false;
 
-      console.log('PROMPT')
     return await Authorizer.try(request.payload);
   }
   private static async authorizerPrompt(entity: AuthEntity): Promise<AuthApproval> {

@@ -1098,7 +1098,16 @@ export default function InteractionPage() {
       }
       {
         (program instanceof ApproveTransaction) && program.transaction != null &&
-        <Transaction ownerAddress={ownerAddress} transaction={program.transaction} open={true} preview={true}></Transaction>
+        <Box>
+          <Transaction ownerAddress={ownerAddress} transaction={program.transaction} preview={true}></Transaction>
+          {
+            Array.isArray(program.transaction.transactions) && program.transaction.transactions.map((subtransaction: any, index: number) =>
+              <Box mt="4" key={subtransaction.hash + index.toString()}>
+                <Transaction ownerAddress={ownerAddress} transaction={subtransaction} preview={'Internal transaction #' + (index + 1).toString() + ' preview!'}></Transaction>
+              </Box>
+            )
+          }
+        </Box>
       }
       {
         asset != -1 && program instanceof ProgramDepositoryAdjustment &&

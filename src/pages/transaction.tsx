@@ -6,6 +6,7 @@ import { mdiBackburger } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
 import { EventResolver, RPC } from "tangentsdk";
 import { AppData } from "../core/app";
+import BigNumber from "bignumber.js";
 import Transaction from "../components/transaction";
 import Icon from "@mdi/react";
 
@@ -43,6 +44,12 @@ export default function TransactionPage() {
   }, [params]);
 
   if (data != null) {
+    const ownerAddress = AppData.getWalletAddress() || '';
+    let rollupGasLimit = new BigNumber(0);
+    if (data.state.receipts) {
+      for (let hash in data.state.receipts)
+        rollupGasLimit = rollupGasLimit.plus(data.state.receipts[hash].relativeGasUse);
+    }
     return (
       <Box px="4" pt="4" mb="6">
         <Flex justify="between" align="center">
@@ -51,7 +58,25 @@ export default function TransactionPage() {
             <Icon path={mdiBackburger} size={0.7} /> BACK
           </Button>
         </Flex>
-        <Transaction ownerAddress={AppData.getWalletAddress() || ''} transaction={data.transaction} receipt={data.receipt} state={data.state} open={true}></Transaction>
+        <Transaction ownerAddress={ownerAddress} transaction={data.transaction} receipt={data.receipt} state={data.state} open={true}></Transaction>
+        {
+          Array.isArray(data.transaction.transactions) && data.transaction.transactions.map((subtransaction: any, index: number) =>
+            <Box mt="4" key={subtransaction.hash + index.toString()}>
+              <Transaction ownerAddress={ownerAddress} preview={'Internal transaction #' + (index + 1).toString()} transaction={(() => ({
+                ...subtransaction,
+                gas_price: new BigNumber(0),
+                gas_limit: rollupGasLimit.gt(0) ? rollupGasLimit : data.transaction.gas_limit
+              }))()} receipt={(() => {
+                const receipt = data.state.receipts[subtransaction.hash];
+                return {
+                  ...data.receipt,
+                  relative_gas_use: receipt ? receipt.relativeGasUse : data.receipt.relative_gas_use,
+                  relative_gas_paid: receipt ? receipt.relativeGasPaid : data.receipt.relative_gas_paid
+                };
+              })()} open={true}></Transaction>
+            </Box>
+          )
+        }
       </Box>
     )
   } else {

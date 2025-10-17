@@ -126,7 +126,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           <Card mt="2">
             {
               transaction.transactions.map((item: any, index: number) =>
-                <Flex align="center" gap="2" key={item.to + index} mb={index == transaction.transactions.length - 1 ? '0' : '4'}>
+                <Flex align="center" gap="2" key={item.hash + index} mb={index == transaction.transactions.length - 1 ? '0' : '4'}>
                   <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                   <Badge size="2" variant="soft">{ Readability.toTransactionType(item.type) }</Badge>
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
@@ -1030,7 +1030,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
   )
 }
 
-export default function Transaction(props: { ownerAddress: string, transaction: any, receipt?: any, state?: SummaryState, open?: boolean, preview?: boolean }) {
+export default function Transaction(props: { ownerAddress: string, transaction: any, receipt?: any, state?: SummaryState, open?: boolean, preview?: string | boolean }) {
   const transaction = props.transaction;
   const receipt = props.receipt || null;
   const state = props.state || null;
@@ -1056,6 +1056,17 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   <Button size="1" radius="large" variant="soft" color="gray">
                     { receipt && <Text mr="-1" as="div" size="1" weight="light" color="gray">{ new Date(receipt.finalization_time.toNumber()).toLocaleTimeString() }</Text> }
                     { !receipt && <Spinner /> }
+                    <Box ml="1">
+                      <DropdownMenu.TriggerIcon />
+                    </Box>
+                  </Button>
+                </Collapsible.Trigger>
+              }
+              {
+                props.preview && typeof props.open != 'boolean' &&
+                <Collapsible.Trigger asChild={true}>
+                  <Button size="1" radius="large" variant="soft" color="gray">
+                    <Text mr="-1" as="div" size="1" weight="light" color="gray">Details</Text>
                     <Box ml="1">
                       <DropdownMenu.TriggerIcon />
                     </Box>
@@ -1136,7 +1147,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
             {
               state == null &&
               <Flex gap="2" wrap="wrap" justify="between">
-                <Badge size="1" radius="medium" color={props.preview ? 'orange' : 'gray'}>{ props.preview ? 'Possible transaction preview!' : 'Awaiting state finalization' }</Badge>
+                <Badge size="1" radius="medium" color={props.preview ? 'orange' : 'gray'}>{ props.preview ? (typeof props.preview == 'string' ? props.preview : 'Possible transaction preview!') : 'Awaiting state finalization' }</Badge>
               </Flex>
             }
           </Box>
