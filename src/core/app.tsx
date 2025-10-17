@@ -4,7 +4,7 @@ import { BrowserRouter, NavigateFunction, Route, Routes } from "react-router";
 import { Box, Theme } from "@radix-ui/themes";
 import { core } from '@tauri-apps/api';
 import { listen } from "@tauri-apps/api/event";
-import { Chain, ClearCallback, InterfaceProps, Messages, NetworkType, Pubkey, Pubkeyhash, Hashsig, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType, Authorizer, Viewable, Transactions, Hashing, ByteUtil, AssetId, Approving, AuthEntity, AuthApproval } from "tangentsdk";
+import { Chain, ClearCallback, InterfaceProps, Messages, NetworkType, Pubkey, Pubkeyhash, Hashsig, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType, Authorizer, Viewable, Hashing, ByteUtil, AssetId, Approving, AuthEntity, AuthApproval, Readability } from "tangentsdk";
 import { SafeStorage, Storage, StorageField } from "./storage";
 import { WalletReadyRoute, WalletNotReadyRoute } from "./../components/guards";
 import { Alert, AlertBox, AlertType } from "./../components/alert";
@@ -389,16 +389,9 @@ export class AppData {
     if (type == null || signature == null || asset == null || gasPrice == null || gasLimit == null || nonce == null)
       throw new Error('Transaction data is malformed');
 
-    let typename: string | null = null;
     const type32 = type.toInteger();
-    for (let name in Transactions.typenames) {
-      if (Hashing.hash32(ByteUtil.byteStringToUint8Array(name)) == type32) {
-        typename = Transactions.typenames[name];
-        break;
-      }
-    }
-
-    if (typename == null)
+    const typename: string | null = Readability.toTransactionType(type32);
+    if (typename?.toLowerCase() == 'non-standard')
       throw new Error('Transaction type ' + type.toCompactHex() + ' is not among valid ones');
 
     if (signature != null && signature.length != 0 && signature.length > Chain.size.HASHSIG)
@@ -500,17 +493,7 @@ export class AppData {
 
     try {
       let gas = await RPC.getOptimalTransactionGas(intermediate.data);
-      if (typeof gas == 'string') {
-        gas = new BigNumber(gas, 16);
-      }
-
-      if (!gas || !BigNumber.isBigNumber(gas) || !gas.gte(0)) {
-        gas = await RPC.getEstimateTransactionGas(intermediate.data);
-        if (typeof gas == 'string') {
-          gas = new BigNumber(gas, 16);
-        }
-      }
-      
+      gas = typeof gas == 'string' ? new BigNumber(gas, 16) : gas;
       if (gas != null && BigNumber.isBigNumber(gas) && gas.gte(0)) {
         intermediate.body.gasLimit = new Uint256(gas.toString());
       } else {

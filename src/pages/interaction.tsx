@@ -1,10 +1,10 @@
-import { mdiAlertCircleOutline, mdiBackburger, mdiMinus, mdiPlus, mdiRefresh } from "@mdi/js";
+import { mdiAlertCircleOutline, mdiBackburger, mdiCodeJson, mdiMinus, mdiPlus } from "@mdi/js";
 import { Avatar, Badge, Box, Button, Callout, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
-import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, Stream, TextUtil, TransactionOutput, Transactions, Uint256, Readability } from "tangentsdk";
+import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, Stream, TextUtil, TransactionOutput, Transactions, Uint256, Readability, Hashsig, Pubkeyhash, Pubkey, Seckey } from "tangentsdk";
 import { AppData } from "../core/app";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
@@ -62,6 +62,26 @@ export class ApproveTransaction {
   instruction: Uint8Array | null = null;
 }
 
+function toSimpleTransaction(input: any): Record<string, any> {
+  let output: Record<string, any> = { };
+  for (let key in input) {
+    const value = input[key];
+    if (value instanceof Hashsig || value instanceof Pubkey || value instanceof Seckey)
+      output[key] = ByteUtil.uint8ArrayToHexString(value.data);
+    else if (value instanceof Pubkeyhash)
+      output[key] = Signing.encodeAddress(value);
+    else if (value instanceof Uint8Array)
+      output[key] = ByteUtil.uint8ArrayToHexString(value);
+    else if (value instanceof Uint256 || BigNumber.isBigNumber(value))
+      output[key] = value.toString();
+    else if (typeof value == 'object' || Array.isArray(value))
+      output[key] = toSimpleTransaction(value);
+    else
+      output[key] = value;
+  }
+  return output;
+}
+
 export default function InteractionPage() {
   const ownerAddress = AppData.getWalletAddress() || '';
   const [query] = useSearchParams();
@@ -77,8 +97,7 @@ export default function InteractionPage() {
   const [gasPrice, setGasPrice] = useState('');
   const [gasLimit, setGasLimit] = useState('');
   const [loadingTransaction, setLoadingTransaction] = useState(false);
-  const [loadingGasPrice, setLoadingGasPrice] = useState(false);
-  const [loadingGasLimit, setLoadingGasLimit] = useState(false);
+  const [loadingGasPriceAndPrice, setLoadingGasPriceAndPrice] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
   const [program, setProgram] = useState<ProgramTransfer | ProgramValidatorAdjustment | ProgramDepositoryAccount | ProgramDepositoryWithdrawal | ProgramDepositoryAdjustment | ProgramDepositoryMigration | ProgramDepositoryWithdrawalMigration | ApproveTransaction | null>(null);
   const navigate = useNavigate();
@@ -339,66 +358,45 @@ export default function InteractionPage() {
       setProgram(copy);
     }
   }, [assets, asset, program]);
-  const setEstimatedGasPrice = useCallback(async (percentile: number) => {
-    if (loadingGasPrice)
+  const setEstimatedGasPriceAndLimit = useCallback(async (percentile: number) => {
+    if (loadingGasPriceAndPrice)
       return false;
 
-    setLoadingGasPrice(true);
+    let presetGasPrice = new BigNumber(0);
+    let presetGasLimit = new BigNumber(0);
+    setLoadingGasPriceAndPrice(true);
     try {
-      const price = await RPC.getGasPrice(new AssetId(assets[asset].asset.id), percentile);
-      if (price != null && BigNumber.isBigNumber(price) && price.gte(0)) {
-        setGasPrice(price.toString());
-      } else {
-        setGasPrice('0');
-      }
-    } catch {
-      setGasPrice('0');
-    }
+      presetGasPrice = await RPC.getGasPrice(new AssetId(assets[asset].asset.id), percentile);
+      presetGasPrice = presetGasPrice != null && BigNumber.isBigNumber(presetGasPrice) && presetGasPrice.gte(0) ? presetGasPrice : new BigNumber(0);
+    } catch { }
 
-    setLoadingGasPrice(false);
-    return true;
-  }, [loadingGasPrice, assets, asset]);
-  const setCalculatedGasLimit = useCallback(async () => {
-    if (loadingGasLimit)
-      return false;
-
-    const output = await buildTransaction();
+    const output = await buildTransaction(undefined, { gasPrice: presetGasPrice });
     if (!output) {
       AlertBox.open(AlertType.Error, 'Cannot build transaction to fetch gas limit');
       return false;
     }
 
-    setLoadingGasLimit(true);
     try {
-      let gas = await RPC.getOptimalTransactionGas(output.data);
-      if (typeof gas == 'string') {
-        gas = new BigNumber(gas, 16);
-      }
-
-      if (!gas || !BigNumber.isBigNumber(gas) || !gas.gte(0)) {
-        gas = await RPC.getEstimateTransactionGas(output.data);
-        if (typeof gas == 'string') {
-          gas = new BigNumber(gas, 16);
-        }
-      }
-      
-      if (gas != null && BigNumber.isBigNumber(gas) && gas.gte(0)) {
-        setGasLimit(gas.toString());
-        output.body.gasLimit = new Uint256(gas.toString());
-        await buildTransaction(output);
+      let limit = await RPC.getOptimalTransactionGas(output.data);
+      presetGasLimit = typeof limit == 'string' ? new BigNumber(limit, 16) : (BigNumber.isBigNumber(limit) ? limit : new BigNumber(-1));
+      if (presetGasLimit.gte(0)) {
+        await buildTransaction(output, {
+          gasPrice: presetGasPrice,
+          gasLimit: presetGasLimit
+        });
       } else {
         AlertBox.open(AlertType.Error, 'Cannot fetch transaction gas limit');
-        setGasLimit('');
       }
     } catch (exception) {
       AlertBox.open(AlertType.Error, 'Cannot fetch transaction gas limit: ' + (exception as Error).message);
-      setGasLimit('');
     }
-
-    setLoadingGasLimit(false);
+    
+    setGasPrice(presetGasPrice.gte(0) ? presetGasPrice.toString() : '');
+    setGasLimit(presetGasLimit.gte(0) ? presetGasLimit.toString() : '');
+    setLoadingGasPriceAndPrice(false);
     return true;
-  }, [loadingGasLimit, programReady, transactionReady, loadingTransaction, nonce, assets, asset, program]);
-  const buildTransaction = useCallback(async (prebuilt?: TransactionOutput): Promise<TransactionOutput | null> => {
+  }, [loadingGasPriceAndPrice, assets, asset, programReady, transactionReady, loadingTransaction, nonce, assets, asset, program]);
+  const buildTransaction = useCallback(async (prebuilt?: TransactionOutput, gas?: { gasPrice?: BigNumber, gasLimit?: BigNumber }): Promise<TransactionOutput | null> => {
     if (!programReady || loadingTransaction)
       return null;
     
@@ -408,8 +406,8 @@ export default function InteractionPage() {
         const output = await AppData.buildWalletTransaction({
           asset: new AssetId(assets[asset].asset.id),
           nonce: prebuilt ? prebuilt.body.nonce.toString() : (nonce || undefined),
-          gasPrice: gasPrice,
-          gasLimit: prebuilt ? prebuilt.body.gasLimit.toString() : gasLimit,
+          gasPrice: gas?.gasPrice ? gas.gasPrice : gasPrice,
+          gasLimit: gas?.gasLimit ? gas.gasLimit : (prebuilt ? prebuilt.body.gasLimit.toString() : gasLimit),
           method: method
         });
         setNonce(new BigNumber(output.body.nonce.toString()));
@@ -749,14 +747,6 @@ export default function InteractionPage() {
             </Select.Group>
           </Select.Content>
         </Select.Root>
-        {
-          asset != -1 && ownerAddress.length > 0 &&
-          <Box width="100%" mt="3">
-            <Tooltip content="Account that will send the transaction and pay for it">
-              <TextField.Root size="3" placeholder="Transaction sender account" type="text" color="red" value={Readability.toAddress(ownerAddress, 16)} readOnly={true} />
-            </Tooltip>
-          </Box>
-        }
         {
           asset != -1 && params.manager != null &&
           <Box width="100%" mt="3">
@@ -1268,36 +1258,37 @@ export default function InteractionPage() {
       {
         programReady &&
         <Card mt="4">
-          <Heading size="4" mb="2">Transaction cost</Heading>
-          <Flex gap="2" mt="2">
+          <Heading size="4" mb="2">Priority</Heading>
+          <Tooltip content="Higher gas price increases transaction priority">
+            <TextField.Root mt="3" mb="3" size="3" placeholder="Gas price" type="number" disabled={loadingGasPriceAndPrice} value={gasPrice} onChange={(e) => setGasPrice(e.target.value)} />
+          </Tooltip>
+          <Tooltip content="Gas limit caps max transaction cost">
+            <TextField.Root mb="3" size="3" placeholder="Gas limit" type="number" disabled={loadingGasPriceAndPrice} value={gasLimit} onChange={(e) => setGasLimit(e.target.value)} />
+          </Tooltip>
+          <Flex gap="2">
             <Box width="100%">
-              <Tooltip content="Higher gas price increases transaction priority">
-                <TextField.Root mb="3" size="3" placeholder="Gas price" type="number" value={gasPrice} onChange={(e) => setGasPrice(e.target.value)} />
+              <Tooltip content="Max possible transaction fee">
+                <TextField.Root size="3" placeholder="Max fee value" readOnly={true} value={'Pay up to ' + Readability.toMoney(assets[asset].asset, maxFeeValue) + ' in fees'} onClick={() => {
+                  navigator.clipboard.writeText(maxFeeValue.toString());
+                  AlertBox.open(AlertType.Info, 'Value copied!')
+                }}/>
               </Tooltip>
             </Box>
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>
-                <Button size="3" variant="outline" color="gray" style={{ outlineColor: 'red' }} disabled={loadingTransaction || loadingGasLimit} loading={loadingGasPrice} className={gasPrice.length > 0 ? undefined : 'shadow-rainbow-animation'}>
-                  Estimate
+                <Button size="3" variant="outline" color="gray" style={{ outlineColor: 'red' }} disabled={loadingTransaction || loadingGasPriceAndPrice} loading={loadingGasPriceAndPrice} className={gasPrice.length > 0 ? undefined : 'shadow-rainbow-animation'}>
+                  Auto
                   <DropdownMenu.TriggerIcon />
                 </Button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Content>
-                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPrice || loadingGasLimit} onClick={() => setEstimatedGasPrice(0.95)} shortcut="> 95%">Fastest</DropdownMenu.Item>
-                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPrice || loadingGasLimit} onClick={() => setEstimatedGasPrice(0.75)} shortcut="> 75%">Fast</DropdownMenu.Item>
-                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPrice || loadingGasLimit} onClick={() => setEstimatedGasPrice(0.50)} shortcut="> 50%">Medium</DropdownMenu.Item>
-                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPrice || loadingGasLimit} onClick={() => setEstimatedGasPrice(0.25)} shortcut="> 25%">Slow</DropdownMenu.Item>
-                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPrice || loadingGasLimit} onClick={() => setEstimatedGasPrice(0.10)} shortcut="> 10%">Slowest</DropdownMenu.Item>
+                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => setEstimatedGasPriceAndLimit(0.95)} shortcut="> 95%">Fastest</DropdownMenu.Item>
+                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => setEstimatedGasPriceAndLimit(0.75)} shortcut="> 75%">Fast</DropdownMenu.Item>
+                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => setEstimatedGasPriceAndLimit(0.50)} shortcut="> 50%">Medium</DropdownMenu.Item>
+                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => setEstimatedGasPriceAndLimit(0.25)} shortcut="> 25%">Slow</DropdownMenu.Item>
+                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => setEstimatedGasPriceAndLimit(0.10)} shortcut="> 10%">Slowest</DropdownMenu.Item>
               </DropdownMenu.Content>
             </DropdownMenu.Root>
-          </Flex>
-          <Flex gap="2">
-            <Box width="100%">
-              <Tooltip content="Gas limit caps max transaction cost">
-                <TextField.Root mb="3" size="3" placeholder="Gas limit" type="number" disabled={loadingGasPrice} value={gasLimit} onChange={(e) => setGasLimit(e.target.value)} />
-              </Tooltip>
-            </Box>
-            <Button size="3" variant="outline" color="gray" disabled={loadingTransaction || loadingGasPrice} loading={loadingGasLimit} onClick={() => setCalculatedGasLimit()} className={gasLimit.length > 0 || !gasPrice.length ? undefined : 'shadow-rainbow-animation'}>Calculate</Button>
           </Flex>
           {
             sendingValue.gt(0) && maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber() > 40.0 &&
@@ -1310,70 +1301,23 @@ export default function InteractionPage() {
       {
         transactionReady &&
         <Box mt="4">
-          <Card>
-            <Heading size="4" mb="2">Review transaction</Heading>
-            <Flex gap="2" mb="3">
-              <Box width="100%">
-                <Tooltip content="Account that pays for transaction">
-                  <TextField.Root size="3" placeholder="Paying account" readOnly={true} value={Readability.toAddress(ownerAddress)} onClick={() => {
-                    navigator.clipboard.writeText(ownerAddress);
-                    AlertBox.open(AlertType.Info, 'Address copied!')
-                  }}/>
-                </Tooltip>
-              </Box>
-              <Button size="3" variant="outline" color="gray">
-                <Link className="router-link" to={'/account/' + ownerAddress}>▒▒</Link>
-              </Button>
-            </Flex>
-            <Flex gap="2" mt="2">
-              <Box width="100%">
-                <Tooltip content="Future transaction hash">
-                  <TextField.Root mb="3" size="3" placeholder="Transaction hash" readOnly={true} value={Readability.toHash(transactionData?.hash)} onClick={() => {
-                    navigator.clipboard.writeText(transactionData?.hash || 'NULL');
-                    AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                  }}/>
-                </Tooltip>
-              </Box>
-              <Button size="3" variant="outline" color="gray" disabled={loadingGasPrice || loadingGasLimit} loading={loadingTransaction} onClick={() => buildTransaction()}>
-                <Icon path={mdiRefresh} size={0.8}></Icon>
-              </Button>
-            </Flex>
-            <Tooltip content="Transaction data that will be sent to a node">
-              <TextField.Root mb="3" size="3" placeholder="Transaction data" readOnly={true} value={Readability.toHash(transactionData?.data)} onClick={() => {
-                navigator.clipboard.writeText(transactionData?.data || 'NULL');
-                AlertBox.open(AlertType.Info, 'Transaction data copied!')
-              }}/>
-            </Tooltip>
-            {
-              (program instanceof ProgramTransfer || program instanceof ProgramDepositoryWithdrawal) &&
-              <Tooltip content="Total transaction payment value">
-                <TextField.Root mb="3" size="3" placeholder="Payment value" readOnly={true} value={ '— ' + Readability.toMoney(assets[asset].asset, sendingValue) + ' as payment' } onClick={() => {
-                  navigator.clipboard.writeText(sendingValue.toString());
-                  AlertBox.open(AlertType.Info, 'Value copied!')
-                }}/>
-              </Tooltip>
-            }
-            <Tooltip content="Max possible transaction fee">
-              <TextField.Root mb="3" size="3" placeholder="Max fee value" readOnly={true} value={ '— ' + Readability.toMoney(assets[asset].asset, maxFeeValue) + ' as max fee' } onClick={() => {
-                navigator.clipboard.writeText(maxFeeValue.toString());
-                AlertBox.open(AlertType.Info, 'Value copied!')
-              }}/>
-            </Tooltip>
-            <Tooltip content="Total transaction payment value including max possible fee">
-              <TextField.Root mb="1" size="3" placeholder="Payment value" readOnly={true} value={ '— ' + Readability.toMoney(assets[asset].asset, sendingValue.plus(maxFeeValue)) + ' as max total cost' } onClick={() => {
-                navigator.clipboard.writeText(sendingValue.plus(maxFeeValue).toString());
-                AlertBox.open(AlertType.Info, 'Value copied!')
-              }}/>
-            </Tooltip>
-          </Card>
           <Flex justify="center" mt="4">
             <Dialog.Root>
               <Dialog.Trigger>
-                <Button variant="outline" size="3" color="jade" disabled={loadingGasPrice || loadingGasLimit} loading={loadingTransaction} onClick={() => buildTransaction()}>Submit transaction</Button>
+                <Button variant="outline" size="3" color="jade" className="shadow-rainbow-animation" disabled={loadingGasPriceAndPrice} loading={loadingTransaction} onClick={() => buildTransaction()}>Review transaction</Button>
               </Dialog.Trigger>
               <Dialog.Content maxWidth="500px">
-                <Dialog.Title mb="0">Confirmation</Dialog.Title>
-                <Dialog.Description mb="3" size="2" color="gray">This transaction will be sent to one of the nodes</Dialog.Description>
+                <Flex justify="between" align="center">
+                  <Dialog.Title mb="0">Review</Dialog.Title>
+                  <Button variant="surface" color="indigo" radius="medium" size="1" onClick={() => {
+                    navigator.clipboard.writeText(JSON.stringify(toSimpleTransaction(transactionData), null, 4));
+                    AlertBox.open(AlertType.Info, 'Transaction dump copied!')
+                  }}>
+                    <Icon path={mdiCodeJson} size={0.6}></Icon>
+                    Dump
+                  </Button>
+                </Flex>
+                <Dialog.Description mb="3" size="2" color="gray">Side effects:</Dialog.Description>
                 <Box>
                   {
                     asset != -1 && program instanceof ProgramTransfer &&
@@ -1431,7 +1375,15 @@ export default function InteractionPage() {
                   }
                   {
                     asset != -1 && program instanceof ApproveTransaction &&
-                    <Text as="div" weight="light" size="4" mb="1">— Execute <Badge radius="medium" variant="surface" size="2" color="red">{ program.typename || 'unknown' } transaction</Badge> as is (risky)</Text>
+                    <>
+                      <Text as="div" weight="light" size="4" mb="1">— From unverified data (careful!)</Text>
+                      <Text as="div" weight="light" size="4" mb="1">— Execute <Badge radius="medium" variant="surface" size="2" color="red">{ program.typename || 'unknown' } transaction</Badge></Text>
+                      {
+                        Array.isArray(program.transaction.transactions) && program.transaction.transactions.map((subtransaction: any, index: number) =>
+                          <Text as="div" weight="light" size="4" mb="1" key={subtransaction.hash + 'x' + index.toString()}>— Execute internal <Badge radius="medium" variant="surface" size="2" color="red">{ Readability.toTransactionType(subtransaction.type) } transaction</Badge></Text>
+                        )
+                      }
+                    </>
                   }
                   <Text as="div" weight="light" size="4" mb="1">— Pay up to <Text color="orange">{ Readability.toMoney(assets[asset].asset, maxFeeValue) }</Text> to <Text color="sky">miner as fee</Text></Text>
                 </Box>
@@ -1440,7 +1392,7 @@ export default function InteractionPage() {
                     <Button variant="soft" color="gray">Cancel</Button>
                   </Dialog.Close>
                   <Dialog.Close>
-                    <Button color="red" disabled={loadingGasPrice || loadingGasLimit} loading={loadingTransaction} onClick={() => submitTransaction()}>Submit</Button>
+                    <Button color="red" disabled={loadingGasPriceAndPrice} loading={loadingTransaction} onClick={() => submitTransaction()}>Submit</Button>
                   </Dialog.Close>
                 </Flex>
               </Dialog.Content>
