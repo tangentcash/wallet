@@ -1282,7 +1282,7 @@ export default function InteractionPage() {
       {
         programReady &&
         <Card mt="4">
-          <Heading size="4" mb="2">Priority</Heading>
+          <Heading size="4" mb="2">Priority & cost</Heading>
           <Tooltip content="Higher gas price increases transaction priority">
             <TextField.Root mt="3" mb="3" size="3" placeholder="Custom gas price" type="number" disabled={loadingGasPriceAndPrice} value={gasPrice} onChange={(e) => setGasPrice(e.target.value)} />
           </Tooltip>
