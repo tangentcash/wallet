@@ -20,7 +20,7 @@ const types: {
   toPath?: () => string
 }[] = [
   { path: '/', name: 'Home', tip: 'My account', icon: mdiSquareRoundedBadgeOutline, persistent: true },
-  { path: '/depository', name: 'Depository', tip: 'Deposit/withdrawal', icon: mdiSetRight, activeColor: 'orange', persistent: true },
+  { path: '/depository', name: 'Depository', tip: 'Fund/withdrawal', icon: mdiSetRight, activeColor: 'orange', persistent: true },
   { path: '/interaction', name: 'Pay', tip: 'Send transaction', activeColor: 'jade', icon: mdiContactlessPaymentCircleOutline, persistent: true },
   { path: '/configure', name: 'Configure', tip: 'App settings', activeColor: 'yellow', icon: mdiDotsCircle, persistent: true },
   { path: '/block', name: 'Block', tip: 'Block details', icon: mdiMagnifyScan, activeColor: 'blue' },

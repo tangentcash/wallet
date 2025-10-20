@@ -128,7 +128,7 @@ export default function DepositoryPage() {
       {
         asset == null &&
         <Box mt="4" maxWidth="480px" mx="auto">
-          <Heading align="center" mb="4" size="8">Deposit/withdraw</Heading>
+          <Heading align="center" mb="4" size="8">Fund/withdraw</Heading>
           {
             assets.map((item, index) =>
               <Button variant="surface" color="gray" mb="4" radius="large" style={{ display: 'block', color: 'initial', width: '100%', height: 'auto', borderRadius: '20px' }} key={item.chain + index} onClick={() => navigate(`/depository?asset=${item.id}`)}>
