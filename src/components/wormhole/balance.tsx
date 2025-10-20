@@ -1,0 +1,37 @@
+import { Avatar, Badge, Box, Flex, Text, Tooltip } from "@radix-ui/themes";
+import { Wormhole, Balance } from "../../core/wormhole";
+import { Readability } from "tangentsdk";
+import BigNumber from "bignumber.js";
+import Icon from "@mdi/react";
+import { mdiLockOutline } from "@mdi/js";
+
+export default function BalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } } }) {
+  const item = props.item;
+  const baseEquity = item.equity.current || item.equity.previous || new BigNumber(0);
+  const previousEquity = item.equity.previous ? item.equity.previous : baseEquity;
+  const currentEquity = item.equity.current ? item.equity.current : baseEquity;
+  return (
+    <Box px="4" py="4" mb="4" style={{ backgroundColor: 'var(--gray-3)', borderRadius: '24px' }}>
+      <Flex justify="start" align="center" gap="3">
+        <Avatar size="4" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
+        <Box width="100%">
+          <Flex justify="between">
+            <Text size="2">{ Readability.toAssetName(item.asset) }</Text>
+            <Text size="2">{ Readability.toMoney(Wormhole.equityAsset, item.equity.current) }</Text>
+          </Flex>
+          <Flex justify="between" align="center">
+            <Tooltip content={ 'Currently locked: ' + Readability.toMoney(item.asset, item.unavailable) }>
+              <Flex align="center" gap="1">
+                { item.unavailable.gt(0) && <Icon path={mdiLockOutline} size={0.575} color="var(--gray-11)" style={{ transform: 'translateY(-1px)' }}></Icon> }
+                <Text size="2" color="gray">{ Readability.toMoney(item.asset, item.available.plus(item.unavailable)) }</Text>
+              </Flex>
+            </Tooltip>
+            <Tooltip content={ Readability.toMoney(Wormhole.equityAsset, currentEquity.minus(previousEquity), true) }>
+              <Badge radius="small" size="1" color={ previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : 'jade') }>{ Readability.toPercentageDelta(previousEquity, currentEquity) }</Badge>
+            </Tooltip>
+          </Flex>
+        </Box>
+      </Flex>
+    </Box>
+  );
+}

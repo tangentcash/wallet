@@ -51,7 +51,7 @@ export default function TransactionPage() {
         rollupGasLimit = rollupGasLimit.plus(data.state.receipts[hash].relativeGasUse);
     }
     return (
-      <Box px="4" pt="4" mb="6">
+      <Box px="4" pt="4" mb="6" maxWidth="800px" mx="auto">
         <Flex justify="between" align="center">
           <Heading size="6">Transaction</Heading>
           <Button variant="soft" size="2" color="indigo" onClick={() => navigate(-1)}>

@@ -1,7 +1,7 @@
 import { mdiBackburger } from "@mdi/js";
 import { Avatar, Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Heading, Select, Text } from "@radix-ui/themes";
-import { Link, useNavigate } from "react-router";
-import { useCallback, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { useCallback, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AssetId, Chain, RPC, Readability } from "tangentsdk";
@@ -29,30 +29,34 @@ function toDepositoryStatus(policy: any): string {
 export default function DepositoryPage() {
   const ownerAddress = AppData.getWalletAddress() || '';
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
+  const [query] = useSearchParams();
   const [preference, setPreference] = useState<'security' | 'cost' | 'popularity'>('popularity');
   const [assets, setAssets] = useState<any[]>([]);
-  const [asset, setAsset] = useState(-1);
   const [walletAddresses, setWalletAddresses] = useState<any[]>([]);
   const [cachedAddresses, setCachedAddresses] = useState<any[] | null>(null);
   const [acquiredDepositories, setAcquiredDepositories] = useState<{ [key: string]: any }>({ });
   const [candidateDepositories, setCandidateDepositories] = useState<any[]>([]);
   const [moreDepositories, setMoreDepositories] = useState(true);
   const navigate = useNavigate();
+  const asset = useMemo(() => {
+    const target = query.get('asset');
+    return target ? assets.find((v) => v.id == target) || null : null;
+  }, [query, assets]);
   const findDepositories = useCallback(async (refresh?: boolean) => {
     try {
-      if (asset == -1)
+      if (!asset)
         return null;
 
       let data;
       switch (preference) {
         case 'security':
-          data = await RPC.getBestDepositoryPoliciesForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
+          data = await RPC.getBestDepositoryPoliciesForSelection(new AssetId(asset.id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
           break;
         case 'popularity':
-          data = await RPC.getBestDepositoryBalancesForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
+          data = await RPC.getBestDepositoryBalancesForSelection(new AssetId(asset.id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
           break;
         case 'cost':
-          data = await RPC.getBestDepositoryRewardsForSelection(new AssetId(assets[asset].id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
+          data = await RPC.getBestDepositoryRewardsForSelection(new AssetId(asset.id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
           break;
         default:
           return null;
@@ -86,7 +90,7 @@ export default function DepositoryPage() {
     } catch { }
   }, []);
   useEffectAsync(async () => {
-    if (asset == -1)
+    if (!asset)
       return;
 
     await findDepositories(true);
@@ -98,7 +102,7 @@ export default function DepositoryPage() {
       if (!addressData)
         throw false;
 
-      const depositoryAddresses = addressData.filter((item) => item.asset.id.toString() == assets[asset].id.toString() && item.purpose == 'depository').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
+      const depositoryAddresses = addressData.filter((item) => item.asset.id.toString() == asset.id.toString() && item.purpose == 'depository').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
       const mapping: any = { };
       for (let item in depositoryAddresses) {
         let input = depositoryAddresses[item];
@@ -110,7 +114,7 @@ export default function DepositoryPage() {
         }
       }
       
-      const routingAddresses = addressData.filter((item) => item.asset.id.toString() == assets[asset].id.toString() && item.purpose == 'routing').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
+      const routingAddresses = addressData.filter((item) => item.asset.id.toString() == asset.id.toString() && item.purpose == 'routing').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
       setWalletAddresses(routingAddresses);  
       setAcquiredDepositories(mapping);
     } catch {
@@ -122,44 +126,44 @@ export default function DepositoryPage() {
   return (
     <Box px="4" pt="4" mx="auto" maxWidth="640px">
       {
-        asset == -1 &&
-        <Box mt="4">
-          <Heading align="center" mb="4" size="8">Blockchain depository</Heading>
-          <Flex justify="center" maxWidth="380px" mx="auto">
-            <Select.Root size="3" value={asset.toString()} onValueChange={(value) => setAsset(parseInt(value))}>
-              <Select.Trigger variant="surface" placeholder="Select blockchain" style={{ width: '100%' }}>
-              </Select.Trigger>
-              <Select.Content variant="soft">
-                <Select.Group>
-                  <Select.Item value="-1" disabled={true}>Select blockchain</Select.Item>
-                  {
-                    assets.map((item, index) =>
-                      <Select.Item key={item.id + '_select'} value={index.toString()}>
-                        <Flex align="center" gap="1">
-                          <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item)} src={Readability.toAssetImage(item)} style={{ width: '24px', height: '24px' }} />
-                          <Text size="2" weight="light">{Readability.toAssetName(item)}</Text>
-                        </Flex>
-                      </Select.Item>
-                    )
-                  }
-                </Select.Group>
-              </Select.Content>
-            </Select.Root>
-          </Flex>
+        asset == null &&
+        <Box mt="4" maxWidth="480px" mx="auto">
+          <Heading align="center" mb="4" size="8">Deposit/withdraw</Heading>
+          {
+            assets.map((item, index) =>
+              <Button variant="surface" color="gray" mb="4" radius="large" style={{ display: 'block', color: 'initial', width: '100%', height: 'auto', borderRadius: '20px' }} key={item.chain + index} onClick={() => navigate(`/depository?asset=${item.id}`)}>
+                <Flex px="1" py="3" justify="start" align="center" gap="3">
+                  <Avatar size="4" fallback={Readability.toAssetFallback(item)} src={Readability.toAssetImage(item)} />
+                  <Box width="100%">
+                    <Flex justify="start" align="start" direction="column">
+                      <Text size="2">{ Readability.toAssetName(item) }</Text>
+                      <Flex gap="1">
+                        <Badge size="1" color="jade">{ Readability.toAssetSymbol(item) }</Badge>
+                        {
+                          item.token_policy != 'none' &&
+                          <Badge size="1" color="orange">{ item.token_policy[0].toUpperCase() + item.token_policy.substring(1) } tokens</Badge>
+                        }
+                      </Flex>
+                    </Flex>
+                  </Box>
+                </Flex>
+              </Button>
+            )
+          }
         </Box>
       }
       {
-        asset != -1 &&
+        asset != null &&
         <Box>
           <Box width="100%" mb="6">
             <Box width="100%" mb="4">
               <Flex justify="between" align="center" mb="3">
                 <Heading size="6">Registrations</Heading>
-                <Button variant="surface" color="gray" onClick={() => setAsset(-1)}>
+                <Button variant="surface" color="gray" onClick={() => navigate('/depository')}>
                   <Icon path={mdiBackburger} size={0.7} />
                   <Flex align="center" gap="1">
-                    <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(assets[asset])} src={Readability.toAssetImage(assets[asset])} style={{ width: '24px', height: '24px' }} />
-                    <Text size="2" style={{ color: 'var(--gray-12)' }} weight="light">{Readability.toAssetName(assets[asset])}</Text>
+                    <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(asset)} src={Readability.toAssetImage(asset)} style={{ width: '24px', height: '24px' }} />
+                    <Text size="2" style={{ color: 'var(--gray-12)' }} weight="light">{Readability.toAssetName(asset)}</Text>
                   </Flex>
                 </Button>
               </Flex>
@@ -204,18 +208,18 @@ export default function DepositoryPage() {
                               <DataList.Label>Deposit instruction:</DataList.Label>
                               <DataList.Value>
                                 {
-                                  assets[asset].routing_policy == 'utxo' &&
+                                  asset.routing_policy == 'utxo' &&
                                   <Badge color="jade">Deposit from any wallet</Badge>
                                 }
                                 {
-                                  assets[asset].routing_policy == 'memo' &&
+                                  asset.routing_policy == 'memo' &&
                                   <Flex gap="2" wrap="wrap">
                                     <Badge color="yellow">Deposit from any wallet with memo</Badge>
                                     <Badge color="red">Memo — { depository.address_index.toString() }</Badge>
                                   </Flex>
                                 }
                                 {
-                                  assets[asset].routing_policy == 'account' &&
+                                  asset.routing_policy == 'account' &&
                                   <Box>
                                     {
                                       !walletAddresses.length &&
@@ -262,7 +266,7 @@ export default function DepositoryPage() {
                   }
                 </Collapsible.Content>
               </Collapsible.Root>
-              <Text size="1" weight="light"><Text color="yellow">Register</Text> more {Readability.toAssetName(assets[asset])} addresses by requesting deposits</Text>
+              <Text size="1" weight="light"><Text color="yellow">Register</Text> more {Readability.toAssetName(asset)} addresses by requesting deposits</Text>
             </Card>
             <Card>
               <Collapsible.Root>
@@ -287,7 +291,7 @@ export default function DepositoryPage() {
                         walletAddresses.map((wallet) => {
                           return wallet.addresses.map((walletAddress: string, addressIndex: number) =>
                             <DataList.Item key={walletAddress}>
-                              <DataList.Label>{ assets[asset].routing_policy == 'account' ? 'Sender/withdrawal' : 'Withdrawal' } address v{wallet.addresses.length - addressIndex}:</DataList.Label>
+                              <DataList.Label>{ asset.routing_policy == 'account' ? 'Sender/withdrawal' : 'Withdrawal' } address v{wallet.addresses.length - addressIndex}:</DataList.Label>
                               <DataList.Value>
                                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                                   navigator.clipboard.writeText(walletAddress);
@@ -308,7 +312,7 @@ export default function DepositoryPage() {
                   }
                 </Collapsible.Content>
               </Collapsible.Root>
-              <Text size="1" weight="light"><Text color="yellow">Register</Text> more {Readability.toAssetName(assets[asset])} addresses by requesting {assets[asset].routing_policy == 'account' ? 'deposits/' : ''}withdrawals</Text>
+              <Text size="1" weight="light"><Text color="yellow">Register</Text> more {Readability.toAssetName(asset)} addresses by requesting {asset.routing_policy == 'account' ? 'deposits/' : ''}withdrawals</Text>
             </Card>
           </Box>
           <Box width="100%" mb="4">
@@ -330,7 +334,7 @@ export default function DepositoryPage() {
           </Box>
           {
             !candidateDepositories.length &&
-            <Text color="red">No active depositories for {Readability.toAssetName(assets[asset])} blockchain</Text>
+            <Text color="red">No active depositories for {Readability.toAssetName(asset)} blockchain</Text>
           }
           <InfiniteScroll dataLength={candidateDepositories.length} hasMore={moreDepositories} next={findDepositories} loader={<div></div>}>
             {
@@ -385,7 +389,7 @@ export default function DepositoryPage() {
                         <DataList.Value>
                           {
                             item.reward && item.reward.incoming_fee.gt(0) &&
-                            <Text>{ Readability.toMoney(new AssetId(assets[asset].id), item.reward.incoming_fee) }</Text>
+                            <Text>{ Readability.toMoney(new AssetId(asset.id), item.reward.incoming_fee) }</Text>
                           }
                           {
                             (!item.reward || item.reward.incoming_fee.lte(0)) &&
@@ -398,7 +402,7 @@ export default function DepositoryPage() {
                         <DataList.Value>
                           {
                             item.reward && item.reward.outgoing_fee.gt(0) &&
-                            <Text>{ Readability.toMoney(new AssetId(assets[asset].id), item.reward.outgoing_fee) }</Text>
+                            <Text>{ Readability.toMoney(new AssetId(asset.id), item.reward.outgoing_fee) }</Text>
                           }
                           {
                             (!item.reward || item.reward.outgoing_fee.lte(0)) &&
@@ -407,14 +411,14 @@ export default function DepositoryPage() {
                         </DataList.Value>
                       </DataList.Item>
                       {
-                        assets[asset].token_policy == 'program' &&
+                        asset.token_policy == 'program' &&
                         <DataList.Item>
                           <DataList.Label>Withdrawable tokens:</DataList.Label>
                           <DataList.Value>
                             <Flex wrap="wrap" gap="1">
                               <Badge size="1" radius="medium" color="tomato">
-                                <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(assets[asset])} src={Readability.toAssetImage(assets[asset])} style={{ width: '12px', height: '12px' }} />
-                                { Readability.toAssetSymbol(assets[asset]) }
+                                <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(asset)} src={Readability.toAssetImage(asset)} style={{ width: '12px', height: '12px' }} />
+                                { Readability.toAssetSymbol(asset) }
                               </Badge>
                               {
                                 item.policy.whitelist.map((next: any) =>
@@ -439,8 +443,8 @@ export default function DepositoryPage() {
                               </Button>
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Content>
-                              <DropdownMenu.Item shortcut="↙"  onClick={() => navigate(`/interaction?asset=${assets[asset].id}&type=registration&manager=${item.policy.owner}`)} disabled={acquiredDepositories[item.policy.owner] != null || !item.policy.accepts_account_requests}>Deposit</DropdownMenu.Item>
-                              <DropdownMenu.Item shortcut="↗" onClick={() => navigate(`/interaction?asset=${assets[asset].id}&type=withdrawal&manager=${item.policy.owner}`)} disabled={!item.policy.accepts_withdrawal_requests}>Withdrawal</DropdownMenu.Item>
+                              <DropdownMenu.Item shortcut="↙"  onClick={() => navigate(`/interaction?asset=${asset.id}&type=registration&manager=${item.policy.owner}`)} disabled={acquiredDepositories[item.policy.owner] != null || !item.policy.accepts_account_requests}>Deposit</DropdownMenu.Item>
+                              <DropdownMenu.Item shortcut="↗" onClick={() => navigate(`/interaction?asset=${asset.id}&type=withdrawal&manager=${item.policy.owner}`)} disabled={!item.policy.accepts_withdrawal_requests}>Withdrawal</DropdownMenu.Item>
                             </DropdownMenu.Content>
                           </DropdownMenu.Root>
                       </Flex>

@@ -584,7 +584,7 @@ export default function InteractionPage() {
         if (AppData.approveTransaction) {
           AppData.approveTransaction({ hash: new Uint256(hash), message: ByteUtil.hexStringToUint8Array(output.data), signature: output.body.signature });
         }
-        navigate('/');
+        navigate(-1);
       } else {
         AlertBox.open(AlertType.Error, 'Failed to send transaction!');
       }  

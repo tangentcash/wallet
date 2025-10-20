@@ -5,6 +5,7 @@ import './styles/backgrounds.css';
 import './styles/transitions.css';
 import './styles/breakpoints.css';
 import './styles/colors.css';
+import './styles/customs.css';
 import BigNumber from "bignumber.js";
 import { AppData } from "./core/app";
 

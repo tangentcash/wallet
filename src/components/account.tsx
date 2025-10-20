@@ -1,14 +1,15 @@
 import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
-import { AspectRatio, Avatar, Badge, Box, Callout, Card, Flex, Heading, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, Flex, Heading, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { RPC, EventResolver, SummaryState, AssetId, Readability } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowLeftBoldHexagonOutline, mdiArrowRightBoldHexagonOutline, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan } from "@mdi/js";
+import { mdiArrowLeftBoldHexagonOutline, mdiArrowRightBoldHexagonOutline, mdiInformationOutline, mdiKeyOutline, mdiLocationEnter, mdiQrcodeScan } from "@mdi/js";
 import { AppData } from "../core/app";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import QRCode from "react-qr-code";
 import Icon from "@mdi/react";
 import Transaction from "../components/transaction";
+import { useNavigate } from "react-router";
 
 function toAddressType(type: string): string {
   switch (type) {
@@ -24,8 +25,9 @@ function toAddressType(type: string): string {
 }
 
 const TRANSACTION_COUNT = 48;
-const Account = forwardRef((props: { ownerAddress: string }, ref) => {
+const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref) => {
   const ownerAddress = props.ownerAddress;
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [assets, setAssets] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<any[]>([]);
@@ -220,6 +222,15 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
                 )
               }
             </Card>
+            {
+              props.self &&
+              <Flex pt="2" justify="end">
+                <Button variant="surface" color="orange" onClick={() => navigate('/wormhole')}>
+                  <Icon path={mdiLocationEnter} size={0.8}></Icon>
+                  Enter wormhole
+                </Button>
+              </Flex>
+            }
           </Tabs.Content>
           <Tabs.Content value="address">
             {
@@ -456,7 +467,7 @@ const Account = forwardRef((props: { ownerAddress: string }, ref) => {
       </Tabs.Root>
       {
         (transactions.length > 0 || mempoolTransactions.length > 0) &&
-        <Box width="100%" my="6">
+        <Box width="100%" my={props.self ? '3' : '6'}>
           <Heading size="6" mb="0">Transactions</Heading>
           {
             mempoolTransactions.length > 0 &&

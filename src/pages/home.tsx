@@ -203,7 +203,7 @@ export default function HomePage() {
           }
         </Flex>
       </Flex>
-      <Account ownerAddress={ownerAddress} ref={account}></Account>
+      <Account ownerAddress={ownerAddress} self={true} ref={account}></Account>
     </Box>
   );
 }

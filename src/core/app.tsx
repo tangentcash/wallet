@@ -18,6 +18,9 @@ import BlockPage from "./../pages/block";
 import TransactionPage from "./../pages/transaction";
 import InteractionPage from "./../pages/interaction";
 import DepositoryPage from "./../pages/depository"
+import PortfolioPage from "../pages/wormhole/portfolio";
+import MarketsPage from "../pages/wormhole/markets";
+import OrderbookPage from "../pages/wormhole/orderbook";
 
 const CACHE_PREFIX = 'cache';
 
@@ -75,6 +78,7 @@ export class AppData {
     appearance: 'dark'
   };
   static mayNotify: boolean = false;
+  static styles: CSSStyleDeclaration | null = null;
   static platform: 'desktop' | 'mobile' | 'unknown' = 'unknown';
   static wallet: WalletKeychain | null = null;
   static tip: BigNumber | null = null;
@@ -244,7 +248,7 @@ export class AppData {
             throw new Error('User is busy signing another transaction');
 
           const proof = await new Promise<{ hash: Uint256, message: Uint8Array, signature: Hashsig } | null>((resolve) => {
-            if (this.state.setNavigation) {          
+            if (this.state.setNavigation) {
               this.approveTransaction = resolve;
               this.state.setNavigation(`/interaction?type=approvetransaction&transaction=${ByteUtil.uint8ArrayToHexString(entity.sign.message || new Uint8Array())}${entity.sign.asset != null ? '&asset=' + entity.sign.asset.id : ''}`);
             } else {
@@ -275,6 +279,9 @@ export class AppData {
   }
   private static async authorizerDomain(hostname: string): Promise<string[]> {
     try {
+      if (!this.isApp())
+        return [];
+
       const result: string[] = await core.invoke('resolve_domain_txt', {
         hostname: hostname
       });
@@ -528,7 +535,8 @@ export class AppData {
   }
   static async main(): Promise<void> {
     const props: AppProps | null = Storage.get(StorageField.Props);
-    core.invoke('platform_type').then((value) => this.platform = value as 'desktop' | 'mobile' | 'unknown');
+    if (this.isApp())
+      core.invoke('platform_type').then((value) => this.platform = value as 'desktop' | 'mobile' | 'unknown');
     if (props != null)
       this.props = props;
 
@@ -562,10 +570,12 @@ export class AppData {
       this.render();
     }
     
-    await listen('authorizer', (event) => this.authorizerEvent(event));
+    if (this.isApp())
+      await listen('authorizer', (event) => this.authorizerEvent(event));
   }
   static openDevTools(): void {
-    core.invoke('open_devtools');
+    if (this.isApp())
+      core.invoke('open_devtools');
   }
   static openFile(type: string): Promise<Uint8Array | null> {
     return new Promise((resolve) => {
@@ -613,6 +623,7 @@ export class AppData {
     this.save();
   }
   static setAppearance(value: 'dark' | 'light'): void {
+    this.styles = null;
     this.props.appearance = value;
     this.save();
     this.setState();
@@ -639,6 +650,17 @@ export class AppData {
   static isWalletExists(): boolean {
     return SafeStorage.hasEncryptedKey();
   }
+  static isApp(): boolean {
+    return core.isTauri();
+  }
+  static styleOf(property: string): string | undefined {
+    if (!this.styles) {
+      const element = document.querySelector('.radix-themes')
+      if (element != null)
+        this.styles = getComputedStyle(element);
+    }
+    return this.styles?.getPropertyValue(property) || undefined;
+  }
 }
 
 export function App() {
@@ -647,7 +669,7 @@ export function App() {
 
   return (
     <Theme appearance={AppData.props.appearance} accentColor="iris" radius="full" id={state.toString()}>
-      <Box minWidth="285px" maxWidth="800px" mx="auto" style={{ paddingBottom: '96px' }}>
+      <Box minWidth="285px" style={{ paddingBottom: '96px' }}>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={
@@ -689,6 +711,21 @@ export function App() {
               <WalletNotReadyRoute>
                 <RestorePage />
               </WalletNotReadyRoute>
+            } />
+            <Route path="/wormhole" element={
+              <WalletReadyRoute>
+                <PortfolioPage />
+              </WalletReadyRoute>
+            } />
+            <Route path="/wormhole/markets" element={
+              <WalletReadyRoute>
+                <MarketsPage />
+              </WalletReadyRoute>
+            } />
+            <Route path="/wormhole/orderbook/:orderbook?" element={
+              <WalletReadyRoute>
+                <OrderbookPage />
+              </WalletReadyRoute>
             } />
           </Routes>
         </BrowserRouter>

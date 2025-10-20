@@ -1491,6 +1491,11 @@ escalade@^3.2.0:
   resolved "https://registry.yarnpkg.com/escalade/-/escalade-3.2.0.tgz#011a3f69856ba189dffa7dc8fcce99d2a87903e5"
   integrity sha512-WUj2qlxaQtO4g6Pq5c29GTcWGDyd8itL8zTlipgECz3JesAiiOKotd8JU6otB3PACgG6xkJUyVhboMS+bje/jA==
 
+fancy-canvas@2.1.0:
+  version "2.1.0"
+  resolved "https://registry.yarnpkg.com/fancy-canvas/-/fancy-canvas-2.1.0.tgz#44b40e40419ad8ef8304df365e4276767e918552"
+  integrity sha512-nifxXJ95JNLFR2NgRV4/MxVP45G9909wJTEKz5fg/TZS20JJZA6hfgRVh/bC9bwl2zBtBNcYPjiBE4njQHVBwQ==
+
 fsevents@~2.3.2, fsevents@~2.3.3:
   version "2.3.3"
   resolved "https://registry.yarnpkg.com/fsevents/-/fsevents-2.3.3.tgz#cac6407785d03675a2a5e1a5305c697b347d90d6"
@@ -1559,6 +1564,18 @@ libsodium@^0.7.15:
   version "0.7.15"
   resolved "https://registry.yarnpkg.com/libsodium/-/libsodium-0.7.15.tgz#ac284e3dcb1c29ae9526c5581cdada6a072f6d20"
   integrity sha512-sZwRknt/tUpE2AwzHq3jEyUU5uvIZHtSssktXq7owd++3CSgn8RGrv6UZJJBpP7+iBghBqe7Z06/2M31rI2NKw==
+
+lightweight-charts-react-components@^1.4.0:
+  version "1.4.0"
+  resolved "https://registry.yarnpkg.com/lightweight-charts-react-components/-/lightweight-charts-react-components-1.4.0.tgz#0bf71f71cd9215a7d69d640f89113fb660848aa7"
+  integrity sha512-FWzEiQDhQaQ04l6kV2fzsODK6jCrzbLOai+r6oEvCqC3tniXjKUAFHbTUlemII7PfiWYwyVAVgl1XRv72Q8Phw==
+
+lightweight-charts@^5.0.9:
+  version "5.0.9"
+  resolved "https://registry.yarnpkg.com/lightweight-charts/-/lightweight-charts-5.0.9.tgz#22ccaf5643b4561c0accecee5d84eec78d3d058d"
+  integrity sha512-8oQIis8jfZVfSwz8j9Z5x3O79dIRTkEYI9UY7DKtE4O3ZxlHjMK3L0+4nOVOOFq4FHI/oSIzz1RHeNImCk6/Jg==
+  dependencies:
+    fancy-canvas "2.1.0"
 
 loose-envify@^1.4.0:
   version "1.4.0"

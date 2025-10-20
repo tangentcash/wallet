@@ -56,7 +56,7 @@ export default function BlockPage() {
     const subpriority = priority == 0 && (AppData.tip || new BigNumber(0)).lte(block.number) ? 0 : priority;
     const possibility = 100 * Math.min(1, Math.max(0, (subpriority > 0 ? 0.4 : 0.0) + Math.min(0.55, lerp(0.0, 0.55, subpriority / Chain.props.PRODUCTION_COMMITTEE))));
     return (
-      <Box px="4" pt="4">
+      <Box px="4" pt="4" maxWidth="800px" mx="auto">
         <Flex justify="between" align="center">
           <Heading size="6">Block</Heading>
           <Button variant="soft" size="2" color="indigo" onClick={() => navigate(-1)}>
