@@ -227,7 +227,7 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
               <Flex pt="2" justify="end">
                 <Button variant="surface" color="orange" onClick={() => navigate('/wormhole')}>
                   <Icon path={mdiLocationEnter} size={0.8}></Icon>
-                  Enter wormhole
+                  The Wormhole
                 </Button>
               </Flex>
             }
