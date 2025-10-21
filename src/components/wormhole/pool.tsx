@@ -1,4 +1,4 @@
-import { Avatar, Badge, Box, Button, DataList, Dialog, DropdownMenu, Flex, Text } from "@radix-ui/themes";
+import { Avatar, Badge, Box, Button, Card, DataList, Dialog, DropdownMenu, Flex, Text } from "@radix-ui/themes";
 import { Readability } from "tangentsdk";
 import { Pool } from "../../core/wormhole";
 import * as Collapsible from "@radix-ui/react-collapsible";
@@ -156,9 +156,14 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
       }
       {
         !props.flash &&
-        <Box px="4" py="4" style={{ backgroundColor: 'var(--gray-3)', borderRadius: '24px' }}>
-          <FullPoolView item={props.item} open={props.open} concentrated={concentrated} inRange={inRange}></FullPoolView>
-        </Box>
+        <Card variant="surface" style={{
+            border: '1px solid var(--gray-7)',
+            borderRadius: '24px'
+          }}>
+          <Box px="1" py="1">
+            <FullPoolView item={props.item} open={props.open} concentrated={concentrated} inRange={inRange}></FullPoolView>
+          </Box>
+        </Card>
       }
     </>
   );

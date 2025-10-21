@@ -33,6 +33,10 @@
      -khtml-user-select: none;
        -moz-user-select: none;
         -ms-user-select: none;
-            user-select: none;
-            
+            user-select: none;           
+}
+
+.layer-gradient .radix-themes {
+  background: linear-gradient(180deg, var(--iris-1), #000);
+  background-attachment: fixed;
 }

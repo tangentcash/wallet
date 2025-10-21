@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Flex, Heading, Tabs, Text } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, Flex, Heading, Tabs, Text } from "@radix-ui/themes";
 import { AssetId, Readability } from "tangentsdk";
 import { useEffect, useMemo, useState } from "react";
 import { Wormhole, Balance, Order, Pool } from "../../core/wormhole";
@@ -72,16 +72,21 @@ export default function PortfolioPage() {
 
   return (
     <Box px="4" pt="4" minWidth="285px" maxWidth="680px" mx="auto">
-      <Box px="5" py="4" style={{ backgroundColor: 'var(--gray-3)', borderRadius: '24px' }}>
-        <Box pl="1" mb="2">
-          <Flex justify="between" align="center">
-            <Text size="3" color="gray">Portfolio</Text>
-            <Badge size="2" color="red">{ Readability.toAddress(account || '') }</Badge>
-          </Flex>
-          <Heading size="7">{ Readability.toMoney(Wormhole.equityAsset, equity.current) }</Heading>
+      <Card mt="3" variant="surface" style={{
+          border: '1px solid var(--gray-7)',
+          borderRadius: '28px'
+        }}>
+        <Box px="2" py="1">
+          <Box mb="2">
+            <Flex justify="between" align="center">
+              <Text size="3" color="gray">Portfolio</Text>
+              <Badge size="2" color="red">{ Readability.toAddress(account || '') }</Badge>
+            </Flex>
+            <Heading size="7">{ Readability.toMoney(Wormhole.equityAsset, equity.current) }</Heading>
+          </Box>
+          <Button variant="soft" size="2" color={ equity.previous.gt(equity.current) ? 'red' : (equity.previous.eq(equity.current) ? 'gray' : 'jade') } onClick={() => setTodayProfits(!todayProfits)}>{ Readability.toMoney(Wormhole.equityAsset, equity.current.minus(equity.previous), true) } ({ Readability.toPercentageDelta(equity.previous, equity.current) }) - { todayProfits ? 'Today' : 'Total' }</Button>
         </Box>
-        <Button variant="soft" size="2" color={ equity.previous.gt(equity.current) ? 'red' : (equity.previous.eq(equity.current) ? 'gray' : 'jade') } onClick={() => setTodayProfits(!todayProfits)}>{ Readability.toMoney(Wormhole.equityAsset, equity.current.minus(equity.previous), true) } ({ Readability.toPercentageDelta(equity.previous, equity.current) }) - { todayProfits ? 'Today' : 'Total' }</Button>
-      </Box>
+      </Card>
       <Tabs.Root defaultValue="balances" mt="4">
         <Tabs.List>
           <Tabs.Trigger value="balances">Balances</Tabs.Trigger>
