@@ -394,9 +394,6 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
         })]
       }).flat();
       let attestations = 0;
-      const executionBlockId = new BigNumber(Array.isArray(transaction.assertion.block_id) ? transaction.assertion.block_id[0] || 0 : 0);
-      const finalizationBlockId = new BigNumber(Array.isArray(transaction.assertion.block_id) ? transaction.assertion.block_id[1] || 0 : 0);
-      const finalized = executionBlockId.gt(0) && finalizationBlockId.gt(0) && executionBlockId.lte(finalizationBlockId);
       Object.keys(transaction.output_hashes).forEach((item) => attestations += transaction.output_hashes[item].length);
       return (
         <>
@@ -412,14 +409,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Block id:</DataList.Label>
-              <DataList.Value>{ executionBlockId.gt(0) ? executionBlockId.toString() || 'NULL' : 'NULL' }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Status:</DataList.Label>
-              <DataList.Value>
-                { finalized && <Badge color="jade">Attestation finalized in { Readability.toCount('block', finalizationBlockId.minus(executionBlockId)) }</Badge> }
-                { !finalized && <Badge color="yellow">Pending finalization</Badge> }
-              </DataList.Value>
+              <DataList.Value>{ transaction.assertion.block_id?.toString() || 'NULL' }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Attestations:</DataList.Label>

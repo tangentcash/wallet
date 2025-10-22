@@ -67,7 +67,7 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
       }
 
       const candidateTransactions = data.map((value) => { return { ...value, state: EventResolver.calculateSummaryState(value?.receipt?.events) } });
-      setTransactions(refresh ? candidateTransactions : transactions.concat(candidateTransactions));
+      setTransactions(refresh ? candidateTransactions : prev => prev.concat(candidateTransactions));
       setMoreTransactions(candidateTransactions.length >= TRANSACTION_COUNT);
       return candidateTransactions.length > 0;
     } catch (exception) {
@@ -153,7 +153,7 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
   }, [ownerAddress]);
   if (ref != null) {
     useImperativeHandle(ref, () => ({
-      updateFinalizedTransactions: () => findTransactions(),
+      updateFinalizedTransactions: () => findTransactions(true),
       updateMempoolTransactions: () => findMempoolTransactions()
     }));
   }

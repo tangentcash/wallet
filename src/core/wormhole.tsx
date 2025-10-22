@@ -1,7 +1,8 @@
 import { AssetId, ByteUtil, Hashing, Readability, Stream, Viewable } from "tangentsdk"
-import BigNumber from "bignumber.js"
 import { AlertBox, AlertType } from "../components/alert"
 import { Storage } from "./storage"
+import Config from './../config.json';
+import BigNumber from "bignumber.js"
 
 export enum MarketPolicy {
     Spot,
@@ -176,11 +177,11 @@ export enum WormholeField {
 }
 
 export class Wormhole {
-  static location = 'http://localhost:19420';
-  static subroute = '/wormhole';
+  static location = Config.wormhole.url;
+  static subroute = Config.wormhole.route;
   static prices: Record<string, { asset: AssetId, price: { open: BigNumber | null, close: BigNumber | null } }> = { };
   static descriptors: BlockchainInfo[] = [];
-  static equityAsset: AssetId = AssetId.fromHandle('USD');
+  static equityAsset: AssetId = AssetId.fromHandle(Config.wormhole.asset);
   static orderbook:  string | null = null;
   static socket: WebSocket | null = null;
   static pipeId: string | null = null;

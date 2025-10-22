@@ -8,6 +8,8 @@
 }
 
 :root, .light, .light-theme {
+  --layer-front: #f0fdf5;
+  --layer-back: #f8fffb;
   --iris-1: #f8fffb;
   --iris-2: #f0fdf5;
   --iris-3: #d7fce6;
@@ -78,6 +80,8 @@
 }
 
 .dark, .dark-theme {
+  --layer-front: #0b130f;
+  --layer-back: #000000;
   --iris-1: #0b130f;
   --iris-2: #111c16;
   --iris-3: #102d1f;

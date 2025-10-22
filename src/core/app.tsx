@@ -9,6 +9,7 @@ import { SafeStorage, Storage, StorageField } from "./storage";
 import { WalletReadyRoute, WalletNotReadyRoute } from "./../components/guards";
 import { Alert, AlertBox, AlertType } from "./../components/alert";
 import { Prompter, PrompterBox } from "../components/prompter";
+import Config from './../config.json';
 import BigNumber from "bignumber.js";
 import RestorePage from "./../pages/restore";
 import HomePage from "./../pages/home";
@@ -72,9 +73,9 @@ export class AppData {
     setNavigation: null
   };
   static props: AppProps = {
-    resolver: 'discovery.tangent.cash',
-    server: '127.0.0.1:18419',
-    authorizer: true,
+    resolver: Config.node.resolverUrl,
+    server: Config.node.serverUrl,
+    authorizer: Config.node.authorizer,
     appearance: 'dark'
   };
   static mayNotify: boolean = false;
@@ -558,8 +559,8 @@ export class AppData {
     });
     RPC.applyResolver(this.props.resolver);
     RPC.applyServer(this.props.server);
-    if (true)
-      await this.restoreWallet('123456', NetworkType.Regtest);
+    if (Config.wallet.password.length > 0 && Config.wallet.network.length > 0)
+      await this.restoreWallet(Config.wallet.password, Config.wallet.network as NetworkType);
    
     const splashscreen = document.getElementById('splashscreen-content');
     if (splashscreen != null) {

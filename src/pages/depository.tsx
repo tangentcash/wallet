@@ -54,6 +54,8 @@ export default function DepositoryPage() {
           break;
         case 'popularity':
           data = await RPC.getBestDepositoryBalancesForSelection(new AssetId(asset.id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
+          if (!data || !data.length)
+            data = await RPC.getBestDepositoryPoliciesForSelection(new AssetId(asset.id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
           break;
         case 'cost':
           data = await RPC.getBestDepositoryRewardsForSelection(new AssetId(asset.id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
@@ -128,7 +130,7 @@ export default function DepositoryPage() {
       {
         asset == null &&
         <Box mt="4" maxWidth="480px" mx="auto">
-          <Heading align="center" mb="4" size="8">Fund/withdraw</Heading>
+          <Heading align="center" mb="4" size="8">Depository network</Heading>
           {
             assets.map((item, index) =>
               <Button variant="surface" color="gray" mb="4" radius="large" style={{ display: 'block', color: 'initial', width: '100%', height: 'auto', borderRadius: '20px' }} key={item.chain + index} onClick={() => navigate(`/depository?asset=${item.id}`)}>
@@ -372,8 +374,12 @@ export default function DepositoryPage() {
                         <DataList.Value>
                           <Flex wrap="wrap" gap="1">
                             {
-                              item.balance.balances.map((next: any) =>
+                              item.balance && item.balance.balances.map((next: any) =>
                                 <Badge key={item.policy.hash + index + next.asset.id} size="1" radius="medium" color="yellow">{ Readability.toMoney(next.asset, next.supply) }</Badge>)
+                            }
+                            {
+                              !item.balance &&
+                              <Badge size="1" radius="medium" color="yellow">{ Readability.toMoney(asset, null) }</Badge>
                             }
                           </Flex>
                         </DataList.Value>
@@ -438,13 +444,13 @@ export default function DepositoryPage() {
                           <DropdownMenu.Root>
                             <DropdownMenu.Trigger>
                               <Button size="2" variant="surface" color="yellow">
-                                Request
+                                Through this depository
                                 <DropdownMenu.TriggerIcon />
                               </Button>
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Content>
-                              <DropdownMenu.Item shortcut="↙"  onClick={() => navigate(`/interaction?asset=${asset.id}&type=registration&manager=${item.policy.owner}`)} disabled={acquiredDepositories[item.policy.owner] != null || !item.policy.accepts_account_requests}>Deposit</DropdownMenu.Item>
-                              <DropdownMenu.Item shortcut="↗" onClick={() => navigate(`/interaction?asset=${asset.id}&type=withdrawal&manager=${item.policy.owner}`)} disabled={!item.policy.accepts_withdrawal_requests}>Withdrawal</DropdownMenu.Item>
+                              <DropdownMenu.Item shortcut="↙"  onClick={() => navigate(`/interaction?asset=${asset.id}&type=registration&manager=${item.policy.owner}`)} disabled={acquiredDepositories[item.policy.owner] != null || !item.policy.accepts_account_requests}>Deposit into account</DropdownMenu.Item>
+                              <DropdownMenu.Item shortcut="↗" onClick={() => navigate(`/interaction?asset=${asset.id}&type=withdrawal&manager=${item.policy.owner}`)} disabled={!item.policy.accepts_withdrawal_requests}>Withdraw from account</DropdownMenu.Item>
                             </DropdownMenu.Content>
                           </DropdownMenu.Root>
                       </Flex>

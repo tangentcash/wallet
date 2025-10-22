@@ -1,0 +1,16 @@
+{
+  "node": {
+    "resolverUrl": "discovery.tangent.cash",
+    "serverUrl": "127.0.0.1:18419",
+    "authorizer": true
+  },
+  "wallet": {
+    "network": "regtest",
+    "password": "123456"
+  },
+  "wormhole": {
+    "url": "http://localhost:19420",
+    "route": "/wormhole",
+    "asset": "USD"
+  }
+}

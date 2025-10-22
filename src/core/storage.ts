@@ -66,11 +66,12 @@ export class SafeStorage {
     const payload = Uint8Array.from([...randomBytes(240), ...this.key, ...randomBytes(240)]);
     try {
       const iv = randomBytes(16);
-      const key = await crypto.subtle.importKey('raw', derivedKey, { 'name': 'AES-CBC' }, false, ['encrypt']);
-      const data = await crypto.subtle.encrypt({ name: 'AES-CBC', length: 256, iv: iv }, key, payload);
+      const key = await crypto.subtle.importKey('raw', derivedKey as any, { 'name': 'AES-CBC' }, false, ['encrypt']);
+      const data = await crypto.subtle.encrypt({ name: 'AES-CBC', length: 256, iv: iv as any }, key, payload);
       localStorage.setItem(StorageField.Passphrase, ByteUtil.uint8ArrayToHexString(Uint8Array.from([...iv, ...new Uint8Array(data)])));
       return true;
-    } catch {
+    } catch (ex) {
+      console.log(ex);
       return false;
     }
   }
@@ -86,7 +87,7 @@ export class SafeStorage {
     const derivedKey = this.derivePassphraseKey(passphrase);
     try {
       const iv = message.slice(0, 16);
-      const key = await crypto.subtle.importKey('raw', derivedKey, { 'name': 'AES-CBC' }, false, ['decrypt']);
+      const key = await crypto.subtle.importKey('raw', derivedKey as any, { 'name': 'AES-CBC' }, false, ['decrypt']);
       const data = await crypto.subtle.decrypt({ name: 'AES-CBC', length: 256, iv: iv }, key, message.slice(16));
       const payload = new Uint8Array(data).slice(240, 240 + 32);
       if (payload.length != 32)
@@ -110,8 +111,8 @@ export class SafeStorage {
     const payload = Uint8Array.from([...randomBytes(128), ...ByteUtil.utf8StringToUint8Array(JSON.stringify(value)), ...randomBytes(128)]);
     try {
       const iv = randomBytes(16);
-      const key = await crypto.subtle.importKey('raw', sha256(Uint8Array.from([...this.key, ...sha256(path)])), { 'name': 'AES-CBC' }, false, ['encrypt']);
-      const data = await crypto.subtle.encrypt({ name: 'AES-CBC', length: 256, iv: iv }, key, payload);
+      const key = await crypto.subtle.importKey('raw', sha256(Uint8Array.from([...this.key, ...sha256(path)])) as any, { 'name': 'AES-CBC' }, false, ['encrypt']);
+      const data = await crypto.subtle.encrypt({ name: 'AES-CBC', length: 256, iv: iv as any }, key, payload);
       localStorage.setItem(path, ByteUtil.uint8ArrayToHexString(Uint8Array.from([...iv, ...new Uint8Array(data)])));
       return true;
     } catch {
@@ -132,7 +133,7 @@ export class SafeStorage {
 
     try {
       const iv = message.slice(0, 16);
-      const key = await crypto.subtle.importKey('raw', sha256(Uint8Array.from([...this.key, ...sha256(path)])), { 'name': 'AES-CBC' }, false, ['decrypt']);
+      const key = await crypto.subtle.importKey('raw', sha256(Uint8Array.from([...this.key, ...sha256(path)])) as any, { 'name': 'AES-CBC' }, false, ['decrypt']);
       const data = await crypto.subtle.decrypt({ name: 'AES-CBC', length: 256, iv: iv }, key, message.slice(16));
       const payload = new Uint8Array(data);
       if (payload.length < 256)
