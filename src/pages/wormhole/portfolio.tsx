@@ -40,7 +40,10 @@ export default function PortfolioPage() {
     }
   }, [equityAssets]);
   useEffectAsync(async () => {
-    if (account != null) {
+    try {
+      if (!account)
+        throw false;
+
       const [assets, orders, pools] = await Promise.all([
         Wormhole.accountBalances({ address: account }),
         Wormhole.accountOrders({ address: account }),
@@ -49,7 +52,7 @@ export default function PortfolioPage() {
       setAssets(assets);
       setOrders(orders);
       setPools(pools);
-    } else {
+    } catch {
       setAssets([]);
       setOrders([]);
       setPools([]);

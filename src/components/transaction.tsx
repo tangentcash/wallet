@@ -313,6 +313,53 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           }
         </>
       )
+    case 'depository_withdrawal_routing':
+      return (
+        <>
+          <DataList.Root orientation={props.orientation} mb="4">
+            <DataList.Item>
+              <DataList.Label>Parent hash:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(transaction.depository_withdrawal_hash);
+                  AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+                }}>{ Readability.toHash(transaction.depository_withdrawal_hash) }</Button>
+                <Box ml="2">
+                  <Link className="router-link" to={'/transaction/' + transaction.depository_withdrawal_hash}>▒▒</Link>
+                </Box>
+              </DataList.Value>
+            </DataList.Item>
+            {
+              transaction.hashdata && transaction.calldata && transaction.prepared &&
+              <>
+                <DataList.Item>
+                  <DataList.Label>Off-chain hash:</DataList.Label>
+                  <DataList.Value>
+                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                      navigator.clipboard.writeText(transaction.hashdata);
+                      AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+                    }}>{ Readability.toHash(transaction.hashdata) }</Button>
+                  </DataList.Value>
+                </DataList.Item>
+                <DataList.Item>
+                  <DataList.Label>Off-chain data:</DataList.Label>
+                  <DataList.Value>
+                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                      navigator.clipboard.writeText(JSON.stringify({
+                        internal: transaction.prepared,
+                        transaction_hash: transaction.hashdata,
+                        transaction_data: transaction.calldata,
+                        locktime: transaction.locktime
+                      }, null, 2));
+                      AlertBox.open(AlertType.Info, 'ABI data copied!')
+                    }}>Copy ABI data</Button>
+                  </DataList.Value>
+                </DataList.Item>
+              </>
+            }
+          </DataList.Root>
+        </>
+      )
     case 'depository_withdrawal_finalization':
       return (
         <DataList.Root orientation={props.orientation}>
@@ -320,50 +367,23 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             <DataList.Label>Parent hash:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.depository_withdrawal_hash);
+                navigator.clipboard.writeText(transaction.depository_withdrawal_routing_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.depository_withdrawal_hash) }</Button>
+              }}>{ Readability.toHash(transaction.depository_withdrawal_routing_hash) }</Button>
               <Box ml="2">
-                <Link className="router-link" to={'/transaction/' + transaction.depository_withdrawal_hash}>▒▒</Link>
+                <Link className="router-link" to={'/transaction/' + transaction.depository_withdrawal_routing_hash}>▒▒</Link>
               </Box>
             </DataList.Value>
           </DataList.Item>
-          {
-            transaction.transaction_id &&
-            <DataList.Item>
-              <DataList.Label>Sent transaction id:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(transaction.transaction_id);
-                  AlertBox.open(AlertType.Info, 'Transaction id copied!')
-                }}>{ Readability.toHash(transaction.transaction_id) }</Button>
-              </DataList.Value>
-            </DataList.Item>
-          }
-          {
-            transaction.native_data &&
-            <DataList.Item>
-              <DataList.Label>Sent native data:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(transaction.native_data);
-                  AlertBox.open(AlertType.Info, 'Native data copied!')
-                }}>{ Readability.toHash(transaction.native_data) }</Button>
-              </DataList.Value>
-            </DataList.Item>
-          }
-          {
-            transaction.error_message &&
-            <DataList.Item>
-              <DataList.Label>Relay response:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(transaction.error_message || 'OK');
-                  AlertBox.open(AlertType.Info, 'Response copied!')
-                }}>{ transaction.error_message?.length > 16 ? Readability.toAddress(transaction.error_message) : 'OK' }</Button>
-              </DataList.Value>
-            </DataList.Item>
-          }
+          <DataList.Item>
+            <DataList.Label>Off-chain relay:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.status || 'OK');
+                AlertBox.open(AlertType.Info, 'Response copied!')
+              }}>{ transaction.status?.length > 16 ? Readability.toAddress(transaction.status) : 'OK' }</Button>
+            </DataList.Value>
+          </DataList.Item>
         </DataList.Root>
       )
     case 'depository_transaction': {
@@ -557,9 +577,9 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             <DataList.Label>Confirmation signature:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.confirmation_hash || 'NULL');
+                navigator.clipboard.writeText(transaction.confirmation_signature || 'NULL');
                 AlertBox.open(AlertType.Info, 'Confirmation signature copied!')
-              }}>{ Readability.toHash(transaction.manager_public_key) }</Button>
+              }}>{ Readability.toHash(transaction.confirmation_signature) }</Button>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
