@@ -191,7 +191,7 @@ function FullOrderView(props: { item: Order, open?: boolean, price: BigNumber | 
         {
           item.active &&
           <Flex justify="center" mt="4">
-            <PerformerButton title="Cancel this order" variant="surface" color="red" type={Authorization.OrderDeletion} onData={() => {
+            <PerformerButton title="Cancel this order" description="Smart contract will re-pay you back all unfilled value after this action" variant="surface" color="red" type={Authorization.OrderDeletion} onData={() => {
               return { orderId: item.id.toString() }
             }}></PerformerButton>
           </Flex>

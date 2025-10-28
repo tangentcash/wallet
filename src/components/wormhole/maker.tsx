@@ -586,7 +586,7 @@ export default function Maker(props: {
         </Box>
       }
       <Box>
-        <PerformerButton title="Place order" color={state.side == OrderSide.Buy ? 'jade' : 'red'} style={{ width: '100%' }} type={Authorization.OrderCreation} disabled={orderPayload == null} onData={() => {
+        <PerformerButton title="Place order" description={`Order placement involves paying ${Readability.toAssetSymbol(valueAsset)} to smart contract that can re-pay it back by withdrawal otherwise it will pay ${Readability.toAssetSymbol(state.side == OrderSide.Buy ? props.primaryAsset : props.secondaryAsset)} as it executes the order`} color={state.side == OrderSide.Buy ? 'jade' : 'red'} style={{ width: '100%' }} type={Authorization.OrderCreation} disabled={orderPayload == null} onData={() => {
           return orderPayload as Record<string, any>;
         }}></PerformerButton>
       </Box>
@@ -663,7 +663,7 @@ export default function Maker(props: {
         </Tooltip>
       </Box>
       <Box>
-        <PerformerButton title="Create pool" style={{ width: '100%' }} type={Authorization.PoolCreation} disabled={poolPayload == null} onData={() => {
+        <PerformerButton title="Create pool" description={`Pool creation involves paying ${Readability.toAssetSymbol(props.primaryAsset)} and ${Readability.toAssetSymbol(props.secondaryAsset)} to smart contract that will re-pay it back by withdrawal otherwise it will use it to provide liquidity for taker orders`} style={{ width: '100%' }} type={Authorization.PoolCreation} disabled={poolPayload == null} onData={() => {
           return poolPayload as Record<string, any>;
         }}></PerformerButton>
       </Box>

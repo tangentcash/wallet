@@ -1,14 +1,12 @@
 import { useNavigate, useParams } from "react-router";
 import { useEffectAsync } from "../core/react";
 import { useState } from "react";
-import { Box, Button, Flex, Heading, Spinner } from "@radix-ui/themes";
-import { mdiBackburger } from "@mdi/js";
+import { Box, Flex, Heading, Spinner } from "@radix-ui/themes";
 import { AlertBox, AlertType } from "../components/alert";
 import { EventResolver, RPC } from "tangentsdk";
 import { AppData } from "../core/app";
 import BigNumber from "bignumber.js";
 import Transaction from "../components/transaction";
-import Icon from "@mdi/react";
 
 export default function TransactionPage() {
   const params = useParams();
@@ -52,12 +50,7 @@ export default function TransactionPage() {
     }
     return (
       <Box px="4" pt="4" mb="6" maxWidth="800px" mx="auto">
-        <Flex justify="between" align="center">
-          <Heading size="6">Transaction</Heading>
-          <Button variant="soft" size="2" color="indigo" onClick={() => navigate(-1)}>
-            <Icon path={mdiBackburger} size={0.7} /> BACK
-          </Button>
-        </Flex>
+        <Heading size="6">Transaction</Heading>
         <Transaction ownerAddress={ownerAddress} transaction={data.transaction} receipt={data.receipt} state={data.state} open={true}></Transaction>
         {
           Array.isArray(data.transaction.transactions) && data.transaction.transactions.map((subtransaction: any, index: number) =>

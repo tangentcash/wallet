@@ -1,4 +1,4 @@
-import { Button, Spinner } from "@radix-ui/themes";
+import { Button, Spinner, Tooltip } from "@radix-ui/themes";
 import { CSSProperties, useCallback, useState } from "react";
 import { Wormhole } from "../../core/wormhole";
 import { AlertBox, AlertType } from "./../alert";
@@ -16,7 +16,7 @@ export enum Authorization {
   PoolDeletion = 'authorize/pool/deletion'
 }
 
-export default function PerformerButton(props: { title: string, disabled?: boolean, variant?: string, color?: string, style?: CSSProperties, type: Authorization, onData?: () => Record<string, any> }) {
+export default function PerformerButton(props: { title: string, description: string, disabled?: boolean, variant?: string, color?: string, style?: CSSProperties, type: Authorization, onData?: () => Record<string, any> }) {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const build = useCallback(async () => {
@@ -52,11 +52,13 @@ export default function PerformerButton(props: { title: string, disabled?: boole
   }, [loading, props.type, props.onData]);
   
   return (
-    <Button variant={props.variant as any || 'soft'} color={props.color as any} style={props.style} disabled={props.disabled || loading} onClick={() => build()}>
-      <Spinner loading={loading}>
-        <Icon path={mdiSetRight} size={0.75}></Icon>
-      </Spinner>
-      { loading ? 'Building...' : props.title }
-    </Button>
+    <Tooltip content={props.description}>
+      <Button variant={props.variant as any || 'soft'} color={props.color as any} style={props.style} disabled={props.disabled || loading} onClick={() => build()}>
+        <Spinner loading={loading}>
+          <Icon path={mdiSetRight} size={0.75}></Icon>
+        </Spinner>
+        { loading ? 'Building...' : props.title }
+      </Button>
+    </Tooltip>
   );
 }

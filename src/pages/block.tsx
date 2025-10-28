@@ -2,7 +2,7 @@ import { Link, useNavigate, useParams } from "react-router";
 import { useEffectAsync } from "../core/react";
 import { useCallback, useState } from "react";
 import { Badge, Box, Button, Card, DataList, Flex, Heading, IconButton, Spinner, Table } from "@radix-ui/themes";
-import { mdiArrowLeftBoldCircleOutline, mdiArrowRightBoldCircleOutline, mdiBackburger } from "@mdi/js";
+import { mdiArrowLeftBoldCircleOutline, mdiArrowRightBoldCircleOutline } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
 import { Chain, RPC, Readability, lerp } from "tangentsdk";
 import { AppData } from "../core/app";
@@ -57,12 +57,7 @@ export default function BlockPage() {
     const possibility = 100 * Math.min(1, Math.max(0, (subpriority > 0 ? 0.4 : 0.0) + Math.min(0.55, lerp(0.0, 0.55, subpriority / Chain.props.PRODUCTION_COMMITTEE))));
     return (
       <Box px="4" pt="4" maxWidth="800px" mx="auto">
-        <Flex justify="between" align="center">
-          <Heading size="6">Block</Heading>
-          <Button variant="soft" size="2" color="indigo" onClick={() => navigate(-1)}>
-            <Icon path={mdiBackburger} size={0.7} /> BACK
-          </Button>
-        </Flex>
+        <Heading size="6">Block</Heading>
         <Card variant="surface" mt="4">
           <DataList.Root orientation={orientation}>
             <DataList.Item>
@@ -166,7 +161,7 @@ export default function BlockPage() {
               }
               {
                 priority < Chain.props.PRODUCTION_COMMITTEE &&
-                <DataList.Value>Slot leader #{ priority + 1 }</DataList.Value>
+                <DataList.Value>{ priority > 0 ? 'Fallback #' + (priority + 1) : 'Normal #1' }</DataList.Value>
               }
             </DataList.Item>
             <DataList.Item>

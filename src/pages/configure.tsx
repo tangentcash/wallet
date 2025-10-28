@@ -1,4 +1,4 @@
-import { mdiAlertOctagram, mdiBackburger, mdiBugOutline, mdiCached, mdiLocationExit, mdiReloadAlert } from "@mdi/js";
+import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLocationExit, mdiReloadAlert } from "@mdi/js";
 import { Badge, Box, Button, Card, DataList, Flex, Heading, Switch, Table, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useNavigate } from "react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -95,12 +95,7 @@ export default function ConfigurePage() {
 
   return (
     <Box px="4" pt="4" mx="auto" maxWidth="580px">
-      <Flex justify="between" align="center">
-        <Heading size="6">Options</Heading>
-        <Button variant="soft" size="2" color="indigo" onClick={() => navigate(-1)}>
-          <Icon path={mdiBackburger} size={0.7} /> BACK
-        </Button>
-      </Flex>
+      <Heading size="6">Options</Heading>
       <Box width="100%" mt="4">
         <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
       </Box>

@@ -1,4 +1,4 @@
-import { mdiAlertCircleOutline, mdiBackburger, mdiCodeJson, mdiMinus, mdiPlus } from "@mdi/js";
+import { mdiAlertCircleOutline, mdiCodeJson, mdiMinus, mdiPlus } from "@mdi/js";
 import { Avatar, Badge, Box, Button, Callout, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
@@ -712,12 +712,7 @@ export default function InteractionPage() {
 
   return (
     <Box px="4" pt="4" mx="auto" maxWidth="640px">
-      <Flex justify="between" align="center">
-        <Heading>{ transactionType }</Heading>
-        <Button variant="soft" size="2" color="indigo" onClick={() => navigate(-1)}>
-          <Icon path={mdiBackburger} size={0.7} /> BACK
-        </Button>
-      </Flex>
+      <Heading>{ transactionType }</Heading>
       <Box width="100%" mt="3" mb="4">
         <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
       </Box>

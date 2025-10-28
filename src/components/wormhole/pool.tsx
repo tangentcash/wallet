@@ -122,7 +122,7 @@ function FullPoolView(props: { item: Pool, open?: boolean, concentrated?: boolea
       {
         item.active &&
         <Flex justify="center" mt="4">
-          <PerformerButton title="Close this pool" variant="surface" color="red" type={Authorization.PoolDeletion} onData={() => {
+          <PerformerButton title="Close this pool" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" variant="surface" color="red" type={Authorization.PoolDeletion} onData={() => {
             return { poolId: item.id.toString() }
           }}></PerformerButton>
         </Flex>
