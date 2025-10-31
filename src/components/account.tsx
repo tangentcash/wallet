@@ -490,9 +490,9 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
               transactions.map((item, index) =>
                 <Box width="100%" key={item.transaction.hash + index}>
                   {
-                    (!index || !item.receipt || new Date(transactions[index - 1].receipt.finalization_time?.toNumber()).setHours(0, 0, 0, 0) != new Date(item.receipt.finalization_time?.toNumber()).setHours(0, 0, 0, 0)) &&
+                    (!index || !item.receipt || new Date(transactions[index - 1].receipt.block_time?.toNumber()).setHours(0, 0, 0, 0) != new Date(item.receipt.block_time?.toNumber()).setHours(0, 0, 0, 0)) &&
                     <Box px="2">
-                      <Text as="div" size="2" mb="1" align="right">{ item.receipt ? (new Date(item.receipt.finalization_time?.toNumber()).setHours(0, 0, 0, 0) == new Date().setHours(0, 0, 0, 0) ? 'Today' : new Date(item.receipt.finalization_time?.toNumber()).toLocaleDateString()) : 'Today' }</Text>
+                      <Text as="div" size="2" mb="1" align="right">{ item.receipt ? (new Date(item.receipt.block_time?.toNumber()).setHours(0, 0, 0, 0) == new Date().setHours(0, 0, 0, 0) ? 'Today' : new Date(item.receipt.block_time?.toNumber()).toLocaleDateString()) : 'Today' }</Text>
                       <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
                     </Box>
                   }

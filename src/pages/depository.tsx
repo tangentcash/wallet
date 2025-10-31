@@ -416,27 +416,6 @@ export default function DepositoryPage() {
                           }
                         </DataList.Value>
                       </DataList.Item>
-                      {
-                        asset.token_policy == 'program' &&
-                        <DataList.Item>
-                          <DataList.Label>Withdrawable tokens:</DataList.Label>
-                          <DataList.Value>
-                            <Flex wrap="wrap" gap="1">
-                              <Badge size="1" radius="medium" color="tomato">
-                                <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(asset)} src={Readability.toAssetImage(asset)} style={{ width: '12px', height: '12px' }} />
-                                { Readability.toAssetSymbol(asset) }
-                              </Badge>
-                              {
-                                item.policy.whitelist.map((next: any) =>
-                                  <Badge key={item.policy.hash + index + next.id + 'whitelist'} size="1" radius="medium" color="tomato">
-                                    <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(next)} src={Readability.toAssetImage(next)} style={{ width: '12px', height: '12px' }} />
-                                    { Readability.toAssetSymbol(next) }
-                                  </Badge>)
-                              }
-                            </Flex>
-                          </DataList.Value>
-                        </DataList.Item>
-                      }
                     </DataList.Root>
                     {
                       item.attestation && item.attestation.stakes.length > 0 &&

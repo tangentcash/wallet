@@ -64,7 +64,6 @@ export default function TransactionPage() {
                 return {
                   ...data.receipt,
                   relative_gas_use: receipt ? receipt.relativeGasUse : data.receipt.relative_gas_use,
-                  relative_gas_paid: receipt ? receipt.relativeGasPaid : data.receipt.relative_gas_paid
                 };
               })()} open={true}></Transaction>
             </Box>

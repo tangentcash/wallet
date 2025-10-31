@@ -2,6 +2,7 @@ import { Navigate, useLocation } from "react-router";
 import { SafeStorage } from "../core/storage";
 import { AppData } from "../core/app";
 import { Navbar } from "./navbar";
+import { JSX } from "react";
 
 function hasWallet(): boolean {
   return SafeStorage.hasDecryptedKey() && AppData.isWalletReady();

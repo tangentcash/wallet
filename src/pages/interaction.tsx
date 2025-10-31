@@ -1,5 +1,5 @@
-import { mdiAlertCircleOutline, mdiCodeJson, mdiMinus, mdiPlus } from "@mdi/js";
-import { Avatar, Badge, Box, Button, Callout, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { mdiCodeJson, mdiMinus, mdiPlus } from "@mdi/js";
+import { Avatar, Badge, Box, Button, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Link, useNavigate, useSearchParams } from "react-router";
@@ -42,7 +42,6 @@ export class ProgramDepositoryAdjustment {
   securityLevel: number = 2;
   acceptsAccountRequests: boolean = true;
   acceptsWithdrawalRequests: boolean = true;
-  whitelist: { symbol: string, address: string }[] = [];
 }
 
 export class ProgramDepositoryMigration {
@@ -288,16 +287,6 @@ export default function InteractionPage() {
         return false;
       }
 
-      let duplicates = new Set<string>();
-      for (let i = 0; i < program.whitelist.length; i++) {
-        const item = program.whitelist[i];
-        const id = item.symbol.trim() + item.address.trim();
-        if (!item.symbol.trim().length || !item.address.trim().length || duplicates.has(id))
-          return false;
-
-        duplicates.add(id);
-      }
-
       if (program.securityLevel < Chain.props.PARTICIPATION_COMMITTEE[0] || program.securityLevel > Chain.props.PARTICIPATION_COMMITTEE[1])
         return false;
 
@@ -364,7 +353,7 @@ export default function InteractionPage() {
     
     setLoadingTransaction(true);
     try {
-      const buildProgram = async (method: { type: Ledger.Transaction | Ledger.DelegationTransaction | Ledger.DelegationTransaction | Ledger.UnknownTransaction, args: { [key: string]: any } }) => {
+      const buildProgram = async (method: { type: Ledger.Transaction | Ledger.Commitment | Ledger.Unknown, args: { [key: string]: any } }) => {
         const output = await AppData.buildWalletTransaction({
           asset: new AssetId(assets[asset].asset.id),
           nonce: options?.prebuilt ? options.prebuilt.body.nonce.toString() : (nonce || undefined),
@@ -447,8 +436,7 @@ export default function InteractionPage() {
             participationThreshold: new BigNumber(program.participationThreshold || 0),
             securityLevel: program.securityLevel,
             acceptsAccountRequests: program.acceptsAccountRequests,
-            acceptsWithdrawalRequests: program.acceptsWithdrawalRequests,
-            whitelist: program.whitelist
+            acceptsWithdrawalRequests: program.acceptsWithdrawalRequests
           }
         });
       } else if (program instanceof ProgramDepositoryMigration) {
@@ -487,7 +475,7 @@ export default function InteractionPage() {
           }
         });
       } else if (program instanceof ApproveTransaction) {
-        const type = new Ledger.UnknownTransaction();
+        const type = new Ledger.Unknown();
         type.getType = (): number => program.type || 0;
         return await buildProgram({
           type: type,
@@ -1186,77 +1174,6 @@ export default function InteractionPage() {
               </Tooltip>
             </Flex>
           </Card>
-          {
-            program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'program' &&        
-            <Card mt="4">
-              <Flex width="100%" align="center" justify="between">
-                <Heading size="4">Depository whitelist</Heading>
-                <Tooltip content="Add a token to permanent whitelist">
-                  <IconButton variant="soft" size="2" color="jade" onClick={() => {
-                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                    copy.whitelist.push({ symbol: '', address: '' });
-                    setProgram(copy);
-                  }}>
-                    <Icon path={mdiPlus} size={0.7} />
-                  </IconButton>
-                </Tooltip>
-              </Flex>
-              {
-                program.whitelist.map((item, index) =>
-                  <Card mt="4" key={index}>
-                    <Flex gap="2" mb="3">
-                      <Box width="100%">
-                        <Tooltip content="Whitelisting token's symbol">
-                          <TextField.Root size="3" placeholder="Token symbol" type="text" value={item.symbol} onChange={(e) => {
-                            const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                            copy.whitelist[index].symbol = e.target.value;
-                            setProgram(copy);
-                          }} />
-                        </Tooltip>
-                      </Box>
-                    </Flex>
-                    <Flex gap="2" mb="3">
-                      <Box width="100%">
-                        <Tooltip content="Whitelisting token's contract address">
-                          <TextField.Root size="3" placeholder="Token contract address" type="text" value={item.address} onChange={(e) => {
-                            const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                            copy.whitelist[index].address = e.target.value;
-                            setProgram(copy);
-                          }} />
-                        </Tooltip>
-                      </Box>
-                      <Flex justify="between" gap="1">
-                        <IconButton variant="soft" size="3" color="red" onClick={() => {
-                          const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                          copy.whitelist.splice(index, 1);
-                          setProgram(copy);
-                        }}>
-                          <Icon path={mdiMinus} size={0.7} />
-                        </IconButton>
-                      </Flex>
-                    </Flex>
-                  </Card>
-                )
-              }
-              {
-                program.whitelist.length > 0 &&
-                <Box pt="2">
-                  <Callout.Root variant="soft" color="red">
-                    <Callout.Icon>
-                      <Icon path={mdiAlertCircleOutline} size={1} />
-                    </Callout.Icon>
-                    <Callout.Text>Added tokens are permanently whitelisted, you must ensure that token's smart contract is safe to interact with otherwise depository vault could be compromised which will cause loss of your funds and funds of others. Applicable only to blockchains with smart contract based tokens (Ethereum/ERC20, etc.)</Callout.Text>
-                  </Callout.Root>
-                </Box>
-              }
-              {
-                !program.whitelist.length &&
-                <Box pt="2">
-                  <Text color="gray">Perform no actions on withdrawal whitelist</Text>
-                </Box>
-              }  
-            </Card>
-          }
         </>
       }
       {
