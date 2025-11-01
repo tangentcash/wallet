@@ -312,25 +312,6 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           }
         </>
       )
-    case 'depository_withdrawal_routing':
-      return (
-        <>
-          <DataList.Root orientation={props.orientation} mb="4">
-            <DataList.Item>
-              <DataList.Label>Parent hash:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(transaction.depository_withdrawal_hash);
-                  AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                }}>{ Readability.toHash(transaction.depository_withdrawal_hash) }</Button>
-                <Box ml="2">
-                  <Link className="router-link" to={'/transaction/' + transaction.depository_withdrawal_hash}>▒▒</Link>
-                </Box>
-              </DataList.Value>
-            </DataList.Item>
-          </DataList.Root>
-        </>
-      )
     case 'depository_withdrawal_finalization':
       return (
         <DataList.Root orientation={props.orientation}>
@@ -691,11 +672,11 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                   <DataList.Item>
                     <DataList.Label>Event:</DataList.Label>
                     <DataList.Value>
-                      <Badge color="lime">Depository transfer</Badge>
+                      <Badge color="lime">Bridge transfer</Badge>
                     </DataList.Value>
                   </DataList.Item>
                 <DataList.Item>
-                  <DataList.Label>{event.supply.gte(0) ? 'To' : 'From' } depository:</DataList.Label>
+                  <DataList.Label>{event.supply.gte(0) ? 'To' : 'From' } bridge:</DataList.Label>
                   <DataList.Value>
                     <Button size="2" variant="ghost" color="indigo" onClick={() => {
                       navigator.clipboard.writeText(address);
@@ -727,11 +708,11 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                   <DataList.Item>
                     <DataList.Label>Event:</DataList.Label>
                     <DataList.Value>
-                      <Badge color="jade">Depository account</Badge>
+                      <Badge color="jade">Bridge account</Badge>
                     </DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
-                    <DataList.Label>Depository account:</DataList.Label>
+                    <DataList.Label>Bridge account:</DataList.Label>
                     <DataList.Value>
                       <Button size="2" variant="ghost" color="indigo" onClick={() => {
                         navigator.clipboard.writeText(address);
@@ -743,11 +724,11 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     </DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
-                    <DataList.Label>Depository asset:</DataList.Label>
+                    <DataList.Label>Bridge asset:</DataList.Label>
                     <DataList.Value>{ event.asset.chain }</DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
-                    <DataList.Label>Depository accounts:</DataList.Label>
+                    <DataList.Label>Bridge accounts:</DataList.Label>
                     <DataList.Value>{ Readability.toCount('account', event.newAccounts, true) }</DataList.Value>
                   </DataList.Item>
                 </DataList.Root>
@@ -767,11 +748,11 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                   <DataList.Item>
                     <DataList.Label>Event:</DataList.Label>
                     <DataList.Value>
-                      <Badge color="yellow">Depository queue</Badge>
+                      <Badge color="yellow">Bridge queue</Badge>
                     </DataList.Value>
                   </DataList.Item>
                 <DataList.Item>
-                  <DataList.Label>Depository account:</DataList.Label>
+                  <DataList.Label>Bridge account:</DataList.Label>
                   <DataList.Value>
                     <Button size="2" variant="ghost" color="indigo" onClick={() => {
                       navigator.clipboard.writeText(address);
@@ -783,7 +764,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                   </DataList.Value>
                 </DataList.Item>
                 <DataList.Item>
-                  <DataList.Label>Depository asset:</DataList.Label>
+                  <DataList.Label>Bridge asset:</DataList.Label>
                   <DataList.Value>{ event.asset.chain }</DataList.Value>
                 </DataList.Item>
                 <DataList.Item>
@@ -818,11 +799,11 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                   <DataList.Item>
                     <DataList.Label>Event:</DataList.Label>
                     <DataList.Value>
-                      <Badge color="jade">Depository policy</Badge>
+                      <Badge color="jade">Bridge policy</Badge>
                     </DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
-                    <DataList.Label>Depository account:</DataList.Label>
+                    <DataList.Label>Bridge account:</DataList.Label>
                     <DataList.Value>
                       <Button size="2" variant="ghost" color="indigo" onClick={() => {
                         navigator.clipboard.writeText(address);
@@ -834,7 +815,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     </DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
-                    <DataList.Label>Depository asset:</DataList.Label>
+                    <DataList.Label>Bridge asset:</DataList.Label>
                     <DataList.Value>{ event.asset.chain }</DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
@@ -868,7 +849,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                 <DataList.Item>
                   <DataList.Label>Event:</DataList.Label>
                   <DataList.Value>
-                    <Badge color="jade">Depository participant</Badge>
+                    <Badge color="jade">Bridge participant</Badge>
                   </DataList.Value>
                 </DataList.Item>
                 <DataList.Item>

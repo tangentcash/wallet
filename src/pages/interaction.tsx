@@ -140,7 +140,7 @@ export default function InteractionPage() {
     } else if (program instanceof ProgramDepositoryWithdrawal) {
       return program.to.length > 1 ? 'Withdraw to many' : 'Withdraw to one';
     } else if (program instanceof ProgramDepositoryAdjustment) {
-      return 'Depository adjustment';
+      return 'Bridge adjustment';
     } else if (program instanceof ProgramDepositoryMigration) {
       return 'Participant migration';
     } else if (program instanceof ProgramDepositoryWithdrawalMigration) {
@@ -727,13 +727,13 @@ export default function InteractionPage() {
                 <DropdownMenu.Item onClick={() => navigate('/interaction?type=validator')}>Configure validator</DropdownMenu.Item>
               </Tooltip>
               <DropdownMenu.Separator />
-              <Tooltip content="Configure fee, security and functionality policy for a depository">
-                <DropdownMenu.Item onClick={() => navigate('/interaction?type=adjustment')}>Configure depository</DropdownMenu.Item>
+              <Tooltip content="Configure fee, security and functionality policy for a bridge">
+                <DropdownMenu.Item onClick={() => navigate('/interaction?type=adjustment')}>Configure bridge</DropdownMenu.Item>
               </Tooltip>
-              <Tooltip content="Migrate depository participations to another participant (for participation unstaking)">
+              <Tooltip content="Migrate bridge participations to another participant (for participation unstaking)">
                 <DropdownMenu.Item color="red" onClick={() => navigate('/interaction?type=participantmigration')}>Migrate participant</DropdownMenu.Item>
               </Tooltip>
-              <Tooltip content="Migrate depository manager to another manager along with custodial funds (for attestation unstaking)">
+              <Tooltip content="Migrate bridge manager to another manager along with custodial funds (for attestation unstaking)">
                 <DropdownMenu.Item color="red" onClick={() => navigate('/interaction?type=managermigration')}>Migrate manager</DropdownMenu.Item>
               </Tooltip>
             </DropdownMenu.Content>
@@ -761,7 +761,7 @@ export default function InteractionPage() {
         {
           asset != -1 && params.manager != null &&
           <Box width="100%" mt="3">
-            <Tooltip content="Depository account that will process the withdrawal">
+            <Tooltip content="Bridge account that will process the withdrawal">
               <TextField.Root size="3" placeholder="Transaction manager account" type="text" color="red" value={Readability.toAddress(params.manager, 16)} readOnly={true} />
             </Tooltip>
           </Box>
@@ -769,7 +769,7 @@ export default function InteractionPage() {
         {
           asset != -1 && (program instanceof ProgramDepositoryWithdrawal || program instanceof ProgramDepositoryWithdrawalMigration) &&
           <Box width="100%" px="1" mt="3">
-            <Tooltip content="If depository is busy with another withdrawal then do not withdraw">
+            <Tooltip content="If bridge is busy with another withdrawal then do not withdraw">
               <Text as="label" size="2" color={program.onlyIfNotInQueue ? 'jade' : 'orange'}>
                 <Flex gap="2">
                   <Checkbox size="3" checked={program.onlyIfNotInQueue} onCheckedChange={(value) => {
@@ -1114,7 +1114,7 @@ export default function InteractionPage() {
         asset != -1 && program instanceof ProgramDepositoryAdjustment &&
         <>
           <Card mt="4">
-            <Heading size="4" mb="2">Depository policy</Heading>
+            <Heading size="4" mb="2">Bridge policy</Heading>
             <Box width="100%">
               <Tooltip content="Fee charged for deposits (absolute value)">
                 <TextField.Root size="3" placeholder="Incoming absolute fee 0.0-∞" type="text" value={program.incomingFee} onChange={(e) => {
@@ -1134,7 +1134,7 @@ export default function InteractionPage() {
               </Tooltip>
             </Box>
             <Box width="100%" mt="3">
-              <Tooltip content="Participant stacking required to be included in depository account/transaction calculations (absolute value)">
+              <Tooltip content="Participant stacking required to be included in bridge account/transaction calculations (absolute value)">
                 <TextField.Root size="3" placeholder="Participation threshold 0.0-∞" type="text" value={program.participationThreshold} onChange={(e) => {
                   const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                   copy.participationThreshold = e.target.value;
@@ -1152,7 +1152,7 @@ export default function InteractionPage() {
               </Tooltip>
             </Box>
             <Flex width="100%" mt="3" justify="start" gap="2" wrap="wrap">
-              <Tooltip content="Allow others to generate depository accounts for your depository">
+              <Tooltip content="Allow others to generate bridge accounts for your bridge">
                 <Text as="label" size="2" color={program.acceptsAccountRequests ? 'jade' : 'red'}>
                   <Flex gap="2">
                     <Checkbox size="3" checked={program.acceptsAccountRequests} onCheckedChange={(value) => {
@@ -1164,7 +1164,7 @@ export default function InteractionPage() {
                   </Flex>
                 </Text>
               </Tooltip>
-              <Tooltip content="Allow others to withdraw their funds from your depository">
+              <Tooltip content="Allow others to withdraw their funds from your bridge">
                 <Text as="label" size="2" color={program.acceptsWithdrawalRequests ? 'jade' : 'red'}>
                   <Flex gap="2">
                     <Checkbox size="3" checked={program.acceptsWithdrawalRequests} onCheckedChange={(value) => {
@@ -1185,7 +1185,7 @@ export default function InteractionPage() {
         <Card mt="4">
           <Heading size="4" mb="2">Migrate to manager account</Heading>
           <Box width="100%">
-            <Tooltip content="Send to depository custody funds to this manager address">
+            <Tooltip content="Send to bridge funds to this manager address">
               <TextField.Root size="3" placeholder="New manager address" type="text" value={program.toManager} onChange={(e) => {
                 const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                 copy.toManager = e.target.value;
@@ -1311,7 +1311,7 @@ export default function InteractionPage() {
                     }
                     {
                       asset != -1 && program instanceof ProgramDepositoryWithdrawalMigration &&
-                      <Text as="div" weight="light" size="4" mb="1">— Migration a { assets[asset].chain } depository of a validator node to <Badge radius="medium" variant="surface" size="2">{ 
+                      <Text as="div" weight="light" size="4" mb="1">— Migration a { assets[asset].chain } bridge of a validator node to <Badge radius="medium" variant="surface" size="2">{ 
                           program.toManager.substring(program.toManager.length - 6).toUpperCase()
                       }</Badge> node</Text>
                     }

@@ -49,9 +49,9 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
     if (address.purpose == 'witness' && address.manager == address.owner)
       return <>This was a usable off-chain wallet but now dismissed owned by <Link href="#">{address.owner}</Link>{ ownerType }</>;
     else if (address.purpose == 'routing' && address.manager == null)
-      return <>This is a routing off-chain wallet that can transfer funds to and receive funds from any depository wallet owned by <Link href="#">{address.owner}</Link>{ ownerType }</>;
+      return <>This is a routing off-chain wallet that can transfer funds to and receive funds from any bridge wallet owned by <Link href="#">{address.owner}</Link>{ ownerType }</>;
     else if (address.purpose == 'depository' && address.manager != null)
-      return <>This is a depository off-chain wallet that can receive funds from or send funds to any routing wallet owned by <Link href="#">{address.manager}</Link>{ managerType }</>;
+      return <>This is an off-chain bridge wallet that can receive funds from or send funds to any routing wallet owned by <Link href="#">{address.manager}</Link>{ managerType }</>;
     else if (address.manager != null)
       return <>This is an unknown off-chain wallet owned by <Link href="#">{address.owner}</Link>{ ownerType } and is operated by <Link href="#">{address.manager}</Link>{ managerType }</>;
     return <>This is an unknown off-chain wallet owned by <Link href="#">{address.owner}</Link>{ ownerType }</>;
@@ -224,10 +224,32 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
             </Card>
             {
               props.self &&
-              <Flex pt="2" justify="end">
+              <Flex pt="2" justify="end" gap="2">
+                {
+                  assets.length > 0 &&
+                  <Select.Root size="2" onValueChange={(value) =>  navigate(`/bridge?asset=${AssetId.fromHandle(assets[parseInt(value)].asset.chain).id}`)}>
+                    <Select.Trigger variant="surface" placeholder="Bridge">
+                    </Select.Trigger>
+                    <Select.Content variant="soft">
+                      <Select.Group>
+                        <Select.Item value="-1" disabled={true}>Select asset</Select.Item>
+                        {
+                          assets.map((item, index) =>
+                            <Select.Item key={item.asset.id + '_select'} value={index.toString()}>
+                              <Flex align="center" gap="1">
+                                <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
+                                <Text size="2" weight="light">{Readability.toAssetName(item.asset)}</Text>
+                              </Flex>
+                            </Select.Item>
+                          )
+                        }
+                      </Select.Group>
+                    </Select.Content>
+                  </Select.Root>
+                }
                 <Button variant="surface" color="orange" onClick={() => navigate('/wormhole')}>
                   <Icon path={mdiLocationEnter} size={0.8}></Icon>
-                  The Wormhole
+                  Swap
                 </Button>
               </Flex>
             }
@@ -354,7 +376,7 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
             </Box>
           </Tabs.Content>
           <Tabs.Content value="validator">
-            <Card mt="3" variant="surface" style={{
+            <Card mt="3" mb="7" variant="surface" style={{
                 border: '1px solid var(--gray-7)',
                 borderRadius: '28px'
               }}>
@@ -417,11 +439,11 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
                     <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                     <Box width="100%" style={{ marginLeft: '2px' }}>
                       <Flex justify="between" align="center">
-                        <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } depository participation</Text>
+                        <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } bridge participation</Text>
                       </Flex>
                       {
                         item.stakes.map((stake: any) =>
-                          <Tooltip content={stake.asset.chain + ' stake and fees received by depository participation as a signer of withdrawal transactions'}>
+                          <Tooltip content={stake.asset.chain + ' stake and fees received by bridge participation as a signer of withdrawal transactions'}>
                             <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(stake.asset, stake.stake) } for { Readability.toCount('participation', item.participations) }</Text>
                           </Tooltip>)
                       }
@@ -445,11 +467,11 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
                     <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                     <Box width="100%" style={{ marginLeft: '2px' }}>
                       <Flex justify="between" align="center">
-                        <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } depository attestation</Text>
+                        <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } bridge attestation</Text>
                       </Flex>
                       {
                         item.stakes.map((stake: any) =>
-                          <Tooltip content={stake.asset.chain + ' stake and fees received by depository attestation as a deposit/withdrawal transaction notifications'}>
+                          <Tooltip content={stake.asset.chain + ' stake and fees received by bridge attestation as a deposit/withdrawal transaction notifications'}>
                             <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(stake.asset, stake.stake) }</Text>
                           </Tooltip>)
                       }

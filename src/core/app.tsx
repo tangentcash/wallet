@@ -18,7 +18,7 @@ import AccountPage from "./../pages/account";
 import BlockPage from "./../pages/block";
 import TransactionPage from "./../pages/transaction";
 import InteractionPage from "./../pages/interaction";
-import DepositoryPage from "./../pages/depository"
+import BridgePage from "./../pages/bridge"
 import PortfolioPage from "../pages/wormhole/portfolio";
 import ExplorerPage from "../pages/wormhole/explorer";
 import OrderbookPage from "../pages/wormhole/orderbook";
@@ -690,9 +690,9 @@ export function App() {
                 <ConfigurePage />
               </WalletReadyRoute>
             } />
-            <Route path="/depository" element={
+            <Route path="/bridge" element={
               <WalletReadyRoute>
-                <DepositoryPage />
+                <BridgePage />
               </WalletReadyRoute>
             } />
             <Route path="/interaction" element={

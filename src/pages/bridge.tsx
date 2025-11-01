@@ -130,10 +130,10 @@ export default function DepositoryPage() {
       {
         asset == null &&
         <Box mt="4" maxWidth="480px" mx="auto">
-          <Heading align="center" mb="4" size="8">Depository network</Heading>
+          <Heading align="center" mb="4" size="8">Bridge network</Heading>
           {
             assets.map((item, index) =>
-              <Button variant="surface" color="gray" mb="4" radius="large" style={{ display: 'block', color: 'initial', width: '100%', height: 'auto', borderRadius: '20px' }} key={item.chain + index} onClick={() => navigate(`/depository?asset=${item.id}`)}>
+              <Button variant="surface" color="gray" mb="4" radius="large" style={{ display: 'block', color: 'initial', width: '100%', height: 'auto', borderRadius: '20px' }} key={item.chain + index} onClick={() => navigate(`/bridge?asset=${item.id}`)}>
                 <Flex px="1" py="3" justify="start" align="center" gap="3">
                   <Avatar size="4" fallback={Readability.toAssetFallback(item)} src={Readability.toAssetImage(item)} />
                   <Box width="100%">
@@ -161,7 +161,7 @@ export default function DepositoryPage() {
             <Box width="100%" mb="4">
               <Flex justify="between" align="center" mb="3">
                 <Heading size="6">Registrations</Heading>
-                <Button variant="surface" color="gray" onClick={() => navigate('/depository')}>
+                <Button variant="surface" color="gray" onClick={() => navigate('/bridge')}>
                   <Icon path={mdiBackburger} size={0.7} />
                   <Flex align="center" gap="1">
                     <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(asset)} src={Readability.toAssetImage(asset)} style={{ width: '24px', height: '24px' }} />
@@ -195,7 +195,7 @@ export default function DepositoryPage() {
                         <Box key={depository.hash} mt="4">
                           <DataList.Root orientation={orientation}>
                             <DataList.Item>
-                              <DataList.Label>Depository account:</DataList.Label>
+                              <DataList.Label>Bridge account:</DataList.Label>
                               <DataList.Value>
                                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                                   navigator.clipboard.writeText(depository.manager);
@@ -319,12 +319,12 @@ export default function DepositoryPage() {
           </Box>
           <Box width="100%" mb="4">
             <Flex justify="between" align="center" mb="3">
-              <Heading size="6">Depositories</Heading>
+              <Heading size="6">Bridges</Heading>
               <Select.Root value={preference} onValueChange={(value) => setPreference(value as ('security' | 'cost' | 'popularity'))}>
                 <Select.Trigger />
                 <Select.Content>
                   <Select.Group>
-                    <Select.Label>Depository preference</Select.Label>
+                    <Select.Label>Bridge preference</Select.Label>
                     <Select.Item value="popularity">Popularity</Select.Item>
                     <Select.Item value="security">Security</Select.Item>
                     <Select.Item value="cost">Cost</Select.Item>
@@ -336,7 +336,7 @@ export default function DepositoryPage() {
           </Box>
           {
             !candidateDepositories.length &&
-            <Text color="red">No active depositories for {Readability.toAssetName(asset)} blockchain</Text>
+            <Text color="red">No active bridges for {Readability.toAssetName(asset)} blockchain</Text>
           }
           <InfiniteScroll dataLength={candidateDepositories.length} hasMore={moreDepositories} next={findDepositories} loader={<div></div>}>
             {
@@ -345,14 +345,14 @@ export default function DepositoryPage() {
                   <Card>
                     <Flex justify="between" align="center" mb="4">
                       <Flex align="center" gap="2">
-                        <Heading size="4">{ item.founder ? 'Founder depository' : 'Depository' }</Heading>
+                        <Heading size="4">{ item.founder ? 'Founder bridge' : 'Bridge' }</Heading>
                         <Badge radius="medium" variant="surface" size="2">{ item.policy.owner.substring(item.policy.owner.length - 6).toUpperCase() }</Badge>
                       </Flex>
                       <Badge size="2" radius="medium" color={item.attestation && item.attestation.stakes.length > 0 ? 'jade' : 'red'}>{ item.attestation && item.attestation.stakes.length > 0 ? 'ONLINE' : 'OFFLINE' }</Badge>
                     </Flex>
                     <DataList.Root orientation={orientation}>
                       <DataList.Item>
-                        <DataList.Label>Depository account:</DataList.Label>
+                        <DataList.Label>Bridge account:</DataList.Label>
                         <DataList.Value>
                           <Button size="2" variant="ghost" color="indigo" onClick={() => {
                             navigator.clipboard.writeText(item.policy.owner);
@@ -364,7 +364,7 @@ export default function DepositoryPage() {
                         </DataList.Value>
                       </DataList.Item>
                       <DataList.Item>
-                        <DataList.Label>Depository status:</DataList.Label>
+                        <DataList.Label>Bridge status:</DataList.Label>
                         <DataList.Value>
                           <Badge size="1" radius="medium" color={!item.policy.accepts_account_requests || !item.policy.accepts_withdrawal_requests ? 'red' : 'jade'}>{ toDepositoryStatus(item.policy) }</Badge>
                         </DataList.Value>
@@ -423,7 +423,7 @@ export default function DepositoryPage() {
                           <DropdownMenu.Root>
                             <DropdownMenu.Trigger>
                               <Button size="2" variant="surface" color="yellow">
-                                Through this depository
+                                Through this bridge
                                 <DropdownMenu.TriggerIcon />
                               </Button>
                             </DropdownMenu.Trigger>

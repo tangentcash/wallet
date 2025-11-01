@@ -1862,7 +1862,7 @@ source-map-js@^1.2.1:
 
 "tangentsdk@http://c.lan:8929/root/tangentsdk.git":
   version "1.0.0"
-  resolved "http://c.lan:8929/root/tangentsdk.git#44effdb17e80e29459b01e9916d977bdbe65a5f7"
+  resolved "http://c.lan:8929/root/tangentsdk.git#1f52411fae01d24ba0ca15081df6817f718c369d"
   dependencies:
     "@ethersproject/random" "5.8.0"
     "@noble/hashes" "1.8.0"
