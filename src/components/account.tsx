@@ -247,7 +247,7 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
                     </Select.Content>
                   </Select.Root>
                 }
-                <Button variant="surface" color="orange" onClick={() => navigate('/wormhole')}>
+                <Button variant="surface" color="orange" onClick={() => navigate('/swap')}>
                   <Icon path={mdiLocationEnter} size={0.8}></Icon>
                   Swap
                 </Button>

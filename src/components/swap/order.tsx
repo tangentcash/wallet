@@ -1,5 +1,5 @@
 import { Avatar, Badge, Box, Button, Card, DataList, Dialog, DropdownMenu, Flex, Text } from "@radix-ui/themes";
-import { Order, OrderCondition, OrderPolicy, OrderSide, Wormhole } from "../../core/wormhole";
+import { Order, OrderCondition, OrderPolicy, OrderSide, Swap } from "../../core/swap";
 import { AssetId, Readability } from "tangentsdk";
 import { useMemo } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
@@ -207,7 +207,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
     return item.fillingPrice || item.price || item.stopPrice || null;
   }, [props]);
   const possiblePrice = useMemo((): BigNumber | null => {
-    return price || Wormhole.priceOf(item.primaryAsset, item.secondaryAsset).close
+    return price || Swap.priceOf(item.primaryAsset, item.secondaryAsset).close
   }, [props, price]);
   const quantity = useMemo((): BigNumber | null => {
     if (item.side == OrderSide.Sell)

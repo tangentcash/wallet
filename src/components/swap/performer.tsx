@@ -1,6 +1,6 @@
 import { Button, Spinner, Tooltip } from "@radix-ui/themes";
 import { CSSProperties, useCallback, useState } from "react";
-import { Wormhole } from "../../core/wormhole";
+import { Swap } from "../../core/swap";
 import { AlertBox, AlertType } from "./../alert";
 import { mdiSetRight } from "@mdi/js";
 import { AuthEntity, ByteUtil, Hashing } from "tangentsdk";
@@ -25,12 +25,12 @@ export default function PerformerButton(props: { title: string, description: str
 
     setLoading(true);
     try {
-      const id = Wormhole.getPipeId();
+      const id = Swap.getPipeId();
       if (!id)
         throw new Error('No connection to API server');
 
       const args: Record<string, any> = props.onData ? props.onData() || { } : { };
-      const result = await fetch(`${Wormhole.location}/${props.type}`, {
+      const result = await fetch(`${Swap.location}/${props.type}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

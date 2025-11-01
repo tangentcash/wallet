@@ -8,9 +8,9 @@
     "network": "regtest",
     "password": "123456"
   },
-  "wormhole": {
+  "swap": {
     "url": "http://localhost:19420",
-    "route": "/wormhole",
+    "route": "/swap",
     "asset": "USD"
   }
 }

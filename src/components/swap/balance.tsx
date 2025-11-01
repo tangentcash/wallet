@@ -1,5 +1,5 @@
 import { Avatar, Badge, Box, Card, Flex, Text, Tooltip } from "@radix-ui/themes";
-import { Wormhole, Balance } from "../../core/wormhole";
+import { Swap, Balance } from "../../core/swap";
 import { Readability } from "tangentsdk";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
@@ -20,7 +20,7 @@ export default function BalanceView(props: { item: Balance & { equity: { current
         <Box width="100%">
           <Flex justify="between">
             <Text size="2">{ Readability.toAssetName(item.asset) }</Text>
-            <Text size="2">{ Readability.toMoney(Wormhole.equityAsset, item.equity.current) }</Text>
+            <Text size="2">{ Readability.toMoney(Swap.equityAsset, item.equity.current) }</Text>
           </Flex>
           <Flex justify="between" align="center">
             <Tooltip content={ 'Currently locked: ' + Readability.toMoney(item.asset, item.unavailable) }>
@@ -29,7 +29,7 @@ export default function BalanceView(props: { item: Balance & { equity: { current
                 <Text size="2" color="gray">{ Readability.toMoney(item.asset, item.available.plus(item.unavailable)) }</Text>
               </Flex>
             </Tooltip>
-            <Tooltip content={ Readability.toMoney(Wormhole.equityAsset, currentEquity.minus(previousEquity), true) }>
+            <Tooltip content={ Readability.toMoney(Swap.equityAsset, currentEquity.minus(previousEquity), true) }>
               <Badge radius="small" size="1" color={ previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : 'jade') }>{ Readability.toPercentageDelta(previousEquity, currentEquity) }</Badge>
             </Tooltip>
           </Flex>

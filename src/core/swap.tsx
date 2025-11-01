@@ -172,16 +172,16 @@ export type BlockchainInfo = AssetId & {
     bulkTransfer: boolean
 }
 
-export enum WormholeField {
+export enum SwapField {
   Orderbook = '__orderbook__'
 }
 
-export class Wormhole {
-  static location = Config.wormhole.url;
-  static subroute = Config.wormhole.route;
+export class Swap {
+  static location = Config.swap.url;
+  static subroute = Config.swap.route;
   static prices: Record<string, { asset: AssetId, price: { open: BigNumber | null, close: BigNumber | null } }> = { };
   static descriptors: BlockchainInfo[] = [];
-  static equityAsset: AssetId = AssetId.fromHandle(Config.wormhole.asset);
+  static equityAsset: AssetId = AssetId.fromHandle(Config.swap.asset);
   static orderbook:  string | null = null;
   static socket: WebSocket | null = null;
   static pipeId: string | null = null;
@@ -285,7 +285,7 @@ export class Wormhole {
     const target = this.fromOrderbookQuery(orderbook);
     const value = target.marketId && target.primaryAsset && target.secondaryAsset ? orderbook : null;
     if (value != this.orderbook)
-      Storage.set(WormholeField.Orderbook, this.orderbook = value);
+      Storage.set(SwapField.Orderbook, this.orderbook = value);
   }
   static getOrderbook(): string | null {
     return this.orderbook;
@@ -297,13 +297,13 @@ export class Wormhole {
         this.assetPrices(),
         this.assetDescriptors()
       ]);
-      this.orderbook = Storage.get(WormholeField.Orderbook);
+      this.orderbook = Storage.get(SwapField.Orderbook);
       this.prices = pricesResult;
       this.descriptors = (descriptorsResult || []).sort((a, b) => Readability.toAssetSymbol(a).localeCompare(Readability.toAssetSymbol(b)));
       this.equityAsset = this.prices['__BASE__']?.asset || this.equityAsset;
-      this.dispatchEvent('wormhole:ready', { data: { } });
+      this.dispatchEvent('swap:ready', { data: { } });
     } catch (exception: any) {
-      AlertBox.open(AlertType.Error, 'Wormhole server error: ' + exception.message);
+      AlertBox.open(AlertType.Error, 'Swap server error: ' + exception.message);
     }
   }
   static async fetch(method: 'GET' | 'POST' | 'DELETE', location: string, args: Record<string, any>) {

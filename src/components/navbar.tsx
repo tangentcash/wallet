@@ -2,7 +2,7 @@ import { Box, Button, Card, Flex, IconButton, Tooltip } from "@radix-ui/themes";
 import { mdiCardsOutline, mdiChartTimelineVariantShimmer, mdiContactlessPaymentCircleOutline, mdiDotsCircle, mdiExitToApp, mdiLogin, mdiMagnifyScan, mdiRulerSquareCompass, mdiSetRight, mdiSquareRoundedBadgeOutline } from "@mdi/js";
 import { useNavigate } from "react-router";
 import { AppData } from "../core/app";
-import { Wormhole } from "../core/wormhole";
+import { Swap } from "../core/swap";
 import { useMemo } from "react";
 import { useEffectAsync } from "../core/react";
 import Icon from "@mdi/react";
@@ -27,27 +27,27 @@ const types: {
   { path: '/transaction', name: 'Txn', tip: 'Transaction details', icon: mdiMagnifyScan, activeColor: 'blue' },
   { path: '/account', name: 'Account', tip: 'Account details', icon: mdiMagnifyScan, activeColor: 'blue' },
   { path: '/restore', name: 'Lockscreen', tip: 'Wallet management', icon: mdiLogin },
-  { path: `${Wormhole.subroute}`, name: 'Portfolio', tip: 'My portfolio', icon: mdiCardsOutline, baseColor: 'orange', activeColor: 'orange', persistent: true },
-  { path: `${Wormhole.subroute}/explorer`, name: 'Explorer', tip: 'Market explorer', icon: mdiRulerSquareCompass, baseColor: 'orange', activeColor: 'orange', persistent: true },
-  { path: `${Wormhole.subroute}/orderbook`, name: 'Trading', tip: 'Current market', icon: mdiChartTimelineVariantShimmer, baseColor: 'orange', activeColor: 'orange', persistent: true, deep: true, disabled: () => !Wormhole.getOrderbook(), toPath: () => `${Wormhole.subroute}/orderbook/${Wormhole.getOrderbook()}` },
-  { path: `${Wormhole.subroute}/exit`, name: 'Exit', tip: 'Exit wormhole', icon: mdiExitToApp, baseColor: 'red', activeColor: 'red', persistent: true, toPath: () => '/' }
+  { path: `${Swap.subroute}`, name: 'Portfolio', tip: 'My portfolio', icon: mdiCardsOutline, baseColor: 'orange', activeColor: 'orange', persistent: true },
+  { path: `${Swap.subroute}/explorer`, name: 'Explorer', tip: 'Market explorer', icon: mdiRulerSquareCompass, baseColor: 'orange', activeColor: 'orange', persistent: true },
+  { path: `${Swap.subroute}/orderbook`, name: 'Trading', tip: 'Current market', icon: mdiChartTimelineVariantShimmer, baseColor: 'orange', activeColor: 'orange', persistent: true, deep: true, disabled: () => !Swap.getOrderbook(), toPath: () => `${Swap.subroute}/orderbook/${Swap.getOrderbook()}` },
+  { path: `${Swap.subroute}/exit`, name: 'Exit', tip: 'Exit swap', icon: mdiExitToApp, baseColor: 'red', activeColor: 'red', persistent: true, toPath: () => '/' }
 ]
 
 export function Navbar(props: { path: string }) {
   const navigate = useNavigate();
-  const wormhole = useMemo(() => props.path.startsWith(Wormhole.subroute), [props.path]);
+  const swap = useMemo(() => props.path.startsWith(Swap.subroute), [props.path]);
   const filteredTypes = useMemo(() => {
-    return types.filter((item) => item.path.startsWith(Wormhole.subroute) == wormhole);
-  }, [wormhole]);
+    return types.filter((item) => item.path.startsWith(Swap.subroute) == swap);
+  }, [swap]);
   const locator = useMemo(() => {
     return filteredTypes.filter((item) => props.path.startsWith(item.path)).sort((a, b) => b.path.length - a.path.length)[0]?.path || null;
   }, [filteredTypes, props.path]);
   useEffectAsync(async () => {
-    if (wormhole) {
+    if (swap) {
       const account = AppData.getWalletAddress();
-      await Wormhole.initialize(account ? [account] : []);
+      await Swap.initialize(account ? [account] : []);
     }
-  }, [wormhole]);
+  }, [swap]);
 
   AppData.state.setNavigation = navigate;
   return (

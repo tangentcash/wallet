@@ -2,17 +2,17 @@ import { AspectRatio, Avatar, Badge, Box, Button, Card, Dialog, Flex, Heading, I
 import { useNavigate, useParams } from "react-router";
 import { AppData } from "../../core/app";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Wormhole, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide } from "../../core/wormhole";
+import { Swap, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide } from "../../core/swap";
 import { useEffectAsync } from "../../core/react";
 import { SeriesApiRef } from "lightweight-charts-react-components";
 import { BarPrice, ChartOptions, CrosshairMode, DeepPartial, IChartApi, LogicalRange, MouseEventParams, PriceScaleMode, Time } from "lightweight-charts";
 import { mdiArrowRightThin, mdiCog, mdiCurrencyUsd } from "@mdi/js";
-import { GenericBar, PriceBar, VolumeBar, ChartViewType, ChartView } from "../../components/wormhole/chart";
+import { GenericBar, PriceBar, VolumeBar, ChartViewType, ChartView } from "../../components/swap/chart";
 import { AlertBox, AlertType } from "../../components/alert";
 import { AssetId, Readability } from "tangentsdk";
 import BigNumber from "bignumber.js";
-import Maker from "../../components/wormhole/maker";
-import OrderView from "../../components/wormhole/order";
+import Maker from "../../components/swap/maker";
+import OrderView from "../../components/swap/order";
 import Icon from "@mdi/react";
 import { Storage } from "../../core/storage";
 
@@ -178,8 +178,8 @@ export default function OrderbookPage() {
     if (!params.orderbook)
       return null;
     
-    Wormhole.setOrderbook(params.orderbook);
-    return Wormhole.fromOrderbookQuery(params.orderbook);
+    Swap.setOrderbook(params.orderbook);
+    return Swap.fromOrderbookQuery(params.orderbook);
   }, [params]);
   const orderPath = useMemo(() => {
     return params.orderbook ? pathOfOrder(params.orderbook) : undefined;
@@ -191,7 +191,7 @@ export default function OrderbookPage() {
     };
   }, [levels]);
   const valuation = useMemo(() => {
-    const rate = pair ? Wormhole.priceOf(seriesOptions.showPrimary ? pair.secondaryAsset : pair.primaryAsset)?.close : null;
+    const rate = pair ? Swap.priceOf(seriesOptions.showPrimary ? pair.secondaryAsset : pair.primaryAsset)?.close : null;
     const basePrice = rate ? (seriesOptions.showPrimary ? balances.primary.price : balances.secondary.price)?.dividedBy(rate) || null : null;
     const currentPrice = rate ? (seriesOptions.showPrimary ? pair?.price.close : (pair?.price.close ? new BigNumber(1).dividedBy(pair.price.close) : null)) || null : null;
     const quantity = seriesOptions.showPrimary ? balances.primary.value : balances.secondary.value;
@@ -281,7 +281,7 @@ export default function OrderbookPage() {
     const reset = !seriesState.ready;
     setSeriesState(prev => ({ ...prev, ready: true, loading: true }));
     try {
-      const result = await Wormhole.marketPriceSeries(pair.id, from, to, seriesOptions.interval);
+      const result = await Swap.marketPriceSeries(pair.id, from, to, seriesOptions.interval);
       const price: PriceBar[] = [], volume: VolumeBar[] = [];
       let min = result.length > 0 ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER;
       let max = Number.MIN_SAFE_INTEGER;
@@ -371,7 +371,7 @@ export default function OrderbookPage() {
       if (!orderbook || !orderbook.marketId || !orderbook.primaryAsset || !orderbook.secondaryAsset)
         throw false;
       
-      const result = await Wormhole.marketPair(orderbook.marketId, orderbook.primaryAsset, orderbook.secondaryAsset);
+      const result = await Swap.marketPair(orderbook.marketId, orderbook.primaryAsset, orderbook.secondaryAsset);
       if (!result)
         throw false;
 
@@ -387,9 +387,9 @@ export default function OrderbookPage() {
         const account = AppData.getWalletAddress();
         if (account != null) {
           const [ordersResult, balancesResult, tiersResult] = await Promise.all([
-            Wormhole.accountOrders({ marketId: marketId, pairId: result.id, address: account, active: true }),
-            Wormhole.accountBalances({ address: account }),
-            Wormhole.accountTiers({ marketId: marketId, pairId: result.id, address: account })
+            Swap.accountOrders({ marketId: marketId, pairId: result.id, address: account, active: true }),
+            Swap.accountBalances({ address: account }),
+            Swap.accountTiers({ marketId: marketId, pairId: result.id, address: account })
           ]);
           const primaryBalance = balancesResult?.find((v) => v.asset.id == result.primaryAsset.id);
           const secondaryBalance = balancesResult?.find((v) => v.asset.id == result.secondaryAsset.id);
@@ -402,8 +402,8 @@ export default function OrderbookPage() {
         }
       };
       const [marketResult, levelsResult, _] = await Promise.all([
-        Wormhole.market(orderbook.marketId),
-        Wormhole.marketPriceLevels(orderbook.marketId, result.id),
+        Swap.market(orderbook.marketId),
+        Swap.marketPriceLevels(orderbook.marketId, result.id),
         updateAccount()
       ]);
       setMarket(marketResult);
@@ -433,7 +433,7 @@ export default function OrderbookPage() {
       return;
 
     const trades: AggregatedMatch[] = [];
-    const target = Wormhole.priceOf(pair.primaryAsset, pair.secondaryAsset);
+    const target = Swap.priceOf(pair.primaryAsset, pair.secondaryAsset);
     let sentiment = 0, price = target.close, quantity = new BigNumber(0);
     for (let i = 0; i < incomingTrades.length; i++) {
       const data = incomingTrades[i].detail || null;

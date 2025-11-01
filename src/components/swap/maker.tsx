@@ -1,5 +1,5 @@
 import { Avatar, Box, Button, Card, Flex, SegmentedControl, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { AccountTier, OrderCondition, OrderPolicy, OrderSide, Wormhole } from "../../core/wormhole";
+import { AccountTier, OrderCondition, OrderPolicy, OrderSide, Swap } from "../../core/swap";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mdiCurrencyUsd } from "@mdi/js";
 import { AssetId, Readability } from "tangentsdk";
@@ -125,7 +125,7 @@ export default function Maker(props: {
     else if (hasStopPrice)
       return new BigNumber(state.stopPrice);
 
-    return Wormhole.priceOf(props.primaryAsset, props.secondaryAsset).close || new BigNumber(0);
+    return Swap.priceOf(props.primaryAsset, props.secondaryAsset).close || new BigNumber(0);
   }, [props, state.price, state.stopPrice, hasPrice, hasStopPrice]);
   const policy = useMemo((): OrderPolicy => {
     if (isImmediate) {
@@ -448,7 +448,7 @@ export default function Maker(props: {
   }, [props.path, presetId, updateState]);
   useEffect(() => {
     if (state.pool) {
-      updateState(prev => ({ ...prev, basePrice: Wormhole.priceOf(props.primaryAsset, props.secondaryAsset).close?.toString() || '' }));
+      updateState(prev => ({ ...prev, basePrice: Swap.priceOf(props.primaryAsset, props.secondaryAsset).close?.toString() || '' }));
     }
   }, [state.pool, updateState]);
   useEffect(() => {
@@ -655,7 +655,7 @@ export default function Maker(props: {
       </Box>
       <Box mb="2">
         <Tooltip content={`Pool fee equal to ${state.feeRate ? state.feeRate : 'N/A'} and taken from each trade with this pool`}>
-          <TextField.Root placeholder={'Wormhole fee %'} size="2" value={state.feeRate} onChange={(e) => updateState(prev => ({ ...prev, feeRate: toPercent(prev.feeRate, e.target.value) }))}>
+          <TextField.Root placeholder={'Swap fee %'} size="2" value={state.feeRate} onChange={(e) => updateState(prev => ({ ...prev, feeRate: toPercent(prev.feeRate, e.target.value) }))}>
             <TextField.Slot>
               <Icon path={mdiCurrencyUsd} size={0.8} />
             </TextField.Slot>

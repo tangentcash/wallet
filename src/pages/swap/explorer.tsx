@@ -1,6 +1,6 @@
 import { Avatar, Badge, Box, Button, Flex, Heading, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useEffect, useMemo, useState } from "react";
-import { AggregatedPair, Wormhole, Market, MarketPolicy } from "../../core/wormhole";
+import { AggregatedPair, Swap, Market, MarketPolicy } from "../../core/swap";
 import { AlertBox, AlertType } from "../../components/alert";
 import { useEffectAsync } from "../../core/react";
 import { mdiArrowLeftRight, mdiCurrencyBtc, mdiCurrencyUsd, mdiMagnify } from "@mdi/js";
@@ -8,7 +8,7 @@ import { AssetId, Readability } from "tangentsdk";
 import { useNavigate } from "react-router";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
-import AssetSelector from "../../components/wormhole/selector";
+import AssetSelector from "../../components/swap/selector";
 
 function policyOf(market: Market | null): string {
     switch (market ? market.marketPolicy.toNumber() : -1) {
@@ -49,7 +49,7 @@ export default function ExplorerPage() {
   const navigate = useNavigate();
   useEffectAsync(async () => {
     try {
-      const results = await Wormhole.markets();
+      const results = await Swap.markets();
       if (Array.isArray(results)) {
         setMarkets(results);
         if (results.length > 0)
@@ -62,7 +62,7 @@ export default function ExplorerPage() {
   useEffectAsync(async () => {
     try {
       if (market != null) {
-        const results = await Wormhole.marketPairs(market.id);
+        const results = await Swap.marketPairs(market.id);
         if (Array.isArray(results))
           setPairs(results)
       } else {
@@ -77,7 +77,7 @@ export default function ExplorerPage() {
       if (!market || !marketLauncher.primary || !marketLauncher.secondary)
         throw false;
 
-      const result = await Wormhole.marketPair(market.id, marketLauncher.primary, marketLauncher.secondary);
+      const result = await Swap.marketPair(market.id, marketLauncher.primary, marketLauncher.secondary);
       setLaunchablePair(result);
     } catch {
       setLaunchablePair(null);
@@ -89,7 +89,7 @@ export default function ExplorerPage() {
         const copy = [...prev];
         for (let i = 0; i < copy.length; i++) {
           const symbol = copy[i];
-          const target = Wormhole.priceOf(symbol.primaryAsset, symbol.secondaryAsset);
+          const target = Swap.priceOf(symbol.primaryAsset, symbol.secondaryAsset);
           symbol.price.open = target.open || symbol.price.open;
           symbol.price.close = target.close || symbol.price.close;
         }
@@ -167,7 +167,7 @@ export default function ExplorerPage() {
       <Box pt="4">
         {
           market != null && pairsFilter.map((item, index) =>
-            <Button variant="ghost" radius="none" style={{ display: 'block', width: '100%', borderRadius: '24px' }} mb={index < pairsFilter.length - 1 ? '4' : undefined} key={item.id.toString()} onClick={() => navigate(`/wormhole/orderbook/${Wormhole.toOrderbookQuery(market.id, item.primaryAsset, item.secondaryAsset)}`)}>
+            <Button variant="ghost" radius="none" style={{ display: 'block', width: '100%', borderRadius: '24px' }} mb={index < pairsFilter.length - 1 ? '4' : undefined} key={item.id.toString()} onClick={() => navigate(`/swap/orderbook/${Swap.toOrderbookQuery(market.id, item.primaryAsset, item.secondaryAsset)}`)}>
               <Box px="2" py="2">
                 <Flex justify="start" align="center" gap="3">
                   <Box style={{ position: 'relative' }}>

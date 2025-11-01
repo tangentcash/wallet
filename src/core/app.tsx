@@ -19,9 +19,9 @@ import BlockPage from "./../pages/block";
 import TransactionPage from "./../pages/transaction";
 import InteractionPage from "./../pages/interaction";
 import BridgePage from "./../pages/bridge"
-import PortfolioPage from "../pages/wormhole/portfolio";
-import ExplorerPage from "../pages/wormhole/explorer";
-import OrderbookPage from "../pages/wormhole/orderbook";
+import PortfolioPage from "../pages/swap/portfolio";
+import ExplorerPage from "../pages/swap/explorer";
+import OrderbookPage from "../pages/swap/orderbook";
 
 const CACHE_PREFIX = 'cache';
 
@@ -720,17 +720,17 @@ export function App() {
                 <RestorePage />
               </WalletNotReadyRoute>
             } />
-            <Route path="/wormhole" element={
+            <Route path="/swap" element={
               <WalletReadyRoute>
                 <PortfolioPage />
               </WalletReadyRoute>
             } />
-            <Route path="/wormhole/explorer" element={
+            <Route path="/swap/explorer" element={
               <WalletReadyRoute>
                 <ExplorerPage />
               </WalletReadyRoute>
             } />
-            <Route path="/wormhole/orderbook/:orderbook?" element={
+            <Route path="/swap/orderbook/:orderbook?" element={
               <WalletReadyRoute>
                 <OrderbookPage />
               </WalletReadyRoute>

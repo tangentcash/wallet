@@ -1,13 +1,13 @@
 import { Badge, Box, Button, Card, Flex, Heading, Tabs, Text } from "@radix-ui/themes";
 import { AssetId, Readability } from "tangentsdk";
 import { useEffect, useMemo, useState } from "react";
-import { Wormhole, Balance, Order, Pool } from "../../core/wormhole";
+import { Swap, Balance, Order, Pool } from "../../core/swap";
 import { useEffectAsync } from "../../core/react";
 import { AppData } from "../..//core/app";
 import BigNumber from "bignumber.js";
-import BalanceView from "../../components/wormhole/balance";
-import OrderView from "../../components/wormhole/order";
-import PoolView from "../../components/wormhole/pool";
+import BalanceView from "../../components/swap/balance";
+import OrderView from "../../components/swap/order";
+import PoolView from "../../components/swap/pool";
 
 export default function PortfolioPage() {
   const account = AppData.getWalletAddress();
@@ -19,7 +19,7 @@ export default function PortfolioPage() {
   const [pools, setPools] = useState<Pool[]>([]);
   const equityAssets = useMemo((): (Balance & { value: BigNumber, equity: { current: BigNumber | null, previous: BigNumber | null } })[] => {
     return assets.map((v: Balance) => {
-      const price = Wormhole.priceOf(v.asset);
+      const price = Swap.priceOf(v.asset);
       const value = v.available.plus(v.unavailable);
       const previousEquity = todayProfits ? (price.open ? new BigNumber(price.open.multipliedBy(value).toFixed(2)) : null) : (v.price ? new BigNumber(v.price.multipliedBy(value).toFixed(2)) : null);
       const currentEquity = price.close ? new BigNumber(price.close.multipliedBy(value).toFixed(2)) : null;
@@ -45,9 +45,9 @@ export default function PortfolioPage() {
         throw false;
 
       const [assets, orders, pools] = await Promise.all([
-        Wormhole.accountBalances({ address: account }),
-        Wormhole.accountOrders({ address: account }),
-        Wormhole.accountPools({ address: account }),
+        Swap.accountBalances({ address: account }),
+        Swap.accountOrders({ address: account }),
+        Swap.accountPools({ address: account }),
       ]);
       setAssets(assets);
       setOrders(orders);
@@ -64,12 +64,12 @@ export default function PortfolioPage() {
     window.addEventListener('update:order', updateDashboard);
     window.addEventListener('update:pool', updateDashboard);
     window.addEventListener('update:trade', updateAssets);
-    window.addEventListener('wormhole:ready', updateDashboard);
+    window.addEventListener('swap:ready', updateDashboard);
     return () => {
       window.removeEventListener('update:order', updateDashboard);
       window.removeEventListener('update:pool', updateDashboard);
       window.removeEventListener('update:trade', updateAssets);
-      window.removeEventListener('wormhole:ready', updateDashboard);
+      window.removeEventListener('swap:ready', updateDashboard);
     };
   }, []);
 
@@ -85,9 +85,9 @@ export default function PortfolioPage() {
               <Text size="3" color="gray">Portfolio</Text>
               <Badge size="2" color="red">{ Readability.toAddress(account || '') }</Badge>
             </Flex>
-            <Heading size="7">{ Readability.toMoney(Wormhole.equityAsset, equity.current) }</Heading>
+            <Heading size="7">{ Readability.toMoney(Swap.equityAsset, equity.current) }</Heading>
           </Box>
-          <Button variant="soft" size="2" color={ equity.previous.gt(equity.current) ? 'red' : (equity.previous.eq(equity.current) ? 'gray' : 'jade') } onClick={() => setTodayProfits(!todayProfits)}>{ Readability.toMoney(Wormhole.equityAsset, equity.current.minus(equity.previous), true) } ({ Readability.toPercentageDelta(equity.previous, equity.current) }) - { todayProfits ? 'Today' : 'Total' }</Button>
+          <Button variant="soft" size="2" color={ equity.previous.gt(equity.current) ? 'red' : (equity.previous.eq(equity.current) ? 'gray' : 'jade') } onClick={() => setTodayProfits(!todayProfits)}>{ Readability.toMoney(Swap.equityAsset, equity.current.minus(equity.previous), true) } ({ Readability.toPercentageDelta(equity.previous, equity.current) }) - { todayProfits ? 'Today' : 'Total' }</Button>
         </Box>
       </Card>
       <Tabs.Root defaultValue="balances" mt="4">

@@ -1,6 +1,6 @@
 import { Avatar, Badge, Box, Button, Card, DataList, Dialog, DropdownMenu, Flex, Text } from "@radix-ui/themes";
 import { Readability } from "tangentsdk";
-import { Pool } from "../../core/wormhole";
+import { Pool } from "../../core/swap";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import PerformerButton, { Authorization } from "./performer";
 

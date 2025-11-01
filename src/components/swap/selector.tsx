@@ -2,7 +2,7 @@ import { mdiAlphabeticalVariant, mdiCancel, mdiConsole, mdiMagnify, mdiPlus } fr
 import { Avatar, Box, Button, Dialog, Flex, IconButton, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { AssetId, Readability } from "tangentsdk";
-import { Wormhole, BlockchainInfo } from "../../core/wormhole";
+import { Swap, BlockchainInfo } from "../../core/swap";
 import Icon from "@mdi/react";
 
 export default function AssetSelector(props: { children: ReactNode, title?: string, value?: AssetId | null, onChange?: (asset: AssetId | null) => void }) {
@@ -13,7 +13,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
   const [address, setAddress] = useState('');
   const [query, setQuery] = useState('');
   const [assets, setAssets] = useState<AssetId[]>([]);
-  const policy = useMemo((): BlockchainInfo | null => policyIndex != null ? Wormhole.descriptors[policyIndex] : null, [policyIndex]);
+  const policy = useMemo((): BlockchainInfo | null => policyIndex != null ? Swap.descriptors[policyIndex] : null, [policyIndex]);
   const customToken = useMemo((): AssetId | null => {
     const targetSymbol = symbol.toUpperCase().trim(), targetAddress = address.trim();
     return policy != null && targetSymbol.length > 0 && targetAddress.length >= 32 ? AssetId.fromHandle(policy.chain || policy.handle, targetSymbol, targetAddress) : null;
@@ -27,7 +27,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
     if (value.length > 0) {
       setLoading(setTimeout(async () => {
         try {
-          const result = await Wormhole.assetQuery(value);
+          const result = await Swap.assetQuery(value);
           setAssets(result);
         } catch { }
         setLoading(null);
@@ -46,7 +46,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
 
     setAddress('');
     if (props.value != null) {
-      const policyId = Wormhole.descriptors.findIndex((item) => item.chain == props.value?.chain);
+      const policyId = Swap.descriptors.findIndex((item) => item.chain == props.value?.chain);
       setQuery(props.value.handle);
       setPolicyIndex(policyId != -1 ? policyId : null);
       setSymbol(props.value?.token || '');
@@ -133,7 +133,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
             <Select.Content position="popper" side="bottom">
               <Select.Item value={"-1"} disabled={true}>Token's blockchain</Select.Item>
               {
-                Wormhole.descriptors.map((item, index) =>
+                Swap.descriptors.map((item, index) =>
                   <Select.Item key={item.id + 'select'} value={index.toString()}>
                     <Flex align="center" gap="1">
                       <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(item)} src={Readability.toAssetImage(item)} style={{ width: '16px', height: '16px' }} />
