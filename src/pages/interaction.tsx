@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
-import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, Stream, TextUtil, TransactionOutput, Transactions, Uint256, Readability, Hashsig, Pubkeyhash, Pubkey, Seckey } from "tangentsdk";
+import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, Stream, TextUtil, TransactionOutput, Transactions, Uint256, Readability, Hashsig, Pubkeyhash, Pubkey, Seckey, SummaryState, EventResolver } from "tangentsdk";
 import { AppData } from "../core/app";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
@@ -93,6 +93,7 @@ export default function InteractionPage() {
   const [assets, setAssets] = useState<any[]>([]);
   const [asset, setAsset] = useState(-1);
   const [nonce, setNonce] = useState<BigNumber | null>();
+  const [simulation, setSimulation] = useState<{ receipt: any, state: SummaryState } | null>(null);
   const [gasPrice, setGasPrice] = useState('');
   const [gasLimit, setGasLimit] = useState('');
   const [loadingTransaction, setLoadingTransaction] = useState(false);
@@ -529,10 +530,12 @@ export default function InteractionPage() {
         if (!output)
           throw new Error('cannot build transaction');
 
-        let limit = await RPC.getOptimalTransactionGas(output.data);
-        presetGasLimit = typeof limit == 'string' ? new BigNumber(limit, 16) : (BigNumber.isBigNumber(limit) ? limit : new BigNumber(-1));
+        let receipt = await RPC.simulateTransaction(output.data);
+        presetGasLimit = receipt ? typeof receipt.relative_gas_use == 'string' ? new BigNumber(receipt.relative_gas_use, 16) : (BigNumber.isBigNumber(receipt.relative_gas_use) ? receipt.relative_gas_use : new BigNumber(-1)) : new BigNumber(-1);
         if (presetGasLimit.lt(0)) {
           AlertBox.open(AlertType.Error, 'Cannot fetch transaction gas limit');
+        } else if (receipt != null && receipt.events != null) {
+          setSimulation({ receipt: receipt, state: EventResolver.calculateSummaryState(receipt.events) })
         }
       } catch (exception) {
         AlertBox.open(AlertType.Error, 'Cannot fetch transaction gas limit: ' + (exception as Error).message);
@@ -652,6 +655,7 @@ export default function InteractionPage() {
       }
     }
 
+    setSimulation(null);
     try {
       let assetData = await RPC.fetchAll((offset, count) => RPC.getAccountBalances(ownerAddress, offset, count));
       if (Array.isArray(assetData)) {
@@ -1096,7 +1100,7 @@ export default function InteractionPage() {
       {
         (program instanceof ApproveTransaction) && program.transaction != null &&
         <Box>
-          <Transaction ownerAddress={ownerAddress} transaction={program.transaction} preview={true}></Transaction>
+          <Transaction ownerAddress={ownerAddress} transaction={program.transaction} receipt={simulation?.receipt || undefined} state={simulation?.state || undefined} preview={true}></Transaction>
           {
             Array.isArray(program.transaction.transactions) && program.transaction.transactions.map((subtransaction: any, index: number) =>
               <Box mt="4" key={subtransaction.hash + index.toString()}>

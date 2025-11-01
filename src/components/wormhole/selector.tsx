@@ -5,7 +5,7 @@ import { AssetId, Readability } from "tangentsdk";
 import { Wormhole, BlockchainInfo } from "../../core/wormhole";
 import Icon from "@mdi/react";
 
-export default function AssetSelector(props: { children: ReactNode, value?: AssetId | null, onChange?: (asset: AssetId | null) => void }) {
+export default function AssetSelector(props: { children: ReactNode, title?: string, value?: AssetId | null, onChange?: (asset: AssetId | null) => void }) {
   const [launching, setLaunching] = useState(false);
   const [loading, setLoading] = useState<null | number>(null);
   const [policyIndex, setPolicyIndex] = useState<number | null>(null);
@@ -66,7 +66,7 @@ export default function AssetSelector(props: { children: ReactNode, value?: Asse
     {
       !launching &&
       <Box>
-        <Dialog.Title>Find a token</Dialog.Title>
+        <Dialog.Title>Find { props.title || ' a token' }</Dialog.Title>
         <Flex justify="between" align="center" gap="2" mt="3">
           <Tooltip content="Find already added tokens by their symbol">
             <TextField.Root placeholder="Try ETH…" size="3" style={{ width: '100%' }} value={query} onChange={(e) => updateQuery(e.currentTarget.value)}>
@@ -114,7 +114,7 @@ export default function AssetSelector(props: { children: ReactNode, value?: Asse
     {
       launching &&
       <Box>
-        <Dialog.Title>Use new token</Dialog.Title>
+        <Dialog.Title>New { props.title || ' token' }</Dialog.Title>
         <Tooltip content="Blockchain network where target token is launched">
           <Select.Root value={policyIndex != null ? policyIndex.toString() : '-1'} size="3" onValueChange={(value) => setPolicyIndex(parseInt(value))}>
             <Select.Trigger variant="soft" color="gray" style={{ width: '100%' }}>

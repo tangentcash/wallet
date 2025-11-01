@@ -28,7 +28,7 @@ const types: {
   { path: '/account', name: 'Account', tip: 'Account details', icon: mdiMagnifyScan, activeColor: 'blue' },
   { path: '/restore', name: 'Lockscreen', tip: 'Wallet management', icon: mdiLogin },
   { path: `${Wormhole.subroute}`, name: 'Portfolio', tip: 'My portfolio', icon: mdiCardsOutline, baseColor: 'orange', activeColor: 'orange', persistent: true },
-  { path: `${Wormhole.subroute}/markets`, name: 'Explorer', tip: 'Explore markets', icon: mdiRulerSquareCompass, baseColor: 'orange', activeColor: 'orange', persistent: true },
+  { path: `${Wormhole.subroute}/explorer`, name: 'Explorer', tip: 'Market explorer', icon: mdiRulerSquareCompass, baseColor: 'orange', activeColor: 'orange', persistent: true },
   { path: `${Wormhole.subroute}/orderbook`, name: 'Trading', tip: 'Current market', icon: mdiChartTimelineVariantShimmer, baseColor: 'orange', activeColor: 'orange', persistent: true, deep: true, disabled: () => !Wormhole.getOrderbook(), toPath: () => `${Wormhole.subroute}/orderbook/${Wormhole.getOrderbook()}` },
   { path: `${Wormhole.subroute}/exit`, name: 'Exit', tip: 'Exit wormhole', icon: mdiExitToApp, baseColor: 'red', activeColor: 'red', persistent: true, toPath: () => '/' }
 ]

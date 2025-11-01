@@ -20,7 +20,7 @@ import TransactionPage from "./../pages/transaction";
 import InteractionPage from "./../pages/interaction";
 import DepositoryPage from "./../pages/depository"
 import PortfolioPage from "../pages/wormhole/portfolio";
-import MarketsPage from "../pages/wormhole/markets";
+import ExplorerPage from "../pages/wormhole/explorer";
 import OrderbookPage from "../pages/wormhole/orderbook";
 
 const CACHE_PREFIX = 'cache';
@@ -491,7 +491,7 @@ export class AppData {
 
     transaction.signature = signature;
     SchemaUtil.store(stream.clear(), transaction, props.method.type);
-    return { hash: stream.hash().toHex(), data: stream.encode(), body: transaction };
+    return { hash: stream.hash().toHex(), data: stream.encode(), body: transaction, receipt: null };
   }
   static async buildWalletTransactionWithAutoGasLimit(props: TransactionInput): Promise<TransactionOutput> {
     const hasGasLimit = props.gasLimit != null;
@@ -499,11 +499,15 @@ export class AppData {
     if (hasGasLimit)
       return intermediate;
 
+    let receipt = null;
     try {
-      let gas = await RPC.getOptimalTransactionGas(intermediate.data);
-      gas = typeof gas == 'string' ? new BigNumber(gas, 16) : gas;
-      if (gas != null && BigNumber.isBigNumber(gas) && gas.gte(0)) {
-        intermediate.body.gasLimit = new Uint256(gas.toString());
+      receipt = await RPC.simulateTransaction(intermediate.data);
+      if (!receipt)
+        throw new Error('failed to fetch the receipt');
+
+      receipt.relative_gas_use = typeof receipt.relative_gas_use == 'string' ? new BigNumber(receipt.relative_gas_use, 16) : receipt.relative_gas_use;
+      if (receipt.relative_gas_use != null && BigNumber.isBigNumber(receipt.relative_gas_use) && receipt.relative_gas_use.gte(0)) {
+        intermediate.body.gasLimit = new Uint256(receipt.relative_gas_use.toString());
       } else {
         throw new Error('Cannot fetch transaction gas limit');
       }
@@ -513,7 +517,10 @@ export class AppData {
     
     props.nonce = intermediate.body.nonce.toString();
     props.gasLimit = intermediate.body.gasLimit.toString();
-    return await this.buildWalletTransaction(props);
+    const result = await this.buildWalletTransaction(props);
+    if (result != null)
+      result.receipt = receipt;
+    return result;
   }
   static async stream(): Promise<number | null> {
     const address = this.getWalletAddress();
@@ -718,9 +725,9 @@ export function App() {
                 <PortfolioPage />
               </WalletReadyRoute>
             } />
-            <Route path="/wormhole/markets" element={
+            <Route path="/wormhole/explorer" element={
               <WalletReadyRoute>
-                <MarketsPage />
+                <ExplorerPage />
               </WalletReadyRoute>
             } />
             <Route path="/wormhole/orderbook/:orderbook?" element={

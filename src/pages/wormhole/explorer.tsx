@@ -1,9 +1,9 @@
-import { Avatar, Badge, Box, Button, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Avatar, Badge, Box, Button, Flex, Heading, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { useEffect, useMemo, useState } from "react";
 import { AggregatedPair, Wormhole, Market, MarketPolicy } from "../../core/wormhole";
 import { AlertBox, AlertType } from "../../components/alert";
 import { useEffectAsync } from "../../core/react";
-import { mdiArrowLeftRight, mdiMagnify, mdiRocketLaunch } from "@mdi/js";
+import { mdiArrowLeftRight, mdiCurrencyBtc, mdiCurrencyUsd, mdiMagnify } from "@mdi/js";
 import { AssetId, Readability } from "tangentsdk";
 import { useNavigate } from "react-router";
 import BigNumber from "bignumber.js";
@@ -21,12 +21,12 @@ function policyOf(market: Market | null): string {
     }
 }
 
-export default function MarketsPage() {
+export default function ExplorerPage() {
   const [market, setMarket] = useState<Market | null>(null);
   const [markets, setMarkets] = useState<Market[]>([]);
   const [pairs, setPairs] = useState<AggregatedPair[]>([]);
   const [launchablePair, setLaunchablePair] = useState<AggregatedPair | null>(null);
-  const [marketLauncher, setMarketLauncher] = useState<{ primary: AssetId | null, secondary: AssetId | null } | null>(null);
+  const [marketLauncher, setMarketLauncher] = useState<{ primary: AssetId | null, secondary: AssetId | null }>({ primary: null, secondary: null });
   const [query, setQuery] = useState<string>('');
   const assetQuery = useMemo((): { primary: string | null, secondary: string | null } => {
     let [primary, secondary] = query.toLowerCase().split('/').map((x) => x.trim());
@@ -46,9 +46,6 @@ export default function MarketsPage() {
     }
     return result;
   }, [pairs, assetQuery, launchablePair]);
-  const toggleMarketLauncher = useCallback(() => {
-    setMarketLauncher(marketLauncher != null ? null : { primary: null, secondary: null });
-  }, [marketLauncher]);
   const navigate = useNavigate();
   useEffectAsync(async () => {
     try {
@@ -77,7 +74,7 @@ export default function MarketsPage() {
   }, [market]);
   useEffectAsync(async () => {
     try {
-      if (!market || !marketLauncher || !marketLauncher.primary || !marketLauncher.secondary)
+      if (!market || !marketLauncher.primary || !marketLauncher.secondary)
         throw false;
 
       const result = await Wormhole.marketPair(market.id, marketLauncher.primary, marketLauncher.secondary);
@@ -117,70 +114,57 @@ export default function MarketsPage() {
           </Select.Content>
         </Select.Root>
       </Flex>
-      <Flex pb="3" justify="between" align="center" gap="2">
+      <Box pb="3">
         <Tooltip content="Find already launched market pairs by name">
-          <TextField.Root placeholder="Try ETH/USDT…" variant="soft" size="3" value={query} style={{ width: '100%' }} onInput={(e) => setQuery(e.currentTarget.value || '')}>
+          <TextField.Root placeholder="Try ETH/USDT…" variant="surface" size="3" value={query} style={{ width: '100%' }} onInput={(e) => setQuery(e.currentTarget.value || '')}>
             <TextField.Slot>
               <Icon path={mdiMagnify} size={0.8}></Icon>
             </TextField.Slot>
           </TextField.Root>
         </Tooltip>
-        <Tooltip content="Launch a market pair given two assets">
-          <IconButton size="3" variant="soft" onClick={() => toggleMarketLauncher()}>
-            <Icon path={mdiRocketLaunch} size={0.8}></Icon>
-          </IconButton>
-        </Tooltip>
+      </Box>
+      <Flex gap="1">
+        <AssetSelector title="token 1 to launch" value={marketLauncher.primary} onChange={(value) => setMarketLauncher(prev => ({ primary: value, secondary: prev?.secondary || null }))}>
+          <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--jade-1)', border: '1px solid var(--jade-3)', position: 'relative' }} color="red">
+            <Flex justify="center" align="center">
+              {
+                marketLauncher.primary != null &&
+                <Flex align="center" gap="1">
+                  <Avatar mr="1" size="2" radius="full" fallback={Readability.toAssetFallback(marketLauncher.primary)} src={Readability.toAssetImage(marketLauncher.primary)} style={{ width: '32px', height: '32px' }} />
+                  <Text size="4">{ Readability.toAssetSymbol(marketLauncher.primary) }</Text>
+                </Flex>
+              }
+              {
+                marketLauncher.primary == null &&
+                <Icon path={mdiCurrencyBtc} size={1.2}></Icon>
+              }
+            </Flex>
+            <Box style={{ zIndex: '1', borderRadius: '16px', backgroundColor: 'var(--gray-1)', padding: '4px', position: 'absolute', bottom: '50%', right: '-25px', transform: 'translateY(50%)' }}>
+              <Flex justify="center" align="center" style={{ borderRadius: '12px', backgroundColor: 'var(--jade-3)', width: '40px', height: '40px' }}>
+                <Icon path={mdiArrowLeftRight} size={1.2}></Icon>
+              </Flex>
+            </Box>
+          </Button>
+        </AssetSelector>
+        <AssetSelector title="token 2 to launch" value={marketLauncher.secondary} onChange={(value) => setMarketLauncher(prev => ({ primary: prev?.primary || null, secondary: value }))}>
+          <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--jade-3)' }} color="red">
+            <Flex justify="center" align="center">
+              {
+                marketLauncher.secondary != null &&
+                <Flex align="center" gap="1">
+                  <Avatar mr="1" size="2" radius="full" fallback={Readability.toAssetFallback(marketLauncher.secondary)} src={Readability.toAssetImage(marketLauncher.secondary)} style={{ width: '32px', height: '32px' }} />
+                  <Text size="3">{ Readability.toAssetSymbol(marketLauncher.secondary) }</Text>
+                </Flex>
+              }
+              {
+                marketLauncher.secondary == null &&
+                <Icon path={mdiCurrencyUsd} size={1.2}></Icon>
+              }
+            </Flex>
+          </Button>
+        </AssetSelector>
       </Flex>
-      {
-        marketLauncher != null &&
-        <>
-          <Flex gap="1">
-            <AssetSelector value={marketLauncher.primary} onChange={(value) => setMarketLauncher(prev => ({ primary: value, secondary: prev?.secondary || null }))}>
-              <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--gray-2)', border: '1px solid var(--gray-4)', position: 'relative' }} color="red">
-                <Flex justify="center" align="center">
-                  {
-                    marketLauncher.primary != null &&
-                    <Flex align="center" gap="1">
-                      <Avatar mr="1" size="2" radius="full" fallback={Readability.toAssetFallback(marketLauncher.primary)} src={Readability.toAssetImage(marketLauncher.primary)} style={{ width: '32px', height: '32px' }} />
-                      <Text size="4">{ Readability.toAssetSymbol(marketLauncher.primary) }</Text>
-                    </Flex>
-                  }
-                  {
-                    marketLauncher.primary == null &&
-                    <>Primary asset</>
-                  }
-                </Flex>
-                <Box style={{ zIndex: '1', borderRadius: '16px', backgroundColor: 'var(--gray-1)', padding: '4px', position: 'absolute', bottom: '50%', right: '-25px', transform: 'translateY(50%)' }}>
-                  <Flex justify="center" align="center" style={{ borderRadius: '12px', backgroundColor: 'var(--gray-4)', width: '40px', height: '40px' }}>
-                    <Icon path={mdiArrowLeftRight} size={1.2}></Icon>
-                  </Flex>
-                </Box>
-              </Button>
-            </AssetSelector>
-            <AssetSelector value={marketLauncher.secondary} onChange={(value) => setMarketLauncher(prev => ({ primary: prev?.primary || null, secondary: value }))}>
-              <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--gray-4)' }} color="red">
-                <Flex justify="center" align="center">
-                  {
-                    marketLauncher.secondary != null &&
-                    <Flex align="center" gap="1">
-                      <Avatar mr="1" size="2" radius="full" fallback={Readability.toAssetFallback(marketLauncher.secondary)} src={Readability.toAssetImage(marketLauncher.secondary)} style={{ width: '32px', height: '32px' }} />
-                      <Text size="3">{ Readability.toAssetSymbol(marketLauncher.secondary) }</Text>
-                    </Flex>
-                  }
-                  {
-                    marketLauncher.secondary == null &&
-                    <>Secondary asset</>
-                  }
-                </Flex>
-              </Button>
-            </AssetSelector>
-          </Flex>
-          <Box px="2" my="4">
-            <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-          </Box>
-        </>
-      }
-      <Box pt="1">
+      <Box pt="4">
         {
           market != null && pairsFilter.map((item, index) =>
             <Button variant="ghost" radius="none" style={{ display: 'block', width: '100%', borderRadius: '24px' }} mb={index < pairsFilter.length - 1 ? '4' : undefined} key={item.id.toString()} onClick={() => navigate(`/wormhole/orderbook/${Wormhole.toOrderbookQuery(market.id, item.primaryAsset, item.secondaryAsset)}`)}>

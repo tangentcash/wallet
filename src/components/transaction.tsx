@@ -1,8 +1,7 @@
 import { Avatar, Badge, Box, Button, Card, Code, DataList, DropdownMenu, Flex, Spinner, Text } from "@radix-ui/themes";
-import { RPC, EventResolver, SummaryState, Types, AssetId, Readability } from 'tangentsdk';
+import { EventResolver, SummaryState, Types, AssetId, Readability } from 'tangentsdk';
 import { AlertBox, AlertType } from "./alert";
 import { Link } from "react-router";
-import { useState } from "react";
 import { AppData } from "../core/app";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
@@ -1051,9 +1050,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
   const state = props.state || null;
   const ownerAddress = props.ownerAddress;
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
-  const aggregation = transaction.category == 'aggregation';
-  const [consensus, setConsensus] = aggregation ? useState<{ branch: string, threshold: BigNumber, progress: BigNumber, committee: BigNumber, reached: boolean } | null>(null) : [undefined, undefined];
-  if (receipt != null && receipt.block_number.gt(AppData.tip))
+  if (!props.preview && receipt != null && receipt.block_number.gt(AppData.tip))
     AppData.tip = receipt.block_number;
 
   return (
@@ -1079,8 +1076,8 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               {
                 props.preview && typeof props.open != 'boolean' &&
                 <Collapsible.Trigger asChild={true}>
-                  <Button size="1" radius="large" variant="soft" color="gray">
-                    <Text mr="-1" as="div" size="1" weight="light" color="gray">Details</Text>
+                  <Button size="1" radius="large" variant="soft" color="yellow">
+                    <Text mr="-1" as="div" size="1" weight="light" color="yellow">Preview!</Text>
                     <Box ml="1">
                       <DropdownMenu.TriggerIcon />
                     </Box>
@@ -1191,17 +1188,13 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               </DataList.Value>
             </DataList.Item>
             {
-              receipt &&
+              !props.preview && receipt &&
               <>
                 <DataList.Item>
                   <DataList.Label>Status:</DataList.Label>
                   <DataList.Value>
                     <Badge color={receipt.successful ? 'jade' : 'red'}>Execution { receipt.successful ? 'finalized' : 'reverted' }</Badge>
                   </DataList.Value>
-                </DataList.Item>
-                <DataList.Item>
-                  <DataList.Label>Timestamp:</DataList.Label>
-                  <DataList.Value>{ new Date(receipt.block_time.toNumber()).toLocaleString() }</DataList.Value>
                 </DataList.Item>
                 <DataList.Item>
                   <DataList.Label>Block:</DataList.Label>
@@ -1224,12 +1217,19 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               </>
             }
             {
-              !receipt &&
+              (props.preview || !receipt) &&
               <DataList.Item>
                 <DataList.Label>Status:</DataList.Label>
                 <DataList.Value>
                   <Badge color="yellow">Not included a in block</Badge>
                 </DataList.Value>
+              </DataList.Item>
+            }
+            {
+              receipt && 
+              <DataList.Item>
+                <DataList.Label>Timestamp:</DataList.Label>
+                <DataList.Value>{ new Date(receipt.block_time.toNumber()).toLocaleString() }</DataList.Value>
               </DataList.Item>
             }
             <DataList.Item>
@@ -1280,61 +1280,6 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               </>
             }
           </DataList.Root>
-          {
-            aggregation && state == null &&
-            <>
-              <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
-              <DataList.Root orientation={orientation}>
-                {
-                  consensus == null &&
-                  <DataList.Item>
-                    <DataList.Label>Attestation progress:</DataList.Label>
-                    <DataList.Value>
-                      <Button size="1" variant="outline" color="yellow" onClick={async () => {
-                        try {
-                          const consensusData = await RPC.getMempoolCumulativeConsensus(transaction.hash);
-                          if (setConsensus != null && consensusData != null)
-                            setConsensus(consensusData);
-                        } catch {
-                          AlertBox.open(AlertType.Error, 'Failed to fetch transaction consensus info');
-                        }
-                      }}>Fetch consensus info</Button>
-                    </DataList.Value>
-                  </DataList.Item>
-                }
-                {
-                  consensus != null &&
-                  <>
-                    <DataList.Item>
-                      <DataList.Label>Best assertion:</DataList.Label>
-                      <DataList.Value>
-                        <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                          navigator.clipboard.writeText(consensus.branch);
-                          AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                        }}>{ Readability.toHash(consensus.branch) }</Button>
-                      </DataList.Value>
-                    </DataList.Item>
-                    <DataList.Item>
-                      <DataList.Label>Attestation committee:</DataList.Label>
-                      <DataList.Value>{ Readability.toCount('attester', consensus.committee) }</DataList.Value>
-                    </DataList.Item>
-                    <DataList.Item>
-                      <DataList.Label>Attestations acquired:</DataList.Label>
-                      <DataList.Value>
-                        <Text color="yellow">{ (consensus.progress.toNumber() * 100).toFixed(2) }%</Text>
-                      </DataList.Value>
-                    </DataList.Item>
-                    <DataList.Item>
-                      <DataList.Label>Required attestations:</DataList.Label>
-                      <DataList.Value>
-                        <Text color="red">{ (consensus.threshold.toNumber() * 100).toFixed(2) }%</Text>
-                      </DataList.Value>
-                    </DataList.Item>
-                  </>
-                }
-              </DataList.Root>
-            </>
-          }
           <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
           <InputFields orientation={orientation} transaction={transaction}></InputFields>
           {

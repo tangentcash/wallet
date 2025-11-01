@@ -1,5 +1,5 @@
-import { Box, Callout } from "@radix-ui/themes";
-import { mdiAlertCircleOutline, mdiInformationOutline } from '@mdi/js';
+import { Box, Callout, IconButton } from "@radix-ui/themes";
+import { mdiAlertCircleOutline, mdiClose, mdiInformationOutline } from '@mdi/js';
 import { useState } from "react";
 import { lerp } from "tangentsdk";
 import Icon from '@mdi/react';
@@ -51,11 +51,13 @@ export class AlertBox {
       return [message, 0];
     }
   }
-  private static destructor(id: number): () => void {
+  static destructor(id: number, manual?: boolean): () => void {
     return () => {
       for (let i = 0; i < this.alerts.length; i++) {
         if (this.alerts[i].id == id) {
           this.alerts[i].status = AlertStatus.Closing;
+          if (manual)
+            clearTimeout(this.alerts[i].timeout);
           break;
         }
       }
@@ -142,11 +144,16 @@ export function Alert() {
     <Box position="fixed" bottom="12px" right="8px" style={{ zIndex: 10000 }} id={ 'alert-' + notify }>
       {
         AlertBox.alerts.map((alert) =>
-          <Callout.Root size="1" variant="surface" mt="2" style={{ backdropFilter: 'blur(4px)' }} color={ alert.type == AlertType.Info ? 'jade' : (alert.type == AlertType.Warning ? 'orange' : 'red') } className={ alert.status == AlertStatus.Opening ? 'fade-in-transition' : (alert.status == AlertStatus.Closing ? 'fade-out-transition' : undefined) } key={alert.id} onAnimationEnd={() => AlertBox.update(alert.id)}>
+          <Callout.Root size="1" variant="surface" mt="2" style={{ backdropFilter: 'blur(4px)', position: 'relative' }} color={ alert.type == AlertType.Info ? 'jade' : (alert.type == AlertType.Warning ? 'orange' : 'red') } className={ alert.status == AlertStatus.Opening ? 'fade-in-transition' : (alert.status == AlertStatus.Closing ? 'fade-out-transition' : undefined) } key={alert.id} onAnimationEnd={() => AlertBox.update(alert.id)}>
             <Callout.Icon>
               <Icon path={alert.type == AlertType.Info ? mdiInformationOutline : mdiAlertCircleOutline } size={1} />
             </Callout.Icon>
             <Callout.Text style={{ whiteSpace: 'pre' }}>{ alert.message }</Callout.Text>
+            <Box position="absolute" style={{ top: '-7px', right: '-7px' }}>
+              <IconButton variant="surface" size="1" onClick={() => AlertBox.destructor(alert.id, true)()}>
+                <Icon path={mdiClose} size={0.8}></Icon>
+              </IconButton>
+            </Box>
           </Callout.Root>
         )
       }
