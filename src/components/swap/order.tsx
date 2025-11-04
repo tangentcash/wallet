@@ -177,15 +177,11 @@ function FullOrderView(props: { item: Order, open?: boolean, price: BigNumber | 
           }
           <DataList.Item>
             <DataList.Label>Quantity:</DataList.Label>
-            <DataList.Value>{ Readability.toMoney(item.primaryAsset, props.quantity) }</DataList.Value>
+            <DataList.Value>{ Readability.toMoney(item.primaryAsset, props.quantity) } { props.quantity && props.quantity.isFinite() && props.price && props.price.isFinite() ? `/ ${Readability.toMoney(item.secondaryAsset, props.quantity.multipliedBy(props.price))}` : '' }</DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Value paid:</DataList.Label>
-            <DataList.Value>{ Readability.toMoney(props.paidAsset, item.startingValue) }</DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Value left:</DataList.Label>
-            <DataList.Value>{ Readability.toMoney(props.paidAsset, item.value) } — { (100 - progress).toFixed(2) }%</DataList.Value>
+            <DataList.Label>Leftover:</DataList.Label>
+            <DataList.Value>{ Readability.toMoney(props.paidAsset, item.value) } / { (100 - progress).toFixed(2) }%</DataList.Value>
           </DataList.Item>
         </DataList.Root>
         {
@@ -248,10 +244,13 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
                   <Text size="2" color={ item.side == OrderSide.Buy ? 'jade' : 'red' }>{ item.side == OrderSide.Buy ? 'Buy' : 'Sell' }</Text>
                   <Text size="2" color={ item.side == OrderSide.Buy ? 'jade' : 'red' }>{ Readability.toMoney(item.primaryAsset, quantity) }</Text>
                 </Flex>
-                <Flex justify="between" wrap="wrap" gap="1">
-                  <Text size="2" color="gray">For</Text>
-                  <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(paidAsset, item.startingValue) }</Text>
-                </Flex>
+                {
+                  quantity && quantity.isFinite() && possiblePrice && possiblePrice.isFinite() &&
+                  <Flex justify="between" wrap="wrap" gap="1">
+                    <Text size="2" color="gray">For</Text>
+                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(item.secondaryAsset, quantity.multipliedBy(possiblePrice)) }</Text>
+                  </Flex>
+                }
                 <Flex justify="between" wrap="wrap" gap="1">
                   <Text size="2" color="yellow">Left</Text>
                   <Text size="2" color="yellow">{ Readability.toMoney(item.primaryAsset, quantity) }</Text>

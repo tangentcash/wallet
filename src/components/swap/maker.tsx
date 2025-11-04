@@ -127,6 +127,17 @@ export default function Maker(props: {
 
     return Swap.priceOf(props.primaryAsset, props.secondaryAsset).close || new BigNumber(0);
   }, [props, state.price, state.stopPrice, hasPrice, hasStopPrice]);
+  const payingValue = useMemo((): BigNumber => {
+    const finalValueQuantity = toNumericValueOrPercent(state.value);
+    if (!finalValueQuantity.value.gt(0))
+      return new BigNumber(NaN);
+
+    const finalValue = finalValueQuantity.relative ? valueBalance.multipliedBy(finalValueQuantity.relative) : finalValueQuantity.value;
+    if (!finalValue.gt(0) || finalValue.gt(valueBalance))
+      return new BigNumber(NaN);
+
+    return finalValue;
+  }, [state.value, valueBalance]);
   const policy = useMemo((): OrderPolicy => {
     if (isImmediate) {
       return state.fillOrKill ? OrderPolicy.DeferredAll : OrderPolicy.Deferred;
@@ -560,7 +571,7 @@ export default function Maker(props: {
         </Box>
       }
       <Box mb="2">
-        <Tooltip content={`Receive ~${state.side == OrderSide.Buy ? Readability.toMoney(props.primaryAsset, (bestPrice.gt(0) ? new BigNumber(state.value).dividedBy(bestPrice) : new BigNumber(0))) : Readability.toMoney(props.secondaryAsset, bestPrice.multipliedBy(new BigNumber(state.value)))} excluding fees and slippage`}>
+        <Tooltip content={`Receive ~${state.side == OrderSide.Buy ? Readability.toMoney(props.primaryAsset, (bestPrice.gt(0) ? payingValue.dividedBy(bestPrice) : new BigNumber(0))) : Readability.toMoney(props.secondaryAsset, bestPrice.multipliedBy(payingValue))} excluding fees and slippage`}>
           <TextField.Root placeholder={Readability.toAssetSymbol(valueAsset) + ' quantity or %'} size="2" value={state.value} onChange={(e) => updateState(prev => ({ ...prev, value: toValueOrPercent(prev.value, e.target.value) }))}>
             <TextField.Slot>
               <Icon path={mdiCurrencyUsd} size={0.8} />
@@ -577,7 +588,7 @@ export default function Maker(props: {
           </Flex>
           <Flex justify="between">
             <Text size="1" color="gray">Receive minimum</Text>
-            <Text size="1" color="gray">~{ state.side == OrderSide.Buy ? Readability.toMoney(props.primaryAsset, (bestPrice.gt(0) ? new BigNumber(state.value).dividedBy(bestPrice.multipliedBy(new BigNumber(1).plus(fee.relativePrice)).plus(fee.absolutePrice)).multipliedBy(new BigNumber(1).minus(fee.max)) : new BigNumber(0)).multipliedBy(new BigNumber(1).minus(fee.max))) : Readability.toMoney(props.secondaryAsset, bestPrice.multipliedBy(new BigNumber(1).minus(fee.relativePrice)).plus(fee.absolutePrice).multipliedBy(new BigNumber(state.value)).multipliedBy(new BigNumber(1).minus(fee.max))) }</Text>
+            <Text size="1" color="gray">~{ state.side == OrderSide.Buy ? Readability.toMoney(props.primaryAsset, (bestPrice.gt(0) ? payingValue.dividedBy(bestPrice.multipliedBy(new BigNumber(1).plus(fee.relativePrice)).plus(fee.absolutePrice)).multipliedBy(new BigNumber(1).minus(fee.max)) : new BigNumber(0)).multipliedBy(new BigNumber(1).minus(fee.max))) : Readability.toMoney(props.secondaryAsset, bestPrice.multipliedBy(new BigNumber(1).minus(fee.relativePrice)).plus(fee.absolutePrice).multipliedBy(payingValue).multipliedBy(new BigNumber(1).minus(fee.max))) }</Text>
           </Flex>
           <Flex justify="between">
             <Text size="1" color="gray">Exchange fee</Text>
