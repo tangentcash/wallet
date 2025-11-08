@@ -862,7 +862,7 @@ export default function InteractionPage() {
       {
         asset != -1 && program instanceof ProgramValidatorAdjustment &&
         <Card mt="4">
-          <Heading size="4" mb="2">Block production</Heading>
+          <Heading size="4" mb="2">Validation configuration</Heading>
           <Select.Root size="3" value={program.blockProduction} onValueChange={(value) => {
             const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
             copy.blockProduction = value as any;
@@ -871,12 +871,12 @@ export default function InteractionPage() {
             <Select.Trigger variant="surface" placeholder="Select block production" style={{ width: '100%' }}>
             </Select.Trigger>
             <Select.Content color="gray">
-              <Select.Item value="standby">No change</Select.Item>
+              <Select.Item value="standby">Change block production</Select.Item>
               <Select.Item value="enable">
-                Set <Text color="jade">ONLINE</Text>
+                <Text color="jade">ENABLE</Text> block production
               </Select.Item>
               <Select.Item value="disable">
-                Set <Text color="red">OFFLINE</Text>
+                <Text color="red">DISABLE</Text> block production
               </Select.Item>
             </Select.Content>
           </Select.Root>
