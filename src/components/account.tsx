@@ -380,17 +380,14 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
                 border: '1px solid var(--gray-7)',
                 borderRadius: '28px'
               }}>
-              <Box position="absolute" top="14px" right="14px">
-                <Badge size="2" color={production ? (production.active ? 'jade' : 'red') : 'orange'}>PRODUCER { production ? (production.active ? 'ONLINE' : 'OFFLINE') : 'STANDBY' }</Badge>
-              </Box>
               <Flex px="2" py="2" gap="3">
                 <Icon path={mdiArrowRightBoldHexagonOutline} size={1.5} style={{ color: 'var(--red-10)' }} />
                 <Box width="100%">
                   <Flex justify="between" align="center">
-                    <Text as="div" size="2" weight="light">Gas production</Text>
+                    <Text as="div" size="2" weight="light">Block production</Text>
                   </Flex>
                   <Tooltip content="Gas accumulated from every produced block">
-                    <Text as="div" size="2" weight="medium">{ Readability.toGas(production ? production.gas : 0) }</Text>
+                    <Badge size="1" color={production ? (production.active ? 'jade' : 'red') : 'orange'}>PRODUCER { production ? (production.active ? 'ONLINE' : 'OFFLINE') : 'STANDBY' }</Badge>
                   </Tooltip>
                 </Box>
               </Flex>

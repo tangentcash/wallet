@@ -1,5 +1,5 @@
 {
-  "name": "tangent.wallet",
+  "name": "Tangent Cash",
   "short_name": "Tangent Cash",
   "icons": [
     {
@@ -15,7 +15,7 @@
       "purpose": "maskable"
     }
   ],
-  "theme_color": "#1f211f",
-  "background_color": "#111113",
+  "theme_color": "#212c27",
+  "background_color": "#212c27",
   "display": "standalone"
 }
