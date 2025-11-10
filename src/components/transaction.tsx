@@ -199,7 +199,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           </DataList.Item>
         </DataList.Root>
       )
-    case 'depository_account':
+    case 'bridge_account':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
@@ -219,18 +219,18 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           </DataList.Item>
         </DataList.Root>
       )
-    case 'depository_account_finalization':
+    case 'bridge_account_finalization':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
             <DataList.Label>Parent hash:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.depository_account_hash);
+                navigator.clipboard.writeText(transaction.bridge_account_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.depository_account_hash) }</Button>
+              }}>{ Readability.toHash(transaction.bridge_account_hash) }</Button>
               <Box ml="2">
-                <Link className="router-link" to={'/transaction/' + transaction.depository_account_hash}>▒▒</Link>
+                <Link className="router-link" to={'/transaction/' + transaction.bridge_account_hash}>▒▒</Link>
               </Box>
             </DataList.Value>
           </DataList.Item>
@@ -245,7 +245,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           </DataList.Item>
         </DataList.Root>
       )
-    case 'depository_withdrawal':
+    case 'bridge_withdrawal':
       return (
         <>
           <DataList.Root orientation={props.orientation} mb="4">
@@ -312,18 +312,18 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           }
         </>
       )
-    case 'depository_withdrawal_finalization':
+    case 'bridge_withdrawal_finalization':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
             <DataList.Label>Parent hash:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.depository_withdrawal_hash);
+                navigator.clipboard.writeText(transaction.bridge_withdrawal_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.depository_withdrawal_hash) }</Button>
+              }}>{ Readability.toHash(transaction.bridge_withdrawal_hash) }</Button>
               <Box ml="2">
-                <Link className="router-link" to={'/transaction/' + transaction.depository_withdrawal_hash}>▒▒</Link>
+                <Link className="router-link" to={'/transaction/' + transaction.bridge_withdrawal_hash}>▒▒</Link>
               </Box>
             </DataList.Value>
           </DataList.Item>
@@ -369,7 +369,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           }
         </DataList.Root>
       )
-    case 'depository_attestation': {
+    case 'bridge_attestation': {
       if (transaction.proof != null) {
         const from = transaction.proof.inputs.map((item: any) => {
           return [{
@@ -483,7 +483,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
         )
       }
     }
-    case 'depository_adjustment':
+    case 'bridge_adjustment':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
@@ -516,7 +516,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           </DataList.Item>
         </DataList.Root>
       )
-    case 'depository_migration':
+    case 'bridge_migration':
       return (
           transaction.shares.map((item: any, index: number) =>
             <Card key={item.manager + index} mb="4">
@@ -547,18 +547,18 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </Card>
           )
       )
-    case 'depository_migration_finalization':
+    case 'bridge_migration_finalization':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
             <DataList.Label>Parent hash:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.depository_migration_hash);
+                navigator.clipboard.writeText(transaction.bridge_migration_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.depository_migration_hash) }</Button>
+              }}>{ Readability.toHash(transaction.bridge_migration_hash) }</Button>
               <Box ml="2">
-                <Link className="router-link" to={'/transaction/' + transaction.depository_migration_hash}>▒▒</Link>
+                <Link className="router-link" to={'/transaction/' + transaction.bridge_migration_hash}>▒▒</Link>
               </Box>
             </DataList.Value>
           </DataList.Item>
@@ -714,7 +714,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                 </Card>
               )
             }
-            case EventType.DepositoryTransfer: {
+            case EventType.BridgeTransfer: {
               return (
                 <Card key={event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
@@ -744,7 +744,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                 </Card>
               )
             }
-            case EventType.DepositoryAccount: {
+            case EventType.BridgeAccount: {
               return (
                 <Card key={event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
@@ -778,7 +778,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                 </Card>
               )
             }
-            case EventType.DepositoryQueue: {
+            case EventType.BridgeQueue: {
               return (
                 <Card key={event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
@@ -823,7 +823,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                 </Card>
               )
             }
-            case EventType.DepositoryPolicy: {
+            case EventType.BridgePolicy: {
               return (
                 <Card key={event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
@@ -869,7 +869,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                 </Card>
               )
             }
-            case EventType.DepositoryParticipant: {
+            case EventType.BridgeParticipant: {
               return (
                 <Card key={event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
@@ -1084,18 +1084,18 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   })
                 }
                 {
-                  state.depository.balances[ownerAddress] && Object.keys(state.depository.balances[ownerAddress]).map((asset) => {
-                    const value = state.depository.balances[ownerAddress][asset];
+                  state.bridge.balances[ownerAddress] && Object.keys(state.bridge.balances[ownerAddress]).map((asset) => {
+                    const value = state.bridge.balances[ownerAddress][asset];
                     return (
                       <Badge key={'X1' + transaction.hash + asset} size="1" radius="medium" color={value.supply.eq(0) ? 'gray' : 'lime'} style={{ textTransform: 'uppercase' }}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge>
                     )
                   })
                 }
                 {
-                  Object.entries(state.depository.queues).map((data) => {
-                    return Object.entries(state.depository.queues[data[0]]).map((inputs) => {
+                  Object.entries(state.bridge.queues).map((data) => {
+                    return Object.entries(state.bridge.queues[data[0]]).map((inputs) => {
                       const event = inputs[1];
-                      const transactionHash = event.transactionHash || transaction.depository_withdrawal_hash || transaction.hash;
+                      const transactionHash = event.transactionHash || transaction.bridge_withdrawal_hash || transaction.hash;
                       const locking = event.transactionHash != null;
                       return <Badge key={'X2' + event.asset.handle + transactionHash} size="1" radius="medium" color="yellow">{ locking ? '+' : '-' }{ Readability.toAddress(transactionHash) }</Badge>
                     })
@@ -1118,16 +1118,16 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   <Badge size="1" radius="medium" color="gold">{ Readability.toCount('receipt', Object.keys(state.receipts).length) }</Badge>
                 }
                 {
-                  Object.keys(state.depository.accounts).length > 0 && !Object.keys(state.witness.accounts).length &&
-                  <Badge size="1" radius="medium" color="jade">{ Readability.toCount('account', Object.keys(state.depository.accounts).length, true) }</Badge>
+                  Object.keys(state.bridge.accounts).length > 0 && !Object.keys(state.witness.accounts).length &&
+                  <Badge size="1" radius="medium" color="jade">{ Readability.toCount('account', Object.keys(state.bridge.accounts).length, true) }</Badge>
                 }
                 {
-                  Object.keys(state.depository.policies).length > 0 &&
-                  <Badge size="1" radius="medium" color="jade">{ Readability.toCount('change', Object.keys(state.depository.policies).length) }</Badge>
+                  Object.keys(state.bridge.policies).length > 0 &&
+                  <Badge size="1" radius="medium" color="jade">{ Readability.toCount('change', Object.keys(state.bridge.policies).length) }</Badge>
                 }
                 {
-                  state.depository.participants.size > 0 &&
-                  <Badge size="1" radius="medium" color="jade">{ Readability.toCount('participant', state.depository.participants.size) }</Badge>
+                  state.bridge.participants.size > 0 &&
+                  <Badge size="1" radius="medium" color="jade">{ Readability.toCount('participant', state.bridge.participants.size) }</Badge>
                 }
                 {
                   EventResolver.isSummaryStateEmpty(state, ownerAddress) &&

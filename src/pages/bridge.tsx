@@ -12,12 +12,12 @@ import InfiniteScroll from "react-infinite-scroll-component";
 
 const DEPOSITORY_COUNT = 48;
 
-function toDepositoryIndex(policy: any): [boolean, string] {
+function toBridgeIndex(policy: any): [boolean, string] {
   const index = policy.security_level / (Chain.props.PARTICIPATION_COMMITTEE[1] * 0.83);
   const speedOverSecurity = index <= 0.5;
   return [speedOverSecurity, index.toFixed(3) + (speedOverSecurity ? ' prefers speed' : ' prefers security')];
 }
-function toDepositoryStatus(policy: any): string {
+function toBridgeStatus(policy: any): string {
   let status = '';
   if (!policy.accepts_account_requests)
     status += 'Registrations halted, ';
@@ -26,7 +26,7 @@ function toDepositoryStatus(policy: any): string {
   return status.length > 0 ? status.substring(0, status.length - 2) : 'Functional';
 }
 
-export default function DepositoryPage() {
+export default function BridgePage() {
   const ownerAddress = AppData.getWalletAddress() || '';
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [query] = useSearchParams();
@@ -34,15 +34,15 @@ export default function DepositoryPage() {
   const [assets, setAssets] = useState<any[]>([]);
   const [walletAddresses, setWalletAddresses] = useState<any[]>([]);
   const [cachedAddresses, setCachedAddresses] = useState<any[] | null>(null);
-  const [acquiredDepositories, setAcquiredDepositories] = useState<{ [key: string]: any }>({ });
-  const [candidateDepositories, setCandidateDepositories] = useState<any[]>([]);
-  const [moreDepositories, setMoreDepositories] = useState(true);
+  const [acquiredBridges, setAcquiredBridges] = useState<{ [key: string]: any }>({ });
+  const [candidateBridges, setCandidateBridges] = useState<any[]>([]);
+  const [moreBridges, setMoreBridges] = useState(true);
   const navigate = useNavigate();
   const asset = useMemo(() => {
     const target = query.get('asset');
     return target ? assets.find((v) => v.id == target) || null : null;
   }, [query, assets]);
-  const findDepositories = useCallback(async (refresh?: boolean) => {
+  const findBridges = useCallback(async (refresh?: boolean) => {
     try {
       if (!asset)
         return null;
@@ -50,37 +50,37 @@ export default function DepositoryPage() {
       let data;
       switch (preference) {
         case 'security':
-          data = await RPC.getBestDepositoryPoliciesForSelection(new AssetId(asset.id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
+          data = await RPC.getBestBridgePoliciesForSelection(new AssetId(asset.id), refresh ? 0 : candidateBridges.length, DEPOSITORY_COUNT);
           break;
         case 'popularity':
-          data = await RPC.getBestDepositoryBalancesForSelection(new AssetId(asset.id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
+          data = await RPC.getBestBridgeBalancesForSelection(new AssetId(asset.id), refresh ? 0 : candidateBridges.length, DEPOSITORY_COUNT);
           if (!data || !data.length)
-            data = await RPC.getBestDepositoryPoliciesForSelection(new AssetId(asset.id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
+            data = await RPC.getBestBridgePoliciesForSelection(new AssetId(asset.id), refresh ? 0 : candidateBridges.length, DEPOSITORY_COUNT);
           break;
         case 'cost':
-          data = await RPC.getBestDepositoryRewardsForSelection(new AssetId(asset.id), refresh ? 0 : candidateDepositories.length, DEPOSITORY_COUNT);
+          data = await RPC.getBestBridgeRewardsForSelection(new AssetId(asset.id), refresh ? 0 : candidateBridges.length, DEPOSITORY_COUNT);
           break;
         default:
           return null;
       }
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
-          setCandidateDepositories([]);
-        setMoreDepositories(false);
+          setCandidateBridges([]);
+        setMoreBridges(false);
         return null;
       }
 
-      const result = refresh ? data : data.concat(candidateDepositories);
-      setCandidateDepositories(result);
-      setMoreDepositories(data.length >= DEPOSITORY_COUNT);
+      const result = refresh ? data : data.concat(candidateBridges);
+      setCandidateBridges(result);
+      setMoreBridges(data.length >= DEPOSITORY_COUNT);
       return result;
     } catch {
       if (refresh)
-        setCandidateDepositories([]);
-      setMoreDepositories(false);
+        setCandidateBridges([]);
+      setMoreBridges(false);
       return null;
     }
-  }, [asset, preference, candidateDepositories]);
+  }, [asset, preference, candidateBridges]);
   useEffectAsync(async () => {
     try {
       if (!assets.length) {
@@ -95,7 +95,7 @@ export default function DepositoryPage() {
     if (!asset)
       return;
 
-    await findDepositories(true);
+    await findBridges(true);
     try {
       const addressData = cachedAddresses ? cachedAddresses : await RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count));
       if (!cachedAddresses && Array.isArray(addressData)) {
@@ -104,10 +104,10 @@ export default function DepositoryPage() {
       if (!addressData)
         throw false;
 
-      const depositoryAddresses = addressData.filter((item) => item.asset.id.toString() == asset.id.toString() && item.purpose == 'depository').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
+      const bridgeAddresses = addressData.filter((item) => item.asset.id.toString() == asset.id.toString() && item.purpose == 'bridge').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
       const mapping: any = { };
-      for (let item in depositoryAddresses) {
-        let input = depositoryAddresses[item];
+      for (let item in bridgeAddresses) {
+        let input = bridgeAddresses[item];
         let output = mapping[input.manager];
         if (output != null) {
           output.addresses = [...new Set([...input.addresses, ...output.addresses])];
@@ -118,9 +118,9 @@ export default function DepositoryPage() {
       
       const routingAddresses = addressData.filter((item) => item.asset.id.toString() == asset.id.toString() && item.purpose == 'routing').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
       setWalletAddresses(routingAddresses);  
-      setAcquiredDepositories(mapping);
+      setAcquiredBridges(mapping);
     } catch {
-      setAcquiredDepositories([]);
+      setAcquiredBridges([]);
       setWalletAddresses([]);
     }
   }, [asset, preference, cachedAddresses]);
@@ -177,7 +177,7 @@ export default function DepositoryPage() {
                   <Flex justify="between" align="center" mb="2">
                     <Heading size="4">Deposit addresses</Heading>
                     {
-                      Object.keys(acquiredDepositories).length > 0 &&
+                      Object.keys(acquiredBridges).length > 0 &&
                       <Button size="1" radius="large" variant="soft" color="yellow">
                         Preview
                         <Box ml="1">
@@ -189,20 +189,20 @@ export default function DepositoryPage() {
                 </Collapsible.Trigger>
                 <Collapsible.Content>
                   {
-                    Object.keys(acquiredDepositories).map((item: string) => {
-                      const depository = acquiredDepositories[item];
+                    Object.keys(acquiredBridges).map((item: string) => {
+                      const bridge = acquiredBridges[item];
                       return (
-                        <Box key={depository.hash} mt="4">
+                        <Box key={bridge.hash} mt="4">
                           <DataList.Root orientation={orientation}>
                             <DataList.Item>
                               <DataList.Label>Bridge account:</DataList.Label>
                               <DataList.Value>
                                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                  navigator.clipboard.writeText(depository.manager);
+                                  navigator.clipboard.writeText(bridge.manager);
                                   AlertBox.open(AlertType.Info, 'Address copied!')
-                                }}>{ Readability.toAddress(depository.manager) }</Button>
+                                }}>{ Readability.toAddress(bridge.manager) }</Button>
                                 <Box ml="2">
-                                  <Link className="router-link" to={'/account/' + depository.manager}>▒▒</Link>
+                                  <Link className="router-link" to={'/account/' + bridge.manager}>▒▒</Link>
                                 </Box>
                               </DataList.Value>
                             </DataList.Item>
@@ -217,7 +217,7 @@ export default function DepositoryPage() {
                                   asset.routing_policy == 'memo' &&
                                   <Flex gap="2" wrap="wrap">
                                     <Badge color="yellow">Deposit from any wallet with memo</Badge>
-                                    <Badge color="red">Memo — { depository.address_index.toString() }</Badge>
+                                    <Badge color="red">Memo — { bridge.address_index.toString() }</Badge>
                                   </Flex>
                                 }
                                 {
@@ -246,9 +246,9 @@ export default function DepositoryPage() {
                               </DataList.Value>
                             </DataList.Item>
                             {
-                              depository.addresses.map((address: string, addressIndex: number) =>
+                              bridge.addresses.map((address: string, addressIndex: number) =>
                                 <DataList.Item key={address}>
-                                  <DataList.Label>Deposit address v{depository.addresses.length - addressIndex}:</DataList.Label>
+                                  <DataList.Label>Deposit address v{bridge.addresses.length - addressIndex}:</DataList.Label>
                                   <DataList.Value>
                                     <Button size="2" variant="ghost" color="indigo" onClick={() => {
                                       navigator.clipboard.writeText(address);
@@ -335,12 +335,12 @@ export default function DepositoryPage() {
             <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
           </Box>
           {
-            !candidateDepositories.length &&
+            !candidateBridges.length &&
             <Text color="red">No active bridges for {Readability.toAssetName(asset)} blockchain</Text>
           }
-          <InfiniteScroll dataLength={candidateDepositories.length} hasMore={moreDepositories} next={findDepositories} loader={<div></div>}>
+          <InfiniteScroll dataLength={candidateBridges.length} hasMore={moreBridges} next={findBridges} loader={<div></div>}>
             {
-              candidateDepositories.map((item, index) =>
+              candidateBridges.map((item, index) =>
                 <Box width="100%" key={item.policy.hash + index} mb="4">
                   <Card>
                     <Flex justify="between" align="center" mb="4">
@@ -366,7 +366,7 @@ export default function DepositoryPage() {
                       <DataList.Item>
                         <DataList.Label>Bridge status:</DataList.Label>
                         <DataList.Value>
-                          <Badge size="1" radius="medium" color={!item.policy.accepts_account_requests || !item.policy.accepts_withdrawal_requests ? 'red' : 'jade'}>{ toDepositoryStatus(item.policy) }</Badge>
+                          <Badge size="1" radius="medium" color={!item.policy.accepts_account_requests || !item.policy.accepts_withdrawal_requests ? 'red' : 'jade'}>{ toBridgeStatus(item.policy) }</Badge>
                         </DataList.Value>
                       </DataList.Item>
                       <DataList.Item>
@@ -387,7 +387,7 @@ export default function DepositoryPage() {
                       <DataList.Item>
                         <DataList.Label>Security to speed index:</DataList.Label>
                         <DataList.Value>
-                          <Badge size="1" radius="medium" color={toDepositoryIndex(item.policy)[0] ? 'tomato' : 'jade'}>{ toDepositoryIndex(item.policy)[1] }</Badge>
+                          <Badge size="1" radius="medium" color={toBridgeIndex(item.policy)[0] ? 'tomato' : 'jade'}>{ toBridgeIndex(item.policy)[1] }</Badge>
                         </DataList.Value>
                       </DataList.Item>
                       <DataList.Item>
@@ -428,8 +428,14 @@ export default function DepositoryPage() {
                               </Button>
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Content>
-                              <DropdownMenu.Item shortcut="↙"  onClick={() => navigate(`/interaction?asset=${asset.id}&type=registration&manager=${item.policy.owner}`)} disabled={acquiredDepositories[item.policy.owner] != null || !item.policy.accepts_account_requests}>Deposit into account</DropdownMenu.Item>
-                              <DropdownMenu.Item shortcut="↗" onClick={() => navigate(`/interaction?asset=${asset.id}&type=withdrawal&manager=${item.policy.owner}`)} disabled={!item.policy.accepts_withdrawal_requests}>Withdraw from account</DropdownMenu.Item>
+                              <DropdownMenu.Item shortcut="↙" onClick={() => {
+                                if (acquiredBridges[item.policy.owner] == null && item.policy.accepts_account_requests)
+                                  navigate(`/interaction?asset=${asset.id}&type=registration&manager=${item.policy.owner}`)
+                              }} disabled={acquiredBridges[item.policy.owner] != null || !item.policy.accepts_account_requests}>Deposit into account</DropdownMenu.Item>
+                              <DropdownMenu.Item shortcut="↗" onClick={() => {
+                                if (item.policy.accepts_withdrawal_requests)
+                                  navigate(`/interaction?asset=${asset.id}&type=withdrawal&manager=${item.policy.owner}`)
+                              }} disabled={!item.policy.accepts_withdrawal_requests}>Withdraw from account</DropdownMenu.Item>
                             </DropdownMenu.Content>
                           </DropdownMenu.Root>
                       </Flex>

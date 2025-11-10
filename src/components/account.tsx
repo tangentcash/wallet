@@ -15,7 +15,7 @@ function toAddressType(type: string): string {
   switch (type) {
     case 'routing':
       return 'Withdrawal receiver / deposit sender';
-    case 'depository':
+    case 'bridge':
       return 'Deposit receiver';
     case 'witness':
       return 'Dismissed witness';
@@ -50,7 +50,7 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
       return <>This was a usable off-chain wallet but now dismissed owned by <Link href="#">{address.owner}</Link>{ ownerType }</>;
     else if (address.purpose == 'routing' && address.manager == null)
       return <>This is a routing off-chain wallet that can transfer funds to and receive funds from any bridge wallet owned by <Link href="#">{address.owner}</Link>{ ownerType }</>;
-    else if (address.purpose == 'depository' && address.manager != null)
+    else if (address.purpose == 'bridge' && address.manager != null)
       return <>This is an off-chain bridge wallet that can receive funds from or send funds to any routing wallet owned by <Link href="#">{address.manager}</Link>{ managerType }</>;
     else if (address.manager != null)
       return <>This is an unknown off-chain wallet owned by <Link href="#">{address.owner}</Link>{ ownerType } and is operated by <Link href="#">{address.manager}</Link>{ managerType }</>;
@@ -208,9 +208,9 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
                         </Tooltip>
                         <Tooltip content={
                           <>
-                            <Box>Locked value: { Readability.toMoney(item.asset, item.reserve) }</Box>
-                            <Box>Unlocked value: { Readability.toMoney(item.asset, item.balance) }</Box>
-                            <Box mt="1">Total value: { Readability.toMoney(item.asset, item.supply) }</Box>
+                            <Text style={{ display: 'block' }}>Locked value: { Readability.toMoney(item.asset, item.reserve) }</Text>
+                            <Text style={{ display: 'block' }}>Unlocked value: { Readability.toMoney(item.asset, item.balance) }</Text>
+                            <Text style={{ display: 'block' }} mt="1">Total value: { Readability.toMoney(item.asset, item.supply) }</Text>
                           </>
                           }>
                           <Badge size="1" radius="medium" color={item.reserve.gt(0) ? 'yellow' : 'jade'}>{ (Math.floor(10000 - item.reserve.dividedBy(item.supply).toNumber() * 10000) / 100).toFixed(2) }%</Badge>
