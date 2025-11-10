@@ -27,7 +27,7 @@ export default function BlockPage() {
       if (!id)
         throw false;
 
-      const number = parseInt(id);
+      const number = parseInt(id, 10);
       const result = await (!isNaN(number) && number > 0 ? RPC.getBlockByNumber(number, 1) : RPC.getBlockByHash(id, 1));
       if (!result)
         throw false;
