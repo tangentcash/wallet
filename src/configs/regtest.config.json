@@ -1,6 +1,6 @@
 {
   "node": {
-    "resolverUrl": "discovery.tangent.cash",
+    "resolverUrl": null,
     "serverUrl": "127.0.0.1:18419",
     "authorizer": true
   },

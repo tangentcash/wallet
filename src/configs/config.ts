@@ -4,7 +4,7 @@ import Mainnet from './mainnet.config.json'
 import { NetworkType } from 'tangentsdk';
 
 const resolve = (network: NetworkType): {
-  node: { resolverUrl: string, serverUrl: string | null, authorizer: boolean },
+  node: { resolverUrl: string | null, serverUrl: string | null, authorizer: boolean },
   wallet: { network: string, password: string | null },
   swap: { url: string, route: string, asset: string }
 } => {
