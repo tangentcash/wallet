@@ -9,7 +9,9 @@ import { SafeStorage, Storage, StorageField } from "./storage";
 import { WalletReadyRoute, WalletNotReadyRoute } from "./../components/guards";
 import { Alert, AlertBox, AlertType } from "./../components/alert";
 import { Prompter, PrompterBox } from "../components/prompter";
-import Config from './../configs/config';
+import Regtest from './../configs/regtest.json';
+import Testnet from './../configs/testnet.json';
+import Mainnet from './../configs/mainnet.json';
 import BigNumber from "bignumber.js";
 import RestorePage from "./../pages/restore";
 import HomePage from "./../pages/home";
@@ -22,6 +24,7 @@ import BridgePage from "./../pages/bridge"
 import PortfolioPage from "../pages/swap/portfolio";
 import ExplorerPage from "../pages/swap/explorer";
 import OrderbookPage from "../pages/swap/orderbook";
+import { Swap } from "./swap";
 
 const CACHE_PREFIX = 'cache';
 
@@ -73,9 +76,9 @@ export class AppData {
     setNavigation: null
   };
   static props: AppProps = {
-    resolver: Config.node.resolverUrl,
-    server: Config.node.serverUrl,
-    authorizer: Config.node.authorizer,
+    resolver: null,
+    server: null,
+    authorizer: false,
     appearance: 'dark'
   };
   static mayNotify: boolean = false;
@@ -326,6 +329,9 @@ export class AppData {
       }
     }
 
+    if (network != null)
+      this.reconfigure(network);
+    
     await this.stream();
     await this.sync();
     return true;
@@ -340,6 +346,9 @@ export class AppData {
         Chain.props = Chain[network];
     }
     
+    if (network != null)
+      this.reconfigure(network);
+
     await SafeStorage.set(StorageField.Mnemonic);
     await SafeStorage.set(StorageField.SecretKey);
     await SafeStorage.set(StorageField.PublicKey);
@@ -564,10 +573,11 @@ export class AppData {
       onPropsLoad: (): InterfaceProps | null => Storage.get(StorageField.InterfaceProps) as InterfaceProps | null,
       onPropsStore: (props: InterfaceProps): boolean => Storage.set(StorageField.InterfaceProps, props)
     });
-    RPC.applyResolver(this.props.resolver);
-    RPC.applyServer(this.props.server);
-    if (Config.wallet.password != null && Config.wallet.password.length > 0 && Config.wallet.network.length > 0)
-      await this.restoreWallet(Config.wallet.password, Config.wallet.network as NetworkType);
+    
+    // @ts-ignore
+    if (import.meta.env.DEV) {
+      await this.restoreWallet('123456', NetworkType.Regtest);
+    }
    
     const splashscreen = document.getElementById('splashscreen-content');
     if (splashscreen != null) {
@@ -580,6 +590,29 @@ export class AppData {
     
     if (this.isApp())
       await listen('authorizer', (event) => this.authorizerEvent(event));
+  }
+  static reconfigure(network: NetworkType): void {
+    const config: {
+      node: { resolverUrl: string | null, serverUrl: string | null, authorizer: boolean },
+      swap: { url: string, route: string, asset: string }
+    } = (() => {
+      switch (network) {
+        case NetworkType.Regtest:
+          return Regtest;
+        case NetworkType.Testnet:
+          return Testnet;
+        case NetworkType.Mainnet:
+          return Mainnet;
+        default:
+          throw new Error('invalid network');
+      }
+    })();
+    this.props.resolver = config.node.resolverUrl;
+    this.props.server = config.node.serverUrl;
+    this.props.authorizer = config.node.authorizer;
+    RPC.applyResolver(this.props.resolver);
+    RPC.applyServer(this.props.server);
+    Swap.applyConfiguration(config.swap);
   }
   static openDevTools(): void {
     if (this.isApp())

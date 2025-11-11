@@ -4,10 +4,6 @@
     "serverUrl": "localhost:18419",
     "authorizer": true
   },
-  "wallet": {
-    "network": "regtest",
-    "password": "123456"
-  },
   "swap": {
     "url": "http://localhost:19420",
     "route": "/swap",

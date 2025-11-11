@@ -4,10 +4,6 @@
     "serverUrl": null,
     "authorizer": true
   },
-  "wallet": {
-    "network": "testnet",
-    "password": null
-  },
   "swap": {
     "url": "https://p2p.tangent.cash:19420",
     "route": "/swap",

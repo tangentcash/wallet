@@ -1,7 +1,6 @@
 import { AssetId, ByteUtil, Hashing, Readability, Stream, Viewable } from "tangentsdk"
 import { AlertBox, AlertType } from "../components/alert"
 import { Storage } from "./storage"
-import Config from './../configs/config';
 import BigNumber from "bignumber.js"
 
 export enum MarketPolicy {
@@ -177,15 +176,20 @@ export enum SwapField {
 }
 
 export class Swap {
-  static location = Config.swap.url;
-  static subroute = Config.swap.route;
+  static location: string = '';
+  static subroute: string = '';
   static prices: Record<string, { asset: AssetId, price: { open: BigNumber | null, close: BigNumber | null } }> = { };
   static descriptors: BlockchainInfo[] = [];
-  static equityAsset: AssetId = AssetId.fromHandle(Config.swap.asset);
+  static equityAsset: AssetId = new AssetId(0);
   static orderbook:  string | null = null;
   static socket: WebSocket | null = null;
   static pipeId: string | null = null;
 
+  static applyConfiguration(options: { url: string, route: string, asset: string }) {
+    this.location = options.url;
+    this.subroute = options.route;
+    this.equityAsset = AssetId.fromHandle(options.asset);
+  }
   static storeURL(params: URLSearchParams, key: string, value: any, parentPrefix = '') {
     const fullKey = parentPrefix ? `${parentPrefix}[${key}]` : key;
     if (Array.isArray(value)) {
