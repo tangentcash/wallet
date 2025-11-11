@@ -19,6 +19,6 @@ const resolve = (network: NetworkType): {
       throw new Error('invalid network');
   }
 }
-const config = resolve(NetworkType.Regtest);
+const config = resolve(NetworkType.Testnet);
 
 export default config;

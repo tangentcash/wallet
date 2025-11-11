@@ -1,6 +1,6 @@
 {
   "node": {
-    "resolverUrl": "p2p.tangent.cash",
+    "resolverUrl": "p2p.tangent.cash:443",
     "serverUrl": null,
     "authorizer": true
   },

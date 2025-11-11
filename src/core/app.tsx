@@ -611,7 +611,7 @@ export class AppData {
   static saveFile(name: string, type: string, data: string): void {
     const link = document.createElement("a");
     document.body.appendChild(link);
-    link.style = "display: none";
+    link.style.display = 'none';
     
     const target = window.URL.createObjectURL(new Blob([data], { type: type }));
     link.href = target;

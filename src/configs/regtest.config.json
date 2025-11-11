@@ -1,7 +1,7 @@
 {
   "node": {
     "resolverUrl": null,
-    "serverUrl": "127.0.0.1:18419",
+    "serverUrl": "localhost:18419",
     "authorizer": true
   },
   "wallet": {

@@ -471,10 +471,10 @@ export default function OrderbookPage() {
     });
     setTrades(prev => ([...trades, ...prev]));
     setIncomingTrades([]);
-    if (!price)
-      return;
-
     setSeriesData(prev => {
+      if (!price)
+        return prev;
+      
       const priceSeries = [...prev.price], volumeSeries = [...prev.volume];
       const time = upperTimeSlot(seriesOptions.interval, Math.floor(new Date().getTime() / 1000)); 
       const prevPrice: PriceBar | null = priceSeries.length > 0 ? priceSeries[priceSeries.length - 1] : null;

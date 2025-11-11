@@ -8,6 +8,7 @@ import { CSSTransition, SwitchTransition } from "react-transition-group";
 import { SafeStorage, Storage, StorageField } from "../core/storage";
 import { ByteUtil, Chain, NetworkType, Pubkeyhash, Signing, WalletType } from "tangentsdk";
 import { AppData } from "../core/app";
+import Config from "./../configs/config"
 import Typed from 'typed.js';
 import Icon from '@mdi/react';
 
@@ -41,7 +42,7 @@ export default function RestorePage() {
   const [status, setStatus] = useState<'reset' | 'restore' | 'import' | 'mnemonic'>(AppData.isWalletExists() ? 'restore' : 'reset');
   const [importType, setImportType] = useState<WalletType>(WalletType.Mnemonic);
   const [importCandidate, setImportCandidate] = useState('');
-  const [networkType, setNetworkType] = useState<NetworkType>(Storage.get(StorageField.Network) || NetworkType.Mainnet);
+  const [networkType, setNetworkType] = useState<NetworkType>(Storage.get(StorageField.Network) || Config.wallet.network);
   const titleRef = useRef(null);
   const contentRef = useRef(null);
   const navigate = useNavigate();
