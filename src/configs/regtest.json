@@ -1,12 +1,6 @@
 {
-  "node": {
-    "resolverUrl": null,
-    "serverUrl": "localhost:18419",
-    "authorizer": true
-  },
-  "swap": {
-    "url": "http://localhost:19420",
-    "route": "/swap",
-    "asset": "USD"
-  }
+  "resolverUrl": null,
+  "swapUrl": "http://localhost:19420",
+  "serverUrl": "localhost:18419",
+  "authorizer": true
 }

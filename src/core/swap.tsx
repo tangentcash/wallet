@@ -177,19 +177,14 @@ export enum SwapField {
 
 export class Swap {
   static location: string = '';
-  static subroute: string = '';
+  static subroute: string = '/swap';
   static prices: Record<string, { asset: AssetId, price: { open: BigNumber | null, close: BigNumber | null } }> = { };
   static descriptors: BlockchainInfo[] = [];
-  static equityAsset: AssetId = new AssetId(0);
+  static equityAsset: AssetId = AssetId.fromHandle('USD');
   static orderbook:  string | null = null;
   static socket: WebSocket | null = null;
   static pipeId: string | null = null;
 
-  static applyConfiguration(options: { url: string, route: string, asset: string }) {
-    this.location = options.url;
-    this.subroute = options.route;
-    this.equityAsset = AssetId.fromHandle(options.asset);
-  }
   static storeURL(params: URLSearchParams, key: string, value: any, parentPrefix = '') {
     const fullKey = parentPrefix ? `${parentPrefix}[${key}]` : key;
     if (Array.isArray(value)) {

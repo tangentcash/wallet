@@ -47,101 +47,6 @@ export default function RestorePage() {
   const titleRef = useRef(null);
   const contentRef = useRef(null);
   const navigate = useNavigate();
-  const reportError = useCallback(() => {
-    setError(true);
-    setPassphrase('');
-    setTimeout(() => setError(false), 500);
-  }, []);
-  const restoreWallet = useCallback(async () => {
-    if (loading || error)
-      return;
-
-    setLoading(true);
-    let status = await AppData.restoreWallet(passphrase, networkType);
-    if (!status) {
-      AlertBox.open(AlertType.Error, 'Wallet password did not unlock the secure storage');
-      reportError();
-    } else {
-      return navigate('/');
-    }
-    setLoading(false);
-  }, [passphrase, loading, error]);
-  const createWallet = useCallback(async () => {
-    if (loading || error)
-      return;
-
-    setLoading(true);
-    let status = await SafeStorage.reset(passphrase);
-    if (status) {
-      if (importValid) {
-        status = await AppData.resetWallet(importType == WalletType.Mnemonic ? importCandidate.split(' ') : importCandidate, importType, networkType);
-        if (status)
-            return navigate('/');
-
-        AlertBox.open(AlertType.Error, 'Wallet recovery phrase could not be securely saved');
-        reportError();
-      } else if (mnemonic.length == 24) {
-        status = await AppData.resetWallet(mnemonic, WalletType.Mnemonic, networkType);
-        if (status)
-            return navigate('/');
-
-        AlertBox.open(AlertType.Error, 'Wallet recovery phrase could not be securely saved');
-        reportError();
-      } else {
-        setStatus('mnemonic');
-        await secureMnemonic();
-      }
-    } else {
-      AlertBox.open(AlertType.Error, 'Wallet recovery phrase could not be generated');
-      reportError();
-    }
-    setLoading(false);
-  }, [passphrase, loading, error]);
-  const secureMnemonic = useCallback(async () => {
-    if (loading || error)
-      return;
-
-    setLoading(true);
-    let mnemonic: string = '';
-    for (let i = 0; i < 32; i++) {
-      mnemonic = Signing.mnemonicgen();
-      setSeed(cyrb128(mnemonic)[0]);
-      setMnemonic(mnemonic.split(' '));
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
-
-    let status = await AppData.resetWallet(mnemonic.split(' '), WalletType.Mnemonic);
-    if (!status) {
-      AlertBox.open(AlertType.Error, 'Wallet recovery phrase could not be securely saved');
-      reportError();
-      setStatus('reset');
-    }
-    setLoading(false);
-  }, [loading, error]);
-  const copyMnemonic = useCallback(async () => {
-    if (numeration) {
-      navigator.clipboard.writeText(mnemonic.map((x, index) => (index + 1) + '. ' + x).join('\n'));
-      AlertBox.open(AlertType.Info, 'Plain recovery phrase is copied!');
-    } else {
-      navigator.clipboard.writeText(mnemonic.join(' '));
-      AlertBox.open(AlertType.Info, 'List of recovery phrase words is copied!');
-    }
-  }, [mnemonic, numeration]);
-  const resetWallet = useCallback((fromImport: boolean) => {
-    setStatus('reset');
-    setPassphrase('');
-    if (!fromImport)
-      setImportCandidate('');
-  }, []);
-  const importWallet = useCallback(() => {
-    setStatus('import');
-    setPassphrase('');
-  }, [status]);
-  const tryRestoreWallet = useCallback(() => {
-    setStatus('restore');
-    setPassphrase('');
-    setImportCandidate('');
-  }, []);
   const importValid = useMemo((): boolean => {
     switch (importType) {
       case WalletType.Mnemonic: {
@@ -208,13 +113,108 @@ export default function RestorePage() {
       default:
         return false;
     }
-  }, [importType, importCandidate]);
+  }, [importType, importCandidate, networkType]);
   const wordsList = useMemo(() => {
     let result = [];
     for (let i = 0; i < 4; i++)
       result.push(wordlist[Math.floor(Math.random() * wordlist.length) % wordlist.length]);
     return result;
   }, [importType]);
+  const reportError = useCallback(() => {
+    setError(true);
+    setPassphrase('');
+    setTimeout(() => setError(false), 500);
+  }, []);
+  const restoreWallet = useCallback(async () => {
+    if (loading || error)
+      return;
+
+    setLoading(true);
+    let status = await AppData.restoreWallet(passphrase, networkType);
+    if (!status) {
+      AlertBox.open(AlertType.Error, 'Wallet password did not unlock the secure storage');
+      reportError();
+    } else {
+      return navigate('/');
+    }
+    setLoading(false);
+  }, [passphrase, networkType, loading, error]);
+  const createWallet = useCallback(async () => {
+    if (loading || error)
+      return;
+
+    setLoading(true);
+    let status = await SafeStorage.reset(passphrase);
+    if (status) {
+      if (importValid) {
+        status = await AppData.resetWallet(importType == WalletType.Mnemonic ? importCandidate.split(' ') : importCandidate, importType, networkType);
+        if (status)
+            return navigate('/');
+
+        AlertBox.open(AlertType.Error, 'Wallet recovery phrase could not be securely saved');
+        reportError();
+      } else if (mnemonic.length == 24) {
+        status = await AppData.resetWallet(mnemonic, WalletType.Mnemonic, networkType);
+        if (status)
+            return navigate('/');
+
+        AlertBox.open(AlertType.Error, 'Wallet recovery phrase could not be securely saved');
+        reportError();
+      } else {
+        setStatus('mnemonic');
+        await secureMnemonic();
+      }
+    } else {
+      AlertBox.open(AlertType.Error, 'Wallet recovery phrase could not be generated');
+      reportError();
+    }
+    setLoading(false);
+  }, [passphrase, networkType, loading, error, importValid, mnemonic]);
+  const secureMnemonic = useCallback(async () => {
+    if (loading || error)
+      return;
+
+    setLoading(true);
+    let mnemonic: string = '';
+    for (let i = 0; i < 32; i++) {
+      mnemonic = Signing.mnemonicgen();
+      setSeed(cyrb128(mnemonic)[0]);
+      setMnemonic(mnemonic.split(' '));
+      await new Promise((resolve) => setTimeout(resolve, 200));
+    }
+
+    let status = await AppData.resetWallet(mnemonic.split(' '), WalletType.Mnemonic, networkType);
+    if (!status) {
+      AlertBox.open(AlertType.Error, 'Wallet recovery phrase could not be securely saved');
+      reportError();
+      setStatus('reset');
+    }
+    setLoading(false);
+  }, [loading, error, networkType]);
+  const copyMnemonic = useCallback(async () => {
+    if (numeration) {
+      navigator.clipboard.writeText(mnemonic.map((x, index) => (index + 1) + '. ' + x).join('\n'));
+      AlertBox.open(AlertType.Info, 'Plain recovery phrase is copied!');
+    } else {
+      navigator.clipboard.writeText(mnemonic.join(' '));
+      AlertBox.open(AlertType.Info, 'List of recovery phrase words is copied!');
+    }
+  }, [mnemonic, numeration]);
+  const resetWallet = useCallback((fromImport: boolean) => {
+    setStatus('reset');
+    setPassphrase('');
+    if (!fromImport)
+      setImportCandidate('');
+  }, []);
+  const importWallet = useCallback(() => {
+    setStatus('import');
+    setPassphrase('');
+  }, [status]);
+  const tryRestoreWallet = useCallback(() => {
+    setStatus('restore');
+    setPassphrase('');
+    setImportCandidate('');
+  }, []);
   useEffect(() => {
     if (!titleRef.current)
       return;
