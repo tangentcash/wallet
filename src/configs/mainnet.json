@@ -1,11 +1,11 @@
 {
   "node": {
-    "resolverUrl": "p2p.tangent.cash:443",
+    "resolverUrl": "https://tangent.cash:18420",
     "serverUrl": null,
     "authorizer": true
   },
   "swap": {
-    "url": "https://p2p.tangent.cash:19420",
+    "url": "https://tangent.cash:19420",
     "route": "/swap",
     "asset": "USD"
   }
