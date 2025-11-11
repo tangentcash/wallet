@@ -1,0 +1,16 @@
+{
+  "node": {
+    "resolverUrl": "tdiscovery.tangent.cash",
+    "serverUrl": null,
+    "authorizer": true
+  },
+  "wallet": {
+    "network": "testnet",
+    "password": null
+  },
+  "swap": {
+    "url": "http://tswap.tangent.cash:19420",
+    "route": "/swap",
+    "asset": "USD"
+  }
+}

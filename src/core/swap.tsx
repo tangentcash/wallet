@@ -1,7 +1,7 @@
 import { AssetId, ByteUtil, Hashing, Readability, Stream, Viewable } from "tangentsdk"
 import { AlertBox, AlertType } from "../components/alert"
 import { Storage } from "./storage"
-import Config from './../config.json';
+import Config from './../configs/config';
 import BigNumber from "bignumber.js"
 
 export enum MarketPolicy {

@@ -9,7 +9,7 @@ import { SafeStorage, Storage, StorageField } from "./storage";
 import { WalletReadyRoute, WalletNotReadyRoute } from "./../components/guards";
 import { Alert, AlertBox, AlertType } from "./../components/alert";
 import { Prompter, PrompterBox } from "../components/prompter";
-import Config from './../config.json';
+import Config from './../configs/config';
 import BigNumber from "bignumber.js";
 import RestorePage from "./../pages/restore";
 import HomePage from "./../pages/home";
@@ -566,7 +566,7 @@ export class AppData {
     });
     RPC.applyResolver(this.props.resolver);
     RPC.applyServer(this.props.server);
-    if (Config.wallet.password.length > 0 && Config.wallet.network.length > 0)
+    if (Config.wallet.password != null && Config.wallet.password.length > 0 && Config.wallet.network.length > 0)
       await this.restoreWallet(Config.wallet.password, Config.wallet.network as NetworkType);
    
     const splashscreen = document.getElementById('splashscreen-content');
