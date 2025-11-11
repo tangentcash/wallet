@@ -1860,9 +1860,9 @@ source-map-js@^1.2.1:
   resolved "https://registry.yarnpkg.com/source-map-js/-/source-map-js-1.2.1.tgz#1ce5650fddd87abc099eda37dcff024c2667ae46"
   integrity sha512-UXWMKhLOwVKb728IUtQPXxfYU+usdybtUrK/8uGE8CQMvrhOpwvzDBwj0QhSL7MQc7vIsISBG8VQ8+IDQxpfQA==
 
-"tangentsdk@http://c.lan:8929/root/tangentsdk.git":
+"tangentsdk@https://github.com/tangentcash/sdk.git":
   version "1.0.0"
-  resolved "http://c.lan:8929/root/tangentsdk.git#49e5ae3b95487a722d83e59a8b9ab1f126ca114e"
+  resolved "https://github.com/tangentcash/sdk.git#62b1ab3a03ae2f8bbb7160a899c0b3e4feed4ac5"
   dependencies:
     "@ethersproject/random" "5.8.0"
     "@noble/hashes" "1.8.0"
