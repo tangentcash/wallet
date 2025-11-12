@@ -86,6 +86,7 @@ export class AppData {
   static platform: 'desktop' | 'mobile' | 'unknown' = 'unknown';
   static wallet: WalletKeychain | null = null;
   static tip: BigNumber | null = null;
+  static baseAsset = AssetId.fromHandle('TAN');
   static approveTransaction: ((proof: { hash: Uint256, message: Uint8Array, signature: Hashsig } | null) => void) | null = null;
 
   private static storeWalletKeychain(type: WalletType, secret: string | string[]): boolean {
@@ -698,6 +699,12 @@ export class AppData {
         this.styles = getComputedStyle(element);
     }
     return this.styles?.getPropertyValue(property) || undefined;
+  }
+  static toAssetId(asset: AssetId): AssetId {
+    return asset.chain == this.baseAsset.chain ? new AssetId() : asset;
+  }
+  static fromAssetId(asset: AssetId): AssetId {
+    return asset.chain?.length || 0 > 0 ? asset : this.baseAsset;
   }
 }
 
