@@ -356,7 +356,7 @@ export default function InteractionPage() {
     try {
       const buildProgram = async (method: { type: Ledger.Transaction | Ledger.Commitment | Ledger.Unknown, args: { [key: string]: any } }) => {
         const output = await AppData.buildWalletTransaction({
-          asset: AppData.toAssetId(new AssetId(assets[asset].asset.id)),
+          asset: new AssetId(assets[asset].asset.id),
           nonce: options?.prebuilt ? options.prebuilt.body.nonce.toString() : (nonce || undefined),
           gasPrice: options?.gasPrice ? options.gasPrice : gasPrice,
           gasLimit: options?.gasLimit ? options.gasLimit : (options?.prebuilt ? options.prebuilt.body.gasLimit.toString() : gasLimit),
@@ -449,7 +449,7 @@ export default function InteractionPage() {
           type: new Transactions.BridgeMigration(),
           args: {
             shares: participants.map((item) => {
-              const asset = AppData.toAssetId(new AssetId(item.asset.id));
+              const asset = new AssetId(item.asset.id);
               const manager = Signing.decodeAddress(item.manager || '');
               const owner = Signing.decodeAddress(item.owner || '');
               const message = new Stream();
@@ -519,7 +519,7 @@ export default function InteractionPage() {
     setLoadingGasPriceAndPrice(loadingRequired);
     if (presetGasPrice.eq(-1)) {
       try {
-        presetGasPrice = await RPC.getGasPrice(AppData.toAssetId(new AssetId(assets[asset].asset.id)), percentile);
+        presetGasPrice = await RPC.getGasPrice(new AssetId(assets[asset].asset.id), percentile);
         presetGasPrice = presetGasPrice != null && BigNumber.isBigNumber(presetGasPrice) && presetGasPrice.gte(0) ? presetGasPrice : new BigNumber(0);
       } catch { }
     }
@@ -665,7 +665,7 @@ export default function InteractionPage() {
         assetData = [];
       }
 
-      const initial = { asset: AppData.baseAsset, balance: new BigNumber(0), reserve: new BigNumber(0), supply: new BigNumber(0) }
+      const initial = { asset: new AssetId(), balance: new BigNumber(0), reserve: new BigNumber(0), supply: new BigNumber(0) }
       const target = params.asset != null ? { asset: new AssetId(params.asset), balance: new BigNumber(0), reserve: new BigNumber(0), supply: new BigNumber(0) } : null;
       if (assetData.findIndex((item) => item.asset.chain == initial.asset.chain) == -1) {
         assetData = [initial, ...assetData];
