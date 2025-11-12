@@ -675,8 +675,8 @@ export default function InteractionPage() {
         assetData = [...assetData, target];
         assetIndex = assetData.length - 1;
       }
-      setAsset(assetIndex);
       setAssets(assetData);
+      setAsset(assetIndex);
     } catch { }
   }, [query]);
   useEffect(() => {
