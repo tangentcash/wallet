@@ -581,9 +581,9 @@ export class AppData {
    
     const splashscreen = document.getElementById('splashscreen-content');
     if (splashscreen != null) {
+      splashscreen.ontransitionend = () => this.render();
       splashscreen.style.transition = 'opacity 250ms linear';
       splashscreen.style.opacity = '0';
-      splashscreen.ontransitionend = () => this.render();
     } else {
       this.render();
     }
