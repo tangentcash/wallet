@@ -576,7 +576,7 @@ export class AppData {
     });
     
     // @ts-ignore
-    if (import.meta.env.DEV) {
+    if (false && import.meta.env.DEV) {
       await this.restoreWallet('123456', NetworkType.Regtest);
     }
    
