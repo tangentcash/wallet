@@ -667,7 +667,7 @@ export default function InteractionPage() {
 
       const initial = { asset: AppData.baseAsset, balance: new BigNumber(0), reserve: new BigNumber(0), supply: new BigNumber(0) }
       const target = params.asset != null ? { asset: new AssetId(params.asset), balance: new BigNumber(0), reserve: new BigNumber(0), supply: new BigNumber(0) } : null;
-      if (assetData.findIndex((item) => item.asset.id == initial.asset.id) == -1) {
+      if (assetData.findIndex((item) => item.asset.chain == initial.asset.chain) == -1) {
         assetData = [initial, ...assetData];
       }
       let assetIndex = target ? assetData.findIndex((item) => item.asset.id == target.asset.id) : -1;
