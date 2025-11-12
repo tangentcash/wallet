@@ -661,37 +661,22 @@ export default function InteractionPage() {
       if (Array.isArray(assetData)) {
         assetData = assetData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
         assetData = assetData.filter((item) => item.balance?.gt(0) || item.reserve?.gt(0) || item.supply?.gt(0));
+      } else {
+        assetData = [];
       }
 
-      if (params.asset != null) {
-        const target: AssetId = new AssetId(params.asset);
-        if (Array.isArray(assetData)) {
-          const index = assetData.findIndex((item) => item.asset.id == target.id);
-          if (index == -1) {
-            assetData = [...assetData, {
-              asset: target,
-              balance: new BigNumber(0),
-              reserve: new BigNumber(0),
-              supply: new BigNumber(0)
-            }];
-            setAssets(assetData);
-            setAsset(assetData.length - 1);
-          } else {
-            setAssets(assetData);
-            setAsset(index);
-          }
-        } else {
-          setAssets([{
-            asset: target,
-            balance: new BigNumber(0),
-            reserve: new BigNumber(0),
-            supply: new BigNumber(0)
-          }]);
-          setAsset(0);
-        }
-      } else if (Array.isArray(assetData)) {
-        setAssets(assetData);
+      const initial = { asset: AssetId.fromHandle('TAN'), balance: new BigNumber(0), reserve: new BigNumber(0), supply: new BigNumber(0) }
+      const target = params.asset != null ? { asset: new AssetId(params.asset), balance: new BigNumber(0), reserve: new BigNumber(0), supply: new BigNumber(0) } : null;
+      if (assetData.findIndex((item) => item.asset.id == initial.asset.id) == -1) {
+        assetData = [initial, ...assetData];
       }
+      let assetIndex = target ? assetData.findIndex((item) => item.asset.id == target.asset.id) : -1;
+      if (target && assetIndex == -1) {
+        assetData = [...assetData, target];
+        assetIndex = assetData.length - 1;
+      }
+      setAsset(assetIndex);
+      setAssets(assetData);
     } catch { }
   }, [query]);
   useEffect(() => {
