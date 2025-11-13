@@ -12,7 +12,6 @@ import Typed from 'typed.js';
 import Icon from '@mdi/react';
 
 // @ts-ignore
-const DEFAULT_NETWORK = import.meta.env.DEV ? NetworkType.Regtest : NetworkType.Testnet;
 const PASSWORD_SIZE = 6;
 const COLOR_MAP = ["gray", "gold", "bronze", "brown", "yellow", "amber", "orange", "tomato", "red", "ruby", "crimson", "pink", "plum", "purple", "violet", "iris", "indigo", "blue", "cyan", "teal", "jade", "green", "grass", "lime", "mint", "sky"];
 
@@ -43,7 +42,7 @@ export default function RestorePage() {
   const [status, setStatus] = useState<'reset' | 'restore' | 'import' | 'mnemonic'>(AppData.isWalletExists() ? 'restore' : 'reset');
   const [importType, setImportType] = useState<WalletType>(WalletType.Mnemonic);
   const [importCandidate, setImportCandidate] = useState('');
-  const [networkType, setNetworkType] = useState<NetworkType>(Storage.get(StorageField.Network) || DEFAULT_NETWORK);
+  const [networkType, setNetworkType] = useState<NetworkType>(Storage.get(StorageField.Network) || AppData.defaultNetwork());
   const titleRef = useRef(null);
   const contentRef = useRef(null);
   const navigate = useNavigate();

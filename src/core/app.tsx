@@ -575,8 +575,8 @@ export class AppData {
     });
     
     // @ts-ignore
-    if (false && import.meta.env.DEV) {
-      await this.restoreWallet('123456', NetworkType.Regtest);
+    if (import.meta.env.DEV) {
+      await this.restoreWallet('123456', this.defaultNetwork());
     }
    
     const splashscreen = document.getElementById('splashscreen-content');
@@ -698,6 +698,10 @@ export class AppData {
         this.styles = getComputedStyle(element);
     }
     return this.styles?.getPropertyValue(property) || undefined;
+  }
+  static defaultNetwork(): NetworkType {
+    // @ts-ignore
+    return import.meta.env.DEV ? NetworkType.Testnet : NetworkType.Testnet;
   }
 }
 
