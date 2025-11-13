@@ -1152,7 +1152,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(transaction.hash);
                   AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                }}>{ Readability.toHash(transaction.hash) }</Button>
+                }}>{ Readability.toHash(transaction.hash, 12) }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/transaction/' + transaction.hash}>▒▒</Link>
                 </Box>
@@ -1164,7 +1164,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(transaction.signature);
                   AlertBox.open(AlertType.Info, 'Transaction signature copied!')
-                }}>{ Readability.toHash(transaction.signature) }</Button>
+                }}>{ Readability.toHash(transaction.signature, 12) }</Button>
               </DataList.Value>
             </DataList.Item>
             {

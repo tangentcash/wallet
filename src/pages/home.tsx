@@ -14,7 +14,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
-  const account = useRef<any>(null);
+  const [nonce, setNonce] = useState(0);
   const searchInput = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
   const search = useCallback(async () => {
@@ -125,30 +125,18 @@ export default function HomePage() {
           if (state.blockId != null)
             clearTimeout(state.blockId);
           state.blockId = setTimeout(() => {
-            AppData.sync().then(() => {
-              if (account.current != null) {
-                if (typeof account.current.updateFullAccountData == 'function')
-                  account.current.updateFullAccountData();
-                if (typeof account.current.updateFinalizedTransactions == 'function')
-                  account.current.updateFinalizedTransactions();
-                if (typeof account.current.updateMempoolTransactions == 'function')
-                  account.current.updateMempoolTransactions();
-              }
-            });
+            AppData.sync().then(() => setNonce(prev => prev + 1));
             state.blockId = null;
-          }, 500);
+          }, 1000);
           break;
         }
         case 'transaction': {
           if (state.transactionId != null)
             clearTimeout(state.transactionId);
           state.transactionId = setTimeout(() => {
-            AppData.sync().then(() => {
-              if (account.current != null && typeof account.current.updateMempoolTransactions == 'function')
-                account.current.updateMempoolTransactions();
-            });
+            AppData.sync().then(() => setNonce(prev => prev + 1));
             state.transactionId = null;
-          }, 500);
+          }, 1000);
           break;
         }
         default:
@@ -165,8 +153,8 @@ export default function HomePage() {
   }, []);
 
   return (
-    <Box px="4" pt="4" maxWidth="680px" mx="auto">
-      <Flex gap="2" align="center" justify="between" px="1">
+    <Box px="2" pt="4" maxWidth="680px" mx="auto">
+      <Flex gap="2" align="center" justify="between" px="1" mb="2">
         <Flex align="center" gap="2">
           <Heading size={document.body.clientWidth < 450 ? '4' : '6'}>Wallet</Heading>
           <Badge radius="medium" variant="surface" size="2">{ ownerAddress.substring(ownerAddress.length - 6).toUpperCase() }</Badge>
@@ -203,7 +191,7 @@ export default function HomePage() {
           }
         </Flex>
       </Flex>
-      <Account ownerAddress={ownerAddress} self={true} ref={account}></Account>
+      <Account ownerAddress={ownerAddress} self={true} nonce={nonce}></Account>
     </Box>
   );
 }

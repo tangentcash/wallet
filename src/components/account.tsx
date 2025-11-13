@@ -1,15 +1,16 @@
-import { forwardRef, useCallback, useImperativeHandle, useState } from "react";
-import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, Flex, Heading, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { useCallback, useState } from "react";
+import { AspectRatio, Avatar, Badge, Box, Callout, Card, Flex, Heading, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { RPC, EventResolver, SummaryState, AssetId, Readability } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowLeftBoldHexagonOutline, mdiArrowRightBoldHexagonOutline, mdiInformationOutline, mdiKeyOutline, mdiLocationEnter, mdiQrcodeScan } from "@mdi/js";
+import { mdiArrowLeftBoldHexagonOutline, mdiArrowRightBoldHexagonOutline, mdiInformationOutline, mdiKeyOutline, mdiLocationEnter, mdiQrcodeScan, mdiRulerSquareCompass } from "@mdi/js";
 import { AppData } from "../core/app";
+import { useNavigate } from "react-router";
+import { Swap } from "../core/swap";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import QRCode from "react-qr-code";
 import Icon from "@mdi/react";
 import Transaction from "../components/transaction";
-import { useNavigate } from "react-router";
 
 function toAddressType(type: string): string {
   switch (type) {
@@ -25,7 +26,7 @@ function toAddressType(type: string): string {
 }
 
 const TRANSACTION_COUNT = 48;
-const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref) => {
+export default function Account(props: { ownerAddress: string, self?: boolean, nonce?: number }) {
   const ownerAddress = props.ownerAddress;
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -47,14 +48,14 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
     const ownerType = address.owner == ownerAddress ? ' (this account)' : '';
     const managerType = address.manager == ownerAddress ? ' (this account)' : ' (validator)';
     if (address.purpose == 'witness' && address.manager == address.owner)
-      return <>This was a usable off-chain wallet but now dismissed owned by <Link href="#">{address.owner}</Link>{ ownerType }</>;
+      return <>Witness wallet → dismissed. Linked to <Link href="#">{address.owner}</Link>{ ownerType }</>;
     else if (address.purpose == 'routing' && address.manager == null)
-      return <>This is a routing off-chain wallet that can transfer funds to and receive funds from any bridge wallet owned by <Link href="#">{address.owner}</Link>{ ownerType }</>;
+      return <>Routing wallet → receive/pay to bridge wallets. Linked to <Link href="#">{address.owner}</Link>{ ownerType }</>;
     else if (address.purpose == 'bridge' && address.manager != null)
-      return <>This is an off-chain bridge wallet that can receive funds from or send funds to any routing wallet owned by <Link href="#">{address.manager}</Link>{ managerType }</>;
+      return <>Bridge wallet → receive/pay to routing wallets. Linked to <Link href="#">{address.manager}</Link>{ managerType }</>;
     else if (address.manager != null)
-      return <>This is an unknown off-chain wallet owned by <Link href="#">{address.owner}</Link>{ ownerType } and is operated by <Link href="#">{address.manager}</Link>{ managerType }</>;
-    return <>This is an unknown off-chain wallet owned by <Link href="#">{address.owner}</Link>{ ownerType }</>;
+      return <>Unknown wallet. Linked to <Link href="#">{address.owner}</Link>{ ownerType }, managed by <Link href="#">{address.manager}</Link>{ managerType }</>;
+    return <>Unknown wallett. Linked to <Link href="#">{address.owner}</Link>{ ownerType }</>;
   }, [ownerAddress]);
   const findTransactions = useCallback(async (refresh?: boolean) => {
     try {
@@ -150,13 +151,7 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
   useEffectAsync(async () => {
     await updateFullAccountData();
     setLoading(false);
-  }, [ownerAddress]);
-  if (ref != null) {
-    useImperativeHandle(ref, () => ({
-      updateFinalizedTransactions: () => findTransactions(true),
-      updateMempoolTransactions: () => findMempoolTransactions()
-    }));
-  }
+  }, [ownerAddress, props.nonce]);
   if (loading) {
     return (
       <Flex justify="center" pt="6">
@@ -165,23 +160,64 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
     )
   }
 
+  const mobile = document.body.clientWidth < 500;
+  const magicButton = () => (
+    <Select.Root size="2" defaultValue="-2" onValueChange={(value) => {
+      if (value == '-1') {
+        navigate(Swap.subroute);
+      } else if (value != '-2') {
+        navigate(`/bridge?asset=${AssetId.fromHandle(assets[parseInt(value)].asset.chain).id}`);
+      }
+    }}>
+      <Select.Trigger variant="surface">
+      </Select.Trigger>
+      <Select.Content variant="soft">
+        <Select.Group>
+          <Select.Item value="-2">
+            <Flex align="center" gap="2">
+              <Box style={{ transform: 'translateY(2px)' }}>
+                <Icon path={mdiRulerSquareCompass} size={0.8} color="var(--bronze-11)"></Icon>
+              </Box>
+              <Text size="2" weight="light" color="bronze">DeFi</Text>
+            </Flex>
+          </Select.Item>
+          <Select.Item value="-1">
+            <Flex align="center" gap="2">
+              <Icon path={mdiLocationEnter} size={1.05} color="var(--jade-11)"></Icon>
+              <Text size="2" weight="light" color="jade">Tangent swap</Text>
+            </Flex>
+          </Select.Item>
+          {
+            assets.map((item, index) =>
+              <Select.Item key={item.asset.id + '_select'} value={index.toString()} disabled={!item.asset.handle}>
+                <Flex align="center" gap="1">
+                  <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
+                  <Text size="2" weight="light">{Readability.toAssetName(item.asset)} bridge</Text>
+                </Flex>
+              </Select.Item>
+            )
+          }
+        </Select.Group>
+      </Select.Content>
+    </Select.Root>
+  );
   return (
     <Box>
-      <SegmentedControl.Root value={control} radius="full" size="2" mt="2" onValueChange={(value) => setControl(value as any)}>
-        <SegmentedControl.Item value="balance">Balance</SegmentedControl.Item>
-        <SegmentedControl.Item value="address">Address</SegmentedControl.Item>
-        <SegmentedControl.Item value="validator">Validator</SegmentedControl.Item>
-      </SegmentedControl.Root>
-      <Box px="2" mb="4">
-        <Box mt="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
-      </Box>
-      <Tabs.Root value={control}>
-        <Box width="100%" px="2">
-          <Tabs.Content value="balance">
-            <Card mt="3" variant="surface" style={{
-                border: '1px solid var(--gray-7)',
-                borderRadius: '28px'
-              }}>
+      <Box width="100%" px="2">
+        <Card mt="3" variant="surface" style={{
+            border: '1px solid var(--gray-7)',
+            borderRadius: '28px'
+          }}>
+          <Flex justify={mobile ? 'center' : 'between'} gap="2" py="1">
+            <SegmentedControl.Root value={control} radius="full" size="2" mb="2" onValueChange={(value) => setControl(value as any)}>
+              <SegmentedControl.Item value="address">Fund</SegmentedControl.Item>
+              <SegmentedControl.Item value="balance">Balance</SegmentedControl.Item>
+              <SegmentedControl.Item value="validator">Node</SegmentedControl.Item>
+            </SegmentedControl.Root>
+            { props.self && !mobile && magicButton() }
+          </Flex>
+          <Tabs.Root value={control}>
+            <Tabs.Content value="balance">
               {
                 !assets.length &&
                 <Tooltip content="Account does not have any non-zero asset balances">
@@ -221,127 +257,88 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
                   </Flex>
                 )
               }
-            </Card>
-            {
-              props.self &&
-              <Flex pt="2" justify="end" gap="2">
-                {
-                  assets.length > 0 &&
-                  <Select.Root size="2" onValueChange={(value) =>  navigate(`/bridge?asset=${AssetId.fromHandle(assets[parseInt(value)].asset.chain).id}`)}>
-                    <Select.Trigger variant="surface" placeholder="Bridge">
-                    </Select.Trigger>
-                    <Select.Content variant="soft">
-                      <Select.Group>
-                        <Select.Item value="-1" disabled={true}>Select asset</Select.Item>
-                        {
-                          assets.map((item, index) =>
-                            <Select.Item key={item.asset.id + '_select'} value={index.toString()}>
-                              <Flex align="center" gap="1">
-                                <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
-                                <Text size="2" weight="light">{Readability.toAssetName(item.asset)}</Text>
-                              </Flex>
-                            </Select.Item>
-                          )
-                        }
-                      </Select.Group>
-                    </Select.Content>
-                  </Select.Root>
-                }
-                <Button variant="surface" color="orange" onClick={() => navigate('/swap')}>
-                  <Icon path={mdiLocationEnter} size={0.8}></Icon>
-                  Swap
-                </Button>
-              </Flex>
-            }
-          </Tabs.Content>
-          <Tabs.Content value="address">
-            {
-              selectedAddress == -1 &&
-              <Callout.Root size="1">
-                <Callout.Icon>
-                  <Icon path={mdiInformationOutline} size={1} />
-                </Callout.Icon>
-                <Callout.Text>This is a tangent on-chain wallet that can interact with other tangent wallets and send or receive cryptocurrency of other blockchains using off-chain wallets</Callout.Text>
-              </Callout.Root>
-            }
-            {
-              selectedAddress != -1 &&
-              <Callout.Root size="1">
-                <Callout.Icon>
-                  <Icon path={mdiInformationOutline} size={1} />
-                </Callout.Icon>
-                <Callout.Text wrap="balance" style={{ wordBreak: 'break-word' }}>
-                  { addressPurpose(addresses[selectedAddress]) } 
-                </Callout.Text>
-              </Callout.Root>
-            }
-            <Box mt="4">
-              <Card mt="3" variant="surface" style={{
-                border: '1px solid var(--gray-7)',
-                borderRadius: '28px'
-              }}>
-                <Box px="2" py="2">
-                  <Flex justify="center" mb="4">
-                    <Heading size="4" align="center">{ selectedAddress == -1 ? 'Tangent' : Readability.toAssetName(addresses[selectedAddress].asset) } address QR code</Heading>
-                  </Flex>
-                  <Flex justify="center" width="100%">
-                    <Box width="80%" maxWidth="280px" px="3" py="3" style={{ borderRadius: '16px', backgroundColor: 'white' }}>
-                      <AspectRatio ratio={1}>
-                        <QRCode value={ selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion] } style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
-                      </AspectRatio>
-                    </Box>
-                  </Flex>
+            </Tabs.Content>
+            <Tabs.Content value="address">
+              <Box px="2" py="2">
+                <Flex justify="center" mb="4">
+                  {
+                    selectedAddress == -1 &&
+                    <Callout.Root size="1">
+                      <Callout.Icon>
+                        <Icon path={mdiInformationOutline} size={1} />
+                      </Callout.Icon>
+                      <Callout.Text>Tangent wallet with cross-chain capabilities.</Callout.Text>
+                    </Callout.Root>
+                  }
                   {
                     selectedAddress != -1 &&
-                    <Flex justify="center" mt="3">
-                      <Badge size="2" color={addresses[selectedAddress].purpose != 'witness' ? 'orange' : 'red'} radius="medium" style={{ textTransform: 'uppercase' }}>{ toAddressType(addresses[selectedAddress].purpose) }</Badge>
-                    </Flex>
+                    <Callout.Root size="1">
+                      <Callout.Icon>
+                        <Icon path={mdiInformationOutline} size={1} />
+                      </Callout.Icon>
+                      <Callout.Text wrap="balance" style={{ wordBreak: 'break-word' }}>
+                        { addressPurpose(addresses[selectedAddress]) } 
+                      </Callout.Text>
+                    </Callout.Root>
                   }
-                  <Box width="100%" mt="6">
-                    <TextField.Root size="3" variant="soft" readOnly={true} value={ Readability.toAddress(selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion], 12) } onClick={() => {
-                        navigator.clipboard.writeText(selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion]);
-                        AlertBox.open(AlertType.Info, 'Address v' + (selectedAddress == -1 ? selectedAddressVersion + 1 : (addresses[selectedAddress].addresses.length - selectedAddressVersion)) + ' copied!')
-                      }}>
-                      <TextField.Slot color="gray">
-                        <Icon path={mdiKeyOutline} size={0.7} style={{ paddingLeft: '4px' }} />
-                      </TextField.Slot>
-                    </TextField.Root>
-                    <Flex width="100%" mt="3">
-                      <Select.Root size="3" value={selectedAddressVersion.toString()} onValueChange={(value) => setSelectedAddressVersion(parseInt(value))}>
-                        <Select.Trigger variant="soft" color="gray" style={{ width: '100%' }}>
-                          <Flex as="span" align="center" gap="2">
-                            <Icon path={mdiQrcodeScan} size={0.7} style={{ color: 'var(--gray-11)' }} />
-                            <Text color="gray">{ selectedAddress == -1 ? 'Tangent' : Readability.toAssetName(addresses[selectedAddress].asset) } address { selectedAddress == -1 ? 'v1' : ('v' + (addresses[selectedAddress].addresses.length - selectedAddressVersion))}</Text>
-                          </Flex>
-                        </Select.Trigger>
-                        <Select.Content variant="soft">
-                          <Select.Group>
-                            <Select.Label>Address version</Select.Label>
-                            {
-                              selectedAddress == -1 &&
-                                <Select.Item value="0">
-                                  <Flex align="center" gap="1">
-                                    <Text>Version 1</Text>
-                                  </Flex>
-                                </Select.Item>
-                            }
-                            {
-                              selectedAddress != -1 &&
-                              addresses[selectedAddress].addresses.map((address: any, index: number) =>
-                                <Select.Item value={index.toString()} key={address}>
-                                  <Flex align="center" gap="1">
-                                    <Text>Version {addresses[selectedAddress].addresses.length - index}</Text>
-                                  </Flex>
-                                </Select.Item>
-                              )
-                            }
-                          </Select.Group>
-                        </Select.Content>
-                      </Select.Root>
-                    </Flex>
+                </Flex>
+                <Flex justify="center" width="100%">
+                  <Box width="80%" maxWidth="280px" px="3" py="3" style={{ borderRadius: '16px', backgroundColor: 'white' }}>
+                    <AspectRatio ratio={1}>
+                      <QRCode value={ selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion] } style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
+                    </AspectRatio>
                   </Box>
+                </Flex>
+                {
+                  selectedAddress != -1 &&
+                  <Flex justify="center" mt="3">
+                    <Badge size="2" color={addresses[selectedAddress].purpose != 'witness' ? 'orange' : 'red'} radius="medium" style={{ textTransform: 'uppercase' }}>{ toAddressType(addresses[selectedAddress].purpose) }</Badge>
+                  </Flex>
+                }
+                <Box width="100%" mt="6">
+                  <TextField.Root size={document.body.clientWidth < 450 ? '2' : '3'} variant="soft" readOnly={true} value={ Readability.toAddress(selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion], 12) } onClick={() => {
+                      navigator.clipboard.writeText(selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion]);
+                      AlertBox.open(AlertType.Info, 'Address v' + (selectedAddress == -1 ? selectedAddressVersion + 1 : (addresses[selectedAddress].addresses.length - selectedAddressVersion)) + ' copied!')
+                    }}>
+                    <TextField.Slot color="gray">
+                      <Icon path={mdiKeyOutline} size={0.7} style={{ paddingLeft: '4px' }} />
+                    </TextField.Slot>
+                  </TextField.Root>
+                  <Flex width="100%" mt="3">
+                    <Select.Root size={document.body.clientWidth < 450 ? '2' : '3'} value={selectedAddressVersion.toString()} onValueChange={(value) => setSelectedAddressVersion(parseInt(value))}>
+                      <Select.Trigger variant="soft" color="gray" style={{ width: '100%' }}>
+                        <Flex as="span" align="center" gap="2">
+                          <Icon path={mdiQrcodeScan} size={0.7} style={{ color: 'var(--gray-11)' }} />
+                          <Text color="gray">{ selectedAddress == -1 ? 'Tangent' : Readability.toAssetName(addresses[selectedAddress].asset) } address { selectedAddress == -1 ? 'v1' : ('v' + (addresses[selectedAddress].addresses.length - selectedAddressVersion))}</Text>
+                        </Flex>
+                      </Select.Trigger>
+                      <Select.Content variant="soft">
+                        <Select.Group>
+                          <Select.Label>Address version</Select.Label>
+                          {
+                            selectedAddress == -1 &&
+                              <Select.Item value="0">
+                                <Flex align="center" gap="1">
+                                  <Text>Version 1</Text>
+                                </Flex>
+                              </Select.Item>
+                          }
+                          {
+                            selectedAddress != -1 &&
+                            addresses[selectedAddress].addresses.map((address: any, index: number) =>
+                              <Select.Item value={index.toString()} key={address}>
+                                <Flex align="center" gap="1">
+                                  <Text>Version {addresses[selectedAddress].addresses.length - index}</Text>
+                                </Flex>
+                              </Select.Item>
+                            )
+                          }
+                        </Select.Group>
+                      </Select.Content>
+                    </Select.Root>
+                  </Flex>
                 </Box>
-              </Card>
+              </Box>
               <Flex justify="center" mt="4">
                 <Select.Root size="3" value={selectedAddress.toString()} onValueChange={(value) => { setSelectedAddress(parseInt(value)); setSelectedAddressVersion(0); }}>
                   <Select.Trigger variant="soft" />
@@ -373,13 +370,8 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
                   </Select.Content>
                 </Select.Root>
               </Flex>
-            </Box>
-          </Tabs.Content>
-          <Tabs.Content value="validator">
-            <Card mt="3" mb="7" variant="surface" style={{
-                border: '1px solid var(--gray-7)',
-                borderRadius: '28px'
-              }}>
+            </Tabs.Content>
+            <Tabs.Content value="validator">
               <Flex px="2" py="2" gap="3">
                 <Icon path={mdiArrowRightBoldHexagonOutline} size={1.5} style={{ color: 'var(--red-10)' }} />
                 <Box width="100%">
@@ -480,14 +472,20 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
                   </Flex>
                 )
               }
-            </Card>
-          </Tabs.Content>
-        </Box>
-      </Tabs.Root>
+            </Tabs.Content>
+          </Tabs.Root>
+        </Card>
+        {
+          props.self && mobile &&
+          <Flex justify="end" pt="3">
+            { magicButton() }
+          </Flex>
+        }
+      </Box>
       {
         (transactions.length > 0 || mempoolTransactions.length > 0) &&
-        <Box width="100%" my={props.self ? '3' : '6'}>
-          <Heading size="6" mb="0">Transactions</Heading>
+        <Box width="100%" my="8">
+          <Heading size={document.body.clientWidth < 450 ? '4' : '6'} mb="0">Transactions</Heading>
           {
             mempoolTransactions.length > 0 &&
             <Box width="100%">
@@ -526,5 +524,4 @@ const Account = forwardRef((props: { ownerAddress: string, self?: boolean }, ref
       }
     </Box>
   );
-});
-export default Account;
+}

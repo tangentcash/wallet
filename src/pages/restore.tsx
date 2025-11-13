@@ -265,21 +265,23 @@ export default function RestorePage() {
                   <Text ref={titleRef}>Tangent Wallet</Text>
                 </Heading>
                 <Box mb="5" position="relative">
-                  <TextField.Root id="card-password-field" type="password" placeholder="Come up with a password" autoComplete="new-password" size="3" value={passphrase} onChange={(e) => { setPassphrase(e.target.value); }} />
-                  {
-                    AppData.isWalletExists() &&
-                    <Flex justify="center" mt="2">
-                      <Text size="1" weight="light" color="gray">At any cost, do not forget.</Text>
-                      <Link size="1" ml="1" onClick={tryRestoreWallet}>Restore wallet.</Link>
-                    </Flex>
-                  }
-                  {
-                    !AppData.isWalletExists() &&
-                    <Flex justify="center" mt="2">
-                      <Text size="1" weight="light" color="gray">At any cost, do not forget.</Text>
-                      <Link size="1" ml="1" onClick={importWallet}>{ importValid ? 'Re-import wallet.' : 'Import wallet.' }</Link>
-                    </Flex>
-                  }
+                  <form action="">
+                    <TextField.Root id="card-password-field" type="password" placeholder="Come up with a password" autoComplete="new-password" size="3" value={passphrase} onChange={(e) => { setPassphrase(e.target.value); }} />
+                    {
+                      AppData.isWalletExists() &&
+                      <Flex justify="center" mt="2">
+                        <Text size="1" weight="light" color="gray">At any cost, do not forget.</Text>
+                        <Link size="1" ml="1" onClick={tryRestoreWallet}>Restore wallet.</Link>
+                      </Flex>
+                    }
+                    {
+                      !AppData.isWalletExists() &&
+                      <Flex justify="center" mt="2">
+                        <Text size="1" weight="light" color="gray">At any cost, do not forget.</Text>
+                        <Link size="1" ml="1" onClick={importWallet}>{ importValid ? 'Re-import wallet.' : 'Import wallet.' }</Link>
+                      </Flex>
+                    }
+                  </form>
                 </Box>
                 <Flex mt="4" justify="start" align="center" direction="column" gap="3">
                   <Button size="3" variant="surface" loading={loading} style={{ paddingLeft: '24px', paddingRight: '24px' }} disabled={passphrase.length < PASSWORD_SIZE} className={error ? 'shadow-rainbow-hover animation-horizontal-shake' : (passphrase.length < PASSWORD_SIZE ? 'shadow-rainbow-hover' :  'shadow-rainbow-animation')} onClick={createWallet}>{ importValid ? 'Import wallet' : 'Create wallet' }</Button>

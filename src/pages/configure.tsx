@@ -13,13 +13,13 @@ function toServerInfo(url: string): string {
     const info = new URL(url);
     switch (info.protocol) {
       case 'http:':
-        return 'http — ' + info.hostname + ':' + (info.port || '80');
+        return info.hostname + ':' + (info.port || '80');
       case 'https:':
-        return 'https — ' + info.hostname + ':' + (info.port || '443');
+        return info.hostname + ':' + (info.port || '443');
       case 'ws:':
-        return 'ws — ' + info.hostname + ':' + (info.port || '80');
+        return info.hostname + ':' + (info.port || '80');
       case 'wss:':
-        return 'wss — ' + info.hostname + ':' + (info.port || '443');
+        return info.hostname + ':' + (info.port || '443');
       default:
         throw false;
     }
@@ -183,44 +183,44 @@ export default function ConfigurePage() {
         <Box px="2" py="2">
           <Heading size="5" mb="3">Network statistics</Heading>
           <DataList.Root size="2" orientation={orientation}>
-            <DataList.Item align="center">
+            <DataList.Item>
               <DataList.Label>Channel</DataList.Label>
               <DataList.Value>
                 { networkInfo.connections > 0 && <Badge size="2" color="jade">{ Readability.toCount('connection', networkInfo.connections) }</Badge> }
                 { !networkInfo.connections && <Badge size="2" color="red">OFFLINE</Badge> }
               </DataList.Value>
             </DataList.Item>
-            <DataList.Item align="center">
+            <DataList.Item>
               <DataList.Label>Quality</DataList.Label>
               <DataList.Value>
                 <Badge size="2" color={(networkInfo.requests ? networkInfo.responses / networkInfo.requests < 0.9 : false) ? 'red' : 'jade'} variant="soft" radius="full">{ (100 * Math.min(1, networkInfo.requests > 0 ? networkInfo.responses / networkInfo.requests : 1)).toFixed(2) }%</Badge>
               </DataList.Value>
             </DataList.Item>
-            <DataList.Item align="center">
+            <DataList.Item>
               <DataList.Label>Bandwidth</DataList.Label>
               <DataList.Value>
                 <Text size="2">{ Readability.toCount('byte', networkInfo.sentBytes + networkInfo.receivedBytes) }</Text>
               </DataList.Value>
             </DataList.Item>
-            <DataList.Item align="center">
+            <DataList.Item>
               <DataList.Label>Requests</DataList.Label>
               <DataList.Value>
                 <Text size="2">{ Readability.toCount('request', networkInfo.requests) } — { Readability.toCount('byte', networkInfo.sentBytes) }</Text>
               </DataList.Value>
             </DataList.Item>
-            <DataList.Item align="center">
+            <DataList.Item>
               <DataList.Label>Responses</DataList.Label>
               <DataList.Value>
                 <Text size="2">{ Readability.toCount('response', networkInfo.responses) } — { Readability.toCount('byte', networkInfo.receivedBytes) }</Text>
               </DataList.Value>
             </DataList.Item>
-            <DataList.Item align="center">
+            <DataList.Item>
               <DataList.Label>Oldest use</DataList.Label>
               <DataList.Value>
                 <Text size="2">{ networkInfo.minTime ? networkInfo.minTime.toLocaleString() : 'never' }</Text>
               </DataList.Value>
             </DataList.Item>
-            <DataList.Item align="center">
+            <DataList.Item>
               <DataList.Label>Latest use</DataList.Label>
               <DataList.Value>
                 <Text size="2">{ networkInfo.maxTime ? networkInfo.maxTime.toLocaleString() : 'never' }</Text>
@@ -233,7 +233,7 @@ export default function ConfigurePage() {
               <Table.Header>
                 <Table.Row>
                   <Table.ColumnHeaderCell>Server</Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell>Reliability</Table.ColumnHeaderCell>
+                  <Table.ColumnHeaderCell>Score</Table.ColumnHeaderCell>
                 </Table.Row>
               </Table.Header>
               <Table.Body>

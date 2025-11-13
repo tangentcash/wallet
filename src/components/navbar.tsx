@@ -34,6 +34,7 @@ const types: {
 ]
 
 export function Navbar(props: { path: string }) {
+  const enlarge = document.body.clientWidth < 600;
   const navigate = useNavigate();
   const swap = useMemo(() => props.path.startsWith(Swap.subroute), [props.path]);
   const filteredTypes = useMemo(() => {
@@ -68,7 +69,7 @@ export function Navbar(props: { path: string }) {
                   if (item.deep ? locator?.startsWith(item.path) : item.path == locator) {
                     return (
                       <Tooltip content={item.tip} key={item.path}>
-                        <Button size="2" variant="outline" color={item.activeColor as any} disabled={item.disabled ? item.disabled() : false} >
+                        <Button size={enlarge ? '3' : '2'} variant="outline" color={item.activeColor as any} disabled={item.disabled ? item.disabled() : false} >
                           <Icon path={item.icon} size={1} />
                           {item.name}
                         </Button>
@@ -77,7 +78,7 @@ export function Navbar(props: { path: string }) {
                   } else if (item.persistent) {
                     return (
                       <Tooltip content={item.tip} key={item.path}>
-                        <IconButton size="2" variant="soft" color={item.baseColor as any} disabled={item.disabled ? item.disabled() : false} onClick={() => navigate(item.toPath ? item.toPath() : item.path)}>
+                        <IconButton size={enlarge ? '3' : '2'} variant="soft" color={item.baseColor as any} disabled={item.disabled ? item.disabled() : false} onClick={() => navigate(item.toPath ? item.toPath() : item.path)}>
                           <Icon path={item.icon} size={1} />
                         </IconButton>
                       </Tooltip>

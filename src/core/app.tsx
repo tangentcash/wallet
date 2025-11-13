@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { BrowserRouter, NavigateFunction, Route, Routes } from "react-router";
+import { BrowserRouter, Navigate, NavigateFunction, Route, Routes } from "react-router";
 import { Box, Theme } from "@radix-ui/themes";
 import { core } from '@tauri-apps/api';
 import { listen } from "@tauri-apps/api/event";
@@ -708,6 +708,13 @@ export class AppData {
 export function App() {
   const [state, setState] = useState(0);
   AppData.state.setState = setState;
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const forceAppearance = url.searchParams.get('appearance');
+    if (forceAppearance == 'light' || forceAppearance == 'dark') {
+      AppData.setAppearance(forceAppearance);
+    }
+  }, []);
 
   return (
     <Theme appearance={AppData.props.appearance} accentColor="iris" radius="full" id={state.toString()}>
@@ -769,6 +776,7 @@ export function App() {
                 <OrderbookPage />
               </WalletReadyRoute>
             } />
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </BrowserRouter>
       </Box>
