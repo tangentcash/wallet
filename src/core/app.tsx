@@ -568,8 +568,8 @@ export class AppData {
       onCacheStore: (path: string, value: any): boolean => Storage.set(CACHE_PREFIX + ':' + path, value),
       onCacheLoad: (path: string): any | null => Storage.get(CACHE_PREFIX + ':' + path),
       onCacheKeys: (): string[] => Storage.keys().filter((v) => v.startsWith(CACHE_PREFIX)).map((v) => v.substring(CACHE_PREFIX.length + 1)),
-      onIpsetLoad: (type: 'http' | 'ws'): string[] => Storage.get(type == 'ws' ? StorageField.Streaming : StorageField.Polling),
-      onIpsetStore: (type: 'http' | 'ws', ipset: string[]) => Storage.set(type == 'ws' ? StorageField.Streaming : StorageField.Polling, ipset),
+      onIpsetLoad: (type: 'http' | 'ws'): { online: string[], offline: string[] } => Storage.get(type == 'ws' ? StorageField.Streaming : StorageField.Polling),
+      onIpsetStore: (type: 'http' | 'ws', ipset: { online: string[], offline: string[] }) => Storage.set(type == 'ws' ? StorageField.Streaming : StorageField.Polling, ipset),
       onPropsLoad: (): InterfaceProps | null => Storage.get(StorageField.InterfaceProps) as InterfaceProps | null,
       onPropsStore: (props: InterfaceProps): boolean => Storage.set(StorageField.InterfaceProps, props)
     });
@@ -701,7 +701,7 @@ export class AppData {
   }
   static defaultNetwork(): NetworkType {
     // @ts-ignore
-    return import.meta.env.DEV ? NetworkType.Testnet : NetworkType.Testnet;
+    return import.meta.env.DEV ? NetworkType.Regtest : NetworkType.Testnet;
   }
 }
 
