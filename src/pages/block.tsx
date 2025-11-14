@@ -57,7 +57,17 @@ export default function BlockPage() {
     const possibility = 100 * Math.min(1, Math.max(0, (subpriority > 0 ? 0.4 : 0.0) + Math.min(0.55, lerp(0.0, 0.55, subpriority / Chain.props.PRODUCTION_COMMITTEE))));
     return (
       <Box px="4" pt="4" maxWidth="800px" mx="auto">
-        <Heading size="6">Block</Heading>
+        <Flex justify="between" align="center">
+          <Heading size="6">Block</Heading>
+          <Flex justify="center" gap="4">
+            <IconButton variant="ghost" size="2" mb="1" color="gray" disabled={block.number <= 1} onClick={() => nextBlock(block.number.toNumber() - 1)}>
+              <Icon path={mdiArrowLeftBoldCircleOutline} size={1.35} />
+            </IconButton>
+            <IconButton variant="ghost" size="2" mb="1" color="gray" loading={loading} disabled={!loading && !hasChildBlock} onClick={() => nextBlock(block.number.toNumber() + 1)}>
+              <Icon path={mdiArrowRightBoldCircleOutline} size={1.35} />
+            </IconButton>
+          </Flex>
+        </Flex>
         <Card variant="surface" mt="4">
           <DataList.Root orientation={orientation}>
             <DataList.Item>
@@ -272,14 +282,6 @@ export default function BlockPage() {
             </Table.Body>
           </Table.Root>
         </Card>
-        <Flex justify="center" gap="4" pt="6">
-          <IconButton variant="ghost" size="2" mb="1" color="gray" disabled={block.number <= 1} onClick={() => nextBlock(block.number.toNumber() - 1)}>
-            <Icon path={mdiArrowLeftBoldCircleOutline} size={1.35} />
-          </IconButton>
-          <IconButton variant="ghost" size="2" mb="1" color="gray" loading={loading} disabled={!loading && !hasChildBlock} onClick={() => nextBlock(block.number.toNumber() + 1)}>
-            <Icon path={mdiArrowRightBoldCircleOutline} size={1.35} />
-          </IconButton>
-        </Flex>
       </Box>
     )
   } else {
