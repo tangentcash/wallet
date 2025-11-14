@@ -170,10 +170,6 @@ export default function BlockPage() {
                 <Badge color="gray">Extension in { Readability.toTimespan(time) }</Badge>
               </DataList.Value>
             </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Timestamp:</DataList.Label>
-              <DataList.Value>{ new Date(block.evaluation_time).toLocaleString() }</DataList.Value>
-            </DataList.Item>
             {
               block.witnesses.map((item: any) => {
                 return (
@@ -187,7 +183,7 @@ export default function BlockPage() {
               })
             }
             <DataList.Item>
-              <DataList.Label>Time:</DataList.Label>
+              <DataList.Label>Timestamp:</DataList.Label>
               <DataList.Value>{ new Date(block.evaluation_time.toNumber()).toLocaleString() }</DataList.Value>
             </DataList.Item>
             {
