@@ -1,5 +1,5 @@
 import { Box, Button, Card, Flex, IconButton, Tooltip } from "@radix-ui/themes";
-import { mdiCardsOutline, mdiChartTimelineVariantShimmer, mdiContactlessPaymentCircleOutline, mdiDotsCircle, mdiExitToApp, mdiLogin, mdiMagnifyScan, mdiRulerSquareCompass, mdiSetRight, mdiSquareRoundedBadgeOutline } from "@mdi/js";
+import { mdiCardsOutline, mdiChartTimelineVariantShimmer, mdiContactlessPaymentCircleOutline, mdiDotsCircle, mdiExitToApp, mdiMagnifyScan, mdiRulerSquareCompass, mdiSetRight, mdiSquareRoundedBadgeOutline } from "@mdi/js";
 import { useNavigate } from "react-router";
 import { AppData } from "../core/app";
 import { Swap } from "../core/swap";
@@ -26,7 +26,6 @@ const types: {
   { path: '/block', name: 'Block', tip: 'Block details', icon: mdiMagnifyScan, activeColor: 'blue' },
   { path: '/transaction', name: 'Txn', tip: 'Transaction details', icon: mdiMagnifyScan, activeColor: 'blue' },
   { path: '/account', name: 'Account', tip: 'Account details', icon: mdiMagnifyScan, activeColor: 'blue' },
-  { path: '/restore', name: 'Lockscreen', tip: 'Wallet management', icon: mdiLogin },
   { path: `${Swap.subroute}`, name: 'Portfolio', tip: 'My portfolio', icon: mdiCardsOutline, baseColor: 'orange', activeColor: 'orange', persistent: true },
   { path: `${Swap.subroute}/explorer`, name: 'Explorer', tip: 'Market explorer', icon: mdiRulerSquareCompass, baseColor: 'orange', activeColor: 'orange', persistent: true },
   { path: `${Swap.subroute}/orderbook`, name: 'Trading', tip: 'Current market', icon: mdiChartTimelineVariantShimmer, baseColor: 'orange', activeColor: 'orange', persistent: true, deep: true, disabled: () => !Swap.getOrderbook(), toPath: () => `${Swap.subroute}/orderbook/${Swap.getOrderbook()}` },
