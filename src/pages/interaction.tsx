@@ -610,6 +610,7 @@ export default function InteractionPage() {
       setProgram(result);
   }, []);
   useEffectAsync(async () => {
+    let requiresAllAssets = false;
     switch (params.type) {
       case 'transfer':
       default: {
@@ -647,14 +648,17 @@ export default function InteractionPage() {
       case 'adjustment': {
         const result = new ProgramBridgeAdjustment();
         try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.token_policy }}); } catch { }
+        requiresAllAssets = true;
         setProgram(result);
         break;
       }
       case 'participantmigration': {
+        requiresAllAssets = true;
         setProgram(new ProgramBridgeMigration());
         break;
       }
       case 'managermigration': {
+        requiresAllAssets = true;
         setProgram(new ProgramBridgeWithdrawalMigration());
         break;
       }
@@ -668,6 +672,17 @@ export default function InteractionPage() {
         assetData = assetData.filter((item) => item.balance?.gt(0) || item.reserve?.gt(0) || item.supply?.gt(0));
       } else {
         assetData = [];
+      }
+
+      if (requiresAllAssets) {
+        const blockchains = await RPC.getBlockchains();
+        if (blockchains != null) {
+          for (let i = 0; i < blockchains.length; i++) {
+            const additional = new AssetId(blockchains[i].id);
+            if (assetData.findIndex((item) => item.asset.id == additional.id) == -1)
+              assetData.push({ asset: additional, balance: new BigNumber(0), reserve: new BigNumber(0), supply: new BigNumber(0) });
+          }
+        }
       }
 
       const initial = { asset: new AssetId(), balance: new BigNumber(0), reserve: new BigNumber(0), supply: new BigNumber(0) }
@@ -737,7 +752,7 @@ export default function InteractionPage() {
               <Select.Item value="-1" disabled={true}>Select account</Select.Item>
               {
                 assets.map((item, index) =>
-                  <Select.Item key={item.hash + '_select'} value={index.toString()}>
+                  <Select.Item key={item.asset.id + '_select'} value={index.toString()}>
                     <Flex align="center" gap="1">
                       <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
                       <Text size="4">{ Readability.toMoney(item.asset, item.balance) }{ item.asset.token ? ' on ' + item.asset.chain : '' }</Text>
@@ -861,7 +876,7 @@ export default function InteractionPage() {
             <Select.Trigger variant="surface" placeholder="Select block production" style={{ width: '100%' }}>
             </Select.Trigger>
             <Select.Content color="gray">
-              <Select.Item value="standby">Change block production</Select.Item>
+              <Select.Item value="standby">No change to block production</Select.Item>
               <Select.Item value="enable">
                 <Text color="jade">ENABLE</Text> block production
               </Select.Item>

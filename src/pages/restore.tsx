@@ -411,7 +411,7 @@ export default function RestorePage() {
                     This list of words is your only way to restore the wallet on this device if password is lost or on any other device when you want to move your wallet.
                   </Callout.Text>
                 </Callout.Root>
-                <Flex gap="2" wrap="wrap" justify={numeration ? 'center' : 'between' }>
+                <Flex gap="2" wrap="wrap" justify={numeration ? 'center' : 'between' } minHeight={numeration ? '160px' : '120px'}>
                   { 
                     // @ts-ignore
                     mnemonic.map((word, index) => <Badge color={COLOR_MAP[(seed + index) % COLOR_MAP.length]} size="2" key={word + index.toString()}>{ numeration ? index + 1 + '. ' + word : word }</Badge>)
