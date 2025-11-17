@@ -17,6 +17,7 @@ export class ProgramTransfer {
 export class ProgramValidatorAdjustment {
   assets: AssetId[] = []
   blockProduction: 'standby' | 'enable' | 'disable' = 'standby';
+  blockProductionStake: string = '';
   participationStakes: { asset: AssetId, stake: string | null }[] = [];
   attestationStakes: { asset: AssetId, stake: string | null }[] = [];
   participationReservations: Set<string> = new Set<string>();
@@ -224,6 +225,17 @@ export default function InteractionPage() {
             return false;
           }
         }
+
+        if (program.blockProduction == 'enable') {
+          try {
+            const numeric = new BigNumber(program.blockProductionStake.trim());
+            if (!numeric.gte(0))
+              return false;
+          } catch {
+            return false;
+          }
+        }
+
         return program.blockProduction != 'standby' || program.participationStakes.length > 0 || program.attestationStakes.length > 0;
     } else if (program instanceof ProgramBridgeAccount) {
       const routing = program.routing.find((item) => item.chain == assets[asset].asset.chain);
@@ -389,7 +401,8 @@ export default function InteractionPage() {
         return await buildProgram({
           type: new Transactions.ValidatorAdjustment(),
           args: {
-            blockProduction: program.blockProduction == 'enable' ? 1 : (program.blockProduction == 'disable' ? 0 : 2),
+            blockProduction: program.blockProduction != 'standby',
+            blockProductionStake: program.blockProduction != 'standby' ? (program.blockProduction == 'enable' ? new BigNumber(program.blockProductionStake) : new BigNumber(NaN)) : undefined,
             participationStakes: program.participationStakes.map((item) => ({
               asset: item.asset,
               stake: item.stake != null ? new BigNumber(item.stake) : new BigNumber(NaN)
@@ -886,6 +899,18 @@ export default function InteractionPage() {
             </Select.Content>
           </Select.Root>
           {
+            program.blockProduction == 'enable' &&
+            <Box width="100%" mt="4">
+              <Tooltip content="Locking value if positive and unlocking value if negative">
+                <TextField.Root mb="3" size="3" placeholder={'Block production stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={program.blockProductionStake} onChange={(e) => {
+                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                  copy.blockProductionStake = e.target.value;
+                  setProgram(copy);
+                }} />
+              </Tooltip>
+            </Box>
+          }
+          {
             program.participationStakes.map((item, index) =>
               <Box mt="4" key={index}>
                 <Heading size="4" mb="2">
@@ -896,7 +921,7 @@ export default function InteractionPage() {
                 </Heading>
                 <Box width="100%">
                   <Tooltip content="Locking value if positive and unlocking value if negative">
-                    <TextField.Root mb="3" size="3" placeholder={'Stake value in ' + Readability.toAssetSymbol(item.asset)} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
+                    <TextField.Root mb="3" size="3" placeholder={'Participation stake in ' + Readability.toAssetSymbol(item.asset)} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
                       const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                       copy.participationStakes[index].stake = e.target.value;
                       setProgram(copy);
@@ -939,7 +964,7 @@ export default function InteractionPage() {
                 </Heading>
                 <Box width="100%">
                   <Tooltip content="Locking value if positive and unlocking value if negative">
-                    <TextField.Root mb="3" size="3" placeholder={'Stake value in ' + Readability.toAssetSymbol(item.asset)} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
+                    <TextField.Root mb="3" size="3" placeholder={'Attestation stake in ' + Readability.toAssetSymbol(item.asset)} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
                       const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                       copy.attestationStakes[index].stake = e.target.value;
                       setProgram(copy);

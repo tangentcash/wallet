@@ -11,7 +11,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
   switch (transaction.type) {
     case 'transfer':
       return transaction.to.map((item: any, index: number) =>
-        <Card key={item.to + index} mb={index == transaction.to.length - 1 ? '0' : '4'}>
+        <Card key={'IF0' + item.to + index} mb={index == transaction.to.length - 1 ? '0' : '4'}>
           <DataList.Root orientation={props.orientation}>
             <DataList.Item>
               <DataList.Label>To account:</DataList.Label>
@@ -125,7 +125,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           <Card mt="2">
             {
               transaction.transactions.map((item: any, index: number) =>
-                <Flex align="center" gap="2" key={item.hash + index} mb={index == transaction.transactions.length - 1 ? '0' : '4'}>
+                <Flex align="center" gap="2" key={'IF1' + item.hash + index} mb={index == transaction.transactions.length - 1 ? '0' : '4'}>
                   <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                   <Badge size="2" variant="soft">{ Readability.toTransactionType(item.type) }</Badge>
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
@@ -142,15 +142,18 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
     case 'validator_adjustment':
       return (
         <DataList.Root orientation={props.orientation}>
-          <DataList.Item>
-            <DataList.Label>Block production:</DataList.Label>
-            <DataList.Value>
-              <Badge color={ transaction.block_production == 1 ? 'jade' : (transaction.block_production == -1 ? 'gray' : 'red') }>{ transaction.block_production == 1 ? 'Online' : (transaction.block_production == -1 ? 'Standby' : 'Offline') }</Badge>
-            </DataList.Value>
-          </DataList.Item>
+          {
+            transaction.block_production != null &&
+            <DataList.Item>
+              <DataList.Label>Block production:</DataList.Label>
+              <DataList.Value>
+                <Badge color={ transaction.block_production.gte(0) ? 'jade' : 'red' }>{ transaction.block_production.gte(0) ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.block_production) + ' locked' : 'Offline' }</Badge>
+              </DataList.Value>
+            </DataList.Item>
+          }
           {
             transaction.participation_stakes.map((item: any) => 
-              <DataList.Item key={item.asset.chain}>
+              <DataList.Item key={'IF2' + item.asset.chain}>
                 <DataList.Label>{ item.asset.chain } participation stake:</DataList.Label>
                 <DataList.Value>
                   <Badge color={ item.stake != null && item.stake >= 0.0 ? 'jade' : 'red' }>{ item.stake != null ? (item.stake >= 0.0 ? 'Lock ' : 'Unlock ') + Readability.toMoney(item.asset, item.stake) : 'Unlock all' }</Badge>
@@ -160,7 +163,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           }
           {
             transaction.attestation_stakes.map((item: any) => 
-              <DataList.Item key={item.asset.chain}>
+              <DataList.Item key={'IF3' + item.asset.chain}>
                 <DataList.Label>{ item.asset.chain } attestation stake:</DataList.Label>
                 <DataList.Value>
                   <Badge color={ item.stake != null && item.stake >= 0.0 ? 'jade' : 'red' }>{ item.stake != null ? (item.stake >= 0.0 ? 'Lock ' : 'Unlock ') + Readability.toMoney(item.asset, item.stake) : 'Unlock all' }</Badge>
@@ -282,13 +285,13 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             <DataList.Item>
               <DataList.Label>Execution policy:</DataList.Label>
               <DataList.Value>
-                <Badge color={ transaction.only_if_not_in_queue ? 'red' : 'orange' }>{ transaction.only_if_not_in_queue ? 'Now or never' : 'May wait' }</Badge>
+                <Badge color={ transaction.only_if_not_in_queue ? 'red' : 'orange' }>{ transaction.only_if_not_in_queue ? 'Immediate or cancel' : 'Can wait in queue' }</Badge>
               </DataList.Value>
             </DataList.Item>
           </DataList.Root>
           {
             transaction.to && transaction.to.map((item: any, index: number) =>
-              <Card key={item.to + index} mb={index == transaction.to.length - 1 ? '0' : '4'}>
+              <Card key={'IF4' + item.to + index} mb={index == transaction.to.length - 1 ? '0' : '4'}>
                 <DataList.Root orientation={props.orientation}>
                   <DataList.Item>
                     <DataList.Label>To address:</DataList.Label>
@@ -416,7 +419,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </DataList.Root>
             {
               from.map((item: any, index: number) =>
-                <Card key={item.address + index} mb="4">
+                <Card key={'IF5' + item.address + index} mb="4">
                   <DataList.Root orientation={props.orientation}>
                     <DataList.Item>
                       <DataList.Label>From address:</DataList.Label>
@@ -437,7 +440,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             }
             {
               to.map((item: any, index: number) =>
-                <Card key={item.address + index} mb="4">
+                <Card key={'IF6' + item.address + index} mb="4">
                   <DataList.Root orientation={props.orientation}>
                     <DataList.Item>
                       <DataList.Label>To address:</DataList.Label>
@@ -519,7 +522,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
     case 'bridge_migration':
       return (
           transaction.shares.map((item: any, index: number) =>
-            <Card key={item.manager + index} mb="4">
+            <Card key={'IF7' + item.manager + index} mb="4">
               <DataList.Root orientation={props.orientation}>
                 <DataList.Item>
                   <DataList.Label>Manager account:</DataList.Label>
@@ -586,7 +589,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
           switch (event.type) {
             case EventType.Error: {
               return (
-                <Card key={event.type.toString() + index} mt="3">
+                <Card key={'OF0' + event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
@@ -604,7 +607,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
             }
             case EventType.Transfer: {
               return (
-                <Card key={event.type.toString() + index} mt="3">
+                <Card key={'OF1' + event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
@@ -646,7 +649,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
             }
             case EventType.TransferIsolated: {
               return (
-                <Card key={event.type.toString() + index} mt="3">
+                <Card key={'OF2' + event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
@@ -686,7 +689,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
             }
             case EventType.TransferFee: {
               return (
-                <Card key={event.type.toString() + index} mt="3">
+                <Card key={'OF3' + event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
@@ -716,7 +719,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
             }
             case EventType.BridgeTransfer: {
               return (
-                <Card key={event.type.toString() + index} mt="3">
+                <Card key={'OF4' + event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
@@ -746,7 +749,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
             }
             case EventType.BridgeAccount: {
               return (
-                <Card key={event.type.toString() + index} mt="3">
+                <Card key={'OF5' + event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
@@ -780,7 +783,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
             }
             case EventType.BridgeQueue: {
               return (
-                <Card key={event.type.toString() + index} mt="3">
+                <Card key={'OF6' + event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
@@ -825,7 +828,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
             }
             case EventType.BridgePolicy: {
               return (
-                <Card key={event.type.toString() + index} mt="3">
+                <Card key={'OF7' + event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
@@ -871,7 +874,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
             }
             case EventType.BridgeParticipant: {
               return (
-                <Card key={event.type.toString() + index} mt="3">
+                <Card key={'OF8' + event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
@@ -897,7 +900,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
             }
             case EventType.WitnessAccount: {
               return (
-                <Card key={event.type.toString() + index} mt="3">
+                <Card key={'OF9' + event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
@@ -907,7 +910,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     </DataList.Item>
                     {
                       event.addresses.map((item, index) =>
-                        <DataList.Item key={event.addresses[0] + event.asset.handle + item}>
+                        <DataList.Item key={'OF10' + event.addresses[0] + event.asset.handle + item}>
                           <DataList.Label>Address v{event.addresses.length - index}:</DataList.Label>
                           <DataList.Value>
                             <Button size="2" variant="ghost" color="indigo" onClick={() => {
@@ -930,7 +933,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
             }
             case EventType.WitnessTransaction: {
               return (
-                <Card key={event.type.toString() + index} mt="3">
+                <Card key={'OF11' + event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
@@ -957,7 +960,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
             }
             case EventType.RollupReceipt: {
               return (
-                <Card key={event.type.toString() + index} mt="3">
+                <Card key={'OF12' + event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
@@ -993,7 +996,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
             default: {
               let copy = event as { type: EventType.Unknown; event: BigNumber; args: any[]; }
               return (
-                <Card key={event.type.toString() + index} mt="3">
+                <Card key={'OF13' + event.type.toString() + index} mt="3">
                   <DataList.Root orientation={props.orientation}>
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
@@ -1075,9 +1078,10 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 {
                   state.account.balances[ownerAddress] && Object.keys(state.account.balances[ownerAddress]).map((asset) => {
                     const value = state.account.balances[ownerAddress][asset];
+                    const zero = value.supply.eq(0) && value.reserve.eq(0);
                     return (
                       <Flex key={'X0' + transaction.hash + asset} gap="2">
-                        { !value.supply.eq(0) && <Badge size="1" radius="medium" color={value.supply.gt(0) ? 'jade' : (value.supply.isNegative() ? 'red' : 'gray')} style={{ textTransform: 'uppercase' }}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge> }
+                        { (zero || !value.supply.eq(0)) && <Badge size="1" radius="medium" color={value.supply.gt(0) ? 'jade' : (value.supply.isNegative() ? 'red' : 'gray')} style={{ textTransform: 'uppercase' }}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge> }
                         { !value.reserve.eq(0) && <Badge size="1" radius="medium" color="blue" style={{ textTransform: 'uppercase' }}>{ Readability.toMoney(value.asset, value.reserve.negated(), true) }</Badge> }
                       </Flex>
                     )
@@ -1110,7 +1114,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 {
                   Object.keys(state.witness.transactions).map((asset) => {
                     const event = state.witness.transactions[asset];
-                    return event.transactionIds.map((tx) => <Badge key={'X4' + event.asset.toHex() + tx} size="1" radius="medium" color="gold">@{ Readability.toAddress(tx) }</Badge>)
+                    return event.transactionIds.map((tx) => <Badge key={'X4' + event.asset.toHex() + tx} size="1" radius="medium" color="gold">ID:{ Readability.toAddress(tx) }</Badge>)
                   })
                 }
                 {
@@ -1131,7 +1135,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 }
                 {
                   EventResolver.isSummaryStateEmpty(state, ownerAddress) &&
-                  <Badge size="1" radius="medium" color={receipt.successful ? 'bronze' : 'red'}>{ receipt.successful ? 'Successful' + (receipt.events.length > 0 ? ': ' + Readability.toCount('event', receipt.events.length) + ' generated' : ' without events') : 'Execution error' }</Badge>
+                  <Badge size="1" radius="medium" color={receipt.successful ? 'bronze' : 'red'}>{ receipt.successful ? 'OK / ' + Readability.toCount('event', receipt.events.length) : 'Execution reverted' }</Badge>
                 }
               </Flex>
             }

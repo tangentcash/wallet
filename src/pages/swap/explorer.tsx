@@ -79,7 +79,9 @@ export default function ExplorerPage() {
 
       const result = await Swap.marketPair(market.id, marketLauncher.primary, marketLauncher.secondary);
       setLaunchablePair(result);
-    } catch {
+    } catch (exception: any) {
+      if (exception instanceof Error)
+        AlertBox.open(AlertType.Error, 'Failed to launch a market: ' + exception.message);
       setLaunchablePair(null);
     }
   }, [marketLauncher]);

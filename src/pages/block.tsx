@@ -105,16 +105,7 @@ export default function BlockPage() {
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>Signature:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.signature);
-                  AlertBox.open(AlertType.Info, 'Block signature copied!')
-                }}>{ Readability.toHash(block.signature, 12) }</Button>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Proof:</DataList.Label>
+              <DataList.Label>Proof of work:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.proof);
@@ -123,7 +114,7 @@ export default function BlockPage() {
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>TX merkle root:</DataList.Label>
+              <DataList.Label>Transaction root:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.transaction_root);
@@ -132,7 +123,7 @@ export default function BlockPage() {
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>RC merkle root:</DataList.Label>
+              <DataList.Label>Receipt root:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.receipt_root);
@@ -141,12 +132,21 @@ export default function BlockPage() {
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>SV merkle root:</DataList.Label>
+              <DataList.Label>State root:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.state_root);
                   AlertBox.open(AlertType.Info, 'Merkle root hash copied!')
                 }}>{ Readability.toHash(block.state_root, 12) }</Button>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Producer proof:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(block.signature);
+                  AlertBox.open(AlertType.Info, 'Block signature copied!')
+                }}>{ Readability.toHash(block.signature, 12) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -211,10 +211,10 @@ export default function BlockPage() {
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>States:</DataList.Label>
-              <DataList.Value>{ Readability.toCount('state', block.state_count) } | { Readability.toCount('update', block.mutation_count) }</DataList.Value>
+              <DataList.Value>{ Readability.toCount('state', block.state_count) } with { Readability.toCount('update', block.mutation_count) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>Proof difficulty:</DataList.Label>
+              <DataList.Label>Difficulty:</DataList.Label>
               {
                 block.difficulty_multiplier > 1 &&
                 <DataList.Value>

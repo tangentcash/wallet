@@ -21,29 +21,27 @@ export default function HomePage() {
     if (loading)
       return;
 
+    setLoading(true);
     const value = query.trim();
     const publicKeyHash = Signing.decodeAddress(value);
     if (publicKeyHash != null && publicKeyHash.data.length == 20) {
       navigate('/account/' + value);
+      setLoading(false);
       return;
     }
     
     const blockNumber = parseInt(value, 10);
     if (!isNaN(blockNumber) && blockNumber > 0) {
-      setLoading(true);
       try {
         const block = await RPC.getBlockByNumber(blockNumber);
-        setLoading(false);
         if (block != null) {
           navigate('/block/' + value);
+          setLoading(false);
           return;
         }
-      } catch {
-        setLoading(false);
-      }
+      } catch { }
     }
 
-    setLoading(true);
     try {
       const transaction = await RPC.getTransactionByHash(value);
       if (transaction != null) {
@@ -51,22 +49,26 @@ export default function HomePage() {
         setLoading(false);
         return;
       }
-    } catch {
-      setLoading(false);
-    }
+
+      const mempoolTransaction = await RPC.getMempoolTransactionByHash(value);
+      if (mempoolTransaction != null) {
+        navigate('/transaction/' + value);
+        setLoading(false);
+        return;
+      }
+    } catch { }
 
     try {
       const block = await RPC.getBlockByHash(value);
-      setLoading(false);
       if (block != null) {
         navigate('/block/' + value);
+        setLoading(false);
         return;
       }
-    } catch {
-      setLoading(false);
-    }
+    } catch { }
     
     AlertBox.open(AlertType.Error, 'No blockchain data found');
+    setLoading(false);
   }, [query, loading]);
   const searchLatest = useCallback(async () => {
     const status = await AppData.sync();

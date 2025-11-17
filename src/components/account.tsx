@@ -235,7 +235,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               }
               { 
                 assets.map((item) =>
-                  <Flex key={item.asset.id} px="2" py="2" gap="3" align="center">
+                  <Flex key={item.asset.id + '_balance'} px="2" py="2" gap="3" align="center">
                     <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                     <Box width="100%">
                       <Flex justify="between" align="center">
@@ -326,7 +326,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                           {
                             selectedAddress != -1 &&
                             addresses[selectedAddress].addresses.map((address: any, index: number) =>
-                              <Select.Item value={index.toString()} key={address}>
+                              <Select.Item value={index.toString()} key={address + '_address'}>
                                 <Flex align="center" gap="1">
                                   <Text>Version {addresses[selectedAddress].addresses.length - index}</Text>
                                 </Flex>
@@ -356,7 +356,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                           const base = item.addresses[0].split(':')[0];
                           const tag = base.substring(base.length - 2).toUpperCase();
                           return (
-                            <Select.Item key={item.hash + '_select'} value={index.toString()}>
+                            <Select.Item key={item.hash + '_address_select'} value={index.toString()}>
                               <Flex align="center" gap="1">
                                 <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '20px', height: '20px' }} />
                                 <Text style={{ color: 'var(--accent-9)' }}>{ tag }</Text>
@@ -389,7 +389,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                   {
                     production.stakes.map((item: any) => {
                       return (
-                        <Flex key={item.asset.id} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
+                        <Flex key={item.asset.id + '_production'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                           <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                           <Box width="100%" style={{ marginLeft: '2px' }}>
                             <Tooltip content={Readability.toAssetSymbol(item.asset) + " fees received by block producer, when unlocked block producer will lose half of their gas production"}>
@@ -424,15 +424,15 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               }
               { 
                 participations.map((item) =>
-                  <Flex key={item.asset.id} px="2" py="2" gap="3" align="center">
+                  <Flex key={item.asset.id + '_participation'} px="2" py="2" gap="3" align="center">
                     <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                     <Box width="100%" style={{ marginLeft: '2px' }}>
                       <Flex justify="between" align="center">
                         <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } bridge participation</Text>
                       </Flex>
                       {
-                        item.stakes.map((stake: any) =>
-                          <Tooltip content={stake.asset.chain + ' stake and fees received by bridge participation as a signer of withdrawal transactions'}>
+                        item.stakes.map((stake: any, index: number) =>
+                          <Tooltip key={item.asset.id + index.toString() + '_participation_index'} content={stake.asset.chain + ' stake and fees received by bridge participation as a signer of withdrawal transactions'}>
                             <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(stake.asset, stake.stake) } for { Readability.toCount('participation', item.participations) }</Text>
                           </Tooltip>)
                       }
@@ -452,15 +452,15 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               }
               { 
                 attestations.map((item) =>
-                  <Flex key={item.asset.id} px="2" py="2" gap="3" align="center">
+                  <Flex key={item.asset.id + '_attestation'} px="2" py="2" gap="3" align="center">
                     <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                     <Box width="100%" style={{ marginLeft: '2px' }}>
                       <Flex justify="between" align="center">
                         <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } bridge attestation</Text>
                       </Flex>
                       {
-                        item.stakes.map((stake: any) =>
-                          <Tooltip content={stake.asset.chain + ' stake and fees received by bridge attestation as a deposit/withdrawal transaction notifications'}>
+                        item.stakes.map((stake: any, index: number) =>
+                          <Tooltip key={item.asset.id + index.toString() + '_attestation_index'} content={stake.asset.chain + ' stake and fees received by bridge attestation as a deposit/withdrawal transaction notifications'}>
                             <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(stake.asset, stake.stake) }</Text>
                           </Tooltip>)
                       }
@@ -495,7 +495,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               </Box>
               {
                 mempoolTransactions.map((item, index) =>
-                    <Box px="2" mb="4" key={item.hash + index}>
+                    <Box px="2" mb="4" key={item.hash + index + '_mempool'}>
                       <Transaction ownerAddress={ownerAddress} transaction={item}></Transaction>
                     </Box>
                 )
@@ -505,7 +505,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
           <InfiniteScroll dataLength={transactions.length} hasMore={moreTransactions} next={findTransactions} loader={<div></div>}>
             {
               transactions.map((item, index) =>
-                <Box width="100%" key={item.transaction.hash + index}>
+                <Box width="100%" key={item.transaction.hash + index + '_tx'}>
                   {
                     (!index || !item.receipt || new Date(transactions[index - 1].receipt.block_time?.toNumber()).setHours(0, 0, 0, 0) != new Date(item.receipt.block_time?.toNumber()).setHours(0, 0, 0, 0)) &&
                     <Box px="2">
