@@ -6,7 +6,16 @@
 </div>
 
 ## Project information
-This is a wallet app that utilizes Cash Node's RPC capabilities to receive and display informations about accounts, transactions, blocks and overall network state. Wallet can be used in read-only mode or can include secret information such as mnemonic phrase (recovery phrase) and private key to sign and submit transactions to blockchain. By default wallet connects to a public seeder node that sends out ip addresses that provide public RPC and tries to use those results to effectively receive on-chain information. User can specify their own node to override this behavior which would be the most secure option as data received by self-hosted node is fully verified and can be trusted by node runner.
+This wallet application leverages Cash Node's RPC capabilities to fetch and display comprehensive information about accounts, transactions, blocks, and overall network state. The app offers two modes of operation:
+
+1. **Read-Only Mode**: Ideal for users who want to monitor their blockchain activities without interacting with the network.
+2. **Full Interaction Mode**: Enables users to sign and submit transactions by providing sensitive information such as mnemonic phrases (recovery phrases) and private keys.
+
+By default, the wallet connects to a public seeder node, which provides IP addresses of nodes offering public RPC services. This allows the wallet to effectively receive on-chain information. However, for enhanced security, users can specify their own node:
+
+- **Self-Hosted Node**: This is the most secure option as it ensures that all data received is fully verified and trusted by the node runner.
+
+For maximum security, always prefer using a self-hosted node for data verification. Be cautious when entering sensitive information such as mnemonic phrases and private keys. Standalone executable is always preferred over in-browser version.
 
 ## Building
 Clone this repository
