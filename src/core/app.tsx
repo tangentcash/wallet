@@ -323,8 +323,9 @@ export class AppData {
         const publicKey: string | null = await SafeStorage.get(StorageField.PublicKey);
         if (!publicKey || !this.storeWalletKeychain(WalletType.PublicKey, publicKey)) {
           const address: string | null = await SafeStorage.get(StorageField.Address);
-          if (!address || !this.storeWalletKeychain(WalletType.Address, address))
+          if (!address || !this.storeWalletKeychain(WalletType.Address, address)) {
             return false;
+          }
         }
       }
     }
@@ -574,11 +575,6 @@ export class AppData {
       onPropsStore: (props: InterfaceProps): boolean => Storage.set(StorageField.InterfaceProps, props)
     });
     
-    // @ts-ignore
-    if (import.meta.env.DEV) {
-      await this.restoreWallet('123456', this.defaultNetwork());
-    }
-   
     const splashscreen = document.getElementById('splashscreen-content');
     if (splashscreen != null) {
       splashscreen.style.transition = 'opacity 250ms linear';

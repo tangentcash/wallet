@@ -1,4 +1,4 @@
-import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLocationExit, mdiReloadAlert } from "@mdi/js";
+import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiReloadAlert } from "@mdi/js";
 import { Badge, Box, Button, Card, DataList, Flex, Heading, Switch, Table, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useNavigate } from "react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -95,7 +95,7 @@ export default function ConfigurePage() {
 
   return (
     <Box px="4" pt="4" mx="auto" maxWidth="580px">
-      <Heading size="6">Options</Heading>
+      <Heading size="6">Configuration</Heading>
       <Box width="100%" mt="4">
         <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
       </Box>
@@ -104,12 +104,14 @@ export default function ConfigurePage() {
           <Heading size="5" mb="2">Client options</Heading>
           <Text as="label" size="1">
             <Flex gap="2" align="center" justify="between">
-              <Text size="2" color="gray">Dark theme</Text>
-              <Switch size="3" variant="soft" checked={AppData.props.appearance == 'dark'} onCheckedChange={(value) => AppData.setAppearance(value ? 'dark' : 'light')}/>
+              <Text size="2" color="gray">Display theme</Text>
+              <Button size="2" variant="soft" color="jade" onClick={() => AppData.setAppearance(AppData.props.appearance == 'dark' ? 'light' : 'dark')}>
+                <Icon path={AppData.props.appearance == 'dark' ? mdiLightbulbOutline : mdiLightbulbOn} size={0.85} />
+              </Button>
             </Flex>
           </Text>
           <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Clear client cache</Text>
+            <Text size="2" color="gray">Erase cache</Text>
             <Button size="2" variant="soft" color="jade" onClick={() => {
               RPC.clearCache();
               AlertBox.open(AlertType.Info, 'Application cache erased');
@@ -118,20 +120,29 @@ export default function ConfigurePage() {
             </Button>
           </Flex>
           <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Reload client app</Text>
+            <Text size="2" color="gray">Reload app</Text>
             <Button size="2" variant="soft" onClick={() => location.reload()}>
               <Icon path={mdiReloadAlert} size={0.85} />
             </Button>
           </Flex>
           <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Show client debugger</Text>
+            <Text size="2" color="gray">Show debugger</Text>
             <Button size="2" variant="soft" color="yellow" onClick={() => AppData.openDevTools()}>
               <Icon path={mdiBugOutline} size={0.85} />
             </Button>
           </Flex>
+        </Box>
+      </Card>
+      <Card mt="4">
+        <Box px="2" py="2">
+          <Heading size="5" mb="2">Wallet options</Heading>
           <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Seal wallet</Text>
-            <Button size="2" variant="soft" color="red" onClick={() => AppData.clearWallet(() => navigate('/restore'))}>
+            <Text size="2" color="gray">Wallet status</Text>
+            <Badge size="3" color="orange">{ AppData.getWalletSecretKey() != null ? 'Read/write' : 'Read-only' }</Badge>
+          </Flex>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" color="gray">Lock wallet</Text>
+            <Button size="2" variant="soft" color="jade" onClick={() => AppData.clearWallet(() => navigate('/restore'))}>
               <Icon path={mdiLocationExit} size={0.85} />
             </Button>
           </Flex>

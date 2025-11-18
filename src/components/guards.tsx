@@ -1,16 +1,11 @@
 import { Navigate, useLocation } from "react-router";
-import { SafeStorage } from "../core/storage";
 import { AppData } from "../core/app";
 import { Navbar } from "./navbar";
 import { JSX } from "react";
 
-function hasWallet(): boolean {
-  return SafeStorage.hasDecryptedKey() && AppData.isWalletReady();
-}
-
 export function WalletReadyRoute(props: { children: React.ReactNode }): JSX.Element {
   const location = useLocation();
-  if (!hasWallet()) {
+  if (!AppData.isWalletReady()) {
     return <Navigate replace={true} to="/restore" state={{ from: `${location.pathname}${location.search}` }} />;
   }
   
@@ -24,7 +19,7 @@ export function WalletReadyRoute(props: { children: React.ReactNode }): JSX.Elem
 
 export function WalletNotReadyRoute(props: { children: React.ReactNode }): JSX.Element {
   const location = useLocation();
-  if (hasWallet())
+  if (AppData.isWalletReady())
     return <Navigate replace={true} to="/" state={{ from: `${location.pathname}${location.search}` }} />;
   
   return <>{props.children}</>;
