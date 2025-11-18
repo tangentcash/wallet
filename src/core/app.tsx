@@ -26,7 +26,7 @@ import ExplorerPage from "../pages/swap/explorer";
 import OrderbookPage from "../pages/swap/orderbook";
 import { Swap } from "./swap";
 
-const CACHE_PREFIX = 'cache';
+const CACHE_PREFIX = 'V000';
 
 export type DecodedTransaction = {
   typename: string,
