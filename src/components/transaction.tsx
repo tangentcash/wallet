@@ -946,12 +946,12 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                       <DataList.Value>{ event.asset.chain }</DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
-                      <DataList.Label>Transaction id:</DataList.Label>
+                      <DataList.Label>State hash:</DataList.Label>
                       <DataList.Value>
                         <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                          navigator.clipboard.writeText(event.transactionId);
-                          AlertBox.open(AlertType.Info, 'Transaction id copied!')
-                        }}>{ Readability.toHash(event.transactionId) }</Button>
+                          navigator.clipboard.writeText(event.stateHash);
+                          AlertBox.open(AlertType.Info, 'State hash copied!')
+                        }}>{ Readability.toHash(event.stateHash) }</Button>
                       </DataList.Value>
                     </DataList.Item>
                   </DataList.Root>
@@ -1114,7 +1114,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 {
                   Object.keys(state.witness.transactions).map((asset) => {
                     const event = state.witness.transactions[asset];
-                    return event.transactionIds.map((tx) => <Badge key={'X4' + event.asset.toHex() + tx} size="1" radius="medium" color="gold">ID:{ Readability.toAddress(tx) }</Badge>)
+                    return event.stateHashes.map((stateHash) => <Badge key={'X4' + event.asset.toHex() + stateHash} size="1" radius="medium" color="gold">REF:{ Readability.toAddress(stateHash) }</Badge>)
                   })
                 }
                 {

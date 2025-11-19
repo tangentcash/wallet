@@ -108,9 +108,9 @@ export default function BlockPage() {
               <DataList.Label>Proof of work:</DataList.Label>
               <DataList.Value>
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.proof);
+                  navigator.clipboard.writeText(block.pow.proof);
                   AlertBox.open(AlertType.Info, 'Block proof copied!')
-                }}>{ Readability.toHash(block.proof, 12) }</Button>
+                }}>{ Readability.toHash(block.pow.proof, 12) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -216,23 +216,23 @@ export default function BlockPage() {
             <DataList.Item>
               <DataList.Label>Difficulty:</DataList.Label>
               {
-                block.difficulty_multiplier > 1 &&
+                block.pow.mdifficulty > 1 &&
                 <DataList.Value>
-                  <Badge color="red">{ Readability.toCount('op', block.difficulty) } +{ ((block.difficulty_multiplier.toNumber() * 100) - 100).toFixed(2) + '%' }</Badge>
+                  <Badge color="red">{ Readability.toUnit(block.pow.kdifficulty) } +{ ((block.pow.mdifficulty.toNumber() * 100) - 100).toFixed(2) + '%' }</Badge>
                 </DataList.Value>
               }
               {
-                block.difficulty_multiplier <= 1 &&
-                <DataList.Value>{ Readability.toCount('op', block.difficulty) }</DataList.Value>
+                block.pow.mdifficulty <= 1 &&
+                <DataList.Value>{ Readability.toUnit(block.pow.kdifficulty) }</DataList.Value>
               }
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Absolute work:</DataList.Label>
-              <DataList.Value>{ Readability.toUnit(block.absolute_work) }</DataList.Value>
+              <DataList.Value>{ Readability.toCount('weight unit', block.absolute_work) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Gas limit:</DataList.Label>
-              <DataList.Value>{ Readability.toGas(block.gas_limit) }</DataList.Value>
+              <DataList.Value>{ Readability.toGas(block.gas_limit) } | &lt; { Readability.toCount('KB', (block.gas_use / 32) / 1024) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Gas use:</DataList.Label>
