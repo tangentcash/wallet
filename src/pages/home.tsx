@@ -1,5 +1,5 @@
 import { Badge, Box, Button, Dialog, Flex, Heading, TextField } from "@radix-ui/themes";
-import { useNavigate } from "react-router";
+import { Navigate, useLocation, useNavigate } from "react-router";
 import { mdiMagnify, mdiMagnifyScan, mdiQrcodeScan } from "@mdi/js";
 import { KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
@@ -10,7 +10,12 @@ import Account from "../components/account";
 import Icon from "@mdi/react";
 
 export default function HomePage() {
-  const ownerAddress = AppData.getWalletAddress() || '';
+  const location = useLocation();
+  const ownerAddress = AppData.getWalletAddress();
+  if (!ownerAddress) {
+    return <Navigate replace={true} to="/restore" state={{ from: `${location.pathname}${location.search}` }} />;
+  }
+
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
@@ -84,7 +89,7 @@ export default function HomePage() {
     }
   }, [searchInput]);
   const searchKeydownEvent = useCallback((event: KeyboardEvent) => {
-    if (!searching && document.activeElement === document.body && event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
+    if (!searching && document.activeElement === document.body && event.key != null && event.key.length === 1 && !event.ctrlKey && !event.metaKey && !event.altKey) {
       setQuery(event.key);
       setSearching(true);
       setTimeout(searchFocus, 10);
@@ -159,7 +164,7 @@ export default function HomePage() {
       <Flex gap="2" align="center" justify="between" px="2" mb="2">
         <Flex align="center" gap="2">
           <Heading size={document.body.clientWidth < 450 ? '4' : '6'}>Wallet</Heading>
-          <Badge radius="medium" variant="surface" size="2">{ ownerAddress.substring(ownerAddress.length - 6).toUpperCase() }</Badge>
+          <Badge radius="medium" variant="surface" size="2" color={ AppData.isWalletReady() ? 'jade' : 'red' } onClick={() => AppData.isWalletReady() ? undefined : navigate('/restore')}>{ AppData.isWalletReady() ? 'UNLOCKED' : 'LOCKED' }</Badge>
         </Flex>
         <Flex justify="end" gap="1">
           <Dialog.Root onOpenChange={(opened) => setSearching(opened)} open={searching}>

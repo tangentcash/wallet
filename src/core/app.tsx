@@ -6,7 +6,6 @@ import { core } from '@tauri-apps/api';
 import { listen } from "@tauri-apps/api/event";
 import { Chain, ClearCallback, InterfaceProps, Messages, NetworkType, Pubkey, Pubkeyhash, Hashsig, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType, Authorizer, Viewable, Hashing, ByteUtil, AssetId, Approving, AuthEntity, AuthApproval, Readability } from "tangentsdk";
 import { SafeStorage, Storage, StorageField } from "./storage";
-import { WalletReadyRoute, WalletNotReadyRoute } from "./../components/guards";
 import { Alert, AlertBox, AlertType } from "./../components/alert";
 import { Prompter, PrompterBox } from "../components/prompter";
 import Regtest from './../configs/regtest.json';
@@ -25,6 +24,7 @@ import PortfolioPage from "../pages/swap/portfolio";
 import ExplorerPage from "../pages/swap/explorer";
 import OrderbookPage from "../pages/swap/orderbook";
 import { Swap } from "./swap";
+import { Navbar } from "../components/navbar";
 
 const CACHE_PREFIX = 'V000';
 
@@ -61,6 +61,7 @@ export type AppState = {
 export type AppProps = {
   resolver: string | null,
   server: string | null,
+  account: string | null,
   authorizer: boolean,
   appearance: 'dark' | 'light'
 }
@@ -78,6 +79,7 @@ export class AppData {
   static props: AppProps = {
     resolver: null,
     server: null,
+    account: null,
     authorizer: false,
     appearance: 'dark'
   };
@@ -125,6 +127,8 @@ export class AppData {
       return false;
     
     this.wallet = data;
+    this.props.account = this.wallet.address;
+    this.save();
     return true;
   }
   private static nodeRequest(address: string, method: string, message: any, size: number): void {
@@ -330,11 +334,7 @@ export class AppData {
       }
     }
 
-    if (network != null)
-      this.reconfigure(network);
-    
-    await this.stream();
-    await this.sync();
+    this.reconfigure(network);
     return true;
   }
   static async resetWallet(secret: string | string[], type: WalletType, network?: NetworkType): Promise<boolean> {
@@ -347,9 +347,8 @@ export class AppData {
         Chain.props = Chain[network];
     }
     
-    if (network != null)
-      this.reconfigure(network);
-
+    this.props.account = null;
+    this.save();
     await SafeStorage.set(StorageField.Mnemonic);
     await SafeStorage.set(StorageField.SecretKey);
     await SafeStorage.set(StorageField.PublicKey);
@@ -383,13 +382,14 @@ export class AppData {
         return false;
     }
 
-    await this.stream();
-    await this.sync();
+    this.reconfigure(network);
     return true;
   }
   static clearWallet(callback: ClearCallback): any {
     SafeStorage.clear();
     this.wallet = null;
+    this.props.account = null;
+    this.save();
     return callback();
   }
   static decodeTransaction(data: string | Uint8Array): DecodedTransaction {
@@ -532,13 +532,6 @@ export class AppData {
       result.receipt = receipt;
     return result;
   }
-  static async stream(): Promise<number | null> {
-    const address = this.getWalletAddress();
-    if (!address)
-      return null;
-
-    return RPC.connectSocket([address]);
-  }
   static async sync(): Promise<boolean> {
     try {
       const tipNumber = await RPC.getBlockTipNumber();
@@ -574,6 +567,7 @@ export class AppData {
       onPropsLoad: (): InterfaceProps | null => Storage.get(StorageField.InterfaceProps) as InterfaceProps | null,
       onPropsStore: (props: InterfaceProps): boolean => Storage.set(StorageField.InterfaceProps, props)
     });
+    await this.reconfigure();
     
     const splashscreen = document.getElementById('splashscreen-content');
     if (splashscreen != null) {
@@ -587,7 +581,10 @@ export class AppData {
     if (this.isApp())
       await listen('authorizer', (event) => this.authorizerEvent(event));
   }
-  static reconfigure(network: NetworkType): void {
+  static async reconfigure(network?: NetworkType): Promise<number | null> {
+    if (!network)
+      network = Storage.get(StorageField.Network) || this.defaultNetwork();
+
     const config: { resolverUrl: string | null, swapUrl: string | null, serverUrl: string | null, authorizer: boolean } = (() => {
       switch (network) {
         case NetworkType.Regtest:
@@ -606,6 +603,12 @@ export class AppData {
     Swap.location = config.swapUrl || '';
     RPC.applyResolver(this.props.resolver);
     RPC.applyServer(this.props.server);
+    RPC.strict = true;
+    
+    const address = this.getWalletAddress();
+    const result = await RPC.connectSocket(address ? [address] : []);
+    this.sync();
+    return result;
   }
   static openDevTools(): void {
     if (this.isApp())
@@ -676,7 +679,8 @@ export class AppData {
     return this.isWalletReady() ? this.wallet?.publicKeyHash : null;
   }
   static getWalletAddress(): string | null | undefined {
-    return this.isWalletReady() ? this.wallet?.address : null;
+    const account = this.isWalletReady() ? this.wallet?.address : null;
+    return account || this.props.account;
   }
   static isWalletReady(): boolean {
     return this.wallet != null && this.wallet.isValid();
@@ -717,63 +721,20 @@ export function App() {
       <Box minWidth="285px" style={{ paddingBottom: '96px' }}>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={
-              <WalletReadyRoute>
-                <HomePage />
-              </WalletReadyRoute>
-            } />
-            <Route path="/configure" element={
-              <WalletReadyRoute>
-                <ConfigurePage />
-              </WalletReadyRoute>
-            } />
-            <Route path="/bridge" element={
-              <WalletReadyRoute>
-                <BridgePage />
-              </WalletReadyRoute>
-            } />
-            <Route path="/interaction" element={
-              <WalletReadyRoute>
-                <InteractionPage />
-              </WalletReadyRoute>
-            } />
-            <Route path="/block/:id" element={
-              <WalletReadyRoute>
-                <BlockPage />
-              </WalletReadyRoute>
-            } />
-            <Route path="/transaction/:id" element={
-              <WalletReadyRoute>
-                <TransactionPage />
-              </WalletReadyRoute>
-            } />
-            <Route path="/account/:id" element={
-              <WalletReadyRoute>
-                <AccountPage />
-              </WalletReadyRoute>
-            } />
-            <Route path="/restore" element={
-              <WalletNotReadyRoute>
-                <RestorePage />
-              </WalletNotReadyRoute>
-            } />
-            <Route path="/swap" element={
-              <WalletReadyRoute>
-                <PortfolioPage />
-              </WalletReadyRoute>
-            } />
-            <Route path="/swap/explorer" element={
-              <WalletReadyRoute>
-                <ExplorerPage />
-              </WalletReadyRoute>
-            } />
-            <Route path="/swap/orderbook/:orderbook?" element={
-              <WalletReadyRoute>
-                <OrderbookPage />
-              </WalletReadyRoute>
-            } />
+            <Route path="/" element={<HomePage />} />
+            <Route path="/configure" element={<ConfigurePage />} />
+            <Route path="/bridge" element={<BridgePage />} />
+            <Route path="/interaction" element={<InteractionPage />} />
+            <Route path="/block/:id" element={<BlockPage />} />
+            <Route path="/transaction/:id" element={<TransactionPage />} />
+            <Route path="/account/:id" element={<AccountPage />} />
+            <Route path="/restore" element={<RestorePage />} />
+            <Route path="/swap" element={<PortfolioPage />} />
+            <Route path="/swap/explorer" element={<ExplorerPage />} />
+            <Route path="/swap/orderbook/:orderbook?" element={<OrderbookPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          <Navbar></Navbar>
         </BrowserRouter>
       </Box>
       <Alert></Alert>

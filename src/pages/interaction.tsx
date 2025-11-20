@@ -2,7 +2,7 @@ import { mdiCodeJson, mdiMinus, mdiPlus } from "@mdi/js";
 import { Avatar, Badge, Box, Button, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
 import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, Stream, TextUtil, TransactionOutput, Transactions, Uint256, Readability, Hashsig, Pubkeyhash, Pubkey, Seckey, SummaryState, EventResolver } from "tangentsdk";
 import { AppData } from "../core/app";
@@ -83,6 +83,11 @@ function toSimpleTransaction(input: any): Record<string, any> {
 }
 
 export default function InteractionPage() {
+  const location = useLocation();
+  if (!AppData.isWalletReady()) {
+    return <Navigate replace={true} to={`/restore?to=${encodeURIComponent(location.pathname + location.search)}`} state={{ from: `${location.pathname}${location.search}` }} />;
+  }
+
   const ownerAddress = AppData.getWalletAddress() || '';
   const [query] = useSearchParams();
   const params = {

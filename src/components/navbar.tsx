@@ -1,6 +1,6 @@
 import { Box, Button, Flex, IconButton, Tooltip } from "@radix-ui/themes";
 import { mdiCardsOutline, mdiChartTimelineVariantShimmer, mdiContactlessPaymentCircleOutline, mdiDotsCircle, mdiExitToApp, mdiMagnifyScan, mdiRulerSquareCompass, mdiSetRight, mdiSquareRoundedBadgeOutline } from "@mdi/js";
-import { useNavigate } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import { AppData } from "../core/app";
 import { Swap } from "../core/swap";
 import { useMemo } from "react";
@@ -16,12 +16,12 @@ const types: {
   activeColor?: string,
   persistent?: boolean,
   deep?: boolean,
-  disabled?: () => boolean,
+  disabled?: (path: string) => boolean,
   toPath?: () => string
 }[] = [
   { path: '/', name: 'Home', tip: 'My account', icon: mdiSquareRoundedBadgeOutline, persistent: true },
   { path: '/bridge', name: 'Bridge', tip: 'Bridge transaction', icon: mdiSetRight, activeColor: 'orange', persistent: true },
-  { path: '/interaction', name: 'Pay', tip: 'Send transaction', activeColor: 'jade', icon: mdiContactlessPaymentCircleOutline, persistent: true },
+  { path: '/interaction', name: 'Pay', tip: 'Send transaction', activeColor: 'jade', icon: mdiContactlessPaymentCircleOutline, persistent: true, disabled: (path: string) => path.startsWith('/restore') && !AppData.isWalletReady() },
   { path: '/configure', name: 'Configure', tip: 'App settings', activeColor: 'yellow', icon: mdiDotsCircle, persistent: true },
   { path: '/block', name: 'Block', tip: 'Block details', icon: mdiMagnifyScan, activeColor: 'blue' },
   { path: '/transaction', name: 'Txn', tip: 'Transaction details', icon: mdiMagnifyScan, activeColor: 'blue' },
@@ -32,16 +32,17 @@ const types: {
   { path: `${Swap.subroute}/exit`, name: 'Exit', tip: 'Exit trading', icon: mdiExitToApp, baseColor: 'red', activeColor: 'red', persistent: true, toPath: () => '/' }
 ]
 
-export function Navbar(props: { path: string }) {
+export function Navbar() {
   const enlarge = document.body.clientWidth < 600;
+  const location = useLocation();
   const navigate = useNavigate();
-  const swap = useMemo(() => props.path.startsWith(Swap.subroute), [props.path]);
+  const swap = useMemo(() => location.pathname.startsWith(Swap.subroute), [location.pathname]);
   const filteredTypes = useMemo(() => {
     return types.filter((item) => item.path.startsWith(Swap.subroute) == swap);
   }, [swap]);
   const locator = useMemo(() => {
-    return filteredTypes.filter((item) => props.path.startsWith(item.path)).sort((a, b) => b.path.length - a.path.length)[0]?.path || null;
-  }, [filteredTypes, props.path]);
+    return filteredTypes.filter((item) => location.pathname.startsWith(item.path)).sort((a, b) => b.path.length - a.path.length)[0]?.path || null;
+  }, [filteredTypes, location.pathname]);
   useEffectAsync(async () => {
     if (swap) {
       const account = AppData.getWalletAddress();
@@ -70,7 +71,7 @@ export function Navbar(props: { path: string }) {
                   if (item.deep ? locator?.startsWith(item.path) : item.path == locator) {
                     return (
                       <Tooltip content={item.tip} key={item.path}>
-                        <Button size={enlarge ? '3' : '2'} variant="outline" color={item.activeColor as any} disabled={item.disabled ? item.disabled() : false} >
+                        <Button size={enlarge ? '3' : '2'} variant="outline" color={item.activeColor as any} disabled={item.disabled ? item.disabled(location.pathname) : false} >
                           <Icon path={item.icon} size={1} />
                           {item.name}
                         </Button>
@@ -79,7 +80,7 @@ export function Navbar(props: { path: string }) {
                   } else if (item.persistent) {
                     return (
                       <Tooltip content={item.tip} key={item.path}>
-                        <IconButton size={enlarge ? '3' : '2'} variant="soft" color={item.baseColor as any} disabled={item.disabled ? item.disabled() : false} onClick={() => navigate(item.toPath ? item.toPath() : item.path)}>
+                        <IconButton size={enlarge ? '3' : '2'} variant="soft" color={item.baseColor as any} disabled={item.disabled ? item.disabled(location.pathname) : false} onClick={() => navigate(item.toPath ? item.toPath() : item.path)}>
                           <Icon path={item.icon} size={1} />
                         </IconButton>
                       </Tooltip>

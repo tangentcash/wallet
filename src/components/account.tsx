@@ -288,7 +288,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                   </Flex>
                 }
                 <Box width="100%" mt="6">
-                  <TextField.Root size={document.body.clientWidth < 450 ? '2' : '3'} variant="soft" readOnly={true} value={ Readability.toAddress(selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion], 12) } onClick={() => {
+                  <TextField.Root size="2" variant="soft" readOnly={true} value={ Readability.toAddress(selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion], 12) } onClick={() => {
                       navigator.clipboard.writeText(selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion]);
                       AlertBox.open(AlertType.Info, 'Address v' + (selectedAddress == -1 ? selectedAddressVersion + 1 : (addresses[selectedAddress].addresses.length - selectedAddressVersion)) + ' copied!')
                     }}>
@@ -297,7 +297,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                     </TextField.Slot>
                   </TextField.Root>
                   <Flex width="100%" mt="3">
-                    <Select.Root size={document.body.clientWidth < 450 ? '2' : '3'} value={selectedAddressVersion.toString()} onValueChange={(value) => setSelectedAddressVersion(parseInt(value))}>
+                    <Select.Root size="2" value={selectedAddressVersion.toString()} onValueChange={(value) => setSelectedAddressVersion(parseInt(value))}>
                       <Select.Trigger variant="soft" color="gray" style={{ width: '100%' }}>
                         <Flex as="span" align="center" gap="2">
                           <Icon path={mdiQrcodeScan} size={0.7} style={{ color: 'var(--gray-11)' }} />
@@ -331,8 +331,8 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                   </Flex>
                 </Box>
               </Box>
-              <Flex justify="center" mt="4">
-                <Select.Root size="3" value={selectedAddress.toString()} onValueChange={(value) => { setSelectedAddress(parseInt(value)); setSelectedAddressVersion(0); }}>
+              <Flex justify="center" mt="3">
+                <Select.Root size="2" value={selectedAddress.toString()} onValueChange={(value) => { setSelectedAddress(parseInt(value)); setSelectedAddressVersion(0); }}>
                   <Select.Trigger variant="soft" />
                   <Select.Content variant="soft">
                     <Select.Group>

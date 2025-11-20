@@ -148,7 +148,7 @@ export function Alert() {
             <Callout.Icon>
               <Icon path={alert.type == AlertType.Info ? mdiInformationOutline : mdiAlertCircleOutline } size={1} />
             </Callout.Icon>
-            <Callout.Text style={{ whiteSpace: 'pre' }}>{ alert.message }</Callout.Text>
+            <Callout.Text style={{ whiteSpace: 'pre-wrap' }}>{ alert.message }</Callout.Text>
             <Box position="absolute" style={{ top: '-7px', right: '-7px' }}>
               <IconButton variant="surface" size="1" onClick={() => AlertBox.destructor(alert.id, true)()}>
                 <Icon path={mdiClose} size={0.8}></Icon>

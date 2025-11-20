@@ -1,6 +1,5 @@
-import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiReloadAlert } from "@mdi/js";
+import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiReloadAlert } from "@mdi/js";
 import { Badge, Box, Button, Card, DataList, Flex, Heading, Switch, Table, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { useNavigate } from "react-router";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { SafeStorage, StorageField } from "../core/storage";
@@ -32,7 +31,6 @@ export default function ConfigurePage() {
   const [counter, setCounter] = useState(0);
   const [loadingStreaming, setLoadingStreaming] = useState(false);
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
-  const navigate = useNavigate();
   const networkInfo = useMemo<{ connections: number, sentBytes: number, receivedBytes: number, requests: number, responses: number, minTime: Date | null, maxTime: Date | null }>(() => {
     const indices = Object.entries(AppData.server.connections);
     let minTime: Date | null = null;
@@ -72,7 +70,7 @@ export default function ConfigurePage() {
     props.streaming = streaming;
     setLoadingStreaming(true);
     if (props.streaming) {
-      const result = await AppData.stream();
+      const result = await AppData.reconfigure();
       if (result != null && result > 0) {
         AlertBox.open(AlertType.Info, (RPC.socket?.url || '[unknown]') + ' channel: connection acquired');
       }
@@ -139,12 +137,6 @@ export default function ConfigurePage() {
           <Flex justify="between" align="center" mt="2">
             <Text size="2" color="gray">Wallet status</Text>
             <Badge size="3" color="orange">{ AppData.getWalletSecretKey() != null ? 'Read/write' : 'Read-only' }</Badge>
-          </Flex>
-          <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Lock wallet</Text>
-            <Button size="2" variant="soft" color="jade" onClick={() => AppData.clearWallet(() => navigate('/restore'))}>
-              <Icon path={mdiLocationExit} size={0.85} />
-            </Button>
           </Flex>
           <Flex justify="between" align="center" mt="2">
             <Text size="2" color="gray">Export wallet</Text>
