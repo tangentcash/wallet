@@ -29,7 +29,7 @@ const types: {
   { path: `${Swap.subroute}`, name: 'Portfolio', tip: 'My portfolio', icon: mdiCardsOutline, baseColor: 'orange', activeColor: 'orange', persistent: true },
   { path: `${Swap.subroute}/explorer`, name: 'Explorer', tip: 'Market explorer', icon: mdiRulerSquareCompass, baseColor: 'orange', activeColor: 'orange', persistent: true },
   { path: `${Swap.subroute}/orderbook`, name: 'Trading', tip: 'Current market', icon: mdiChartTimelineVariantShimmer, baseColor: 'orange', activeColor: 'orange', persistent: true, deep: true, disabled: () => !Swap.getOrderbook(), toPath: () => `${Swap.subroute}/orderbook/${Swap.getOrderbook()}` },
-  { path: `${Swap.subroute}/exit`, name: 'Exit', tip: 'Exit swap', icon: mdiExitToApp, baseColor: 'red', activeColor: 'red', persistent: true, toPath: () => '/' }
+  { path: `${Swap.subroute}/exit`, name: 'Exit', tip: 'Exit trading', icon: mdiExitToApp, baseColor: 'red', activeColor: 'red', persistent: true, toPath: () => '/' }
 ]
 
 export function Navbar(props: { path: string }) {
@@ -56,6 +56,7 @@ export function Navbar(props: { path: string }) {
         <Box maxWidth="640px" pb="4">
           <Box style={{
             display: 'inline-block',
+            backgroundColor: 'var(--color-panel)',
             border: '1px solid var(--gray-7)',
             borderRadius: "100px",
             filter: "saturate(0.5) brightness(1.1)",

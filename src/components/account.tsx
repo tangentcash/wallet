@@ -1,16 +1,16 @@
 import { useCallback, useState } from "react";
-import { AspectRatio, Avatar, Badge, Box, Callout, Card, Flex, Heading, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, Flex, Heading, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { RPC, EventResolver, SummaryState, AssetId, Readability } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowLeftBoldHexagonOutline, mdiArrowRightBoldHexagonOutline, mdiInformationOutline, mdiKeyOutline, mdiLocationEnter, mdiQrcodeScan, mdiRulerSquareCompass } from "@mdi/js";
+import { mdiArrowLeftBoldHexagonOutline, mdiArrowRightBoldHexagonOutline, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft } from "@mdi/js";
 import { AppData } from "../core/app";
 import { useNavigate } from "react-router";
-import { Swap } from "../core/swap";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import QRCode from "react-qr-code";
 import Icon from "@mdi/react";
 import Transaction from "../components/transaction";
+import { Swap } from "../core/swap";
 
 function toAddressType(type: string): string {
   switch (type) {
@@ -162,10 +162,8 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
 
   const mobile = document.body.clientWidth < 500;
   const magicButton = () => (
-    <Select.Root size="2" defaultValue="-2" onValueChange={(value) => {
+    <Select.Root size="2" defaultValue="-1" onValueChange={(value) => {
       if (value == '-1') {
-        navigate(Swap.subroute);
-      } else if (value != '-2') {
         navigate(`/bridge?asset=${AssetId.fromHandle(assets[parseInt(value)].asset.chain).id}`);
       }
     }}>
@@ -173,18 +171,12 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
       </Select.Trigger>
       <Select.Content variant="soft">
         <Select.Group>
-          <Select.Item value="-2">
-            <Flex align="center" gap="2">
-              <Box style={{ transform: 'translateY(2px)' }}>
-                <Icon path={mdiRulerSquareCompass} size={0.8} color="var(--bronze-11)"></Icon>
-              </Box>
-              <Text size="2" weight="light" color="bronze">DeFi</Text>
-            </Flex>
-          </Select.Item>
           <Select.Item value="-1">
             <Flex align="center" gap="2">
-              <Icon path={mdiLocationEnter} size={1.05} color="var(--jade-11)"></Icon>
-              <Text size="2" weight="light" color="jade">Tangent swap</Text>
+              <Box style={{ transform: 'translateY(2px)' }}>
+                <Icon path={mdiSetLeft} size={0.8} color="var(--jade-11)"></Icon>
+              </Box>
+              <Text size="2" weight="light" color="jade">Bridge</Text>
             </Flex>
           </Select.Item>
           {
@@ -192,7 +184,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               <Select.Item key={item.asset.id + '_select'} value={index.toString()} disabled={!item.asset.handle}>
                 <Flex align="center" gap="1">
                   <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
-                  <Text size="2" weight="light">{Readability.toAssetName(item.asset)} bridge</Text>
+                  <Text size="2" weight="light">{Readability.toAssetName(item.asset)}</Text>
                 </Flex>
               </Select.Item>
             )
@@ -476,9 +468,17 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
           </Tabs.Root>
         </Card>
         {
-          props.self && mobile &&
-          <Flex justify="end" pt="3">
-            { magicButton() }
+          props.self &&
+          <Flex justify="end" pt="3" gap="2">
+            { mobile && magicButton() }
+            <Button color="bronze" variant="surface" onClick={() => navigate(Swap.subroute)}>
+              <Flex align="center" gap="2">
+                <Box style={{ transform: 'translateY(2px)' }}>
+                  <Icon path={mdiRulerSquareCompass} size={0.8} color="var(--bronze-11)"></Icon>
+                </Box>
+                <Text size="2" weight="light" color="bronze">Trade</Text>
+              </Flex>
+            </Button>
           </Flex>
         }
       </Box>
