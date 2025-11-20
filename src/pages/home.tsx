@@ -156,7 +156,7 @@ export default function HomePage() {
 
   return (
     <Box px="2" pt="4" maxWidth="680px" mx="auto">
-      <Flex gap="2" align="center" justify="between" px="1" mb="2">
+      <Flex gap="2" align="center" justify="between" px="2" mb="2">
         <Flex align="center" gap="2">
           <Heading size={document.body.clientWidth < 450 ? '4' : '6'}>Wallet</Heading>
           <Badge radius="medium" variant="surface" size="2">{ ownerAddress.substring(ownerAddress.length - 6).toUpperCase() }</Badge>

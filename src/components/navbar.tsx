@@ -1,4 +1,4 @@
-import { Box, Button, Card, Flex, IconButton, Tooltip } from "@radix-ui/themes";
+import { Box, Button, Flex, IconButton, Tooltip } from "@radix-ui/themes";
 import { mdiCardsOutline, mdiChartTimelineVariantShimmer, mdiContactlessPaymentCircleOutline, mdiDotsCircle, mdiExitToApp, mdiMagnifyScan, mdiRulerSquareCompass, mdiSetRight, mdiSquareRoundedBadgeOutline } from "@mdi/js";
 import { useNavigate } from "react-router";
 import { AppData } from "../core/app";
@@ -53,14 +53,15 @@ export function Navbar(props: { path: string }) {
   return (
     <Box position="fixed" bottom="0" left="0" right="0" style={{ zIndex: 10000 }}>
       <Flex justify="center">
-        <Box maxWidth="640px" pb="2">
-          <Card style={{
+        <Box maxWidth="640px" pb="4">
+          <Box style={{
             display: 'inline-block',
             border: '1px solid var(--gray-7)',
             borderRadius: "100px",
             filter: "saturate(0.5) brightness(1.1)",
             WebkitBackdropFilter: "blur(24px)",
-            backdropFilter: "blur(24px)"
+            backdropFilter: "blur(24px)",
+            padding: '12px'
           }}>
             <Flex gap="2">
               {
@@ -88,7 +89,7 @@ export function Navbar(props: { path: string }) {
                 })
               }
             </Flex>
-          </Card>
+          </Box>
         </Box>
       </Flex>
     </Box>

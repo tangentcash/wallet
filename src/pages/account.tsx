@@ -11,7 +11,7 @@ export default function AccountPage() {
 
   return (
     <Box px="4" pt="4" maxWidth="680px" mx="auto">
-      <Flex align="center" gap="2">
+      <Flex align="center" gap="2" px="2">
         <Heading size="6">Account</Heading>
         <Badge radius="medium" variant="surface" color="blue" size="2">{ baseAddress.substring(baseAddress.length - 6).toUpperCase() }</Badge>
       </Flex>

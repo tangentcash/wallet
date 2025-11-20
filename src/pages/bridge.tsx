@@ -138,7 +138,7 @@ export default function BridgePage() {
                   <Avatar size="4" fallback={Readability.toAssetFallback(item)} src={Readability.toAssetImage(item)} />
                   <Box width="100%">
                     <Flex justify="start" align="start" direction="column">
-                      <Text size="2">{ Readability.toAssetName(item) }</Text>
+                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toAssetName(item) }</Text>
                       <Flex gap="1">
                         <Badge size="1" color="jade">{ Readability.toAssetSymbol(item) }</Badge>
                         {

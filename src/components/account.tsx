@@ -485,7 +485,9 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
       {
         (transactions.length > 0 || mempoolTransactions.length > 0) &&
         <Box width="100%" my="8">
-          <Heading size={document.body.clientWidth < 450 ? '4' : '6'} mb="0">Transactions</Heading>
+          <Box px="2">
+            <Heading size={document.body.clientWidth < 450 ? '5' : '6'} mb="0">Transactions</Heading>
+          </Box>
           {
             mempoolTransactions.length > 0 &&
             <Box width="100%">
