@@ -307,15 +307,10 @@ export class AppData {
     this.root.render(<App />);
   }
   static async restoreWallet(passphrase: string, network?: NetworkType): Promise<boolean> {
-    if (network != null) {
-      Chain.props = Chain[network];
-      Storage.set(StorageField.Network, network);
-    } else {
-      network = Storage.get(StorageField.Network);
-      if (network == NetworkType.Mainnet || network == NetworkType.Testnet || network == NetworkType.Regtest)
-        Chain.props = Chain[network];
-    }
-      
+    this.props.account = null;
+    this.reconfigure(network);
+    this.save();
+
     const status = await SafeStorage.restore(passphrase);
     if (!status)
       return false;
@@ -334,20 +329,11 @@ export class AppData {
       }
     }
 
-    this.reconfigure(network);
     return true;
   }
   static async resetWallet(secret: string | string[], type: WalletType, network?: NetworkType): Promise<boolean> {
-    if (network != null) {
-      Chain.props = Chain[network];
-      Storage.set(StorageField.Network, network);
-    } else {
-      network = Storage.get(StorageField.Network);
-      if (network == NetworkType.Mainnet || network == NetworkType.Testnet || network == NetworkType.Regtest)
-        Chain.props = Chain[network];
-    }
-    
     this.props.account = null;
+    this.reconfigure(network);
     this.save();
     await SafeStorage.set(StorageField.Mnemonic);
     await SafeStorage.set(StorageField.SecretKey);
@@ -381,8 +367,7 @@ export class AppData {
       default:
         return false;
     }
-
-    this.reconfigure(network);
+    
     return true;
   }
   static clearWallet(callback: ClearCallback): any {
@@ -584,7 +569,11 @@ export class AppData {
   static async reconfigure(network?: NetworkType): Promise<number | null> {
     if (!network)
       network = Storage.get(StorageField.Network) || this.defaultNetwork();
-
+    if (network != null) {
+      Chain.props = Chain[network];
+      Storage.set(StorageField.Network, network);
+    } 
+      
     const config: { resolverUrl: string | null, swapUrl: string | null, serverUrl: string | null, authorizer: boolean } = (() => {
       switch (network) {
         case NetworkType.Regtest:

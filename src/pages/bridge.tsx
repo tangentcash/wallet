@@ -30,7 +30,7 @@ export default function BridgePage() {
   const ownerAddress = AppData.getWalletAddress() || '';
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [query] = useSearchParams();
-  const [preference, setPreference] = useState<'security' | 'cost' | 'popularity'>('popularity');
+  const [preference, setPreference] = useState<'stake' | 'balance'>('balance');
   const [assets, setAssets] = useState<any[]>([]);
   const [walletAddresses, setWalletAddresses] = useState<any[]>([]);
   const [cachedAddresses, setCachedAddresses] = useState<any[] | null>(null);
@@ -49,16 +49,13 @@ export default function BridgePage() {
 
       let data;
       switch (preference) {
-        case 'security':
-          data = await RPC.getBestBridgePoliciesForSelection(new AssetId(asset.id), refresh ? 0 : candidateBridges.length, DEPOSITORY_COUNT);
+        case 'stake':
+          data = await RPC.getBestValidatorAttestationsForSelection(new AssetId(asset.id), refresh ? 0 : candidateBridges.length, DEPOSITORY_COUNT);
           break;
-        case 'popularity':
+        case 'balance':
           data = await RPC.getBestBridgeBalancesForSelection(new AssetId(asset.id), refresh ? 0 : candidateBridges.length, DEPOSITORY_COUNT);
           if (!data || !data.length)
-            data = await RPC.getBestBridgePoliciesForSelection(new AssetId(asset.id), refresh ? 0 : candidateBridges.length, DEPOSITORY_COUNT);
-          break;
-        case 'cost':
-          data = await RPC.getBestBridgeRewardsForSelection(new AssetId(asset.id), refresh ? 0 : candidateBridges.length, DEPOSITORY_COUNT);
+            data = await RPC.getBestValidatorAttestationsForSelection(new AssetId(asset.id), refresh ? 0 : candidateBridges.length, DEPOSITORY_COUNT);
           break;
         default:
           return null;
@@ -320,7 +317,7 @@ export default function BridgePage() {
           <Box width="100%" mb="4">
             <Flex justify="between" align="center" mb="3">
               <Heading size="6">Bridges</Heading>
-              <Select.Root value={preference} onValueChange={(value) => setPreference(value as ('security' | 'cost' | 'popularity'))}>
+              <Select.Root value={preference} onValueChange={(value) => setPreference(value as ('stake' | 'balance'))}>
                 <Select.Trigger />
                 <Select.Content>
                   <Select.Group>
@@ -341,32 +338,32 @@ export default function BridgePage() {
           <InfiniteScroll dataLength={candidateBridges.length} hasMore={moreBridges} next={findBridges} loader={<div></div>}>
             {
               candidateBridges.map((item, index) =>
-                <Box width="100%" key={item.policy.hash + index} mb="4">
+                <Box width="100%" key={item.attestation.hash + index} mb="4">
                   <Card>
                     <Flex justify="between" align="center" mb="4">
                       <Flex align="center" gap="2">
                         <Heading size="4">{ item.founder ? 'Founder bridge' : 'Bridge' }</Heading>
-                        <Badge radius="medium" variant="surface" size="2">{ item.policy.owner.substring(item.policy.owner.length - 6).toUpperCase() }</Badge>
+                        <Badge radius="medium" variant="surface" size="2">{ item.attestation.owner.substring(item.attestation.owner.length - 6).toUpperCase() }</Badge>
                       </Flex>
-                      <Badge size="2" radius="medium" color={item.attestation && item.attestation.stakes.length > 0 ? 'jade' : 'red'}>{ item.attestation && item.attestation.stakes.length > 0 ? 'ONLINE' : 'OFFLINE' }</Badge>
+                      <Badge size="2" radius="medium" color={item.attestation && item.attestation.rewards.length > 0 ? 'jade' : 'red'}>{ item.attestation && item.attestation.rewards.length > 0 ? 'ONLINE' : 'OFFLINE' }</Badge>
                     </Flex>
                     <DataList.Root orientation={orientation}>
                       <DataList.Item>
                         <DataList.Label>Bridge account:</DataList.Label>
                         <DataList.Value>
                           <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                            navigator.clipboard.writeText(item.policy.owner);
+                            navigator.clipboard.writeText(item.attestation.owner);
                             AlertBox.open(AlertType.Info, 'Address copied!')
-                          }}>{ Readability.toAddress(item.policy.owner) }</Button>
+                          }}>{ Readability.toAddress(item.attestation.owner) }</Button>
                           <Box ml="2">
-                            <Link className="router-link" to={'/account/' + item.policy.owner}>▒▒</Link>
+                            <Link className="router-link" to={'/account/' + item.attestation.owner}>▒▒</Link>
                           </Box>
                         </DataList.Value>
                       </DataList.Item>
                       <DataList.Item>
                         <DataList.Label>Bridge status:</DataList.Label>
                         <DataList.Value>
-                          <Badge size="1" radius="medium" color={!item.policy.accepts_account_requests || !item.policy.accepts_withdrawal_requests ? 'red' : 'jade'}>{ toBridgeStatus(item.policy) }</Badge>
+                          <Badge size="1" radius="medium" color={!item.attestation.accepts_account_requests || !item.attestation.accepts_withdrawal_requests ? 'red' : 'jade'}>{ toBridgeStatus(item.attestation) }</Badge>
                         </DataList.Value>
                       </DataList.Item>
                       <DataList.Item>
@@ -375,7 +372,7 @@ export default function BridgePage() {
                           <Flex wrap="wrap" gap="1">
                             {
                               item.balance && item.balance.balances.map((next: any) =>
-                                <Badge key={item.policy.hash + index + next.asset.id} size="1" radius="medium" color="yellow">{ Readability.toMoney(next.asset, next.supply) }</Badge>)
+                                <Badge key={item.attestation.hash + index + next.asset.id} size="1" radius="medium" color="yellow">{ Readability.toMoney(next.asset, next.supply) }</Badge>)
                             }
                             {
                               !item.balance &&
@@ -387,18 +384,18 @@ export default function BridgePage() {
                       <DataList.Item>
                         <DataList.Label>Security to speed index:</DataList.Label>
                         <DataList.Value>
-                          <Badge size="1" radius="medium" color={toBridgeIndex(item.policy)[0] ? 'tomato' : 'jade'}>{ toBridgeIndex(item.policy)[1] }</Badge>
+                          <Badge size="1" radius="medium" color={toBridgeIndex(item.attestation)[0] ? 'tomato' : 'jade'}>{ toBridgeIndex(item.attestation)[1] }</Badge>
                         </DataList.Value>
                       </DataList.Item>
                       <DataList.Item>
                         <DataList.Label>Deposit cost:</DataList.Label>
                         <DataList.Value>
                           {
-                            item.reward && item.reward.incoming_fee.gt(0) &&
-                            <Text>{ Readability.toMoney(new AssetId(asset.id), item.reward.incoming_fee) }</Text>
+                            item.attestation && item.attestation.incoming_fee.gt(0) &&
+                            <Text>{ Readability.toMoney(new AssetId(asset.id), item.attestation.incoming_fee) }</Text>
                           }
                           {
-                            (!item.reward || item.reward.incoming_fee.lte(0)) &&
+                            (!item.attestation || item.attestation.incoming_fee.lte(0)) &&
                             <Badge size="1" radius="medium" color="jade">Free</Badge>
                           }
                         </DataList.Value>
@@ -407,18 +404,18 @@ export default function BridgePage() {
                         <DataList.Label>Withdrawal cost:</DataList.Label>
                         <DataList.Value>
                           {
-                            item.reward && item.reward.outgoing_fee.gt(0) &&
-                            <Text>{ Readability.toMoney(new AssetId(asset.id), item.reward.outgoing_fee) }</Text>
+                            item.attestation && item.attestation.outgoing_fee.gt(0) &&
+                            <Text>{ Readability.toMoney(new AssetId(asset.id), item.attestation.outgoing_fee) }</Text>
                           }
                           {
-                            (!item.reward || item.reward.outgoing_fee.lte(0)) &&
+                            (!item.attestation || item.attestation.outgoing_fee.lte(0)) &&
                             <Badge size="1" radius="medium" color="jade">Free</Badge>
                           }
                         </DataList.Value>
                       </DataList.Item>
                     </DataList.Root>
                     {
-                      item.attestation && item.attestation.stakes.length > 0 &&
+                      item.attestation && item.attestation.stake != null &&
                       <Flex justify="end" align="center" mt="4">
                           <DropdownMenu.Root>
                             <DropdownMenu.Trigger>
@@ -429,13 +426,13 @@ export default function BridgePage() {
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Content>
                               <DropdownMenu.Item shortcut="↙" onClick={() => {
-                                if (acquiredBridges[item.policy.owner] == null && item.policy.accepts_account_requests)
-                                  navigate(`/interaction?asset=${asset.id}&type=registration&manager=${item.policy.owner}`)
-                              }} disabled={acquiredBridges[item.policy.owner] != null || !item.policy.accepts_account_requests}>Deposit into account</DropdownMenu.Item>
+                                if (acquiredBridges[item.attestation.owner] == null && item.attestation.accepts_account_requests)
+                                  navigate(`/interaction?asset=${asset.id}&type=registration&manager=${item.attestation.owner}`)
+                              }} disabled={acquiredBridges[item.attestation.owner] != null || !item.attestation.accepts_account_requests}>Deposit into account</DropdownMenu.Item>
                               <DropdownMenu.Item shortcut="↗" onClick={() => {
-                                if (item.policy.accepts_withdrawal_requests)
-                                  navigate(`/interaction?asset=${asset.id}&type=withdrawal&manager=${item.policy.owner}`)
-                              }} disabled={!item.policy.accepts_withdrawal_requests}>Withdraw from account</DropdownMenu.Item>
+                                if (item.attestation.accepts_withdrawal_requests)
+                                  navigate(`/interaction?asset=${asset.id}&type=withdrawal&manager=${item.attestation.owner}`)
+                              }} disabled={!item.attestation.accepts_withdrawal_requests}>Withdraw from account</DropdownMenu.Item>
                             </DropdownMenu.Content>
                           </DropdownMenu.Root>
                       </Flex>

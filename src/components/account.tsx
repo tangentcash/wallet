@@ -3,7 +3,7 @@ import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, Flex, Heading, 
 import { RPC, EventResolver, SummaryState, AssetId, Readability } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowLeftBoldHexagonOutline, mdiArrowRightBoldHexagonOutline, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft } from "@mdi/js";
+import { mdiArrowRightBoldHexagonOutline, mdiCellphoneKey, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft, mdiTransitConnectionVariant } from "@mdi/js";
 import { AppData } from "../core/app";
 import { useNavigate } from "react-router";
 import InfiniteScroll from 'react-infinite-scroll-component';
@@ -33,7 +33,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   const [assets, setAssets] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [attestations, setAttestations] = useState<any[]>([]);
-  const [participations, setParticipations] = useState<any[]>([]);
+  const [participation, setParticipation] = useState<any>([]);
   const [production, setProduction] = useState<any>(null);
   const [selectedAddress, setSelectedAddress] = useState<number>(-1);
   const [selectedAddressVersion, setSelectedAddressVersion] = useState<number>(0);
@@ -132,8 +132,8 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
       })(),
       (async () => {
         try {
-          const participationData = await RPC.fetchAll((offset, count) => RPC.getValidatorParticipations(ownerAddress, offset, count));
-          setParticipations(Array.isArray(participationData) ? participationData : []);
+          const participationData = await RPC.getValidatorParticipation(ownerAddress);
+          setParticipation(participationData || null);
         } catch (exception) {
           AlertBox.open(AlertType.Error, 'Failed to fetch account participations: ' + (exception as Error).message)
         }
@@ -370,22 +370,31 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                   <Flex justify="between" align="center">
                     <Text as="div" size="2" weight="light">Block production</Text>
                   </Flex>
-                  <Tooltip content="Gas accumulated from every produced block">
-                    <Badge size="1" color={production ? (production.active ? 'jade' : 'red') : 'orange'}>PRODUCER { production ? (production.active ? 'ONLINE' : 'OFFLINE') : 'STANDBY' }</Badge>
-                  </Tooltip>
+                  <Badge size="1" color={production ? (production.stake != null ? 'jade' : 'red') : 'orange'}>PRODUCER { production ? (production.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ production != null ? production.stake != null ? ' IN BLOCK ' + production.block_number.toNumber() : (' FROM BLOCK ' + production.block_number.toNumber()) : '' }</Badge>
                 </Box>
               </Flex>
               {
-                production && production.stakes.length > 0 &&
+                production && production.rewards.length > 0 &&
                 <Box pl="5">
                   {
-                    production.stakes.map((item: any) => {
+                    production.stake != null && production.stake.gte(0) &&
+                    <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
+                      <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(new AssetId())} src={Readability.toAssetImage(new AssetId())} />
+                      <Box width="100%" style={{ marginLeft: '2px' }}>
+                        <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " fees received by block producer, when unlocked block producer will lose half of their gas production"}>
+                          <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), production.stake) }</Text>
+                        </Tooltip>
+                      </Box>
+                    </Flex>
+                  }
+                  {
+                    production.rewards.map((item: any) => {
                       return (
                         <Flex key={item.asset.id + '_production'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                           <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                           <Box width="100%" style={{ marginLeft: '2px' }}>
                             <Tooltip content={Readability.toAssetSymbol(item.asset) + " fees received by block producer, when unlocked block producer will lose half of their gas production"}>
-                              <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.stake) }</Text>
+                              <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
                             </Tooltip>
                           </Box>
                         </Flex>
@@ -394,74 +403,87 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                   }
                 </Box>
               }
+              <Flex px="2" py="2" gap="3">
+                <Icon path={mdiCellphoneKey} size={1.5} style={{ color: 'var(--yellow-9)' }} />
+                <Box width="100%">
+                  <Flex justify="between" align="center">
+                    <Text as="div" size="2" weight="light">Bridge participation</Text>
+                  </Flex>
+                  <Badge size="1" color={participation ? (participation.stake != null ? 'jade' : 'red') : 'orange'}>PARTICIPANT { participation ? (participation.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ participation != null ? participation.stake != null ? ' IN BLOCK ' + participation.block_number.toNumber() : (' FROM BLOCK ' + participation.block_number.toNumber()) : '' }</Badge>
+                </Box>
+              </Flex>
               {
-                production &&
-                <Flex px="2" py="2" gap="3" align="center">
-                  <Icon path={mdiArrowLeftBoldHexagonOutline} size={1.5} style={{ color: 'var(--jade-10)' }} />
-                  <Box width="100%">
-                    <Flex justify="between" align="center">
-                      <Text as="div" size="2" weight="light">{ production.active ? 'Activity' : 'Downtime' }</Text>
-                    </Flex>
-                    <Tooltip content="Block in which producer's state has been affected">
-                      <Text as="div" size="2" weight="medium">{ production.active ? 'In' : 'From'} block { production.block_number.toNumber() }</Text>
-                    </Tooltip>
+                participation &&
+                <>
+                  <Box pl="5">
+                    {
+                      participation.stake != null && participation.stake.gte(0) &&
+                      <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
+                        <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(new AssetId())} src={Readability.toAssetImage(new AssetId())} />
+                        <Box width="100%" style={{ marginLeft: '2px' }}>
+                          <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake and fees received by bridge participation as a signer of withdrawal transactions"}>
+                            <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), participation.stake) }</Text>
+                          </Tooltip>
+                        </Box>
+                      </Flex>
+                    }
+                    {
+                      participation.rewards.map((item: any) => {
+                        return (
+                          <Flex key={item.asset.id + '_participation'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
+                            <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
+                            <Box width="100%" style={{ marginLeft: '2px' }}>
+                              <Tooltip content={Readability.toAssetSymbol(item.asset) + ' stake and fees received by bridge participation as a signer of withdrawal transactions'}>
+                                <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
+                              </Tooltip>
+                            </Box>
+                          </Flex>
+                        )
+                      })
+                    }
                   </Box>
-                </Flex>
-              }
-              {
-                participations.length > 0 &&
-                <Box px="2" my="2">
-                  <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-                </Box>
+                </>
               }
               { 
-                participations.map((item) =>
-                  <Flex key={item.asset.id + '_participation'} px="2" py="2" gap="3" align="center">
-                    <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
-                    <Box width="100%" style={{ marginLeft: '2px' }}>
-                      <Flex justify="between" align="center">
-                        <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } bridge participation</Text>
-                      </Flex>
+                attestations.map((attestation) =>
+                  <Box key={attestation.asset.id + '_attestation'}>
+                    <Flex px="2" py="2" gap="3">
+                      <Icon path={mdiTransitConnectionVariant} size={1.5} style={{ color: 'var(--jade-10)' }} />
+                      <Box width="100%">
+                        <Flex justify="between" align="center">
+                          <Text as="div" size="2" weight="light">Bridge attestation — { Readability.toAssetName(new AssetId(attestation.asset.id)) }</Text>
+                        </Flex>
+                        <Badge size="1" color={attestation ? (attestation.stake != null ? 'jade' : 'red') : 'orange'}>ATTESTATION { attestation ? (attestation.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ attestation != null ? attestation.stake != null ? ' IN BLOCK ' + attestation.block_number.toNumber() : (' FROM BLOCK ' + attestation.block_number.toNumber()) : '' }</Badge>
+                      </Box>
+                    </Flex>
+                    <Box pl="5">
                       {
-                        item.stakes.map((stake: any, index: number) =>
-                          <Tooltip key={item.asset.id + index.toString() + '_participation_index'} content={stake.asset.chain + ' stake and fees received by bridge participation as a signer of withdrawal transactions'}>
-                            <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(stake.asset, stake.stake) } for { Readability.toCount('participation', item.participations) }</Text>
-                          </Tooltip>)
+                        attestation.stake != null && attestation.stake.gte(0) &&
+                        <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
+                          <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(new AssetId())} src={Readability.toAssetImage(new AssetId())} />
+                          <Box width="100%" style={{ marginLeft: '2px' }}>
+                            <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake and fees received by bridge attestation as a deposit/withdrawal transaction notifications and participant coordination"}>
+                              <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), attestation.stake) }</Text>
+                            </Tooltip>
+                          </Box>
+                        </Flex>
                       }
                       {
-                        !item.stakes.length && !item.participations &&
-                        <Badge size="1" radius="medium" color="red">OFFLINE</Badge>
-                      }
-                    </Box>
-                  </Flex>
-                )
-              }
-              {
-                attestations.length > 0 &&
-                <Box px="2" my="2">
-                  <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-                </Box>
-              }
-              { 
-                attestations.map((item) =>
-                  <Flex key={item.asset.id + '_attestation'} px="2" py="2" gap="3" align="center">
-                    <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
-                    <Box width="100%" style={{ marginLeft: '2px' }}>
-                      <Flex justify="between" align="center">
-                        <Text as="div" size="2" weight="light">{ Readability.toAssetName(item.asset) } bridge attestation</Text>
-                      </Flex>
-                      {
-                        item.stakes.map((stake: any, index: number) =>
-                          <Tooltip key={item.asset.id + index.toString() + '_attestation_index'} content={stake.asset.chain + ' stake and fees received by bridge attestation as a deposit/withdrawal transaction notifications'}>
-                            <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(stake.asset, stake.stake) }</Text>
-                          </Tooltip>)
-                      }
-                      {
-                        !item.stakes.length &&
-                        <Badge size="1" radius="medium" color="red">OFFLINE</Badge>
+                        attestation.rewards.map((item: any) => {
+                          return (
+                            <Flex key={item.asset.id + '_attestation'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
+                              <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
+                              <Box width="100%" style={{ marginLeft: '2px' }}>
+                                <Tooltip content={Readability.toAssetSymbol(item.asset) + ' stake and fees received by bridge attestation as a deposit/withdrawal transaction notifications and participant coordination'}>
+                                  <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
+                                </Tooltip>
+                              </Box>
+                            </Flex>
+                          )
+                        })
                       }
                     </Box>
-                  </Flex>
+                  </Box>
                 )
               }
             </Tabs.Content>

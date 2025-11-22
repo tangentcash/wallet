@@ -15,12 +15,21 @@ export class ProgramTransfer {
 }
 
 export class ProgramValidatorAdjustment {
-  assets: AssetId[] = []
+  assets: { asset: AssetId, policy: string }[] = []
   blockProduction: 'standby' | 'enable' | 'disable' = 'standby';
   blockProductionStake: string = '';
-  participationStakes: { asset: AssetId, stake: string | null }[] = [];
-  attestationStakes: { asset: AssetId, stake: string | null }[] = [];
-  participationReservations: Set<string> = new Set<string>();
+  bridgeParticipation: 'standby' | 'enable' | 'disable' = 'standby';
+  bridgeParticipationStake: string = '';
+  attestations: {
+    asset: AssetId,
+    stake: string | null,
+    incomingFee: string,
+    outgoingFee: string,
+    participationThreshold: string,
+    securityLevel: string,
+    acceptsAccountRequests: number,
+    acceptsWithdrawalRequests: number
+  }[] = [];
   attestationReservations: Set<string> = new Set<string>();
 }
 
@@ -35,22 +44,11 @@ export class ProgramBridgeWithdrawal {
   onlyIfNotInQueue: boolean = true;
 }
 
-export class ProgramBridgeAdjustment {
-  routing: { chain: string, policy: string }[] = [];
-  incomingFee: string = '';
-  outgoingFee: string = '';
-  participationThreshold: string = '';
-  securityLevel: number = 2;
-  acceptsAccountRequests: boolean = true;
-  acceptsWithdrawalRequests: boolean = true;
-}
-
 export class ProgramBridgeMigration {
 }
 
 export class ProgramBridgeWithdrawalMigration {
   routing: { chain: string, policy: string }[] = [];
-  toManager: string = '';
   onlyIfNotInQueue: boolean = true;
 }
 
@@ -105,7 +103,7 @@ export default function InteractionPage() {
   const [loadingTransaction, setLoadingTransaction] = useState(false);
   const [loadingGasPriceAndPrice, setLoadingGasPriceAndPrice] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
-  const [program, setProgram] = useState<ProgramTransfer | ProgramValidatorAdjustment | ProgramBridgeAccount | ProgramBridgeWithdrawal | ProgramBridgeAdjustment | ProgramBridgeMigration | ProgramBridgeWithdrawalMigration | ApproveTransaction | null>(null);
+  const [program, setProgram] = useState<ProgramTransfer | ProgramValidatorAdjustment | ProgramBridgeAccount | ProgramBridgeWithdrawal | ProgramBridgeMigration | ProgramBridgeWithdrawalMigration | ApproveTransaction | null>(null);
   const navigate = useNavigate();
   const maxFeeValue = useMemo((): BigNumber => {
     try {
@@ -145,8 +143,6 @@ export default function InteractionPage() {
         return 'Address claim';
     } else if (program instanceof ProgramBridgeWithdrawal) {
       return program.to.length > 1 ? 'Withdraw to many' : 'Withdraw to one';
-    } else if (program instanceof ProgramBridgeAdjustment) {
-      return 'Bridge adjustment';
     } else if (program instanceof ProgramBridgeMigration) {
       return 'Participant migration';
     } else if (program instanceof ProgramBridgeWithdrawalMigration) {
@@ -202,29 +198,48 @@ export default function InteractionPage() {
       }
   
       return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
-    } else if (program instanceof ProgramValidatorAdjustment) {
-        for (let i = 0; i < program.participationStakes.length; i++) {
-          let item = program.participationStakes[i];
-          try {
-            if (typeof item.stake != 'string')
-              continue;
-  
-            const numeric = new BigNumber(item.stake.trim());
-            if (numeric.isNaN())
-              return false;
-          } catch {
-            return false;
-          }
-        }
-        
-        for (let i = 0; i < program.attestationStakes.length; i++) {
-          let item = program.attestationStakes[i];
+    } else if (program instanceof ProgramValidatorAdjustment) {  
+        for (let i = 0; i < program.attestations.length; i++) {
+          let item = program.attestations[i];
           try {
             if (typeof item.stake != 'string')
               continue;
             
             const numeric = new BigNumber(item.stake.trim());
             if (numeric.isNaN())
+              return false;
+            
+            if (item.incomingFee.length > 0) {
+              const numeric = new BigNumber(item.incomingFee.trim());
+              if (numeric.isNaN() || numeric.isNegative())
+                return false;
+            }
+
+            if (item.outgoingFee.length > 0) {
+              const numeric = new BigNumber(item.outgoingFee.trim());
+              if (numeric.isNaN() || numeric.isNegative())
+                return false;
+            }
+
+            if (item.participationThreshold.length > 0) {
+              const numeric = new BigNumber(item.participationThreshold.trim());
+              if (numeric.isNaN() || numeric.isNegative())
+                return false;
+            }
+
+            if (item.securityLevel.length > 0) {
+              const numeric = new BigNumber(item.securityLevel.trim());
+              if (numeric.isNaN() || numeric.isNegative() || numeric.integerValue().toString() != numeric.toString())
+                return false;
+
+              if (numeric.lt(Chain.props.PARTICIPATION_COMMITTEE[0]) || numeric.gt(Chain.props.PARTICIPATION_COMMITTEE[1]))
+                return false;
+            }
+
+            if (item.acceptsAccountRequests != -1 && item.acceptsAccountRequests != 0 && item.acceptsAccountRequests != 1)
+              return false;
+
+            if (item.acceptsWithdrawalRequests != -1 && item.acceptsWithdrawalRequests != 0 && item.acceptsWithdrawalRequests != 1)
               return false;
           } catch {
             return false;
@@ -241,7 +256,17 @@ export default function InteractionPage() {
           }
         }
 
-        return program.blockProduction != 'standby' || program.participationStakes.length > 0 || program.attestationStakes.length > 0;
+        if (program.bridgeParticipation == 'enable') {
+          try {
+            const numeric = new BigNumber(program.bridgeParticipationStake.trim());
+            if (!numeric.gte(0))
+              return false;
+          } catch {
+            return false;
+          }
+        }
+
+        return program.blockProduction != 'standby' || program.bridgeParticipation != 'standby' || program.attestations.length > 0;
     } else if (program instanceof ProgramBridgeAccount) {
       const routing = program.routing.find((item) => item.chain == assets[asset].asset.chain);
       if (routing?.policy == 'account' && !program.routingAddress.length)
@@ -274,51 +299,9 @@ export default function InteractionPage() {
         return false;
   
       return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
-    } else if (program instanceof ProgramBridgeAdjustment) {
-      try {
-        if (program.incomingFee.length > 0) {
-          const numeric = new BigNumber(program.incomingFee.trim());
-          if (numeric.isNaN() || numeric.isNegative())
-            return false;
-        }
-      } catch {
-        return false;
-      }
-
-      try {
-        if (program.outgoingFee.length > 0) {
-          const numeric = new BigNumber(program.outgoingFee.trim());
-          if (numeric.isNaN() || numeric.isNegative())
-            return false;
-        }
-      } catch {
-        return false;
-      }
-
-      try {
-        if (program.participationThreshold.length > 0) {
-          const numeric = new BigNumber(program.participationThreshold.trim());
-          if (numeric.isNaN() || numeric.isNegative())
-            return false;
-        }
-      } catch {
-        return false;
-      }
-
-      if (program.securityLevel < Chain.props.PARTICIPATION_COMMITTEE[0] || program.securityLevel > Chain.props.PARTICIPATION_COMMITTEE[1])
-        return false;
-
-      return true;
     } else if (program instanceof ProgramBridgeMigration) {
       return true;
     } else if (program instanceof ProgramBridgeWithdrawalMigration) {
-      if (program.toManager.trim() == ownerAddress)
-        return false;
-
-      const publicKeyHash = Signing.decodeAddress(program.toManager.trim());
-      if (!publicKeyHash || publicKeyHash.data.length != 20)
-        return false;
-
       return true;
     } else if (program instanceof ApproveTransaction) {
       return program.hexMessage != null && program.transaction != null;
@@ -406,15 +389,25 @@ export default function InteractionPage() {
         return await buildProgram({
           type: new Transactions.ValidatorAdjustment(),
           args: {
-            blockProduction: program.blockProduction != 'standby',
-            blockProductionStake: program.blockProduction != 'standby' ? (program.blockProduction == 'enable' ? new BigNumber(program.blockProductionStake) : new BigNumber(NaN)) : undefined,
-            participationStakes: program.participationStakes.map((item) => ({
+            hasProduction: program.blockProduction != 'standby',
+            productionStake: program.blockProduction != 'standby' ? (program.blockProduction == 'enable' ? new BigNumber(program.blockProductionStake) : new BigNumber(NaN)) : undefined,
+            hasParticipation: program.bridgeParticipation != 'standby',
+            participationStake: program.bridgeParticipation != 'standby' ? (program.bridgeParticipation == 'enable' ? new BigNumber(program.bridgeParticipationStake) : new BigNumber(NaN)) : undefined,
+            attestations: program.attestations.map((item) => ({
               asset: item.asset,
-              stake: item.stake != null ? new BigNumber(item.stake) : new BigNumber(NaN)
-            })),
-            attestationStakes: program.attestationStakes.map((item) => ({
-              asset: item.asset,
-              stake: item.stake != null ? new BigNumber(item.stake) : new BigNumber(NaN)
+              stake: item.stake != null ? new BigNumber(item.stake) : new BigNumber(NaN),
+              hasAcceptsAccountRequests: item.acceptsAccountRequests != -1,
+              hasAcceptsWithdrawalRequests: item.acceptsWithdrawalRequests != -1,
+              hasSecurityLevel: item.securityLevel.length > 0,
+              hasIncomingFee: item.incomingFee.length > 0,
+              hasOutgoingFee: item.outgoingFee.length > 0,
+              hasParticipationThreshold: item.participationThreshold.length > 0,
+              acceptsAccountRequests: item.acceptsAccountRequests != -1 ? item.acceptsAccountRequests > 0 : undefined,
+              acceptsWithdrawalRequests: item.acceptsWithdrawalRequests != -1 ? item.acceptsWithdrawalRequests > 0 : undefined,
+              securityLevel: item.securityLevel.length > 0 ? new Uint256(new BigNumber(item.securityLevel).toNumber()) : undefined,
+              incomingFee: item.incomingFee.length > 0 ? new BigNumber(item.incomingFee) : undefined,
+              outgoingFee: item.outgoingFee.length > 0 ? new BigNumber(item.outgoingFee) : undefined,
+              participationThreshold: item.participationThreshold.length > 0 ? new BigNumber(item.participationThreshold) : undefined,
             }))
           }
         });
@@ -438,24 +431,11 @@ export default function InteractionPage() {
           type: new Transactions.BridgeWithdrawal(),
           args: {
             onlyIfNotInQueue: program.onlyIfNotInQueue,
-            fromManager: Signing.decodeAddress(params.manager || ''),
-            toManager: null,
+            manager: Signing.decodeAddress(params.manager || ''),
             to: program.to.map((payment) => ({
               to: payment.address,
               value: new BigNumber(payment.value)
             }))
-          }
-        });
-      } else if (program instanceof ProgramBridgeAdjustment) {
-        return await buildProgram({
-          type: new Transactions.BridgeAdjustment(),
-          args: {
-            incomingFee: new BigNumber(program.incomingFee || 0),
-            outgoingFee: new BigNumber(program.outgoingFee || 0),
-            participationThreshold: new BigNumber(program.participationThreshold || 0),
-            securityLevel: program.securityLevel,
-            acceptsAccountRequests: program.acceptsAccountRequests,
-            acceptsWithdrawalRequests: program.acceptsWithdrawalRequests
           }
         });
       } else if (program instanceof ProgramBridgeMigration) {
@@ -488,8 +468,7 @@ export default function InteractionPage() {
           type: new Transactions.BridgeWithdrawal(),
           args: {
             onlyIfNotInQueue: program.onlyIfNotInQueue,
-            fromManager: Signing.decodeAddress(ownerAddress || ''),
-            toManager: Signing.decodeAddress(program.toManager || ''),
+            manager: Signing.decodeAddress(ownerAddress || ''),
             to: []
           }
         });
@@ -646,7 +625,7 @@ export default function InteractionPage() {
       }
       case 'validator': {
         const result = new ProgramValidatorAdjustment();
-        try { result.assets = ((await RPC.getBlockchains()) || []).map((v) => AssetId.fromHandle(v.chain)); } catch { }
+        try { result.assets = ((await RPC.getBlockchains()) || []).map((v) => { return { asset: AssetId.fromHandle(v.chain), policy: v.token_policy as string }}); } catch { }
         setProgram(result);
         break;
       }
@@ -660,13 +639,6 @@ export default function InteractionPage() {
         const result = new ProgramBridgeWithdrawal();
         result.to = [{ address: '', value: '' }];
         try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
-        setProgram(result);
-        break;
-      }
-      case 'adjustment': {
-        const result = new ProgramBridgeAdjustment();
-        try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.token_policy }}); } catch { }
-        requiresAllAssets = true;
         setProgram(result);
         break;
       }
@@ -750,9 +722,6 @@ export default function InteractionPage() {
                 <DropdownMenu.Item onClick={() => navigate('/interaction?type=validator')}>Configure validator</DropdownMenu.Item>
               </Tooltip>
               <DropdownMenu.Separator />
-              <Tooltip content="Configure fee, security and functionality policy for a bridge">
-                <DropdownMenu.Item onClick={() => navigate('/interaction?type=adjustment')}>Configure bridge</DropdownMenu.Item>
-              </Tooltip>
               <Tooltip content="Migrate bridge participations to another participant (for participation unstaking)">
                 <DropdownMenu.Item color="red" onClick={() => navigate('/interaction?type=participantmigration')}>Migrate participant</DropdownMenu.Item>
               </Tooltip>
@@ -889,12 +858,13 @@ export default function InteractionPage() {
           <Select.Root size="3" value={program.blockProduction} onValueChange={(value) => {
             const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
             copy.blockProduction = value as any;
+            copy.blockProductionStake = '';
             setProgram(copy);
           }}>
             <Select.Trigger variant="surface" placeholder="Select block production" style={{ width: '100%' }}>
             </Select.Trigger>
             <Select.Content color="gray">
-              <Select.Item value="standby">No change to block production</Select.Item>
+              <Select.Item value="standby">Block production unchanged</Select.Item>
               <Select.Item value="enable">
                 <Text color="jade">ENABLE</Text> block production
               </Select.Item>
@@ -906,7 +876,7 @@ export default function InteractionPage() {
           {
             program.blockProduction == 'enable' &&
             <Box width="100%" mt="4">
-              <Tooltip content="Locking value if positive and unlocking value if negative">
+              <Tooltip content="Locking value to activate block production staking">
                 <TextField.Root mb="3" size="3" placeholder={'Block production stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={program.blockProductionStake} onChange={(e) => {
                   const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                   copy.blockProductionStake = e.target.value;
@@ -915,94 +885,159 @@ export default function InteractionPage() {
               </Tooltip>
             </Box>
           }
+          <Box mt="4">
+            <Select.Root size="3" value={program.bridgeParticipation} onValueChange={(value) => {
+              const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+              copy.bridgeParticipation = value as any;
+              copy.bridgeParticipationStake = '';
+              setProgram(copy);
+            }}>
+              <Select.Trigger variant="surface" placeholder="Select bridge participation" style={{ width: '100%' }}>
+              </Select.Trigger>
+              <Select.Content color="gray">
+                <Select.Item value="standby">Bridge participation unchanged</Select.Item>
+                <Select.Item value="enable">
+                  <Text color="jade">ENABLE</Text> bridge participation
+                </Select.Item>
+                <Select.Item value="disable">
+                  <Text color="red">DISABLE</Text> bridge participation
+                </Select.Item>
+              </Select.Content>
+            </Select.Root>
+          </Box>
           {
-            program.participationStakes.map((item, index) =>
+            program.bridgeParticipation == 'enable' &&
+            <Box width="100%" mt="4">
+              <Tooltip content="Locking value to activate bridge participation staking">
+                <TextField.Root mb="3" size="3" placeholder={'Bride participation stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={program.bridgeParticipationStake} onChange={(e) => {
+                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                  copy.bridgeParticipationStake = e.target.value;
+                  setProgram(copy);
+                }} />
+              </Tooltip>
+            </Box>
+          }
+          {
+            program.attestations.map((item, index) =>
               <Box mt="4" key={index}>
-                <Heading size="4" mb="2">
-                  <Flex align="center">
-                    <Avatar mr="1" size="1" radius="full" fallback={(item.asset.chain || '?')[0]} src={'/cryptocurrency/' + (item.asset.chain || '').toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
-                    { item.asset.chain || '' } participation stake
-                  </Flex>
-                </Heading>
-                <Box width="100%">
-                  <Tooltip content="Locking value if positive and unlocking value if negative">
-                    <TextField.Root mb="3" size="3" placeholder={'Participation stake in ' + Readability.toAssetSymbol(item.asset)} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
-                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                      copy.participationStakes[index].stake = e.target.value;
-                      setProgram(copy);
-                    }} />
-                  </Tooltip>
-                </Box>
-                <Box width="100%">
-                  <Flex align="center" justify="between">
-                    <Button variant="soft" color="red" onClick={() => {
-                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                      copy.participationReservations.delete(item.asset.chain || '');
-                      copy.participationStakes.splice(index, 1);
-                      setProgram(copy);
-                    }}>No change</Button>
-                    <Tooltip content="Unlock full stake">
-                      <Text as="label" size="2" color={item.stake != null ? 'jade' : 'red'}>
-                        <Flex gap="2">
-                          <Checkbox size="3" checked={item.stake == null} onCheckedChange={(value) => {
-                            const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                            copy.participationStakes[index].stake = value ? null : '';
-                            setProgram(copy);
-                          }} />
-                          <Text>Unlock full stake</Text>
-                        </Flex>
-                      </Text>
+                <Card>
+                  <Heading size="4" mb="2">
+                    <Flex align="center">
+                      <Avatar mr="1" size="1" radius="full" fallback={(item.asset.chain || '?')[0]} src={'/cryptocurrency/' + (item.asset.chain || '').toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
+                      { item.asset.chain || '' } attestation
+                    </Flex>
+                  </Heading>
+                  <Box width="100%">
+                    <Tooltip content="Locking value to activate/increase bridge attestation staking">
+                      <TextField.Root mb="3" size="3" placeholder={'Attestation stake in ' + Readability.toAssetSymbol(item.asset)} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
+                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                        copy.attestations[index].stake = e.target.value;
+                        setProgram(copy);
+                      }} />
                     </Tooltip>
-                  </Flex>
-                </Box>
+                  </Box>
+                  <Box width="100%">
+                    <Tooltip content="Fee charged for deposits (absolute value)">
+                      <TextField.Root size="3" placeholder="Incoming absolute fee 0.0-∞" type="text" value={item.incomingFee} onChange={(e) => {
+                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                        copy.attestations[index].incomingFee = e.target.value;
+                        setProgram(copy);
+                      }} />
+                    </Tooltip>
+                  </Box>
+                  <Box width="100%" mt="3">
+                    <Tooltip content="Fee charged for withdrawals (absolute value)">
+                      <TextField.Root size="3" placeholder="Outgoing absolute fee 0.0-∞" type="text" value={item.outgoingFee} onChange={(e) => {
+                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                        copy.attestations[index].outgoingFee = e.target.value;
+                        setProgram(copy);
+                      }} />
+                    </Tooltip>
+                  </Box>
+                  <Box width="100%" mt="3">
+                    <Tooltip content="Participant stacking required to be included in bridge account/transaction calculations (absolute value)">
+                      <TextField.Root size="3" placeholder="Participation threshold 0.0-∞" type="text" value={item.participationThreshold} onChange={(e) => {
+                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                        copy.attestations[index].participationThreshold = e.target.value;
+                        setProgram(copy);
+                      }} />
+                    </Tooltip>
+                  </Box>
+                  <Box width="100%" mt="3">
+                    <Tooltip content="Determines how many participants must be present to sign transactions">
+                      <TextField.Root size="3" placeholder="Security level (3-16)" type="text" value={item.securityLevel} onChange={(e) => {
+                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                        copy.attestations[index].securityLevel = e.target.value;
+                        setProgram(copy);
+                      }} />
+                    </Tooltip>
+                  </Box>
+                  <Box width="100%" mt="3">
+                    <Select.Root size="3" value={item.acceptsAccountRequests.toString()} onValueChange={(value) => {
+                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                      copy.attestations[index].acceptsAccountRequests = parseInt(value) || -1;
+                      setProgram(copy);
+                    }}>
+                      <Select.Trigger variant="surface" placeholder="Select account policy" style={{ width: '100%' }}>
+                      </Select.Trigger>
+                      <Select.Content color="gray">
+                        <Select.Item value="-1">Account policy unchanged</Select.Item>
+                        <Select.Item value="1">
+                          <Text color="jade">ENABLE</Text> account creation
+                        </Select.Item>
+                        <Select.Item value="0">
+                          <Text color="red">DISABLE</Text> account creation
+                        </Select.Item>
+                      </Select.Content>
+                    </Select.Root>
+                  </Box>
+                  <Box width="100%" mt="3">
+                    <Select.Root size="3" value={item.acceptsWithdrawalRequests.toString()} onValueChange={(value) => {
+                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                      copy.attestations[index].acceptsWithdrawalRequests = parseInt(value) || -1;
+                      setProgram(copy);
+                    }}>
+                      <Select.Trigger variant="surface" placeholder="Select withdrawal policy" style={{ width: '100%' }}>
+                      </Select.Trigger>
+                      <Select.Content color="gray">
+                        <Select.Item value="-1">Withdrawal policy unchanged</Select.Item>
+                        <Select.Item value="1">
+                          <Text color="jade">ENABLE</Text> withdrawals
+                        </Select.Item>
+                        <Select.Item value="0">
+                          <Text color="red">DISABLE</Text> withdrawals
+                        </Select.Item>
+                      </Select.Content>
+                    </Select.Root>
+                  </Box>
+                  <Box width="100%" mt="3">
+                    <Flex align="center" justify="between">
+                      <Button variant="soft" color="red" onClick={() => {
+                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                        copy.attestationReservations.delete(item.asset.chain || '');
+                        copy.attestations.splice(index, 1);
+                        setProgram(copy);
+                      }}>Cancel changes</Button>
+                      <Tooltip content="Unlock stake">
+                        <Text as="label" size="2" color={item.stake != null ? 'jade' : 'red'}>
+                          <Flex gap="2" justify="end">
+                            <Checkbox size="3" checked={item.stake == null} onCheckedChange={(value) => {
+                              const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                              copy.attestations[index].stake = value ? null : '';
+                              setProgram(copy);
+                            }} />
+                            <Text>Unlock stake</Text>
+                          </Flex>
+                        </Text>
+                      </Tooltip>
+                    </Flex>
+                  </Box>
+                </Card>
               </Box>
             )
           }
           {
-            program.attestationStakes.map((item, index) =>
-              <Box mt="4" key={index}>
-                <Heading size="4" mb="2">
-                  <Flex align="center">
-                    <Avatar mr="1" size="1" radius="full" fallback={(item.asset.chain || '?')[0]} src={'/cryptocurrency/' + (item.asset.chain || '').toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
-                    { item.asset.chain || '' } attestation stake
-                  </Flex>
-                </Heading>
-                <Box width="100%">
-                  <Tooltip content="Locking value if positive and unlocking value if negative">
-                    <TextField.Root mb="3" size="3" placeholder={'Attestation stake in ' + Readability.toAssetSymbol(item.asset)} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
-                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                      copy.attestationStakes[index].stake = e.target.value;
-                      setProgram(copy);
-                    }} />
-                  </Tooltip>
-                </Box>
-                <Box width="100%">
-                  <Flex align="center" justify="between">
-                    <Button variant="soft" color="red" onClick={() => {
-                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                      copy.attestationReservations.delete(item.asset.chain || '');
-                      copy.attestationStakes.splice(index, 1);
-                      setProgram(copy);
-                    }}>No change</Button>
-                    <Tooltip content="Unlock full stake">
-                      <Text as="label" size="2" color={item.stake != null ? 'jade' : 'red'}>
-                        <Flex gap="2" justify="end">
-                          <Checkbox size="3" checked={item.stake == null} onCheckedChange={(value) => {
-                            const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                            copy.attestationStakes[index].stake = value ? null : '';
-                            setProgram(copy);
-                          }} />
-                          <Text>Unlock full stake</Text>
-                        </Flex>
-                      </Text>
-                    </Tooltip>
-                  </Flex>
-                </Box>
-              </Box>
-            )
-          }
-          {
-            (program.participationStakes.length > 0 || program.attestationStakes.length > 0) && 
+            program.attestations.length > 0 && 
             <Box width="100%" mt="3" mb="4">
               <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
             </Box>
@@ -1010,34 +1045,17 @@ export default function InteractionPage() {
           <Box mt="4">
             <Select.Root size="3" onValueChange={(value) => {
               const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-              copy.participationStakes.push({ asset: AssetId.fromHandle(value), stake: '' });
-              copy.participationReservations.add(copy.participationStakes[copy.participationStakes.length - 1].asset.chain || '');
-              setProgram(copy);
-            }}>
-              <Select.Trigger variant="surface" placeholder="Change participation stake" style={{ width: '100%' }}>
-              </Select.Trigger>
-              <Select.Content variant="soft">
-                <Select.Group>
-                  <Select.Item value="0" disabled={true}>Select participation blockchain</Select.Item>
-                  {
-                    program.assets.map((item) =>
-                      <Select.Item key={item.chain + '_select'} value={item.chain || ''} disabled={program.participationReservations.has(item.chain || '')}>
-                        <Flex align="center" gap="1">
-                          <Avatar mr="1" size="1" radius="full" fallback={(item.chain || '?')[0]} src={'/cryptocurrency/' + (item.chain || '').toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
-                          <Text size="4">{ item.chain || '' } participation update</Text>
-                        </Flex>
-                      </Select.Item>
-                    )
-                  }
-                </Select.Group>
-              </Select.Content>
-            </Select.Root>
-          </Box>
-          <Box mt="4">
-            <Select.Root size="3" onValueChange={(value) => {
-              const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-              copy.attestationStakes.push({ asset: AssetId.fromHandle(value), stake: '' });
-              copy.attestationReservations.add(copy.attestationStakes[copy.attestationStakes.length - 1].asset.chain || '');
+              copy.attestations.push({
+                asset: AssetId.fromHandle(value),
+                stake: '',
+                incomingFee: '',
+                outgoingFee: '',
+                participationThreshold: '',
+                securityLevel: '',
+                acceptsAccountRequests: -1,
+                acceptsWithdrawalRequests: -1
+              });
+              copy.attestationReservations.add(copy.attestations[copy.attestations.length - 1].asset.chain || '');
               setProgram(copy);
             }}>
               <Select.Trigger variant="surface" placeholder="Change attestation stake" style={{ width: '100%' }}>
@@ -1047,10 +1065,10 @@ export default function InteractionPage() {
                   <Select.Item value="0" disabled={true}>Select attestation blockchain</Select.Item>
                   {
                     program.assets.map((item) =>
-                      <Select.Item key={item.chain + '_select'} value={item.chain || ''} disabled={program.attestationReservations.has(item.chain || '')}>
+                      <Select.Item key={item.asset.chain + '_select'} value={item.asset.chain || ''} disabled={program.attestationReservations.has(item.asset.chain || '')}>
                         <Flex align="center" gap="1">
-                          <Avatar mr="1" size="1" radius="full" fallback={(item.chain || '?')[0]} src={'/cryptocurrency/' + (item.chain || '').toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
-                          <Text size="4">{ item.chain || '' } attestation update</Text>
+                          <Avatar mr="1" size="1" radius="full" fallback={(item.asset.chain || '?')[0]} src={'/cryptocurrency/' + (item.asset.chain || '').toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
+                          <Text size="4">{ item.asset.chain || '' } attestation update</Text>
                         </Flex>
                       </Select.Item>
                     )
@@ -1146,91 +1164,6 @@ export default function InteractionPage() {
         </Box>
       }
       {
-        asset != -1 && program instanceof ProgramBridgeAdjustment &&
-        <>
-          <Card mt="4">
-            <Heading size="4" mb="2">Bridge policy</Heading>
-            <Box width="100%">
-              <Tooltip content="Fee charged for deposits (absolute value)">
-                <TextField.Root size="3" placeholder="Incoming absolute fee 0.0-∞" type="text" value={program.incomingFee} onChange={(e) => {
-                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                  copy.incomingFee = e.target.value;
-                  setProgram(copy);
-                }} />
-              </Tooltip>
-            </Box>
-            <Box width="100%" mt="3">
-              <Tooltip content="Fee charged for withdrawals (absolute value)">
-                <TextField.Root size="3" placeholder="Outgoing absolute fee 0.0-∞" type="text" value={program.outgoingFee} onChange={(e) => {
-                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                  copy.outgoingFee = e.target.value;
-                  setProgram(copy);
-                }} />
-              </Tooltip>
-            </Box>
-            <Box width="100%" mt="3">
-              <Tooltip content="Participant stacking required to be included in bridge account/transaction calculations (absolute value)">
-                <TextField.Root size="3" placeholder="Participation threshold 0.0-∞" type="text" value={program.participationThreshold} onChange={(e) => {
-                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                  copy.participationThreshold = e.target.value;
-                  setProgram(copy);
-                }} />
-              </Tooltip>
-            </Box>
-            <Box width="100%" mt="3">
-              <Tooltip content="Determines how many participants must be present to sign transactions">
-                <TextField.Root size="3" placeholder="Security level (2-16)" type="text" value={program.securityLevel.toString()} onChange={(e) => {
-                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                  copy.securityLevel = parseInt(e.target.value) || 0;
-                  setProgram(copy);
-                }} />
-              </Tooltip>
-            </Box>
-            <Flex width="100%" mt="3" justify="start" gap="2" wrap="wrap">
-              <Tooltip content="Allow others to generate bridge accounts for your bridge">
-                <Text as="label" size="2" color={program.acceptsAccountRequests ? 'jade' : 'red'}>
-                  <Flex gap="2">
-                    <Checkbox size="3" checked={program.acceptsAccountRequests} onCheckedChange={(value) => {
-                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                      copy.acceptsAccountRequests = (value.valueOf() as boolean);
-                      setProgram(copy);
-                    }} />
-                    <Text>Enable deposits</Text>
-                  </Flex>
-                </Text>
-              </Tooltip>
-              <Tooltip content="Allow others to withdraw their funds from your bridge">
-                <Text as="label" size="2" color={program.acceptsWithdrawalRequests ? 'jade' : 'red'}>
-                  <Flex gap="2">
-                    <Checkbox size="3" checked={program.acceptsWithdrawalRequests} onCheckedChange={(value) => {
-                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                      copy.acceptsWithdrawalRequests = (value.valueOf() as boolean);
-                      setProgram(copy);
-                    }} />
-                    <Text>Enable withdrawals</Text>
-                  </Flex>
-                </Text>
-              </Tooltip>
-            </Flex>
-          </Card>
-        </>
-      }
-      {
-        asset != -1 && program instanceof ProgramBridgeWithdrawalMigration &&
-        <Card mt="4">
-          <Heading size="4" mb="2">Migrate to manager account</Heading>
-          <Box width="100%">
-            <Tooltip content="Send to bridge funds to this manager address">
-              <TextField.Root size="3" placeholder="New manager address" type="text" value={program.toManager} onChange={(e) => {
-                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                copy.toManager = e.target.value;
-                setProgram(copy);
-              }} />
-            </Tooltip>
-          </Box>
-        </Card>
-      }
-      {
         programReady &&
         <Card mt="4">
           <Heading size="4" mb="2">Priority & cost</Heading>
@@ -1308,12 +1241,12 @@ export default function InteractionPage() {
                           <Text as="div" weight="light" size="4" mb="1">— { program.blockProduction == 'enable' ? 'Enable' : 'Disable' } <Text color="red">block production</Text> of a validator node</Text>
                         }
                         {
-                          program.participationStakes.length > 0 &&
-                          <Text as="div" weight="light" size="4" mb="1">— Update stake of <Text color="red">{ Readability.toCount('participation', program.participationStakes.length) }</Text> of a validator node</Text>
+                          program.bridgeParticipation != 'standby' &&
+                          <Text as="div" weight="light" size="4" mb="1">— { program.bridgeParticipation == 'enable' ? 'Enable' : 'Disable' } <Text color="red">bridge participation</Text> of a validator node</Text>
                         }
                         {
-                          program.attestationStakes.length > 0 &&
-                          <Text as="div" weight="light" size="4" mb="1">— Update stake of <Text color="red">{ Readability.toCount('attestation', program.attestationStakes.length) }</Text> of a validator node</Text>
+                          program.attestations.length > 0 &&
+                          <Text as="div" weight="light" size="4" mb="1">— Update policy of <Text color="red">{ Readability.toCount('attester', program.attestations.length) }</Text> of a validator node</Text>
                         }
                       </>
                     }
@@ -1337,18 +1270,12 @@ export default function InteractionPage() {
                       </>
                     }
                     {
-                      asset != -1 && program instanceof ProgramBridgeAdjustment &&
-                      <Text as="div" weight="light" size="4" mb="1">— Adjust a { assets[asset].chain } bridge of a validator node by using { program.incomingFee.length > 0 && new BigNumber(program.incomingFee).gt(0) ? 'paid' : 'free' } deposits and { program.outgoingFee.length > 0 && new BigNumber(program.outgoingFee).gt(0) ? 'paid' : 'free' } withdrawals</Text>        
-                    }
-                    {
                       asset != -1 && program instanceof ProgramBridgeMigration &&
                       <Text as="div" weight="light" size="4" mb="1">— Migration participation of a validator node (to possibly unstake the participation stake)</Text>        
                     }
                     {
                       asset != -1 && program instanceof ProgramBridgeWithdrawalMigration &&
-                      <Text as="div" weight="light" size="4" mb="1">— Migration a { assets[asset].chain } bridge of a validator node to <Badge radius="medium" variant="surface" size="2">{ 
-                          program.toManager.substring(program.toManager.length - 6).toUpperCase()
-                      }</Badge> node</Text>
+                      <Text as="div" weight="light" size="4" mb="1">— Migrate a { assets[asset].chain } bridge of a validator node to another bridge</Text>
                     }
                     {
                       asset != -1 && program instanceof ApproveTransaction &&
