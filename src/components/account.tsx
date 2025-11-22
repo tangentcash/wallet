@@ -403,18 +403,18 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                   }
                 </Box>
               }
-              <Flex px="2" py="2" gap="3">
-                <Icon path={mdiCellphoneKey} size={1.5} style={{ color: 'var(--yellow-9)' }} />
-                <Box width="100%">
-                  <Flex justify="between" align="center">
-                    <Text as="div" size="2" weight="light">Bridge participation</Text>
-                  </Flex>
-                  <Badge size="1" color={participation ? (participation.stake != null ? 'jade' : 'red') : 'orange'}>PARTICIPANT { participation ? (participation.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ participation != null ? participation.stake != null ? ' IN BLOCK ' + participation.block_number.toNumber() : (' FROM BLOCK ' + participation.block_number.toNumber()) : '' }</Badge>
-                </Box>
-              </Flex>
               {
                 participation &&
                 <>
+                  <Flex px="2" py="2" gap="3">
+                    <Icon path={mdiCellphoneKey} size={1.5} style={{ color: 'var(--yellow-9)' }} />
+                    <Box width="100%">
+                      <Flex justify="between" align="center">
+                        <Text as="div" size="2" weight="light">Bridge participation</Text>
+                      </Flex>
+                      <Badge size="1" color={participation.stake != null ? 'jade' : 'red'}>PARTICIPANT { (participation.stake != null ? 'ACTIVE' : 'OFFLINE') }{ participation.stake != null ? ' IN BLOCK ' + participation.block_number.toNumber() : (' FROM BLOCK ' + participation.block_number.toNumber()) }</Badge>
+                    </Box>
+                  </Flex>
                   <Box pl="5">
                     {
                       participation.stake != null && participation.stake.gte(0) &&
