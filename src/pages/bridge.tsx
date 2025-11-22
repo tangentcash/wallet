@@ -322,9 +322,8 @@ export default function BridgePage() {
                 <Select.Content>
                   <Select.Group>
                     <Select.Label>Bridge preference</Select.Label>
-                    <Select.Item value="popularity">Popularity</Select.Item>
-                    <Select.Item value="security">Security</Select.Item>
-                    <Select.Item value="cost">Cost</Select.Item>
+                    <Select.Item value="stake">Stake</Select.Item>
+                    <Select.Item value="balance">Balance</Select.Item>
                   </Select.Group>
                 </Select.Content>
               </Select.Root>
@@ -345,7 +344,7 @@ export default function BridgePage() {
                         <Heading size="4">{ item.founder ? 'Founder bridge' : 'Bridge' }</Heading>
                         <Badge radius="medium" variant="surface" size="2">{ item.attestation.owner.substring(item.attestation.owner.length - 6).toUpperCase() }</Badge>
                       </Flex>
-                      <Badge size="2" radius="medium" color={item.attestation && item.attestation.rewards.length > 0 ? 'jade' : 'red'}>{ item.attestation && item.attestation.rewards.length > 0 ? 'ONLINE' : 'OFFLINE' }</Badge>
+                      <Badge size="2" radius="medium" color={item.attestation && item.attestation.stake != null ? 'jade' : 'red'}>{ item.attestation && item.attestation.stake != null ? 'ONLINE' : 'OFFLINE' }</Badge>
                     </Flex>
                     <DataList.Root orientation={orientation}>
                       <DataList.Item>
