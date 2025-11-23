@@ -374,7 +374,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                 </Box>
               </Flex>
               {
-                production && production.rewards.length > 0 &&
+                production && (production.stake.gte(0) || production.rewards.length > 0) &&
                 <Box pl="5">
                   {
                     production.stake != null && production.stake.gte(0) &&
