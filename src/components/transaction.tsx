@@ -144,32 +144,32 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
         <>
           <DataList.Root orientation={props.orientation}>
             {
-              transaction.block_production != null &&
+              transaction.block_production !== undefined &&
               <DataList.Item>
                 <DataList.Label>Block production:</DataList.Label>
                 <DataList.Value>
-                  <Badge color={ transaction.block_production.gte(0) ? 'jade' : 'red' }>{ transaction.block_production.gte(0) ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.block_production) + ' locked' : 'Offline' }</Badge>
+                  <Badge color={ transaction.block_production != null ? 'jade' : 'red' }>{ transaction.block_production != null ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.block_production) + ' locked' : 'Offline' }</Badge>
                 </DataList.Value>
               </DataList.Item>
             }
             {
-              transaction.bridge_participation != null &&
+              transaction.bridge_participation !== undefined &&
               <DataList.Item>
                 <DataList.Label>Bridge participation:</DataList.Label>
                 <DataList.Value>
-                  <Badge color={ transaction.bridge_participation.gte(0) ? 'jade' : 'red' }>{ transaction.bridge_participation.gte(0) ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.bridge_participation) + ' locked' : 'Offline' }</Badge>
+                  <Badge color={ transaction.bridge_participation != null ? 'jade' : 'red' }>{ transaction.bridge_participation != null ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.bridge_participation) + ' locked' : 'Offline' }</Badge>
                 </DataList.Value>
               </DataList.Item>
             }
           </DataList.Root>
           {
-            transaction.bridge_attestations != null &&transaction.bridge_attestations.map((item: any) => 
+            transaction.bridge_attestations != null && transaction.bridge_attestations.map((item: any) => 
               <Card mt="3" key={'IF3' + item.asset.chain}>
                 <DataList.Root orientation={props.orientation}>
                 <DataList.Item>
                   <DataList.Label>{ item.asset.chain } attestation stake:</DataList.Label>
                   <DataList.Value>
-                    <Badge color={ item.stake != null && item.stake >= 0.0 ? 'jade' : 'red' }>{ item.stake != null ? 'Online with ' + Readability.toMoney(new AssetId(), item.stake) : 'Offline' }</Badge>
+                    <Badge color={ item.stake != null ? 'jade' : 'red' }>{ item.stake != null ? 'Online with ' + Readability.toMoney(new AssetId(), item.stake) : 'Offline' }</Badge>
                   </DataList.Value>
                 </DataList.Item>
                 {
