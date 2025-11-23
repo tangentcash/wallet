@@ -1,4 +1,4 @@
-import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiReloadAlert } from "@mdi/js";
+import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiReloadAlert } from "@mdi/js";
 import { Badge, Box, Button, Card, DataList, Flex, Heading, Switch, Table, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
@@ -137,6 +137,12 @@ export default function ConfigurePage() {
           <Flex justify="between" align="center" mt="2">
             <Text size="2" color="gray">Wallet status</Text>
             <Badge size="3" color="orange">{ AppData.getWalletSecretKey() != null ? 'Read/write' : 'Read-only' }</Badge>
+          </Flex>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" color="gray">Close wallet</Text>
+            <Button size="2" variant="soft" color="jade" disabled={!AppData.isWalletReady()} onClick={() => AppData.clearWallet()}>
+              <Icon path={mdiLocationExit} size={0.85} />
+            </Button>
           </Flex>
           <Flex justify="between" align="center" mt="2">
             <Text size="2" color="gray">Export wallet</Text>

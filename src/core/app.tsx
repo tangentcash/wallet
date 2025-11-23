@@ -370,12 +370,11 @@ export class AppData {
     
     return true;
   }
-  static clearWallet(callback: ClearCallback): any {
+  static clearWallet(callback?: ClearCallback): void {
     SafeStorage.clear();
     this.wallet = null;
-    this.props.account = null;
-    this.save();
-    return callback();
+    if (callback)
+      callback();
   }
   static decodeTransaction(data: string | Uint8Array): DecodedTransaction {
     const message = typeof data == 'string' ? Stream.decode(data) : new Stream(data);
