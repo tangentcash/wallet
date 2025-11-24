@@ -923,7 +923,7 @@ export default function InteractionPage() {
                 <Card>
                   <Heading size="4" mb="2">
                     <Flex align="center">
-                      <Avatar mr="1" size="1" radius="full" fallback={(item.asset.chain || '?')[0]} src={'/cryptocurrency/' + (item.asset.chain || '').toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
+                      <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
                       { item.asset.chain || '' } attestation
                     </Flex>
                   </Heading>
@@ -1067,7 +1067,7 @@ export default function InteractionPage() {
                     program.assets.map((item) =>
                       <Select.Item key={item.asset.chain + '_select'} value={item.asset.chain || ''} disabled={program.attestationReservations.has(item.asset.chain || '')}>
                         <Flex align="center" gap="1">
-                          <Avatar mr="1" size="1" radius="full" fallback={(item.asset.chain || '?')[0]} src={'/cryptocurrency/' + (item.asset.chain || '').toLowerCase() + '.svg'} style={{ width: '24px', height: '24px' }} />
+                          <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
                           <Text size="4">{ item.asset.chain || '' } attestation update</Text>
                         </Flex>
                       </Select.Item>

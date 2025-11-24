@@ -25,7 +25,59 @@ function toAddressType(type: string): string {
   }
 }
 
-const TRANSACTION_COUNT = 48;
+function TransactionList(props: { ownerAddress: string, mempoolTransactions: any[], transactions: any[], moreTransactions: boolean, findTransactions: () => void }) {
+  const ownerAddress = props.ownerAddress;
+  const mempoolTransactions = props.mempoolTransactions;
+  const transactions = props.transactions;
+  const moreTransactions = props.moreTransactions;
+  const findTransactions = props.findTransactions;
+  if (!transactions.length && !mempoolTransactions.length)
+    return <></>;
+
+  return (
+    <Box width="100%" my="8">
+      <Box px="2">
+        <Heading size={document.body.clientWidth < 450 ? '5' : '6'} mb="0">Transactions</Heading>
+      </Box>
+      {
+        mempoolTransactions.length > 0 &&
+        <Box width="100%">
+          <Box px="2">
+            <Text as="div" size="2" mb="1" align="right">Queue</Text>
+            <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+          </Box>
+          {
+            mempoolTransactions.map((item, index) =>
+                <Box px="2" mb="4" key={item.hash + index + '_mempool'}>
+                  <Transaction ownerAddress={ownerAddress} transaction={item}></Transaction>
+                </Box>
+            )
+          }
+        </Box>
+      }
+      <InfiniteScroll dataLength={transactions.length} hasMore={moreTransactions} next={findTransactions} loader={<div></div>}>
+        {
+          transactions.map((item, index) =>
+            <Box width="100%" key={item.transaction.hash + index + '_tx'}>
+              {
+                (!index || !item.receipt || new Date(transactions[index - 1].receipt.block_time?.toNumber()).setHours(0, 0, 0, 0) != new Date(item.receipt.block_time?.toNumber()).setHours(0, 0, 0, 0)) &&
+                <Box px="2">
+                  <Text as="div" size="2" mb="1" align="right">{ item.receipt ? (new Date(item.receipt.block_time?.toNumber()).setHours(0, 0, 0, 0) == new Date().setHours(0, 0, 0, 0) ? 'Today' : new Date(item.receipt.block_time?.toNumber()).toLocaleDateString()) : 'Today' }</Text>
+                  <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+                </Box>
+              }
+              <Box px="2" mb="4">
+                <Transaction ownerAddress={ownerAddress} transaction={item.transaction} receipt={item.receipt} state={item.state}></Transaction>
+              </Box>
+            </Box>
+          )
+        }
+      </InfiniteScroll>
+    </Box>
+  )
+}
+
+const TRANSACTION_COUNT = 16;
 export default function Account(props: { ownerAddress: string, self?: boolean, nonce?: number }) {
   const ownerAddress = props.ownerAddress;
   const navigate = useNavigate();
@@ -213,8 +265,8 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               {
                 !assets.length &&
                 <Tooltip content="Account does not have any non-zero asset balances">
-                  <Flex px="2" py="2" gap="3" align="center">
-                    <Avatar size="2" radius="large" fallback="NA" color="gray" />
+                  <Flex px="2" py="3" gap="3" align="center">
+                    <Avatar size="3" radius="large" fallback="NA" color="gray" />
                     <Box width="100%">
                       <Flex justify="between" align="center">
                         <Text as="div" size="2" weight="light">N/A</Text>
@@ -227,8 +279,8 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               }
               { 
                 assets.map((item) =>
-                  <Flex key={item.asset.id + '_balance'} px="2" py="2" gap="3" align="center">
-                    <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
+                  <Flex key={item.asset.id + '_balance'} px="2" py="3" gap="3" align="center">
+                    <Avatar size="3" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                     <Box width="100%">
                       <Flex justify="between" align="center">
                         <Tooltip content={ Readability.toAssetName(item.asset, true) + ' blockchain' }>
@@ -504,48 +556,13 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
           </Flex>
         }
       </Box>
-      {
-        (transactions.length > 0 || mempoolTransactions.length > 0) &&
-        <Box width="100%" my="8">
-          <Box px="2">
-            <Heading size={document.body.clientWidth < 450 ? '5' : '6'} mb="0">Transactions</Heading>
-          </Box>
-          {
-            mempoolTransactions.length > 0 &&
-            <Box width="100%">
-              <Box px="2">
-                <Text as="div" size="2" mb="1" align="right">Queue</Text>
-                <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-              </Box>
-              {
-                mempoolTransactions.map((item, index) =>
-                    <Box px="2" mb="4" key={item.hash + index + '_mempool'}>
-                      <Transaction ownerAddress={ownerAddress} transaction={item}></Transaction>
-                    </Box>
-                )
-              }
-            </Box>
-          }
-          <InfiniteScroll dataLength={transactions.length} hasMore={moreTransactions} next={findTransactions} loader={<div></div>}>
-            {
-              transactions.map((item, index) =>
-                <Box width="100%" key={item.transaction.hash + index + '_tx'}>
-                  {
-                    (!index || !item.receipt || new Date(transactions[index - 1].receipt.block_time?.toNumber()).setHours(0, 0, 0, 0) != new Date(item.receipt.block_time?.toNumber()).setHours(0, 0, 0, 0)) &&
-                    <Box px="2">
-                      <Text as="div" size="2" mb="1" align="right">{ item.receipt ? (new Date(item.receipt.block_time?.toNumber()).setHours(0, 0, 0, 0) == new Date().setHours(0, 0, 0, 0) ? 'Today' : new Date(item.receipt.block_time?.toNumber()).toLocaleDateString()) : 'Today' }</Text>
-                      <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-                    </Box>
-                  }
-                  <Box px="2" mb="4">
-                    <Transaction ownerAddress={ownerAddress} transaction={item.transaction} receipt={item.receipt} state={item.state}></Transaction>
-                  </Box>
-                </Box>
-              )
-            }
-          </InfiniteScroll>
-        </Box>
-      }
+      <TransactionList 
+        ownerAddress={ownerAddress}
+        mempoolTransactions={mempoolTransactions}
+        transactions={transactions}
+        moreTransactions={moreTransactions}
+        findTransactions={findTransactions}>
+      </TransactionList>
     </Box>
   );
 }
