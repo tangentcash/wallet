@@ -25,58 +25,6 @@ function toAddressType(type: string): string {
   }
 }
 
-function TransactionList(props: { ownerAddress: string, mempoolTransactions: any[], transactions: any[], moreTransactions: boolean, findTransactions: () => void }) {
-  const ownerAddress = props.ownerAddress;
-  const mempoolTransactions = props.mempoolTransactions;
-  const transactions = props.transactions;
-  const moreTransactions = props.moreTransactions;
-  const findTransactions = props.findTransactions;
-  if (!transactions.length && !mempoolTransactions.length)
-    return <></>;
-
-  return (
-    <Box width="100%" my="8">
-      <Box px="2">
-        <Heading size={document.body.clientWidth < 450 ? '5' : '6'} mb="0">Transactions</Heading>
-      </Box>
-      {
-        mempoolTransactions.length > 0 &&
-        <Box width="100%">
-          <Box px="2">
-            <Text as="div" size="2" mb="1" align="right">Queue</Text>
-            <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-          </Box>
-          {
-            mempoolTransactions.map((item, index) =>
-                <Box px="2" mb="4" key={item.hash + index + '_mempool'}>
-                  <Transaction ownerAddress={ownerAddress} transaction={item}></Transaction>
-                </Box>
-            )
-          }
-        </Box>
-      }
-      <InfiniteScroll dataLength={transactions.length} hasMore={moreTransactions} next={findTransactions} loader={<div></div>}>
-        {
-          transactions.map((item, index) =>
-            <Box width="100%" key={item.transaction.hash + index + '_tx'}>
-              {
-                (!index || !item.receipt || new Date(transactions[index - 1].receipt.block_time?.toNumber()).setHours(0, 0, 0, 0) != new Date(item.receipt.block_time?.toNumber()).setHours(0, 0, 0, 0)) &&
-                <Box px="2">
-                  <Text as="div" size="2" mb="1" align="right">{ item.receipt ? (new Date(item.receipt.block_time?.toNumber()).setHours(0, 0, 0, 0) == new Date().setHours(0, 0, 0, 0) ? 'Today' : new Date(item.receipt.block_time?.toNumber()).toLocaleDateString()) : 'Today' }</Text>
-                  <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-                </Box>
-              }
-              <Box px="2" mb="4">
-                <Transaction ownerAddress={ownerAddress} transaction={item.transaction} receipt={item.receipt} state={item.state}></Transaction>
-              </Box>
-            </Box>
-          )
-        }
-      </InfiniteScroll>
-    </Box>
-  )
-}
-
 const TRANSACTION_COUNT = 16;
 export default function Account(props: { ownerAddress: string, self?: boolean, nonce?: number }) {
   const ownerAddress = props.ownerAddress;
@@ -556,13 +504,48 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
           </Flex>
         }
       </Box>
-      <TransactionList 
-        ownerAddress={ownerAddress}
-        mempoolTransactions={mempoolTransactions}
-        transactions={transactions}
-        moreTransactions={moreTransactions}
-        findTransactions={findTransactions}>
-      </TransactionList>
+      {
+        (transactions.length > 0 || mempoolTransactions.length > 0) &&
+        <Box width="100%" my="8">
+          <Box px="2">
+            <Heading size={document.body.clientWidth < 450 ? '5' : '6'} mb="0">Transactions</Heading>
+          </Box>
+          {
+            mempoolTransactions.length > 0 &&
+            <Box width="100%">
+              <Box px="2">
+                <Text as="div" size="2" mb="1" align="right">Queue</Text>
+                <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+              </Box>
+              {
+                mempoolTransactions.map((item, index) =>
+                    <Box px="2" mb="4" key={item.hash + index + '_mempool'}>
+                      <Transaction ownerAddress={ownerAddress} transaction={item}></Transaction>
+                    </Box>
+                )
+              }
+            </Box>
+          }
+          <InfiniteScroll dataLength={transactions.length} hasMore={moreTransactions} next={findTransactions} loader={<div></div>}>
+            {
+              transactions.map((item, index) =>
+                <Box width="100%" key={item.transaction.hash + index + '_tx'}>
+                  {
+                    (!index || !item.receipt || new Date(transactions[index - 1].receipt.block_time?.toNumber()).setHours(0, 0, 0, 0) != new Date(item.receipt.block_time?.toNumber()).setHours(0, 0, 0, 0)) &&
+                    <Box px="2">
+                      <Text as="div" size="2" mb="1" align="right">{ item.receipt ? (new Date(item.receipt.block_time?.toNumber()).setHours(0, 0, 0, 0) == new Date().setHours(0, 0, 0, 0) ? 'Today' : new Date(item.receipt.block_time?.toNumber()).toLocaleDateString()) : 'Today' }</Text>
+                      <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+                    </Box>
+                  }
+                  <Box px="2" mb="4">
+                    <Transaction ownerAddress={ownerAddress} transaction={item.transaction} receipt={item.receipt} state={item.state}></Transaction>
+                  </Box>
+                </Box>
+              )
+            }
+          </InfiniteScroll>
+        </Box>
+      }
     </Box>
   );
 }
