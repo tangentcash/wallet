@@ -385,29 +385,51 @@ export default function OrderbookPage() {
       const marketId = orderbook.marketId;
       const updateAccount = async () => {
         const account = AppData.getWalletAddress();
-        if (account != null) {
-          const [ordersResult, balancesResult, tiersResult] = await Promise.all([
-            Swap.accountOrders({ marketId: marketId, pairId: result.id, address: account, active: true }),
-            Swap.accountBalances({ address: account }),
-            Swap.accountTiers({ marketId: marketId, pairId: result.id, address: account })
-          ]);
-          const primaryBalance = balancesResult?.find((v) => v.asset.id == result.primaryAsset.id);
-          const secondaryBalance = balancesResult?.find((v) => v.asset.id == result.secondaryAsset.id);
-          setOrders(ordersResult || []);
-          setBalances({
-            primary: { price: primaryBalance?.price || null, value: primaryBalance?.available || new BigNumber(0) },
-            secondary: { price: secondaryBalance?.price || null, value: secondaryBalance?.available || new BigNumber(0) }
-          });
-          setTiers(tiersResult);
+        const ordersResult = account ? Swap.accountOrders({ marketId: marketId, pairId: result.id, address: account, active: true }) : null;
+        const tiersResult = account ? Swap.accountTiers({ marketId: marketId, pairId: result.id, address: account }) : null;
+        const balancesResult = account ? Swap.accountBalances({ address: account }) : null;
+        try {
+          if (ordersResult != null)
+            setOrders(await ordersResult || []);
+        } catch (exception: any) {
+          AlertBox.open(AlertType.Error, 'Failed to fetch account orders: ' + (exception.message || 'unknown error'));
+        }
+
+        try {
+          if (tiersResult != null)
+            setTiers(await tiersResult);
+        } catch (exception: any) {
+          AlertBox.open(AlertType.Error, 'Failed to fetch account tiers: ' + (exception.message || 'unknown error'));
+        }
+
+        try {
+          if (balancesResult != null) {
+            const accountBalances = await balancesResult;
+            const primaryBalance = accountBalances?.find((v) => v.asset.id == result.primaryAsset.id);
+            const secondaryBalance = accountBalances?.find((v) => v.asset.id == result.secondaryAsset.id);
+            setBalances({
+              primary: { price: primaryBalance?.price || null, value: primaryBalance?.available || new BigNumber(0) },
+              secondary: { price: secondaryBalance?.price || null, value: secondaryBalance?.available || new BigNumber(0) }
+            });
+          }
+        } catch (exception: any) {
+          AlertBox.open(AlertType.Error, 'Failed to fetch account balances: ' + (exception.message || 'unknown error'));
         }
       };
-      const [marketResult, levelsResult, _] = await Promise.all([
-        Swap.market(orderbook.marketId),
-        Swap.marketPriceLevels(orderbook.marketId, result.id),
-        updateAccount()
-      ]);
-      setMarket(marketResult);
-      setLevels({ ask: levelsResult?.ask || [], bid: levelsResult?.bid || [] });
+      const marketResult = Swap.market(orderbook.marketId);
+      const levelsResult = Swap.marketPriceLevels(orderbook.marketId, result.id);
+      try {
+        setMarket(await marketResult);
+      } catch (exception: any) {
+        AlertBox.open(AlertType.Error, 'Failed to fetch market data: ' + (exception.message || 'unknown error'));
+      }
+
+      try {
+        const marketLevels = await levelsResult;
+        setLevels({ ask: marketLevels?.ask || [], bid: marketLevels?.bid || [] });
+      } catch (exception: any) {
+        AlertBox.open(AlertType.Error, 'Failed to fetch orderbook: ' + (exception.message || 'unknown error'));
+      }
 
       if (typeof params.orderbook == 'string' && params.orderbook.length > 0) {
         const memorizedSeriesOptions = Storage.get(pathOfOrderbook(params.orderbook));
@@ -418,8 +440,8 @@ export default function OrderbookPage() {
       
       window.addEventListener('update:order', updateAccount);
       return () => window.removeEventListener('update:order', updateAccount);
-    } catch (ex) {
-      console.log(ex);
+    } catch (exception: any) {
+      AlertBox.open(AlertType.Error, 'Failed to fetch market: ' + (exception.message || 'unknown error'));
       navigate('/explorer');
     }
   }, [orderbook]);
