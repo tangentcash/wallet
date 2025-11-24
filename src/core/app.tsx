@@ -593,7 +593,6 @@ export class AppData {
     Swap.location = config.swapUrl || '';
     RPC.applyResolver(this.props.resolver);
     RPC.applyServer(this.props.server);
-    RPC.strict = true;
     
     const address = this.getWalletAddress();
     const result = await RPC.connectSocket(address ? [address] : []);
