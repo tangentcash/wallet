@@ -1,6 +1,6 @@
 {
   "resolverUrl": "https://p2pt.tangent.cash:18420",
-  "serverUrl": "p2pt.tangent.cash:18420",
+  "serverUrl": "p2pt.tangent.cash:18419",
   "swapUrl": "https://p2pt.tangent.cash:19420",
   "authorizer": true
 }
