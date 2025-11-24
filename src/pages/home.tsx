@@ -164,7 +164,7 @@ export default function HomePage() {
       <Flex gap="2" align="center" justify="between" px="2" mb="2">
         <Flex align="center" gap="2">
           <Heading size={document.body.clientWidth < 450 ? '4' : '6'}>Wallet</Heading>
-          <Badge radius="medium" variant="surface" size="2" color={ AppData.isWalletReady() ? 'jade' : 'red' } onClick={() => AppData.isWalletReady() ? undefined : navigate('/restore')}>{ AppData.isWalletReady() ? 'UNLOCKED' : 'LOCKED' }</Badge>
+          <Badge radius="medium" variant="surface" size="2" color={ AppData.isWalletReady() ? 'jade' : 'red' } onClick={() => AppData.isWalletReady() ? undefined : navigate('/restore')}>{ AppData.isWalletReady() ? '' : 'RO:' }{ ownerAddress.substring(ownerAddress.length - 6).toUpperCase() }</Badge>
         </Flex>
         <Flex justify="end" gap="1">
           <Dialog.Root onOpenChange={(opened) => setSearching(opened)} open={searching}>
