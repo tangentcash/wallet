@@ -573,7 +573,7 @@ export class AppData {
       Storage.set(StorageField.Network, network);
     } 
       
-    const config: { resolverUrl: string | null, swapUrl: string | null, serverUrl: string | null, authorizer: boolean } = (() => {
+    const config: { resolverUrl: string | null, serverUrl: string | null, swapUrl: string | null, authorizer: boolean } = (() => {
       switch (network) {
         case NetworkType.Regtest:
           return Regtest;
@@ -585,9 +585,11 @@ export class AppData {
           throw new Error('invalid network');
       }
     })();
-    this.props.resolver = config.resolverUrl;
-    this.props.server = config.serverUrl;
-    this.props.authorizer = config.authorizer;
+    if (!Storage.get(StorageField.Props)) {
+      this.props.resolver = config.resolverUrl;
+      this.props.server = config.serverUrl;
+      this.props.authorizer = config.authorizer;
+    }
     Swap.location = config.swapUrl || '';
     RPC.applyResolver(this.props.resolver);
     RPC.applyServer(this.props.server);

@@ -1,6 +1,6 @@
 {
   "resolverUrl": null,
-  "swapUrl": "http://localhost:19420",
   "serverUrl": "localhost:18419",
+  "swapUrl": "http://localhost:19420",
   "authorizer": true
 }
