@@ -13,7 +13,7 @@ import InfiniteScroll from "react-infinite-scroll-component";
 const DEPOSITORY_COUNT = 48;
 
 function toBridgeIndex(policy: any): [boolean, string] {
-  const index = policy.security_level / (Chain.props.PARTICIPATION_COMMITTEE[1] * 0.83);
+  const index = policy.security_level / (Chain.policy.PARTICIPATION_COMMITTEE[1] * 0.83);
   const speedOverSecurity = index <= 0.5;
   return [speedOverSecurity, index.toFixed(3) + (speedOverSecurity ? ' prefers speed' : ' prefers security')];
 }
@@ -426,11 +426,11 @@ export default function BridgePage() {
                             <DropdownMenu.Content>
                               <DropdownMenu.Item shortcut="↙" onClick={() => {
                                 if (acquiredBridges[item.attestation.owner] == null && item.attestation.accepts_account_requests)
-                                  navigate(`/interaction?asset=${asset.id}&type=registration&manager=${item.attestation.owner}`)
+                                  navigate(`/interaction?asset=${asset.id}&type=register&manager=${item.attestation.owner}`)
                               }} disabled={acquiredBridges[item.attestation.owner] != null || !item.attestation.accepts_account_requests}>Deposit into account</DropdownMenu.Item>
                               <DropdownMenu.Item shortcut="↗" onClick={() => {
                                 if (item.attestation.accepts_withdrawal_requests)
-                                  navigate(`/interaction?asset=${asset.id}&type=withdrawal&manager=${item.attestation.owner}`)
+                                  navigate(`/interaction?asset=${asset.id}&type=withdraw&manager=${item.attestation.owner}`)
                               }} disabled={!item.attestation.accepts_withdrawal_requests}>Withdraw from account</DropdownMenu.Item>
                             </DropdownMenu.Content>
                           </DropdownMenu.Root>

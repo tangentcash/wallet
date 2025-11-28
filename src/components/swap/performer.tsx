@@ -44,7 +44,7 @@ export default function PerformerButton(props: { title: string, description: str
       if (!entity || !entity.sign.message)
         throw new Error('Entity was not built');
 
-      navigate(`/interaction?type=approvetransaction&transaction=${entity.sign.message}${entity.sign.asset != null ? '&asset=' + entity.sign.asset : ''}`);
+      navigate(`/interaction?type=approve&transaction=${entity.sign.message}${entity.sign.asset != null ? '&asset=' + entity.sign.asset : ''}`);
     } catch (exception: any) {
       AlertBox.open(AlertType.Error, 'Build failed: ' + exception.message);
     }

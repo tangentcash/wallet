@@ -222,33 +222,59 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </Card>
             )
           }
+          {
+            transaction.bridge_migrations != null && transaction.bridge_migrations.map((item: any, index: number) =>
+              <Card key={'IF7' + item.bridge_withdrawal_finalization_hash + index} mb="4">
+                <DataList.Root orientation={props.orientation}>
+                  <DataList.Item>
+                    <DataList.Label>Reasoning transaction hash:</DataList.Label>
+                    <DataList.Value>
+                      <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                        navigator.clipboard.writeText(item.bridge_withdrawal_finalization_hash);
+                        AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+                      }}>{ Readability.toHash(item.bridge_withdrawal_finalization_hash) }</Button>
+                      <Box ml="2">
+                        <Link className="router-link" to={'/transaction/' + item.bridge_withdrawal_finalization_hash}>▒▒</Link>
+                      </Box>
+                    </DataList.Value>
+                  </DataList.Item>
+                  <DataList.Item>
+                    <DataList.Label>Participant account:</DataList.Label>
+                    <DataList.Value>
+                      <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                        navigator.clipboard.writeText(item.participant);
+                        AlertBox.open(AlertType.Info, 'Address copied!')
+                      }}>{ Readability.toAddress(item.participant) }</Button>
+                    </DataList.Value>
+                  </DataList.Item>
+                </DataList.Root>
+              </Card>
+            )
+          }
         </>
       )
-    case 'routing_account':
+    case 'validator_adjustment_finalization':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
-            <DataList.Label>Delegation account:</DataList.Label>
+            <DataList.Label>Parent hash:</DataList.Label>
             <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" disabled={!transaction.manager} onClick={() => {
-                navigator.clipboard.writeText(transaction.manager || 'NULL');
-                AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ Readability.toAddress(transaction.manager) }</Button>
-              {
-                transaction.manager &&
-                <Box ml="2">
-                  <Link className="router-link" to={'/account/' + transaction.manager}>▒▒</Link>
-                </Box>
-              }
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.validator_adjustment_hash);
+                AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+              }}>{ Readability.toHash(transaction.validator_adjustment_hash) }</Button>
+              <Box ml="2">
+                <Link className="router-link" to={'/transaction/' + transaction.validator_adjustment_hash}>▒▒</Link>
+              </Box>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Routing address:</DataList.Label>
+            <DataList.Label>Proof signature:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.address);
-                AlertBox.open(AlertType.Info, 'Routing address copied!')
-              }}>{ Readability.toAddress(transaction.address) }</Button>
+                navigator.clipboard.writeText(transaction.proof || 'NULL');
+                AlertBox.open(AlertType.Info, 'Proof signature copied!')
+              }}>{ Readability.toHash(transaction.proof) }</Button>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
@@ -525,73 +551,16 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           }
           {
             transaction.error &&
-            <DataList.Item>
+            <DataList.Item align="center">
               <DataList.Label>Off-chain relay:</DataList.Label>
               <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                <Button size="1" variant="surface" color="red" onClick={() => {
                   navigator.clipboard.writeText(transaction.error || 'OK');
                   AlertBox.open(AlertType.Info, 'Response copied!')
-                }}>{ transaction.error?.length > 16 ? Readability.toAddress(transaction.error) : 'OK' }</Button>
+                }}>FAULT { transaction.error != null ? (transaction.error.length >= 16 ? Readability.toAddress(transaction.error) : transaction.error) : 'OK' }</Button>
               </DataList.Value>
             </DataList.Item>
           }
-        </DataList.Root>
-      )
-    case 'bridge_migration':
-      return (
-          transaction.shares.map((item: any, index: number) =>
-            <Card key={'IF7' + item.manager + index} mb="4">
-              <DataList.Root orientation={props.orientation}>
-                <DataList.Item>
-                  <DataList.Label>Manager account:</DataList.Label>
-                  <DataList.Value>
-                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                      navigator.clipboard.writeText(item.manager);
-                      AlertBox.open(AlertType.Info, 'Address copied!')
-                    }}>{ Readability.toAddress(item.manager) }</Button>
-                  </DataList.Value>
-                </DataList.Item>
-                <DataList.Item>
-                  <DataList.Label>Owner account:</DataList.Label>
-                  <DataList.Value>
-                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                      navigator.clipboard.writeText(item.owner);
-                      AlertBox.open(AlertType.Info, 'Address copied!')
-                    }}>{ Readability.toAddress(item.owner) }</Button>
-                  </DataList.Value>
-                </DataList.Item>
-                <DataList.Item>
-                  <DataList.Label>Asset:</DataList.Label>
-                  <DataList.Value>{ Readability.toAssetName(item.asset) }</DataList.Value>
-                </DataList.Item>
-              </DataList.Root>
-            </Card>
-          )
-      )
-    case 'bridge_migration_finalization':
-      return (
-        <DataList.Root orientation={props.orientation}>
-          <DataList.Item>
-            <DataList.Label>Parent hash:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.bridge_migration_hash);
-                AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.bridge_migration_hash) }</Button>
-              <Box ml="2">
-                <Link className="router-link" to={'/transaction/' + transaction.bridge_migration_hash}>▒▒</Link>
-              </Box>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Confirmation signature:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.confirmation_signature || 'NULL');
-                AlertBox.open(AlertType.Info, 'Confirmation signature copied!')
-              }}>{ Readability.toHash(transaction.confirmation_signature) }</Button>
-            </DataList.Value>
-          </DataList.Item>
         </DataList.Root>
       )
     default:
@@ -1130,6 +1099,10 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 {
                   state.bridge.participants.size > 0 &&
                   <Badge size="1" radius="medium" color="jade">{ Readability.toCount('participant', state.bridge.participants.size) }</Badge>
+                }
+                {
+                  Object.keys(state.bridge.migrations).length > 0 &&
+                  <Badge size="1" radius="medium" color="red">Migration to { Readability.toCount('participant', Object.keys(state.bridge.migrations).length) }</Badge>
                 }
                 {
                   EventResolver.isSummaryStateEmpty(state, ownerAddress) &&

@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
-import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, Stream, TextUtil, TransactionOutput, Transactions, Uint256, Readability, Hashsig, Pubkeyhash, Pubkey, Seckey, SummaryState, EventResolver } from "tangentsdk";
+import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, TextUtil, TransactionOutput, Transactions, Uint256, Readability, Hashsig, Pubkeyhash, Pubkey, Seckey, SummaryState, EventResolver } from "tangentsdk";
 import { AppData } from "../core/app";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
@@ -20,6 +20,10 @@ export class ProgramValidatorAdjustment {
   blockProductionStake: string = '';
   bridgeParticipation: 'standby' | 'enable' | 'disable' = 'standby';
   bridgeParticipationStake: string = '';
+  migrations: {
+    transactionHash: string,
+    participant: string
+  }[] = [];
   attestations: {
     asset: AssetId,
     stake: string | null,
@@ -42,9 +46,6 @@ export class ProgramBridgeWithdrawal {
   routing: { chain: string, policy: string }[] = [];
   to: { address: string, value: string }[] = [];
   onlyIfNotInQueue: boolean = true;
-}
-
-export class ProgramBridgeMigration {
 }
 
 export class ProgramBridgeWithdrawalMigration {
@@ -103,7 +104,7 @@ export default function InteractionPage() {
   const [loadingTransaction, setLoadingTransaction] = useState(false);
   const [loadingGasPriceAndPrice, setLoadingGasPriceAndPrice] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
-  const [program, setProgram] = useState<ProgramTransfer | ProgramValidatorAdjustment | ProgramBridgeAccount | ProgramBridgeWithdrawal | ProgramBridgeMigration | ProgramBridgeWithdrawalMigration | ApproveTransaction | null>(null);
+  const [program, setProgram] = useState<ProgramTransfer | ProgramValidatorAdjustment | ProgramBridgeAccount | ProgramBridgeWithdrawal | ProgramBridgeWithdrawalMigration | ApproveTransaction | null>(null);
   const navigate = useNavigate();
   const maxFeeValue = useMemo((): BigNumber => {
     try {
@@ -138,15 +139,13 @@ export default function InteractionPage() {
     if (program instanceof ProgramTransfer) {
       return program.to.length > 1 ? 'Send to many' : 'Send to one';
     } else if (program instanceof ProgramValidatorAdjustment) {
-      return 'Validator adjustment';
+      return 'Validator configuration';
     } else if (program instanceof ProgramBridgeAccount) {
         return 'Address claim';
     } else if (program instanceof ProgramBridgeWithdrawal) {
       return program.to.length > 1 ? 'Withdraw to many' : 'Withdraw to one';
-    } else if (program instanceof ProgramBridgeMigration) {
-      return 'Participant migration';
     } else if (program instanceof ProgramBridgeWithdrawalMigration) {
-      return 'Manager migration';
+      return 'Bridge migration';
     } else if (program instanceof ApproveTransaction) {
       return 'Approve action';
     }
@@ -198,75 +197,104 @@ export default function InteractionPage() {
       }
   
       return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
-    } else if (program instanceof ProgramValidatorAdjustment) {  
-        for (let i = 0; i < program.attestations.length; i++) {
-          let item = program.attestations[i];
-          try {
-            if (typeof item.stake != 'string')
-              continue;
-            
-            const numeric = new BigNumber(item.stake.trim());
-            if (numeric.isNaN())
-              return false;
-            
-            if (item.incomingFee.length > 0) {
-              const numeric = new BigNumber(item.incomingFee.trim());
-              if (numeric.isNaN() || numeric.isNegative())
-                return false;
-            }
+    } else if (program instanceof ProgramValidatorAdjustment) {
+      const migrationReservations = new Set<string>();
+      for (let i = 0; i < program.migrations.length; i++) {
+        const migration = program.migrations[i];
+        if (!migration.transactionHash || !migration.participant)
+          return false;
 
-            if (item.outgoingFee.length > 0) {
-              const numeric = new BigNumber(item.outgoingFee.trim());
-              if (numeric.isNaN() || numeric.isNegative())
-                return false;
-            }
+        try {
+          const hash = new Uint256(migration.transactionHash);
+          if (!hash.gt(0))
+            throw false;
 
-            if (item.participationThreshold.length > 0) {
-              const numeric = new BigNumber(item.participationThreshold.trim());
-              if (numeric.isNaN() || numeric.isNegative())
-                return false;
-            }
+          const id = hash.toHex();
+          if (migrationReservations.has(id))
+            throw false;
 
-            if (item.securityLevel.length > 0) {
-              const numeric = new BigNumber(item.securityLevel.trim());
-              if (numeric.isNaN() || numeric.isNegative() || numeric.integerValue().toString() != numeric.toString())
-                return false;
-
-              if (numeric.lt(Chain.props.PARTICIPATION_COMMITTEE[0]) || numeric.gt(Chain.props.PARTICIPATION_COMMITTEE[1]))
-                return false;
-            }
-
-            if (item.acceptsAccountRequests != -1 && item.acceptsAccountRequests != 0 && item.acceptsAccountRequests != 1)
-              return false;
-
-            if (item.acceptsWithdrawalRequests != -1 && item.acceptsWithdrawalRequests != 0 && item.acceptsWithdrawalRequests != 1)
-              return false;
-          } catch {
-            return false;
-          }
+          migrationReservations.add(id);
+        } catch {
+          return false;
         }
 
-        if (program.blockProduction == 'enable') {
-          try {
-            const numeric = new BigNumber(program.blockProductionStake.trim());
-            if (!numeric.gte(0))
-              return false;
-          } catch {
-            return false;
-          }
+        try {
+          const participant = Signing.decodeAddress(migration.participant);
+          if (!participant)
+            throw false;
+        } catch {
+          return false;
         }
+      }
 
-        if (program.bridgeParticipation == 'enable') {
-          try {
-            const numeric = new BigNumber(program.bridgeParticipationStake.trim());
-            if (!numeric.gte(0))
-              return false;
-          } catch {
+      for (let i = 0; i < program.attestations.length; i++) {
+        let item = program.attestations[i];
+        try {
+          if (typeof item.stake != 'string')
+            continue;
+          
+          const numeric = new BigNumber(item.stake.trim());
+          if (numeric.isNaN())
             return false;
+          
+          if (item.incomingFee.length > 0) {
+            const numeric = new BigNumber(item.incomingFee.trim());
+            if (numeric.isNaN() || numeric.isNegative())
+              return false;
           }
-        }
 
-        return program.blockProduction != 'standby' || program.bridgeParticipation != 'standby' || program.attestations.length > 0;
+          if (item.outgoingFee.length > 0) {
+            const numeric = new BigNumber(item.outgoingFee.trim());
+            if (numeric.isNaN() || numeric.isNegative())
+              return false;
+          }
+
+          if (item.participationThreshold.length > 0) {
+            const numeric = new BigNumber(item.participationThreshold.trim());
+            if (numeric.isNaN() || numeric.isNegative())
+              return false;
+          }
+
+          if (item.securityLevel.length > 0) {
+            const numeric = new BigNumber(item.securityLevel.trim());
+            if (numeric.isNaN() || numeric.isNegative() || numeric.integerValue().toString() != numeric.toString())
+              return false;
+
+            if (numeric.lt(Chain.policy.PARTICIPATION_COMMITTEE[0]) || numeric.gt(Chain.policy.PARTICIPATION_COMMITTEE[1]))
+              return false;
+          }
+
+          if (item.acceptsAccountRequests != -1 && item.acceptsAccountRequests != 0 && item.acceptsAccountRequests != 1)
+            return false;
+
+          if (item.acceptsWithdrawalRequests != -1 && item.acceptsWithdrawalRequests != 0 && item.acceptsWithdrawalRequests != 1)
+            return false;
+        } catch {
+          return false;
+        }
+      }
+
+      if (program.blockProduction == 'enable') {
+        try {
+          const numeric = new BigNumber(program.blockProductionStake.trim());
+          if (!numeric.gte(0))
+            return false;
+        } catch {
+          return false;
+        }
+      }
+
+      if (program.bridgeParticipation == 'enable') {
+        try {
+          const numeric = new BigNumber(program.bridgeParticipationStake.trim());
+          if (!numeric.gte(0))
+            return false;
+        } catch {
+          return false;
+        }
+      }
+
+      return program.blockProduction != 'standby' || program.bridgeParticipation != 'standby' || program.attestations.length > 0 || program.migrations.length > 0;
     } else if (program instanceof ProgramBridgeAccount) {
       const routing = program.routing.find((item) => item.chain == assets[asset].asset.chain);
       if (routing?.policy == 'account' && !program.routingAddress.length)
@@ -299,8 +327,6 @@ export default function InteractionPage() {
         return false;
   
       return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
-    } else if (program instanceof ProgramBridgeMigration) {
-      return true;
     } else if (program instanceof ProgramBridgeWithdrawalMigration) {
       return true;
     } else if (program instanceof ApproveTransaction) {
@@ -393,6 +419,10 @@ export default function InteractionPage() {
             productionStake: program.blockProduction != 'standby' ? (program.blockProduction == 'enable' ? new BigNumber(program.blockProductionStake) : new BigNumber(NaN)) : undefined,
             hasParticipation: program.bridgeParticipation != 'standby',
             participationStake: program.bridgeParticipation != 'standby' ? (program.bridgeParticipation == 'enable' ? new BigNumber(program.bridgeParticipationStake) : new BigNumber(NaN)) : undefined,
+            migrations: program.migrations.map((item) => ({
+              bridgeWithdrawalFinalizationHash: new Uint256(item.transactionHash),
+              participant: Signing.decodeAddress(item.participant)
+            })),
             attestations: program.attestations.map((item) => ({
               asset: item.asset,
               stake: item.stake != null ? new BigNumber(item.stake) : new BigNumber(NaN),
@@ -436,31 +466,6 @@ export default function InteractionPage() {
               to: payment.address,
               value: new BigNumber(payment.value)
             }))
-          }
-        });
-      } else if (program instanceof ProgramBridgeMigration) {
-        const participants = await RPC.getParticipations();
-        if (!participants)
-          throw new Error('cannot fetch participations');
-
-        return await buildProgram({
-          type: new Transactions.BridgeMigration(),
-          args: {
-            shares: participants.map((item) => {
-              const asset = new AssetId(item.asset.id);
-              const manager = Signing.decodeAddress(item.manager || '');
-              const owner = Signing.decodeAddress(item.owner || '');
-              const message = new Stream();
-              message.writeInteger(asset.toUint256());
-              message.writeBinaryString(manager ? manager.data : new Uint8Array());
-              message.writeBinaryString(owner ? owner.data : new Uint8Array());
-              return {
-                asset: asset,
-                manager: manager,
-                owner: owner,
-                hash: message.hash()
-              };
-            }).sort((a, b): number => a.hash.lt(b.hash) ? -1 : (a.hash.eq(b.hash) ? 0 : 1))
           }
         });
       } else if (program instanceof ProgramBridgeWithdrawalMigration) {
@@ -616,38 +621,33 @@ export default function InteractionPage() {
         setProgram(result);
        break; 
       }
-      case 'approvetransaction': {
+      case 'approve': {
         if (params.transaction && params.transaction.length > 0)
           decodeApprovableTransaction(params.transaction, false);
         else
           setProgram(new ApproveTransaction());
         break;
       }
-      case 'validator': {
+      case 'configure': {
         const result = new ProgramValidatorAdjustment();
         try { result.assets = ((await RPC.getBlockchains()) || []).map((v) => { return { asset: AssetId.fromHandle(v.chain), policy: v.token_policy as string }}); } catch { }
         setProgram(result);
         break;
       }
-      case 'registration': {
+      case 'register': {
         const result = new ProgramBridgeAccount();
         try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
         setProgram(result);
         break;
       }
-      case 'withdrawal': {
+      case 'withdraw': {
         const result = new ProgramBridgeWithdrawal();
         result.to = [{ address: '', value: '' }];
         try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
         setProgram(result);
         break;
       }
-      case 'participantmigration': {
-        requiresAllAssets = true;
-        setProgram(new ProgramBridgeMigration());
-        break;
-      }
-      case 'managermigration': {
+      case 'migrate': {
         requiresAllAssets = true;
         setProgram(new ProgramBridgeWithdrawalMigration());
         break;
@@ -715,18 +715,14 @@ export default function InteractionPage() {
                 <DropdownMenu.Item onClick={() => navigate('/interaction?type=transfer')}>Transfer</DropdownMenu.Item>
               </Tooltip>
               <Tooltip content="Approve and submit transaction from unverified source">
-                <DropdownMenu.Item onClick={() => navigate('/interaction?type=approvetransaction')}>Approve</DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => navigate('/interaction?type=approve')}>Approve</DropdownMenu.Item>
               </Tooltip>
               <DropdownMenu.Separator />
               <Tooltip content="Change block production and/or participation/attestation stake(s)">
-                <DropdownMenu.Item onClick={() => navigate('/interaction?type=validator')}>Configure validator</DropdownMenu.Item>
-              </Tooltip>
-              <DropdownMenu.Separator />
-              <Tooltip content="Migrate bridge participations to another participant (for participation unstaking)">
-                <DropdownMenu.Item color="red" onClick={() => navigate('/interaction?type=participantmigration')}>Migrate participant</DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => navigate('/interaction?type=configure')}>Configure validator</DropdownMenu.Item>
               </Tooltip>
               <Tooltip content="Migrate bridge manager to another manager along with custodial funds (for attestation unstaking)">
-                <DropdownMenu.Item color="red" onClick={() => navigate('/interaction?type=managermigration')}>Migrate manager</DropdownMenu.Item>
+                <DropdownMenu.Item color="red" onClick={() => navigate('/interaction?type=migrate')}>Migrate bridge</DropdownMenu.Item>
               </Tooltip>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
@@ -1058,7 +1054,7 @@ export default function InteractionPage() {
               copy.attestationReservations.add(copy.attestations[copy.attestations.length - 1].asset.chain || '');
               setProgram(copy);
             }}>
-              <Select.Trigger variant="surface" placeholder="Change attestation stake" style={{ width: '100%' }}>
+              <Select.Trigger variant="surface" placeholder="Change bridge attestation stake" style={{ width: '100%' }}>
               </Select.Trigger>
               <Select.Content variant="soft">
                 <Select.Group>
@@ -1076,6 +1072,53 @@ export default function InteractionPage() {
                 </Select.Group>
               </Select.Content>
             </Select.Root>
+          </Box>
+          {
+            program.migrations.map((item, index) =>
+              <Box mt="4" key={index}>
+                <Card>
+                  <Heading size="4" mb="2">Participant migration{ program.migrations.length > 1 ? ' #' + (index + 1) : ''}</Heading>
+                  <Box width="100%">
+                    <Tooltip content="Transaction hash of withdrawal transaction finalization that has failed and was initiated by this validator">
+                      <TextField.Root mb="3" size="3" placeholder={'Failed transaction hash'} type="text" value={item.transactionHash || ''} onChange={(e) => {
+                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                        copy.migrations[index].transactionHash = e.target.value;
+                        setProgram(copy);
+                      }} />
+                    </Tooltip>
+                  </Box>
+                  <Flex mt="3" gap="2">
+                    <Box width="100%">
+                      <Tooltip content="Account address of participant that must be replaced (migrated) by new randomly chosen participant">
+                        <TextField.Root mb="3" size="3" placeholder={'Participant to replace'} type="text" value={item.participant || ''} onChange={(e) => {
+                          const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                          copy.migrations[index].participant = e.target.value;
+                          setProgram(copy);
+                        }} />
+                      </Tooltip>
+                    </Box>
+                    <IconButton variant="soft" size="3" color="jade" onClick={() => {
+                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                      copy.migrations.splice(index, 1);
+                      setProgram(copy);
+                    }}>
+                      <Icon path={mdiMinus} size={0.7} />
+                    </IconButton>
+                  </Flex>
+                </Card>
+              </Box>
+            )
+          }
+          <Box mt="4" width="100%">
+            <Button variant="surface" color="gray" size="2" style={{ width: '100%', height: 'auto', justifyContent: 'start' }} onClick={() => {
+              const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+              copy.migrations.push({ transactionHash: '', participant: '' });
+              setProgram(copy);
+            }}>
+              <Box px="2" py="2">
+                <Text size="3">Migrate bridge participant</Text>
+              </Box>
+            </Button>
           </Box>
         </Card>
       }
@@ -1248,6 +1291,10 @@ export default function InteractionPage() {
                           program.attestations.length > 0 &&
                           <Text as="div" weight="light" size="4" mb="1">— Update policy of <Text color="red">{ Readability.toCount('attester', program.attestations.length) }</Text> of a validator node</Text>
                         }
+                        {
+                          program.migrations.length > 0 &&
+                          <Text as="div" weight="light" size="4" mb="1">— Migrate <Text color="red">{ Readability.toCount('participant', program.migrations.length) }</Text> of a validator node</Text>
+                        }
                       </>
                     }
                     {
@@ -1268,10 +1315,6 @@ export default function InteractionPage() {
                             (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6).toUpperCase()
                         }</Badge> node</Text>
                       </>
-                    }
-                    {
-                      asset != -1 && program instanceof ProgramBridgeMigration &&
-                      <Text as="div" weight="light" size="4" mb="1">— Migration participation of a validator node (to possibly unstake the participation stake)</Text>        
                     }
                     {
                       asset != -1 && program instanceof ProgramBridgeWithdrawalMigration &&

@@ -258,7 +258,7 @@ export class AppData {
           const proof = await new Promise<{ hash: Uint256, message: Uint8Array, signature: Hashsig } | null>((resolve) => {
             if (this.state.setNavigation) {
               this.approveTransaction = resolve;
-              this.state.setNavigation(`/interaction?type=approvetransaction&transaction=${ByteUtil.uint8ArrayToHexString(entity.sign.message || new Uint8Array())}${entity.sign.asset != null ? '&asset=' + entity.sign.asset.id : ''}`);
+              this.state.setNavigation(`/interaction?type=approve&transaction=${ByteUtil.uint8ArrayToHexString(entity.sign.message || new Uint8Array())}${entity.sign.asset != null ? '&asset=' + entity.sign.asset.id : ''}`);
             } else {
               resolve(null);
             }
