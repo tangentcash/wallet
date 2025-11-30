@@ -644,7 +644,7 @@ export class AppData {
     this.save();
   }
   static setServer(value: string): void {
-    this.props.server = value;
+    this.props.server = value || null;
     RPC.applyServer(this.props.server);
     this.save();
   }

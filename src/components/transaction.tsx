@@ -32,7 +32,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           </DataList.Root>
         </Card>
       )
-    case 'upgrade': {
+    case 'deploy': {
       const args = JSON.stringify(transaction.args);
       return (
         <DataList.Root orientation={props.orientation}>
@@ -139,7 +139,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           </Card>
         </Box>
       )
-    case 'validator_adjustment':
+    case 'setup':
       return (
         <>
           <DataList.Root orientation={props.orientation}>
@@ -253,18 +253,18 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           }
         </>
       )
-    case 'validator_adjustment_finalization':
+    case 'migrate':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
             <DataList.Label>Parent hash:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.validator_adjustment_hash);
+                navigator.clipboard.writeText(transaction.setup_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.validator_adjustment_hash) }</Button>
+              }}>{ Readability.toHash(transaction.setup_hash) }</Button>
               <Box ml="2">
-                <Link className="router-link" to={'/transaction/' + transaction.validator_adjustment_hash}>▒▒</Link>
+                <Link className="router-link" to={'/transaction/' + transaction.setup_hash}>▒▒</Link>
               </Box>
             </DataList.Value>
           </DataList.Item>
@@ -279,7 +279,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           </DataList.Item>
         </DataList.Root>
       )
-    case 'bridge_attestation': {
+    case 'attestate': {
       if (transaction.proof != null) {
         const from = transaction.proof.inputs.map((item: any) => {
           return [{
@@ -393,7 +393,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
         )
       }
     }
-    case 'bridge_account':
+    case 'route':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
@@ -413,7 +413,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           </DataList.Item>
         </DataList.Root>
       )
-    case 'bridge_account_finalization':
+    case 'bind':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
@@ -439,7 +439,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           </DataList.Item>
         </DataList.Root>
       )
-    case 'bridge_withdrawal':
+    case 'withdraw':
       return (
         <>
           <DataList.Root orientation={props.orientation} mb="4">
@@ -506,7 +506,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           }
         </>
       )
-    case 'bridge_withdrawal_finalization':
+    case 'broadcast':
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
@@ -1106,7 +1106,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 }
                 {
                   EventResolver.isSummaryStateEmpty(state, ownerAddress) &&
-                  <Badge size="1" radius="medium" color={receipt.successful ? 'bronze' : 'red'}>{ receipt.successful ? 'OK / ' + Readability.toCount('event', receipt.events.length) : 'Execution reverted' }</Badge>
+                  <Badge size="1" radius="medium" color={receipt.successful ? 'bronze' : 'red'}>{ receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Zero events') : 'Execution reverted' }</Badge>
                 }
               </Flex>
             }

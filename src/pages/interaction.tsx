@@ -14,14 +14,14 @@ export class ProgramTransfer {
   to: { address: string, value: string }[] = [];
 }
 
-export class ProgramValidatorAdjustment {
+export class ProgramSetup {
   assets: { asset: AssetId, policy: string }[] = []
   blockProduction: 'standby' | 'enable' | 'disable' = 'standby';
   blockProductionStake: string = '';
   bridgeParticipation: 'standby' | 'enable' | 'disable' = 'standby';
   bridgeParticipationStake: string = '';
   migrations: {
-    transactionHash: string,
+    broadcastHash: string,
     participant: string
   }[] = [];
   attestations: {
@@ -37,18 +37,18 @@ export class ProgramValidatorAdjustment {
   attestationReservations: Set<string> = new Set<string>();
 }
 
-export class ProgramBridgeAccount {
+export class ProgramRoute {
   routing: { chain: string, policy: string }[] = [];
   routingAddress: string = '';
 }
 
-export class ProgramBridgeWithdrawal {
+export class ProgramWithdraw {
   routing: { chain: string, policy: string }[] = [];
   to: { address: string, value: string }[] = [];
   onlyIfNotInQueue: boolean = true;
 }
 
-export class ProgramBridgeWithdrawalMigration {
+export class ProgramWithdrawAndMigrate {
   routing: { chain: string, policy: string }[] = [];
   onlyIfNotInQueue: boolean = true;
 }
@@ -104,7 +104,7 @@ export default function InteractionPage() {
   const [loadingTransaction, setLoadingTransaction] = useState(false);
   const [loadingGasPriceAndPrice, setLoadingGasPriceAndPrice] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
-  const [program, setProgram] = useState<ProgramTransfer | ProgramValidatorAdjustment | ProgramBridgeAccount | ProgramBridgeWithdrawal | ProgramBridgeWithdrawalMigration | ApproveTransaction | null>(null);
+  const [program, setProgram] = useState<ProgramTransfer | ProgramSetup | ProgramRoute | ProgramWithdraw | ProgramWithdrawAndMigrate | ApproveTransaction | null>(null);
   const navigate = useNavigate();
   const maxFeeValue = useMemo((): BigNumber => {
     try {
@@ -128,7 +128,7 @@ export default function InteractionPage() {
     if (program instanceof ProgramTransfer) {
       return true;
     }
-    else if (program instanceof ProgramBridgeWithdrawal) {
+    else if (program instanceof ProgramWithdraw) {
       const blockchain = program.routing.find((item) => item.chain == assets[asset].asset.chain);
       return blockchain != null && blockchain.policy == 'utxo';
     }
@@ -138,13 +138,13 @@ export default function InteractionPage() {
   const transactionType = useMemo((): string => {
     if (program instanceof ProgramTransfer) {
       return program.to.length > 1 ? 'Send to many' : 'Send to one';
-    } else if (program instanceof ProgramValidatorAdjustment) {
+    } else if (program instanceof ProgramSetup) {
       return 'Validator configuration';
-    } else if (program instanceof ProgramBridgeAccount) {
+    } else if (program instanceof ProgramRoute) {
         return 'Address claim';
-    } else if (program instanceof ProgramBridgeWithdrawal) {
+    } else if (program instanceof ProgramWithdraw) {
       return program.to.length > 1 ? 'Withdraw to many' : 'Withdraw to one';
-    } else if (program instanceof ProgramBridgeWithdrawalMigration) {
+    } else if (program instanceof ProgramWithdrawAndMigrate) {
       return 'Bridge migration';
     } else if (program instanceof ApproveTransaction) {
       return 'Approve action';
@@ -161,7 +161,7 @@ export default function InteractionPage() {
           return value;
         }
       }, new BigNumber(0));
-    } else if (program instanceof ProgramBridgeWithdrawal) {
+    } else if (program instanceof ProgramWithdraw) {
       return program.to.reduce((value, next) => {
         try {
           const numeric = new BigNumber(next.value.trim());
@@ -197,15 +197,15 @@ export default function InteractionPage() {
       }
   
       return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
-    } else if (program instanceof ProgramValidatorAdjustment) {
+    } else if (program instanceof ProgramSetup) {
       const migrationReservations = new Set<string>();
       for (let i = 0; i < program.migrations.length; i++) {
         const migration = program.migrations[i];
-        if (!migration.transactionHash || !migration.participant)
+        if (!migration.broadcastHash || !migration.participant)
           return false;
 
         try {
-          const hash = new Uint256(migration.transactionHash);
+          const hash = new Uint256(migration.broadcastHash);
           if (!hash.gt(0))
             throw false;
 
@@ -295,7 +295,7 @@ export default function InteractionPage() {
       }
 
       return program.blockProduction != 'standby' || program.bridgeParticipation != 'standby' || program.attestations.length > 0 || program.migrations.length > 0;
-    } else if (program instanceof ProgramBridgeAccount) {
+    } else if (program instanceof ProgramRoute) {
       const routing = program.routing.find((item) => item.chain == assets[asset].asset.chain);
       if (routing?.policy == 'account' && !program.routingAddress.length)
         return false;
@@ -304,7 +304,7 @@ export default function InteractionPage() {
         return false;
   
       return true;
-    } else if (program instanceof ProgramBridgeWithdrawal) {
+    } else if (program instanceof ProgramWithdraw) {
       for (let i = 0; i < program.to.length; i++) {
         const payment = program.to[i];
         if (payment.address.trim() == ownerAddress)
@@ -327,7 +327,7 @@ export default function InteractionPage() {
         return false;
   
       return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
-    } else if (program instanceof ProgramBridgeWithdrawalMigration) {
+    } else if (program instanceof ProgramWithdrawAndMigrate) {
       return true;
     } else if (program instanceof ApproveTransaction) {
       return program.hexMessage != null && program.transaction != null;
@@ -360,7 +360,7 @@ export default function InteractionPage() {
     return program != null && program instanceof ApproveTransaction && params.transaction != null;
   }, [program]);
   const setRemainingValue = useCallback((index: number) => {
-    if (program instanceof ProgramTransfer || program instanceof ProgramBridgeWithdrawal) {
+    if (program instanceof ProgramTransfer || program instanceof ProgramWithdraw) {
       const balance = assets[asset].balance;
       let value = balance.minus(sendingValue);
       try {
@@ -411,16 +411,16 @@ export default function InteractionPage() {
             value: new BigNumber(program.to[0].value)
           }
         });
-      } else if (program instanceof ProgramValidatorAdjustment) {
+      } else if (program instanceof ProgramSetup) {
         return await buildProgram({
-          type: new Transactions.ValidatorAdjustment(),
+          type: new Transactions.Setup(),
           args: {
             hasProduction: program.blockProduction != 'standby',
             productionStake: program.blockProduction != 'standby' ? (program.blockProduction == 'enable' ? new BigNumber(program.blockProductionStake) : new BigNumber(NaN)) : undefined,
             hasParticipation: program.bridgeParticipation != 'standby',
             participationStake: program.bridgeParticipation != 'standby' ? (program.bridgeParticipation == 'enable' ? new BigNumber(program.bridgeParticipationStake) : new BigNumber(NaN)) : undefined,
             migrations: program.migrations.map((item) => ({
-              bridgeWithdrawalFinalizationHash: new Uint256(item.transactionHash),
+              broadcastHash: new Uint256(item.broadcastHash),
               participant: Signing.decodeAddress(item.participant)
             })),
             attestations: program.attestations.map((item) => ({
@@ -441,7 +441,7 @@ export default function InteractionPage() {
             }))
           }
         });
-      } else if (program instanceof ProgramBridgeAccount) {
+      } else if (program instanceof ProgramRoute) {
         let includeRoutingAddress = true;
         if (program.routingAddress.length > 0) {
           try {
@@ -450,15 +450,15 @@ export default function InteractionPage() {
           } catch { }
         }
         return await buildProgram({
-          type: new Transactions.BridgeAccount(),
+          type: new Transactions.Route(),
           args: {
             manager: Signing.decodeAddress(params.manager || ''),
             routingAddress: includeRoutingAddress ? program.routingAddress : ''
           }
         });
-      } else if (program instanceof ProgramBridgeWithdrawal) {
+      } else if (program instanceof ProgramWithdraw) {
         return await buildProgram({
-          type: new Transactions.BridgeWithdrawal(),
+          type: new Transactions.Withdraw(),
           args: {
             onlyIfNotInQueue: program.onlyIfNotInQueue,
             manager: Signing.decodeAddress(params.manager || ''),
@@ -468,9 +468,9 @@ export default function InteractionPage() {
             }))
           }
         });
-      } else if (program instanceof ProgramBridgeWithdrawalMigration) {
+      } else if (program instanceof ProgramWithdrawAndMigrate) {
         return await buildProgram({
-          type: new Transactions.BridgeWithdrawal(),
+          type: new Transactions.Withdraw(),
           args: {
             onlyIfNotInQueue: program.onlyIfNotInQueue,
             manager: Signing.decodeAddress(ownerAddress || ''),
@@ -629,19 +629,19 @@ export default function InteractionPage() {
         break;
       }
       case 'configure': {
-        const result = new ProgramValidatorAdjustment();
+        const result = new ProgramSetup();
         try { result.assets = ((await RPC.getBlockchains()) || []).map((v) => { return { asset: AssetId.fromHandle(v.chain), policy: v.token_policy as string }}); } catch { }
         setProgram(result);
         break;
       }
       case 'register': {
-        const result = new ProgramBridgeAccount();
+        const result = new ProgramRoute();
         try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
         setProgram(result);
         break;
       }
       case 'withdraw': {
-        const result = new ProgramBridgeWithdrawal();
+        const result = new ProgramWithdraw();
         result.to = [{ address: '', value: '' }];
         try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
         setProgram(result);
@@ -649,7 +649,7 @@ export default function InteractionPage() {
       }
       case 'migrate': {
         requiresAllAssets = true;
-        setProgram(new ProgramBridgeWithdrawalMigration());
+        setProgram(new ProgramWithdrawAndMigrate());
         break;
       }
     }
@@ -718,11 +718,11 @@ export default function InteractionPage() {
                 <DropdownMenu.Item onClick={() => navigate('/interaction?type=approve')}>Approve</DropdownMenu.Item>
               </Tooltip>
               <DropdownMenu.Separator />
-              <Tooltip content="Change block production and/or participation/attestation stake(s)">
-                <DropdownMenu.Item onClick={() => navigate('/interaction?type=configure')}>Configure validator</DropdownMenu.Item>
+              <Tooltip content="Validator: change block production and/or participation/attestation stake(s)">
+                <DropdownMenu.Item color="red" onClick={() => navigate('/interaction?type=configure')}>Setup</DropdownMenu.Item>
               </Tooltip>
-              <Tooltip content="Migrate bridge manager to another manager along with custodial funds (for attestation unstaking)">
-                <DropdownMenu.Item color="red" onClick={() => navigate('/interaction?type=migrate')}>Migrate bridge</DropdownMenu.Item>
+              <Tooltip content="Validator: migrate bridge manager to another manager along with custodial funds (for attestation unstaking)">
+                <DropdownMenu.Item color="red" onClick={() => navigate('/interaction?type=migrate')}>Migrate</DropdownMenu.Item>
               </Tooltip>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
@@ -755,7 +755,7 @@ export default function InteractionPage() {
           </Box>
         }
         {
-          asset != -1 && (program instanceof ProgramBridgeWithdrawal || program instanceof ProgramBridgeWithdrawalMigration) &&
+          asset != -1 && (program instanceof ProgramWithdraw || program instanceof ProgramWithdrawAndMigrate) &&
           <Box width="100%" px="1" mt="3">
             <Tooltip content="If bridge is busy with another withdrawal then do not withdraw">
               <Text as="label" size="2" color={program.onlyIfNotInQueue ? 'jade' : 'orange'}>
@@ -848,7 +848,7 @@ export default function InteractionPage() {
         )
       }
       {
-        asset != -1 && program instanceof ProgramValidatorAdjustment &&
+        asset != -1 && program instanceof ProgramSetup &&
         <Card mt="4">
           <Heading size="4" mb="2">Validation configuration</Heading>
           <Select.Root size="3" value={program.blockProduction} onValueChange={(value) => {
@@ -961,7 +961,7 @@ export default function InteractionPage() {
                   </Box>
                   <Box width="100%" mt="3">
                     <Tooltip content="Determines how many participants must be present to sign transactions">
-                      <TextField.Root size="3" placeholder="Security level (3-16)" type="text" value={item.securityLevel} onChange={(e) => {
+                      <TextField.Root size="3" placeholder="Security level (5-21)" type="text" value={item.securityLevel} onChange={(e) => {
                         const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                         copy.attestations[index].securityLevel = e.target.value;
                         setProgram(copy);
@@ -1079,10 +1079,10 @@ export default function InteractionPage() {
                 <Card>
                   <Heading size="4" mb="2">Participant migration{ program.migrations.length > 1 ? ' #' + (index + 1) : ''}</Heading>
                   <Box width="100%">
-                    <Tooltip content="Transaction hash of withdrawal transaction finalization that has failed and was initiated by this validator">
-                      <TextField.Root mb="3" size="3" placeholder={'Failed transaction hash'} type="text" value={item.transactionHash || ''} onChange={(e) => {
+                    <Tooltip content="Transaction hash of broadcast transaction that has off-chain relay fault and was initiated by this validator">
+                      <TextField.Root mb="3" size="3" placeholder={'Failed transaction hash'} type="text" value={item.broadcastHash || ''} onChange={(e) => {
                         const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                        copy.migrations[index].transactionHash = e.target.value;
+                        copy.migrations[index].broadcastHash = e.target.value;
                         setProgram(copy);
                       }} />
                     </Tooltip>
@@ -1123,7 +1123,7 @@ export default function InteractionPage() {
         </Card>
       }
       {
-        asset != -1 && program instanceof ProgramBridgeAccount &&
+        asset != -1 && program instanceof ProgramRoute &&
         <Card mt="4">
           <Heading size="4" mb="2">{program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'Sender' : 'Routing'} wallet address</Heading>
           <Box width="100%">
@@ -1138,7 +1138,7 @@ export default function InteractionPage() {
         </Card>
       }
       {
-        asset != -1 && program instanceof ProgramBridgeWithdrawal && program.to.map((item, index) =>
+        asset != -1 && program instanceof ProgramWithdraw && program.to.map((item, index) =>
           <Card mt="4" key={index}>
             <Heading size="4" mb="2">Withdraw to account{ program.to.length > 1 ? ' #' + (index + 1) : ''}</Heading>
             <Flex gap="2" mb="3">
@@ -1277,7 +1277,7 @@ export default function InteractionPage() {
                       <Text as="div" weight="light" size="4" mb="1">— Send <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', program.to.length) }</Text></Text>        
                     }
                     {
-                      asset != -1 && program instanceof ProgramValidatorAdjustment &&
+                      asset != -1 && program instanceof ProgramSetup &&
                       <>
                         {
                           program.blockProduction != 'standby' &&
@@ -1298,7 +1298,7 @@ export default function InteractionPage() {
                       </>
                     }
                     {
-                      asset != -1 && program instanceof ProgramBridgeAccount &&
+                      asset != -1 && program instanceof ProgramRoute &&
                       <>
                         <Text as="div" weight="light" size="4" mb="1">— Claim { Readability.toAssetName(assets[asset].asset) } deposit address</Text>
                         { program.routingAddress.length > 0 && <Text as="div" weight="light" size="4" mb="1">— Claim <Text color="red">{ Readability.toAddress(program.routingAddress) }</Text> { Readability.toAssetName(assets[asset].asset) } {program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'sender/withdrawal' : 'withdrawal'} address</Text> }
@@ -1308,7 +1308,7 @@ export default function InteractionPage() {
                       </>
                     }
                     {
-                      asset != -1 && program instanceof ProgramBridgeWithdrawal &&
+                      asset != -1 && program instanceof ProgramWithdraw &&
                       <>
                         <Text as="div" weight="light" size="4" mb="1">— Withdraw <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', program.to.length) }</Text></Text>
                         <Text as="div" weight="light" size="4" mb="1">— Withdraw through <Badge radius="medium" variant="surface" size="2">{ 
@@ -1317,7 +1317,7 @@ export default function InteractionPage() {
                       </>
                     }
                     {
-                      asset != -1 && program instanceof ProgramBridgeWithdrawalMigration &&
+                      asset != -1 && program instanceof ProgramWithdrawAndMigrate &&
                       <Text as="div" weight="light" size="4" mb="1">— Migrate a { assets[asset].chain } bridge of a validator node to another bridge</Text>
                     }
                     {
