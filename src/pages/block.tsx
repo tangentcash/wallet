@@ -4,7 +4,7 @@ import { useCallback, useState } from "react";
 import { Badge, Box, Button, Card, DataList, Flex, Heading, IconButton, Spinner, Table } from "@radix-ui/themes";
 import { mdiArrowLeftBoldCircleOutline, mdiArrowRightBoldCircleOutline } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
-import { Chain, RPC, Readability, lerp } from "tangentsdk";
+import { AssetId, Chain, RPC, Readability, lerp } from "tangentsdk";
 import { AppData } from "../core/app";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
@@ -212,6 +212,10 @@ export default function BlockPage() {
             <DataList.Item>
               <DataList.Label>States:</DataList.Label>
               <DataList.Value>{ Readability.toCount('state', block.state_count) } with { Readability.toCount('update', block.mutation_count) }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Coinbase:</DataList.Label>
+              <DataList.Value>{ Readability.toMoney(new AssetId(), block.coinbase) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Difficulty:</DataList.Label>
