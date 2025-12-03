@@ -1,6 +1,6 @@
 {
   "name": "Tangent Cash",
-  "short_name": "Tangent Cash",
+  "short_name": "Tangent",
   "icons": [
     {
       "src": "/web-app-manifest-192x192.png",
@@ -16,6 +16,6 @@
     }
   ],
   "theme_color": "#304039",
-  "background_color": "#111c16",
+  "background_color": "#304039",
   "display": "standalone"
 }
