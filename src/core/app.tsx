@@ -431,11 +431,7 @@ export class AppData {
     }
 
     const nonce = await RPC.getNextAccountNonce(address);
-    if (nonce == null) {
-      throw new Error('Cannot fetch account nonce');
-    } 
-
-    const nextNonce = typeof nonce.next == 'string' ? new BigNumber(nonce.next, 16) : nonce.next;
+    const nextNonce = typeof nonce == 'string' ? new BigNumber(nonce, 16) : (nonce != null ? nonce : new BigNumber(0));
     try {
       if (!props.nonce)
         throw false;
