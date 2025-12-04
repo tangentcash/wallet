@@ -435,16 +435,16 @@ export class AppData {
       throw new Error('Cannot fetch account nonce');
     } 
 
-    const maxNonce = typeof nonce.max == 'string' ? new BigNumber(nonce.max, 16) : nonce.max;
+    const nextNonce = typeof nonce.next == 'string' ? new BigNumber(nonce.next, 16) : nonce.next;
     try {
       if (!props.nonce)
         throw false;
 
       props.nonce = new BigNumber(props.nonce).integerValue(BigNumber.ROUND_DOWN);
-      if (!props.nonce.gte(maxNonce))
+      if (!props.nonce.gte(nextNonce))
         throw false;
     } catch {
-      props.nonce = maxNonce;
+      props.nonce = nextNonce;
     }
     
     try {
