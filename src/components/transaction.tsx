@@ -1113,7 +1113,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
             {
               state == null &&
               <Flex gap="2" wrap="wrap" justify="between">
-                <Badge size="1" radius="medium" color={props.preview ? 'orange' : 'gray'}>{ props.preview ? (typeof props.preview == 'string' ? props.preview : 'Possible transaction preview!') : 'Awaiting state finalization' }</Badge>
+                <Badge size="1" radius="medium" color={props.preview ? 'orange' : 'gray'}>{ props.preview ? (typeof props.preview == 'string' ? props.preview : 'Preview transaction!') : 'Pending transaction' }</Badge>
               </Flex>
             }
           </Box>

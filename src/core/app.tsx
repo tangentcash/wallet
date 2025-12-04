@@ -430,20 +430,21 @@ export class AppData {
       throw new Error('Account private key is not available');
     }
 
+    const nonce = await RPC.getNextAccountNonce(address);
+    if (nonce == null) {
+      throw new Error('Cannot fetch account nonce');
+    } 
+
+    const maxNonce = typeof nonce.max == 'string' ? new BigNumber(nonce.max, 16) : nonce.max;
     try {
       if (!props.nonce)
         throw false;
 
       props.nonce = new BigNumber(props.nonce).integerValue(BigNumber.ROUND_DOWN);
-      if (!props.nonce.gte(1))
+      if (!props.nonce.gte(maxNonce))
         throw false;
     } catch {
-      const nonce = await RPC.getNextAccountNonce(address);
-      if (nonce == null) {
-        throw new Error('Cannot fetch account nonce');
-      } else {
-        props.nonce = typeof nonce.max == 'string' ? new BigNumber(nonce.max, 16) : nonce.max;
-      }
+      props.nonce = maxNonce;
     }
     
     try {
