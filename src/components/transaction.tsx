@@ -224,17 +224,17 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           }
           {
             transaction.bridge_migrations != null && transaction.bridge_migrations.map((item: any, index: number) =>
-              <Card key={'IF7' + item.bridge_withdrawal_finalization_hash + index} mb="4">
+              <Card key={'IF7' + item.broadcast_hash + index} mb="4">
                 <DataList.Root orientation={props.orientation}>
                   <DataList.Item>
                     <DataList.Label>Reasoning transaction hash:</DataList.Label>
                     <DataList.Value>
                       <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                        navigator.clipboard.writeText(item.bridge_withdrawal_finalization_hash);
+                        navigator.clipboard.writeText(item.broadcast_hash);
                         AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                      }}>{ Readability.toHash(item.bridge_withdrawal_finalization_hash) }</Button>
+                      }}>{ Readability.toHash(item.broadcast_hash) }</Button>
                       <Box ml="2">
-                        <Link className="router-link" to={'/transaction/' + item.bridge_withdrawal_finalization_hash}>▒▒</Link>
+                        <Link className="router-link" to={'/transaction/' + item.broadcast_hash}>▒▒</Link>
                       </Box>
                     </DataList.Value>
                   </DataList.Item>
@@ -420,11 +420,11 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             <DataList.Label>Parent hash:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.bridge_account_hash);
+                navigator.clipboard.writeText(transaction.route_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.bridge_account_hash) }</Button>
+              }}>{ Readability.toHash(transaction.route_hash) }</Button>
               <Box ml="2">
-                <Link className="router-link" to={'/transaction/' + transaction.bridge_account_hash}>▒▒</Link>
+                <Link className="router-link" to={'/transaction/' + transaction.route_hash}>▒▒</Link>
               </Box>
             </DataList.Value>
           </DataList.Item>
@@ -513,11 +513,11 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             <DataList.Label>Parent hash:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.bridge_withdrawal_hash);
+                navigator.clipboard.writeText(transaction.withdraw_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.bridge_withdrawal_hash) }</Button>
+              }}>{ Readability.toHash(transaction.withdraw_hash) }</Button>
               <Box ml="2">
-                <Link className="router-link" to={'/transaction/' + transaction.bridge_withdrawal_hash}>▒▒</Link>
+                <Link className="router-link" to={'/transaction/' + transaction.withdraw_hash}>▒▒</Link>
               </Box>
             </DataList.Value>
           </DataList.Item>
@@ -1066,7 +1066,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   Object.entries(state.bridge.queues).map((data) => {
                     return Object.entries(state.bridge.queues[data[0]]).map((inputs) => {
                       const event = inputs[1];
-                      const transactionHash = event.transactionHash || transaction.bridge_withdrawal_hash || transaction.hash;
+                      const transactionHash = event.transactionHash || transaction.withdraw_hash || transaction.hash;
                       const locking = event.transactionHash != null;
                       return <Badge key={'X2' + event.asset.handle + transactionHash} size="1" radius="medium" color="yellow">{ locking ? '+' : '-' }{ Readability.toAddress(transactionHash) }</Badge>
                     })

@@ -208,37 +208,28 @@ export default function BridgePage() {
                               <DataList.Value>
                                 {
                                   asset.routing_policy == 'utxo' &&
-                                  <Badge color="jade">Deposit from any wallet</Badge>
+                                  <Badge color="jade">Any sender</Badge>
                                 }
                                 {
-                                  asset.routing_policy == 'memo' &&
-                                  <Flex gap="2" wrap="wrap">
-                                    <Badge color="yellow">Deposit from any wallet with memo</Badge>
-                                    <Badge color="red">Memo — { bridge.address_index.toString() }</Badge>
-                                  </Flex>
+                                  asset.routing_policy == 'memo' && bridge.addresses.map((walletAddress: string, walletAddressIndex: number) =>
+                                    <Flex gap="2" wrap="wrap" pb={walletAddressIndex < bridge.addresses.length - 1 ? '2' : '0'} key={walletAddress}>
+                                      <Badge color="red">Any sender but include memo — { Readability.toTaggedAddress(walletAddress).tag || '0' }</Badge>
+                                    </Flex>
+                                  )
                                 }
                                 {
-                                  asset.routing_policy == 'account' &&
-                                  <Box>
-                                    {
-                                      !walletAddresses.length &&
-                                      <Badge color="red">No wallet addresses</Badge>
-                                    }
-                                    {
-                                      walletAddresses.map((wallet, walletAddressIndex: number) => {
-                                        return wallet.addresses.map((walletAddress: string, addressIndex: number) =>
-                                          <Flex gap="1" pb={walletAddressIndex < walletAddresses.length - 1 ? '2' : '0'} key={walletAddress}>
-                                            <Text size="2">Deposit from</Text>
-                                            <Button size="1" radius="medium" variant="soft" color="yellow" onClick={() => {
-                                              navigator.clipboard.writeText(walletAddress);
-                                              AlertBox.open(AlertType.Info, 'Address copied!')
-                                            }}>{ Readability.toAddress(walletAddress) }</Button>
-                                            { addressIndex < wallet.addresses.length - 1 && <Text>OR</Text> }
-                                          </Flex>
-                                        )
-                                      })
-                                    }
-                                  </Box>
+                                  asset.routing_policy == 'account' && walletAddresses.map((wallet, walletAddressIndex: number) => {
+                                    return wallet.addresses.map((walletAddress: string, addressIndex: number) =>
+                                      <Flex gap="1" pb={walletAddressIndex < walletAddresses.length - 1 ? '2' : '0'} key={walletAddress}>
+                                        <Text size="2">Send from</Text>
+                                        <Button size="1" radius="medium" variant="soft" color="yellow" onClick={() => {
+                                          navigator.clipboard.writeText(walletAddress);
+                                          AlertBox.open(AlertType.Info, 'Address copied!')
+                                        }}>{ Readability.toAddress(walletAddress) }</Button>
+                                        { addressIndex < wallet.addresses.length - 1 && <Text>OR</Text> }
+                                      </Flex>
+                                    )
+                                  })
                                 }
                               </DataList.Value>
                             </DataList.Item>
@@ -248,7 +239,7 @@ export default function BridgePage() {
                                   <DataList.Label>Deposit address v{bridge.addresses.length - addressIndex}:</DataList.Label>
                                   <DataList.Value>
                                     <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                      navigator.clipboard.writeText(address);
+                                      navigator.clipboard.writeText(Readability.toTaggedAddress(address).address);
                                       AlertBox.open(AlertType.Info, 'Address copied!')
                                     }}>{ Readability.toAddress(address) }</Button>
                                   </DataList.Value>
@@ -265,7 +256,7 @@ export default function BridgePage() {
                   }
                 </Collapsible.Content>
               </Collapsible.Root>
-              <Text size="1" weight="light"><Text color="yellow">Register</Text> more {Readability.toAssetName(asset)} addresses by requesting deposits</Text>
+              <Text size="1" weight="light"><Text color="yellow">Deposit</Text> to register your deposit and personal {Readability.toAssetName(asset)} address </Text>
             </Card>
             <Card>
               <Collapsible.Root>
@@ -311,7 +302,7 @@ export default function BridgePage() {
                   }
                 </Collapsible.Content>
               </Collapsible.Root>
-              <Text size="1" weight="light"><Text color="yellow">Register</Text> more {Readability.toAssetName(asset)} addresses by requesting {asset.routing_policy == 'account' ? 'deposits/' : ''}withdrawals</Text>
+              <Text size="1" weight="light"><Text color="yellow">Withdraw</Text> to register your personal {Readability.toAssetName(asset)} address</Text>
             </Card>
           </Box>
           <Box width="100%" mb="4">
@@ -425,9 +416,9 @@ export default function BridgePage() {
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Content>
                               <DropdownMenu.Item shortcut="↙" onClick={() => {
-                                if (acquiredBridges[item.attestation.owner] == null && item.attestation.accepts_account_requests)
+                                if (item.attestation.accepts_account_requests)
                                   navigate(`/interaction?asset=${asset.id}&type=register&manager=${item.attestation.owner}`)
-                              }} disabled={acquiredBridges[item.attestation.owner] != null || !item.attestation.accepts_account_requests}>Deposit into account</DropdownMenu.Item>
+                              }} disabled={!item.attestation.accepts_account_requests}>Deposit into account</DropdownMenu.Item>
                               <DropdownMenu.Item shortcut="↗" onClick={() => {
                                 if (item.attestation.accepts_withdrawal_requests)
                                   navigate(`/interaction?asset=${asset.id}&type=withdraw&manager=${item.attestation.owner}`)

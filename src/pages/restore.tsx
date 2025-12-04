@@ -2,7 +2,7 @@ import { Badge, Box, Button, Callout, Card, Flex, Heading, Link, Select, Text, T
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { mdiAlertCircleOutline } from '@mdi/js';
 import { AlertBox, AlertType } from "../components/alert";
-import { useNavigate, useSearchParams } from "react-router";
+import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { wordlist } from '@scure/bip39/wordlists/english';
 import { CSSTransition, SwitchTransition } from "react-transition-group";
 import { SafeStorage, Storage, StorageField } from "../core/storage";
@@ -33,6 +33,10 @@ function cyrb128(str: string): number[] {
 }
 
 export default function RestorePage() {
+  if (AppData.isWalletReady()) {
+    return <Navigate replace={true} to="/" state={{ from: `${location.pathname}${location.search}` }} />;
+  }
+
   const [params] = useSearchParams();
   const [passphrase, setPassphrase] = useState('');
   const [mnemonic, setMnemonic] = useState<string[]>([]);
@@ -287,7 +291,7 @@ export default function RestorePage() {
                       !AppData.isWalletExists() &&
                       <Flex justify="center" mt="2" px="2">
                         <Text size="1" weight="light" color="gray">
-                          At any cost, do not forget.<Link size="1" ml="1" onClick={importWallet}>{ importValid ? 'Re-import wallet.' : 'Import wallet.' }</Link>
+                          At any cost, do not forget.<Link size="1" ml="1" color="jade" onClick={importWallet}>{ importValid ? 'Change wallet.' : 'Import wallet.' }</Link>
                         </Text>
                       </Flex>
                     }
@@ -295,7 +299,7 @@ export default function RestorePage() {
                 </Box>
                 <Flex mt="4" justify="start" align="center" direction="column" gap="3">
                   <Button size="3" variant="surface" loading={loading} style={{ paddingLeft: '24px', paddingRight: '24px' }} disabled={passphrase.length < PASSWORD_SIZE} className={error ? 'shadow-rainbow-hover animation-horizontal-shake' : (passphrase.length < PASSWORD_SIZE ? 'shadow-rainbow-hover' :  'shadow-rainbow-animation')} onClick={createWallet}>{ importValid ? 'Import wallet' : 'Create wallet' }</Button>
-                  { AppData.isWalletExists() && <Link size="1" ml="1" color="gray" onClick={importWallet}>{ importValid ? 'Re-import wallet' : 'Import wallet' }</Link> }
+                  { AppData.isWalletExists() && <Link size="1" ml="1" color="gray" onClick={importWallet}>{ importValid ? 'Change wallet' : 'Import wallet' }</Link> }
                 </Flex>
               </Card>
             }

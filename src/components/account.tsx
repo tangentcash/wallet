@@ -3,7 +3,7 @@ import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, Flex, Heading, 
 import { RPC, EventResolver, SummaryState, AssetId, Readability } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowRightBoldHexagonOutline, mdiCellphoneKey, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft, mdiTransitConnectionVariant } from "@mdi/js";
+import { mdiArrowRightBoldHexagonOutline, mdiCellphoneKey, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft, mdiTagOutline, mdiTransitConnectionVariant } from "@mdi/js";
 import { AppData } from "../core/app";
 import { useNavigate } from "react-router";
 import InfiniteScroll from 'react-infinite-scroll-component';
@@ -113,7 +113,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
         try {
           let addressData = await RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count));
           if (Array.isArray(addressData)) {
-            addressData = addressData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
+            addressData = addressData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle)).map((item) => ({ ...item, addresses: item.addresses.map((address: string) => Readability.toTaggedAddress(address)) }));
             setAddresses(addressData);
           } else {
             setAddresses([]);
@@ -277,7 +277,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                 <Flex justify="center" width="100%">
                   <Box width="80%" maxWidth="280px" px="3" py="3" style={{ borderRadius: '16px', backgroundColor: 'white' }}>
                     <AspectRatio ratio={1}>
-                      <QRCode value={ selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion] } style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
+                      <QRCode value={ selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion].address } style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
                     </AspectRatio>
                   </Box>
                 </Flex>
@@ -288,14 +288,25 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                   </Flex>
                 }
                 <Box width="100%" mt="6">
-                  <TextField.Root size="2" variant="soft" readOnly={true} value={ Readability.toAddress(selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion], 12) } onClick={() => {
-                      navigator.clipboard.writeText(selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion]);
+                  <TextField.Root size="2" variant="soft" readOnly={true} value={ Readability.toAddress(selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion].address, 12) } onClick={() => {
+                      navigator.clipboard.writeText(selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion].address);
                       AlertBox.open(AlertType.Info, 'Address v' + (selectedAddress == -1 ? selectedAddressVersion + 1 : (addresses[selectedAddress].addresses.length - selectedAddressVersion)) + ' copied!')
                     }}>
                     <TextField.Slot color="gray">
                       <Icon path={mdiKeyOutline} size={0.7} style={{ paddingLeft: '4px' }} />
                     </TextField.Slot>
                   </TextField.Root>
+                  {
+                    selectedAddress != -1 && addresses[selectedAddress].addresses[selectedAddressVersion].tag != null &&
+                    <TextField.Root mt="3" size="2" color="red" variant="soft" readOnly={true} value={ 'Memo #' + addresses[selectedAddress].addresses[selectedAddressVersion].tag } onClick={() => {
+                        navigator.clipboard.writeText(addresses[selectedAddress].addresses[selectedAddressVersion].tag);
+                        AlertBox.open(AlertType.Info, 'Destination tag / memo copied!')
+                      }}>
+                      <TextField.Slot color="red">
+                        <Icon path={mdiTagOutline} size={0.7} style={{ paddingLeft: '4px' }} />
+                      </TextField.Slot>
+                    </TextField.Root>
+                  }
                   <Flex width="100%" mt="3">
                     <Select.Root size="2" value={selectedAddressVersion.toString()} onValueChange={(value) => setSelectedAddressVersion(parseInt(value))}>
                       <Select.Trigger variant="soft" color="gray" style={{ width: '100%' }}>
@@ -339,14 +350,14 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                       <Select.Label>Account addresses</Select.Label>
                       <Select.Item value="-1">
                         <Flex align="center" gap="1">
+                          <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(new AssetId())} src={Readability.toAssetImage(new AssetId())} style={{ width: '20px', height: '20px' }} />
                           <Text style={{ color: 'var(--accent-9)' }}>{ ownerAddress.substring(ownerAddress.length - 2).toUpperCase() }</Text>
-                          <Text>TANGENT</Text>
+                          <Text>{ Readability.toAssetName(new AssetId()).toUpperCase() }</Text>
                         </Flex>
                       </Select.Item>
                       {
                         addresses.map((item, index) => {
-                          const base = item.addresses[0].split(':')[0];
-                          const tag = base.substring(base.length - 2).toUpperCase();
+                          const tag = item.addresses[0].address.substring(item.addresses[0].address.length - 2).toUpperCase();
                           return (
                             <Select.Item key={item.hash + '_address_select'} value={index.toString()}>
                               <Flex align="center" gap="1">
