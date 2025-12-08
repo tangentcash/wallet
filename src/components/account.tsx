@@ -181,7 +181,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
           </Select.Item>
           {
             assets.map((item, index) =>
-              <Select.Item key={item.asset.id + '_select'} value={index.toString()} disabled={!item.asset.handle}>
+              <Select.Item key={item.asset.id + '_select'} value={index.toString()} disabled={item.asset.id != new AssetId().id}>
                 <Flex align="center" gap="1">
                   <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
                   <Text size="2" weight="light">{Readability.toAssetName(item.asset)}</Text>
