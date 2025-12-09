@@ -163,8 +163,9 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   const mobile = document.body.clientWidth < 500;
   const magicButton = () => (
     <Select.Root size="2" defaultValue="-1" onValueChange={(value) => {
-      if (value == '-1') {
-        navigate(`/bridge?asset=${AssetId.fromHandle(assets[parseInt(value)].asset.chain).id}`);
+      const index = parseInt(value);
+      if (index >= 0) {
+        navigate(`/bridge?asset=${AssetId.fromHandle(assets[index].asset.chain).id}`);
       }
     }}>
       <Select.Trigger variant="surface">
@@ -181,7 +182,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
           </Select.Item>
           {
             assets.map((item, index) =>
-              <Select.Item key={item.asset.id + '_select'} value={index.toString()} disabled={item.asset.id != new AssetId().id}>
+              <Select.Item key={item.asset.id + '_select'} value={index.toString()} disabled={item.asset.chain == new AssetId().chain}>
                 <Flex align="center" gap="1">
                   <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
                   <Text size="2" weight="light">{Readability.toAssetName(item.asset)}</Text>
