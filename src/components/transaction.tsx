@@ -429,12 +429,21 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Public key:</DataList.Label>
+            <DataList.Label>Group public key:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.public_key || 'NULL');
-                AlertBox.open(AlertType.Info, 'Public key copied!')
-              }}>{ Readability.toHash(transaction.public_key) }</Button>
+                navigator.clipboard.writeText(transaction.group_public_key || 'NULL');
+                AlertBox.open(AlertType.Info, 'Group public key copied!')
+              }}>{ Readability.toHash(transaction.group_public_key) }</Button>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>Group signature:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.group_signature || 'NULL');
+                AlertBox.open(AlertType.Info, 'Group signature copied!')
+              }}>{ Readability.toHash(transaction.group_signature) }</Button>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
