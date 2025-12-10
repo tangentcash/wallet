@@ -33,16 +33,13 @@ function cyrb128(str: string): number[] {
 }
 
 export default function RestorePage() {
-  if (AppData.isWalletReady()) {
-    return <Navigate replace={true} to="/" state={{ from: `${location.pathname}${location.search}` }} />;
-  }
-
   const [params] = useSearchParams();
   const [passphrase, setPassphrase] = useState('');
   const [mnemonic, setMnemonic] = useState<string[]>([]);
   const [seed, setSeed] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
+  const [activated, setActivated] = useState(false);
   const [status, setStatus] = useState<'reset' | 'restore' | 'import' | 'mnemonic'>(AppData.isWalletExists() ? 'restore' : 'reset');
   const [importType, setImportType] = useState<WalletType>(WalletType.Mnemonic);
   const [importCandidate, setImportCandidate] = useState('');
@@ -225,6 +222,7 @@ export default function RestorePage() {
     setImportCandidate('');
   }, []);
   useEffect(() => {
+    setActivated(true);
     if (!titleRef.current)
       return;
 
@@ -241,9 +239,13 @@ export default function RestorePage() {
       }
     });
     return () => typed.destroy()
-  }, [titleRef]);
+  }, []);
   
   const mobile = document.body.clientWidth < 500;
+  if (!activated && AppData.isWalletReady()) {
+    return <Navigate replace={true} to="/" state={{ from: `${location.pathname}${location.search}` }} />;
+  }
+
   return (
     <SwitchTransition mode="out-in">
       <CSSTransition classNames="fade-transition" key={status} nodeRef={contentRef} timeout={350} appear>

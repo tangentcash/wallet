@@ -83,10 +83,6 @@ function toSimpleTransaction(input: any): Record<string, any> {
 
 export default function InteractionPage() {
   const location = useLocation();
-  if (!AppData.isWalletReady()) {
-    return <Navigate replace={true} to={`/restore?to=${encodeURIComponent(location.pathname + location.search)}`} state={{ from: `${location.pathname}${location.search}` }} />;
-  }
-
   const ownerAddress = AppData.getWalletAddress() || '';
   const [query] = useSearchParams();
   const params = {
@@ -612,6 +608,9 @@ export default function InteractionPage() {
       setProgram(result);
   }, []);
   useEffectAsync(async () => {
+    if (!AppData.isWalletReady())
+      return;
+    
     let requiresAllAssets = false;
     switch (params.type) {
       case 'transfer':
@@ -696,6 +695,10 @@ export default function InteractionPage() {
       }
     }
   }, []);
+
+  if (!AppData.isWalletReady()) {
+    return <Navigate replace={true} to={`/restore?to=${encodeURIComponent(location.pathname + location.search)}`} state={{ from: `${location.pathname}${location.search}` }} />;
+  }
 
   return (
     <Box px="4" pt="4" mx="auto" maxWidth="640px">

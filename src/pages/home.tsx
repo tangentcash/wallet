@@ -12,10 +12,6 @@ import Icon from "@mdi/react";
 export default function HomePage() {
   const location = useLocation();
   const ownerAddress = AppData.getWalletAddress();
-  if (!ownerAddress) {
-    return <Navigate replace={true} to="/restore" state={{ from: `${location.pathname}${location.search}` }} />;
-  }
-
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
@@ -126,38 +122,44 @@ export default function HomePage() {
   }, [loading]);
   useEffect(() => {
     const state: { blockId: any, transactionId: any } = { blockId: null, transactionId: null };
-    RPC.onNodeMessage = (event) => {
-      switch (event.type) {
-        case 'block': {
-          if (state.blockId != null)
-            clearTimeout(state.blockId);
-          state.blockId = setTimeout(() => {
-            AppData.sync().then(() => setNonce(prev => prev + 1));
-            state.blockId = null;
-          }, 1000);
-          break;
+    if (ownerAddress != null) {
+      RPC.onNodeMessage = (event) => {
+        switch (event.type) {
+          case 'block': {
+            if (state.blockId != null)
+              clearTimeout(state.blockId);
+            state.blockId = setTimeout(() => {
+              AppData.sync().then(() => setNonce(prev => prev + 1));
+              state.blockId = null;
+            }, 1000);
+            break;
+          }
+          case 'transaction': {
+            if (state.transactionId != null)
+              clearTimeout(state.transactionId);
+            state.transactionId = setTimeout(() => {
+              AppData.sync().then(() => setNonce(prev => prev + 1));
+              state.transactionId = null;
+            }, 1000);
+            break;
+          }
+          default:
+            break;
         }
-        case 'transaction': {
-          if (state.transactionId != null)
-            clearTimeout(state.transactionId);
-          state.transactionId = setTimeout(() => {
-            AppData.sync().then(() => setNonce(prev => prev + 1));
-            state.transactionId = null;
-          }, 1000);
-          break;
-        }
-        default:
-          break;
-      }
-    };
-    document.addEventListener('keydown', searchKeydownEvent as any);
-    document.addEventListener('paste', searchPasteEvent);
+      };
+      document.addEventListener('keydown', searchKeydownEvent as any);
+      document.addEventListener('paste', searchPasteEvent);
+    }
     return () => {
       document.removeEventListener('keydown', searchKeydownEvent as any);
       document.removeEventListener('paste', searchPasteEvent);
       RPC.onNodeMessage = null;
     };
   }, []);
+
+  if (!ownerAddress) {
+    return <Navigate replace={true} to="/restore" state={{ from: `${location.pathname}${location.search}` }} />;
+  }
 
   return (
     <Box px="2" pt="4" maxWidth="680px" mx="auto">
