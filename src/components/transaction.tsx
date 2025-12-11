@@ -608,7 +608,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
                       <DataList.Value>
-                        <Badge color="cyan">Transfer</Badge>
+                        <Badge color="teal">Transfer</Badge>
                       </DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
@@ -637,7 +637,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     </DataList.Item>
                     <DataList.Item>
                       <DataList.Label>Value:</DataList.Label>
-                      <DataList.Value>{ Readability.toMoney(event.asset, event.value) }</DataList.Value>
+                      <DataList.Value>{ Readability.toMoney(event.asset, event.value, true) }</DataList.Value>
                     </DataList.Item>
                   </DataList.Root>
                 </Card>
@@ -650,7 +650,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
                       <DataList.Value>
-                        <Badge color="indigo">Transfer isolated</Badge>
+                        <Badge color="teal">Supply transfer</Badge>
                       </DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
@@ -669,14 +669,14 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                       !event.supply.eq(0) &&
                       <DataList.Item>
                         <DataList.Label>Value:</DataList.Label>
-                        <DataList.Value>{ Readability.toMoney(event.asset, event.supply) }</DataList.Value>
+                        <DataList.Value>{ Readability.toMoney(event.asset, event.supply, true) }</DataList.Value>
                       </DataList.Item>
                     }
                     {
                       !event.reserve.eq(0) &&
                       <DataList.Item>
                         <DataList.Label>{event.reserve.gte(0) ? 'Lock' : 'Unlock' } value:</DataList.Label>
-                        <DataList.Value>{ Readability.toMoney(event.asset, event.reserve.abs()) }</DataList.Value>
+                        <DataList.Value>{ Readability.toMoney(event.asset, event.reserve.abs(), true) }</DataList.Value>
                       </DataList.Item>
                     }
                   </DataList.Root>
@@ -690,7 +690,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
                       <DataList.Value>
-                        <Badge color="red">Transfer fee</Badge>
+                        <Badge color="teal">Fee transfer</Badge>
                       </DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
@@ -707,7 +707,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     </DataList.Item>
                     <DataList.Item>
                       <DataList.Label>Fee value:</DataList.Label>
-                      <DataList.Value>{ Readability.toMoney(event.asset, event.fee) }</DataList.Value>
+                      <DataList.Value>{ Readability.toMoney(event.asset, event.fee, true) }</DataList.Value>
                     </DataList.Item>
                   </DataList.Root>
                 </Card>
@@ -720,7 +720,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
                       <DataList.Value>
-                        <Badge color="lime">Bridge transfer</Badge>
+                        <Badge color="brown">Bridge transfer</Badge>
                       </DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
@@ -737,7 +737,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     </DataList.Item>
                     <DataList.Item>
                       <DataList.Label>Value:</DataList.Label>
-                      <DataList.Value>{ Readability.toMoney(event.asset, event.value) }</DataList.Value>
+                      <DataList.Value>{ Readability.toMoney(event.asset, event.value, true) }</DataList.Value>
                     </DataList.Item>
                   </DataList.Root>
                 </Card>
@@ -750,7 +750,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
                       <DataList.Value>
-                        <Badge color="cyan">Bridge account</Badge>
+                        <Badge color="brown">Bridge account</Badge>
                       </DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
@@ -784,7 +784,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
                       <DataList.Value>
-                        <Badge color="yellow">Bridge queue</Badge>
+                        <Badge color="brown">Bridge queue</Badge>
                       </DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
@@ -829,7 +829,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
                       <DataList.Value>
-                        <Badge color="jade">Bridge policy</Badge>
+                        <Badge color="brown">Bridge policy</Badge>
                       </DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
@@ -855,7 +855,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
                       <DataList.Value>
-                        <Badge color="red">Bridge participant</Badge>
+                        <Badge color="brown">Bridge participant</Badge>
                       </DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
@@ -881,7 +881,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
                       <DataList.Value>
-                        <Badge color="jade">Witness account</Badge>
+                        <Badge color="teal">Witness account</Badge>
                       </DataList.Value>
                     </DataList.Item>
                     {
@@ -900,7 +900,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <DataList.Item>
                       <DataList.Label>Address type:</DataList.Label>
                       <DataList.Value>
-                        <Badge color="jade">{ event.purpose[0].toUpperCase() + event.purpose.substring(1) }</Badge>
+                        <Badge color="jade">{ event.purpose[0].toUpperCase() + event.purpose.substring(1) } account</Badge>
                       </DataList.Value>
                     </DataList.Item>
                   </DataList.Root>
@@ -914,7 +914,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
                       <DataList.Value>
-                        <Badge color="gold">Witness transaction</Badge>
+                        <Badge color="teal">Witness transaction</Badge>
                       </DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
@@ -941,7 +941,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <DataList.Item>
                       <DataList.Label>Event:</DataList.Label>
                       <DataList.Value>
-                        <Badge color="crimson">Rollup receipt</Badge>
+                        <Badge color="brown">Rollup receipt</Badge>
                       </DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
@@ -1038,12 +1038,16 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               state != null &&
               <Flex gap="2" wrap="wrap">
                 {
-                  state.errors.length > 0 &&
-                  <Badge size="1" radius="medium" color="red">{ Readability.toCount('execution error', state.errors.length) }</Badge>
+                  !transaction.error && EventResolver.isSummaryStateEmpty(state, ownerAddress) &&
+                  <Badge size="1" radius="medium" color={receipt.successful ? 'jade' : 'red'}>{ receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Rollback' }</Badge>
                 }
                 {
                   transaction.error != null &&
-                  <Badge size="1" radius="medium" color="red">Bridging error</Badge>
+                  <Badge size="1" radius="medium" color="red">Refund</Badge>
+                }
+                {
+                  state.errors.length > 0 &&
+                  <Badge size="1" radius="medium" color="red">{ Readability.toCount('execution error', state.errors.length) }</Badge>
                 }
                 {
                   state.account.balances[ownerAddress] && Object.keys(state.account.balances[ownerAddress]).map((asset) => {
@@ -1052,7 +1056,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                     return (
                       <Flex key={'X0' + transaction.hash + asset} gap="2">
                         { (zero || !value.supply.eq(0)) && <Badge size="1" radius="medium" color={value.supply.gt(0) ? 'jade' : (value.supply.isNegative() ? 'red' : 'gray')} style={{ textTransform: 'uppercase' }}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge> }
-                        { !value.reserve.eq(0) && <Badge size="1" radius="medium" color="blue" style={{ textTransform: 'uppercase' }}>{ Readability.toMoney(value.asset, value.reserve.negated(), true) }</Badge> }
+                        { !value.reserve.eq(0) && <Badge size="1" radius="medium" color="yellow" style={{ textTransform: 'uppercase' }}>{ Readability.toMoney(value.asset, value.reserve.negated(), true) }</Badge> }
                       </Flex>
                     )
                   })
@@ -1061,55 +1065,50 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   state.bridge.balances[ownerAddress] && Object.keys(state.bridge.balances[ownerAddress]).map((asset) => {
                     const value = state.bridge.balances[ownerAddress][asset];
                     return (
-                      <Badge key={'X1' + transaction.hash + asset} size="1" radius="medium" color={value.supply.eq(0) ? 'gray' : 'lime'} style={{ textTransform: 'uppercase' }}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge>
+                      <Badge key={'X1' + transaction.hash + asset} size="1" radius="medium" color={value.supply.eq(0) ? 'gray' : 'brown'} style={{ textTransform: 'uppercase' }}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge>
                     )
                   })
+                }
+                {
+                  Object.keys(state.witness.accounts).map((asset) => {
+                    const aliases = state.witness.accounts[asset].aliases;
+                    return aliases.map((alias) => <Badge key={'X3' + alias} size="1" radius="medium" color="jade">{ Readability.toAddress(alias) }</Badge>)
+                  })
+                }
+                {
+                  Object.keys(state.bridge.migrations).length > 0 &&
+                  <Badge size="1" radius="medium" color="yellow">Migrate { Readability.toCount('participant', Object.keys(state.bridge.migrations).length) }</Badge>
+                }
+                {
+                  Object.keys(state.bridge.policies).length > 0 &&
+                  <Badge size="1" radius="medium" color="yellow">{ Readability.toCount('change', Object.keys(state.bridge.policies).length) }</Badge>
+                }
+                {
+                  Object.keys(state.bridge.accounts).length > 0 && !Object.keys(state.witness.accounts).length &&
+                  <Badge size="1" radius="medium" color="brown">{ Readability.toCount('account', Object.keys(state.bridge.accounts).length, true) }</Badge>
+                }
+                {
+                  state.bridge.participants.size > 0 &&
+                  <Badge size="1" radius="medium" color="brown">{ Readability.toCount('participant', state.bridge.participants.size) }</Badge>
+                }
+                {
+                  Object.keys(state.receipts).length > 0 &&
+                  <Badge size="1" radius="medium" color="brown">{ Readability.toCount('receipt', Object.keys(state.receipts).length) }</Badge>
                 }
                 {
                   Object.entries(state.bridge.queues).map((data) => {
                     return Object.entries(state.bridge.queues[data[0]]).map((inputs) => {
                       const event = inputs[1];
                       const transactionHash = event.transactionHash || transaction.withdraw_hash || transaction.hash;
-                      const locking = event.transactionHash != null;
-                      return <Badge key={'X2' + event.asset.handle + transactionHash} size="1" radius="medium" color="yellow">{ locking ? '+' : '-' }{ Readability.toAddress(transactionHash) }</Badge>
+                      return <Badge key={'X2' + event.asset.handle + transactionHash} size="1" radius="medium" color="brown">{ Readability.toAddress(transactionHash, 4) }</Badge>
                     })
-                  })
-                }
-                {
-                  Object.keys(state.witness.accounts).map((asset) => {
-                    const aliases = state.witness.accounts[asset].aliases;
-                    return aliases.map((alias) => <Badge key={'X3' + alias} size="1" radius="medium" color="jade">+{ Readability.toAddress(alias) }</Badge>)
                   })
                 }
                 {
                   Object.keys(state.witness.transactions).map((asset) => {
                     const event = state.witness.transactions[asset];
-                    return event.stateHashes.map((stateHash) => <Badge key={'X4' + event.asset.toHex() + stateHash} size="1" radius="medium" color="gold">{ Readability.toAddress(stateHash) }</Badge>)
+                    return event.stateHashes.map((stateHash) => <Badge key={'X4' + event.asset.toHex() + stateHash} size="1" radius="medium" color="brown">{ Readability.toAddress(stateHash, 4) }</Badge>)
                   })
-                }
-                {
-                  Object.keys(state.receipts).length > 0 &&
-                  <Badge size="1" radius="medium" color="gold">{ Readability.toCount('receipt', Object.keys(state.receipts).length) }</Badge>
-                }
-                {
-                  Object.keys(state.bridge.accounts).length > 0 && !Object.keys(state.witness.accounts).length &&
-                  <Badge size="1" radius="medium" color="jade">{ Readability.toCount('account', Object.keys(state.bridge.accounts).length, true) }</Badge>
-                }
-                {
-                  Object.keys(state.bridge.policies).length > 0 &&
-                  <Badge size="1" radius="medium" color="jade">{ Readability.toCount('change', Object.keys(state.bridge.policies).length) }</Badge>
-                }
-                {
-                  state.bridge.participants.size > 0 &&
-                  <Badge size="1" radius="medium" color="jade">{ Readability.toCount('participant', state.bridge.participants.size) }</Badge>
-                }
-                {
-                  Object.keys(state.bridge.migrations).length > 0 &&
-                  <Badge size="1" radius="medium" color="red">Migration to { Readability.toCount('participant', Object.keys(state.bridge.migrations).length) }</Badge>
-                }
-                {
-                  !transaction.error && EventResolver.isSummaryStateEmpty(state, ownerAddress) &&
-                  <Badge size="1" radius="medium" color={receipt.successful ? 'bronze' : 'red'}>{ receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Zero events') : 'Execution reverted' }</Badge>
                 }
               </Flex>
             }
