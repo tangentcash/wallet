@@ -163,8 +163,8 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             }
           </DataList.Root>
           {
-            transaction.bridge_attestations != null && transaction.bridge_attestations.map((item: any) => 
-              <Card mt="3" key={'IF3' + item.asset.chain}>
+            transaction.attestations != null && transaction.attestations.map((item: any, index: number) => 
+              <Card key={'IF3' + item.asset.chain} mb={index + 1 < transaction.attestations.length ? '4' : undefined}>
                 <DataList.Root orientation={props.orientation}>
                 <DataList.Item>
                   <DataList.Label>{ item.asset.chain } attestation stake:</DataList.Label>
@@ -224,7 +224,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           }
           {
             transaction.bridge_migrations != null && transaction.bridge_migrations.map((item: any, index: number) =>
-              <Card key={'IF7' + item.broadcast_hash + index} mb="4">
+              <Card key={'IF7' + item.broadcast_hash + index} mb={index + 1 < transaction.bridge_migrations.length ? '4' : undefined}>
                 <DataList.Root orientation={props.orientation}>
                   <DataList.Item>
                     <DataList.Label>Reasoning transaction hash:</DataList.Label>
