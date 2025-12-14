@@ -210,8 +210,8 @@ export default function BlockPage() {
               <DataList.Value>{ Readability.toCount('transaction', block.transaction_count) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>States:</DataList.Label>
-              <DataList.Value>{ Readability.toCount('state', block.state_count) } with { Readability.toCount('update', block.mutation_count) }</DataList.Value>
+              <DataList.Label>Transitions:</DataList.Label>
+              <DataList.Value>{ Readability.toCount('transition', block.transition_count) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Coinbase:</DataList.Label>
