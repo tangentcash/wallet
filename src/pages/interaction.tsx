@@ -418,7 +418,7 @@ export default function InteractionPage() {
             migrations: program.migrations.map((item) => ({
               broadcastHash: new Uint256(item.broadcastHash),
               participant: Signing.decodeAddress(item.participant)
-            })),
+            })).sort((a, b) => a.broadcastHash.compareTo(b.broadcastHash)),
             attestations: program.attestations.map((item) => ({
               asset: item.asset,
               stake: item.stake != null ? new BigNumber(item.stake) : new BigNumber(NaN),
@@ -434,7 +434,7 @@ export default function InteractionPage() {
               incomingFee: item.incomingFee.length > 0 ? new BigNumber(item.incomingFee) : undefined,
               outgoingFee: item.outgoingFee.length > 0 ? new BigNumber(item.outgoingFee) : undefined,
               participationThreshold: item.participationThreshold.length > 0 ? new BigNumber(item.participationThreshold) : undefined,
-            }))
+            })).sort((a, b) => a.asset.toUint256().compareTo(b.asset.toUint256()))
           }
         });
       } else if (program instanceof ProgramRoute) {
