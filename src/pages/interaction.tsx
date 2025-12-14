@@ -567,7 +567,7 @@ export default function InteractionPage() {
 
     setLoadingTransaction(true);
     try {
-      const hash = await RPC.submitTransaction(output.data, true);
+      const hash = await RPC.submitTransaction(output.data);
       if (hash != null) {
         AlertBox.open(AlertType.Info, 'Transaction ' + hash + ' sent!');
         if (AppData.approveTransaction) {
