@@ -361,11 +361,11 @@ export default function BridgePage() {
                         <DataList.Value>
                           <Flex wrap="wrap" gap="1">
                             {
-                              item.balance && item.balance.balances.map((next: any) =>
+                              item.balances && item.balances.map((next: any) =>
                                 <Badge key={item.attestation.hash + index + next.asset.id} size="1" radius="medium" color="yellow">{ Readability.toMoney(next.asset, next.supply) }</Badge>)
                             }
                             {
-                              !item.balance &&
+                              !item.balances &&
                               <Badge size="1" radius="medium" color="yellow">{ Readability.toMoney(asset, null) }</Badge>
                             }
                           </Flex>

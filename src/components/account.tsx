@@ -124,7 +124,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
       })(),
       (async () => {
         try {
-          const attestationData = await RPC.fetchAll((offset, count) => RPC.getValidatorAttestations(ownerAddress, offset, count));
+          const attestationData = await RPC.getValidatorAttestationsWithRewards(ownerAddress);
           setAttestations(Array.isArray(attestationData) ? attestationData : []);
         } catch (exception) {
           AlertBox.open(AlertType.Error, 'Failed to fetch account attestations: ' + (exception as Error).message)
@@ -132,7 +132,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
       })(),
       (async () => {
         try {
-          const participationData = await RPC.getValidatorParticipation(ownerAddress);
+          const participationData = await RPC.getValidatorParticipationWithRewards(ownerAddress);
           setParticipation(participationData || null);
         } catch (exception) {
           AlertBox.open(AlertType.Error, 'Failed to fetch account participations: ' + (exception as Error).message)
@@ -140,7 +140,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
       })(),
       (async () => {
         try {
-          const productionData = await RPC.getValidatorProduction(ownerAddress);
+          const productionData = await RPC.getValidatorProductionWithRewards(ownerAddress);
           setProduction(productionData || null);
         } catch { }
       })(),
