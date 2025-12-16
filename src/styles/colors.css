@@ -3,6 +3,15 @@
   src: url('./../fonts/ptmono-regular.ttf');
 }
 
+.rt-Card {
+  --card-border-width: 0px;
+}
+
+.rt-BaseButton,
+.rt-SelectTrigger {
+  box-shadow: inset 0 0 0 1px transparent;
+}
+
 .radix-themes {
 	--default-font-family: "PT Mono", monospace;
 }
@@ -10,6 +19,7 @@
 :root, .light, .light-theme {
   --layer-front: #f0fdf5;
   --layer-back: #f8fffb;
+
   --iris-1: #f8fffb;
   --iris-2: #f0fdf5;
   --iris-3: #d7fce6;
@@ -80,8 +90,11 @@
 }
 
 .dark, .dark-theme {
-  --layer-front: #0b130f;
-  --layer-back: #000000;
+  --color-panel-translucent: var(--gray-a3);
+  --gray-surface: var(--gray-a3);
+  --layer-front: #152921;
+  --layer-back: #070d0b;
+
   --iris-1: #0b130f;
   --iris-2: #111c16;
   --iris-3: #102d1f;

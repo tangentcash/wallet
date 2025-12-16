@@ -197,10 +197,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   return (
     <Box>
       <Box width="100%" px="2">
-        <Card mt="3" variant="surface" style={{
-            border: '1px solid var(--gray-7)',
-            borderRadius: '28px'
-          }}>
+        <Card mt="3" variant="surface" style={{ borderRadius: '28px' }}>
           <Flex justify={mobile ? 'center' : 'between'} gap="2" py="1">
             <SegmentedControl.Root value={control} radius="full" size="2" mb="2" onValueChange={(value) => setControl(value as any)}>
               <SegmentedControl.Item value="address">Fund</SegmentedControl.Item>

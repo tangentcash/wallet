@@ -11,10 +11,7 @@ export default function BalanceView(props: { item: Balance & { equity: { current
   const previousEquity = item.equity.previous ? item.equity.previous : baseEquity;
   const currentEquity = item.equity.current ? item.equity.current : baseEquity;
   return (
-    <Card mb="4" variant="surface" style={{
-        border: '1px solid var(--gray-7)',
-        borderRadius: '24px'
-      }}>
+    <Card mb="4" variant="surface" style={{ borderRadius: '24px' }}>
       <Flex justify="start" align="center" gap="3" px="1" py="1">
         <Avatar size="4" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
         <Box width="100%">

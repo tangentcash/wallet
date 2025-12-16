@@ -58,7 +58,6 @@ export function Navbar() {
           <Box style={{
             display: 'inline-block',
             backgroundColor: 'var(--color-panel)',
-            border: '1px solid var(--gray-7)',
             borderRadius: "100px",
             filter: "saturate(0.5) brightness(1.1)",
             WebkitBackdropFilter: "blur(24px)",
@@ -71,7 +70,7 @@ export function Navbar() {
                   if (item.deep ? locator?.startsWith(item.path) : item.path == locator) {
                     return (
                       <Tooltip content={item.tip} key={item.path}>
-                        <Button size={enlarge ? '3' : '2'} variant="outline" color={item.activeColor as any} disabled={item.disabled ? item.disabled(location.pathname) : false} >
+                        <Button size={enlarge ? '3' : '2'} variant="outline" style={{ boxShadow: `inset 0 0 0 1px var(--${item.activeColor || 'jade'}-a7)` }} color={item.activeColor as any} disabled={item.disabled ? item.disabled(location.pathname) : false}>
                           <Icon path={item.icon} size={1} />
                           {item.name}
                         </Button>

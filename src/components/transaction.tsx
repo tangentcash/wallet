@@ -163,8 +163,8 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             }
           </DataList.Root>
           {
-            transaction.attestations != null && transaction.attestations.map((item: any, index: number) => 
-              <Card key={'IF3' + item.asset.chain} mb={index + 1 < transaction.attestations.length ? '4' : undefined}>
+            transaction.attestations != null && transaction.attestations.map((item: any) => 
+              <Card key={'IF3' + item.asset.chain} mt="4">
                 <DataList.Root orientation={props.orientation}>
                 <DataList.Item>
                   <DataList.Label>{ item.asset.chain } attestation stake:</DataList.Label>
@@ -224,7 +224,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           }
           {
             transaction.bridge_migrations != null && transaction.bridge_migrations.map((item: any, index: number) =>
-              <Card key={'IF7' + item.broadcast_hash + index} mb={index + 1 < transaction.bridge_migrations.length ? '4' : undefined}>
+              <Card key={'IF7' + item.broadcast_hash + index} mt="4">
                 <DataList.Root orientation={props.orientation}>
                   <DataList.Item>
                     <DataList.Label>Reasoning transaction hash:</DataList.Label>
@@ -1013,10 +1013,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
     AppData.tip = receipt.block_number;
 
   return (
-    <Card variant="surface" mt="4" style={{
-        border: '1px solid var(--gray-7)',
-        borderRadius: '22px'
-      }}>
+    <Card variant="surface" mt="4" style={{ borderRadius: '22px' }}>
       <Collapsible.Root open={props.open}>
         <Flex gap="3" align="center">
           <Avatar size="3" radius="full" fallback={Readability.toAssetFallback(transaction.asset)} src={Readability.toAssetImage(transaction.asset)} />

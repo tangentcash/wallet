@@ -127,7 +127,7 @@ export default function ExplorerPage() {
       </Box>
       <Flex gap="1">
         <AssetSelector title="token 1 to launch" value={marketLauncher.primary} onChange={(value) => setMarketLauncher(prev => ({ primary: value, secondary: prev?.secondary || null }))}>
-          <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--jade-1)', border: '1px solid var(--jade-3)', position: 'relative' }} color="red">
+          <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--jade-1)', position: 'relative' }} color="red">
             <Flex justify="center" align="center">
               {
                 marketLauncher.primary != null &&

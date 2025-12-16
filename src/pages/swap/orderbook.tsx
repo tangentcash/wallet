@@ -582,7 +582,7 @@ export default function OrderbookPage() {
   }, []);
 
   const ChartWidget = () => (
-    <Box width="100%" mb={mobile ? undefined : '3'} style={mobile ? { } : { backgroundColor: 'var(--color-panel)', border: '1px solid var(--gray-5)', borderRadius: '9px', overflow: 'hidden' }}>
+    <Box width="100%" mb={mobile ? undefined : '3'} style={mobile ? { } : { backgroundColor: 'var(--color-panel)', borderRadius: '9px', overflow: 'hidden' }}>
       <Flex align="center" pt={mobile ? '4' : '3'} pb={mobile ? '4' : '3'} px="3" style={mobile ? { backgroundColor: 'var(--color-panel)' } : { }}>
         <Box style={{ position: 'relative' }} mr="2">
           <Avatar size="2" fallback={orderbook?.secondaryAsset ? Readability.toAssetFallback(orderbook.secondaryAsset) : '?'} src={orderbook?.secondaryAsset ? Readability.toAssetImage(orderbook.secondaryAsset) : undefined} style={{ position: 'absolute', top: mobile ? '18px' : '24px', left: '-6px' }} />
@@ -767,7 +767,7 @@ export default function OrderbookPage() {
                     <Box px={mobile ? '3' : undefined}>
                       {
                         valuation != null && (balances.primary.value.gt(0) || balances.secondary.value.gt(0)) &&
-                        <Card mb={mobile ? '6' : '3'} style={mobile ? { borderRadius: '24px', border: '1px solid var(--gray-7)' } : { }}>
+                        <Card mb={mobile ? '6' : '3'} style={mobile ? { borderRadius: '24px' } : { }}>
                           <Flex align="center" justify="between" mb="3">
                             <Heading size="5">P&L</Heading>
                             <SegmentedControl.Root size="1" value={seriesOptions.showPrimary ? '1' : '0'} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, showPrimary: parseInt(e) > 0 }))}>
@@ -1003,7 +1003,7 @@ export default function OrderbookPage() {
                   <Box px={mobile ? '3' : undefined} pt={mobile ? '4' : undefined}>
                     {
                       trades.map((item) =>
-                        <Box key={item.account + item.time.getTime()} mb="3" style={{ width: '100%', height: 'auto', backgroundColor: 'var(--color-panel)', border: '1px solid var(--gray-5)', borderRadius: '12px' }}>
+                        <Box key={item.account + item.time.getTime()} mb="3" style={{ width: '100%', height: 'auto', backgroundColor: 'var(--color-panel)', borderRadius: '12px' }}>
                           <Flex direction="column" gap="2" style={{ padding: '12px' }}>
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">At</Text>

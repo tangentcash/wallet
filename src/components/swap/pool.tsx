@@ -142,7 +142,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
         props.flash &&
         <Dialog.Root>
           <Dialog.Trigger>
-            <Button style={{ display: 'block', width: '100%', height: 'auto', padding: '0', backgroundColor: 'var(--color-panel)', border: '1px solid var(--gray-5)', borderRadius: '12px' }}>
+            <Button style={{ display: 'block', width: '100%', height: 'auto', padding: '0', backgroundColor: 'var(--color-panel)', borderRadius: '12px' }}>
               <Flex direction="column" gap="2" style={{ padding: '12px' }}>
 
               </Flex>
@@ -156,10 +156,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
       }
       {
         !props.flash &&
-        <Card variant="surface" style={{
-            border: '1px solid var(--gray-7)',
-            borderRadius: '24px'
-          }}>
+        <Card variant="surface" style={{ borderRadius: '24px' }}>
           <Box px="1" py="1">
             <FullPoolView item={props.item} open={props.open} concentrated={concentrated} inRange={inRange}></FullPoolView>
           </Box>

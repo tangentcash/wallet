@@ -253,7 +253,7 @@ export default function RestorePage() {
           <Box maxWidth="600px" width="100%" mx="auto">
             {
               status == 'restore' &&
-              <Card className="bp-mobile-ghost600" size="4" variant="surface" mx="auto" style={{ maxWidth: 400, width: '100%' }}>
+              <Card className="bp-mobile-ghost600" size="4" variant="surface" mx="auto" style={{ maxWidth: 400, width: '100%', borderRadius: '36px' }}>
                 <Heading as="h3" size="8" align="center" mb="5">
                 <Text ref={titleRef}>Tangent Wallet</Text>
                 </Heading>
@@ -274,7 +274,7 @@ export default function RestorePage() {
             }
             {
               status == 'reset' &&
-              <Card className="bp-mobile-ghost600" size="4" variant="surface" mx="auto" style={{ maxWidth: 400, width: '100%' }}>
+              <Card className="bp-mobile-ghost600" size="4" variant="surface" mx="auto" style={{ maxWidth: 400, width: '100%', borderRadius: '36px' }}>
                 <Heading as="h3" size="8" align="center" mb="5">
                   <Text ref={titleRef}>Tangent Wallet</Text>
                 </Heading>
@@ -307,7 +307,7 @@ export default function RestorePage() {
             }
             {
               status == 'import' &&
-              <Card className="bp-mobile-ghost600" size="4" variant="surface" mx="auto" style={{ maxWidth: 600, width: '100%' }}>
+              <Card className="bp-mobile-ghost600" size="4" variant="surface" mx="auto" style={{ maxWidth: 600, width: '100%', borderRadius: '36px' }}>
                 <Flex justify="between" align="center" mb="4">
                   <Heading as="h3" size={mobile ? '4' : '7'}>Import</Heading>
                   <Select.Root size={mobile ? '2' : '3'} value={importType} onValueChange={async (value) => {
@@ -421,7 +421,7 @@ export default function RestorePage() {
             }
             {
               status == 'mnemonic' &&
-              <Card className="bp-mobile-ghost800" size="4" variant="surface" mx="auto" style={{ width: '100%' }}>
+              <Card className="bp-mobile-ghost800" size="4" variant="surface" mx="auto" style={{ width: '100%', borderRadius: '36px' }}>
                 <Heading as="h3" size={mobile ? '4' : '7'} align="center" mb="3">Remember your recovery phrase</Heading>
                 <Callout.Root mb="5" size="1" variant="surface">
                   <Callout.Icon>

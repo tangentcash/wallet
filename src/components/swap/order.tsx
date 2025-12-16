@@ -220,7 +220,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
         props.flash &&
         <Dialog.Root>
           <Dialog.Trigger>
-            <Button style={{ display: 'block', width: '100%', height: 'auto', padding: '0', backgroundColor: 'var(--color-panel)', border: '1px solid var(--gray-5)', borderRadius: '12px' }}>
+            <Button style={{ display: 'block', width: '100%', height: 'auto', padding: '0', backgroundColor: 'var(--color-panel)', borderRadius: '12px' }}>
               <Flex direction="column" gap="2" style={{ padding: '12px' }}>
                 {
                   item.stopPrice &&
@@ -266,10 +266,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
       }
       {
         !props.flash &&
-        <Card variant="surface" style={{
-            border: '1px solid var(--gray-7)',
-            borderRadius: '24px'
-          }}>
+        <Card variant="surface" style={{ borderRadius: '24px' }}>
           <Box px="1" py="1">
             <FullOrderView item={props.item} open={props.open} price={price} quantity={quantity} paidAsset={paidAsset}></FullOrderView>
           </Box>

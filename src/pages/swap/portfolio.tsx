@@ -75,10 +75,7 @@ export default function PortfolioPage() {
 
   return (
     <Box px="4" pt="4" minWidth="285px" maxWidth="680px" mx="auto">
-      <Card mt="3" variant="surface" style={{
-          border: '1px solid var(--gray-7)',
-          borderRadius: '28px'
-        }}>
+      <Card mt="3" variant="surface" style={{ borderRadius: '28px' }}>
         <Box px="2" py="1">
           <Box mb="2">
             <Flex justify="between" align="center">
