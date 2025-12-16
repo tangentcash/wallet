@@ -7,9 +7,15 @@
   --card-border-width: 0px;
 }
 
-.rt-BaseButton,
-.rt-SelectTrigger {
+.rt-TextAreaRoot:not(:hover):not(:active):not(:focus),
+.rt-BaseButton:not(:hover):not(:active):not(:focus),
+.rt-SelectTrigger:not(:hover):not(:active):not(:focus),
+.rt-TextFieldRoot:not(:hover):not(:active):not(:focus) {
   box-shadow: inset 0 0 0 1px transparent;
+}
+
+.rt-TextFieldRoot {
+  background-image: none;
 }
 
 .radix-themes {
@@ -92,7 +98,7 @@
 .dark, .dark-theme {
   --color-panel-translucent: var(--gray-a3);
   --gray-surface: var(--gray-a3);
-  --layer-front: #152921;
+  --layer-front: #11221b;
   --layer-back: #070d0b;
 
   --iris-1: #0b130f;
