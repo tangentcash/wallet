@@ -6,11 +6,12 @@ import { AlertBox, AlertType } from "../components/alert";
 import { mdiArrowRightBoldHexagonOutline, mdiCellphoneKey, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft, mdiTagOutline, mdiTransitConnectionVariant } from "@mdi/js";
 import { AppData } from "../core/app";
 import { useNavigate } from "react-router";
+import { Swap } from "../core/swap";
+import BigNumber from "bignumber.js";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import QRCode from "react-qr-code";
 import Icon from "@mdi/react";
 import Transaction from "../components/transaction";
-import { Swap } from "../core/swap";
 
 function toAddressType(type: string): string {
   switch (type) {
@@ -234,9 +235,9 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                         </Tooltip>
                         <Tooltip content={
                           <>
-                            <Text style={{ display: 'block' }}>Locked value: { Readability.toMoney(item.asset, item.reserve) }</Text>
-                            <Text style={{ display: 'block' }}>Unlocked value: { Readability.toMoney(item.asset, item.balance) }</Text>
-                            <Text style={{ display: 'block' }} mt="1">Total value: { Readability.toMoney(item.asset, item.supply) }</Text>
+                            <Text style={{ display: 'block' }}>Locked value: { new BigNumber(item.reserve).toString() } { Readability.toAssetSymbol(item.asset) }</Text>
+                            <Text style={{ display: 'block' }}>Unlocked value: { new BigNumber(item.balance).toString() } { Readability.toAssetSymbol(item.asset) }</Text>
+                            <Text style={{ display: 'block' }} mt="1">Total value: { new BigNumber(item.supply).toString() } { Readability.toAssetSymbol(item.asset) }</Text>
                           </>
                           }>
                           <Badge size="1" radius="medium" color={item.reserve.gt(0) ? 'yellow' : 'jade'}>{ (Math.floor(10000 - item.reserve.dividedBy(item.supply).toNumber() * 10000) / 100).toFixed(2) }%</Badge>

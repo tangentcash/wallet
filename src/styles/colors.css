@@ -18,6 +18,12 @@
   background-image: none;
 }
 
+.rt-TooltipText {
+    -webkit-user-select: initial;
+    user-select: initial;
+    cursor: initial;
+}
+
 .radix-themes {
 	--default-font-family: "PT Mono", monospace;
 }
