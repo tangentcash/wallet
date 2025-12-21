@@ -1,1 +1,18 @@
-<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg"><g fill="none"><circle cx="16" cy="16" r="16" fill="#1A4199"/><g fill="#FFF"><path d="M10.676 7.125l10.732 6.191v6.319L5 10.159l5.265-3.034a.42.42 0 01.42 0" opacity=".7"/><path opacity=".9" d="M21.408 7l-5.467 3.16 5.467 3.156z"/><path d="M21.408 7l5.264 3.036a.42.42 0 01.22.367v12.389l-5.484-3.157V7z"/><path d="M26.881 22.792l-5.264 3.033a.44.44 0 01-.42 0l-10.732-6.19v-6.328l16.416 9.485z" opacity=".9"/><path d="M5 10.16v12.387a.42.42 0 00.22.368l5.265 3.036V13.307L5 10.16z" opacity=".6"/><path opacity=".7" d="M10.476 25.95l5.465-3.158-5.465-3.157z"/></g></g></svg>
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Generator: Adobe Illustrator 27.0.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1" id="nexo" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 500 500" style="enable-background:new 0 0 500 500;" xml:space="preserve">
+<style type="text/css">
+	.st0{fill:#60BEFF;}
+	.st1{fill:#1A4199;}
+	.st2{fill:#3CA9E5;}
+	.st3{fill:#2853C3;}
+</style>
+<path class="st0" d="M1.7,110.6v272.9c0,1.6,0.4,3.2,1.3,4.7c0.8,1.4,2,2.6,3.5,3.4l119.7,66.9V180L1.7,110.6z"/>
+<path class="st1" d="M374.7,41l119.7,66.9c1.5,0.8,2.7,2,3.5,3.4c0.8,1.4,1.3,3,1.3,4.7v272.9l-124.5-69.6V41z"/>
+<path class="st2" d="M125.9,458.4l124.5-69.6l-124.5-69.6V458.4z"/>
+<path class="st2" d="M130.7,43.7l243.9,136.4v139.1L1.7,110.6l119.7-66.9c1.4-0.8,3-1.2,4.7-1.2C127.7,42.5,129.3,42.9,130.7,43.7z"
+	/>
+<path class="st3" d="M374.7,41l-124.3,69.6l124.3,69.6V41z"/>
+<path class="st3" d="M499.1,388.9l-119.7,66.9c-1.5,0.8-3.1,1.2-4.8,1.2c-1.7,0-3.3-0.4-4.8-1.2L125.9,319.3V180L499.1,388.9z"/>
+</svg>
