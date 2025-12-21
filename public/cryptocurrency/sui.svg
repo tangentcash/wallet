@@ -1,15 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Generator: Adobe Illustrator 27.5.0, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
-<svg version="1.1" id="Layer_1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 viewBox="0 0 500 500" style="enable-background:new 0 0 500 500;" xml:space="preserve">
+<!-- Generator: Adobe Illustrator 26.0.1, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
+<svg version="1.1"
+	 id="svg10" sodipodi:docname="Sui SUI Coin Icon 256x256.svg" xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape" xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd" xmlns:svg="http://www.w3.org/2000/svg"
+	 xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px" viewBox="0 0 256 256"
+	 style="enable-background:new 0 0 256 256;" xml:space="preserve">
 <style type="text/css">
-	.st0{fill-rule:evenodd;clip-rule:evenodd;fill:#011829;}
+	.st0{fill:#6FBCF0;}
+	.st1{fill-rule:evenodd;clip-rule:evenodd;fill:#FFFFFF;stroke:#FFFFFF;stroke-width:5.8052;stroke-opacity:0;}
 </style>
-<path class="st0" d="M367.4,208.5L367.4,208.5c20.4,25.6,32.6,58,32.6,93.2c0,35.8-12.6,68.6-33.5,94.3l-1.8,2.2l-0.5-2.8
-	c-0.4-2.4-0.9-4.8-1.4-7.3c-10.5-46.1-44.6-85.6-100.9-117.5c-38-21.5-59.7-47.5-65.4-76.9c-3.7-19.1-0.9-38.2,4.3-54.6
-	c5.3-16.4,13.2-30.1,19.9-38.4l0,0L242.6,74c3.8-4.7,11-4.7,14.8,0L367.4,208.5z M402,181.8L402,181.8L255.4,2.6
-	c-2.8-3.4-8-3.4-10.8,0L98,181.8l0,0l-0.5,0.6c-27,33.5-43.1,76-43.1,122.3C54.4,412.6,142,500,250,500
-	c108,0,195.6-87.4,195.6-195.3c0-46.3-16.1-88.8-43.1-122.3L402,181.8z M133.1,208L133.1,208l13.1-16l0.4,3c0.3,2.3,0.7,4.7,1.1,7.1
-	c8.5,44.5,38.8,81.6,89.5,110.4c44,25.1,69.7,53.9,77.1,85.5c3.1,13.2,3.6,26.2,2.3,37.5l-0.1,0.7l-0.6,0.3
-	c-19.9,9.7-42.2,15.2-65.8,15.2c-82.8,0-150-67-150-149.8C100,266.3,112.4,233.6,133.1,208z"/>
+<sodipodi:namedview  bordercolor="#666666" borderopacity="1.0" id="namedview12" inkscape:current-layer="svg10" inkscape:cx="48.20339" inkscape:cy="122.0339" inkscape:deskcolor="#d1d1d1" inkscape:pagecheckerboard="0" inkscape:pageopacity="0.0" inkscape:showpageshadow="2" inkscape:window-height="705" inkscape:window-maximized="1" inkscape:window-width="1366" inkscape:window-x="-8" inkscape:window-y="-8" inkscape:zoom="0.81944445" pagecolor="#ffffff" showgrid="false">
+	</sodipodi:namedview>
+<circle id="path1579" class="st0" cx="128" cy="128" r="128"/>
+<path id="path8" class="st1" d="M66.6,194.6c12.8,22.2,35.8,35.5,61.4,35.5c25.6,0,48.6-13.3,61.4-35.5c12.8-22.2,12.8-48.7,0-70.9
+	l-54-93.6c-3.3-5.7-11.5-5.7-14.8,0l-54,93.6C53.7,145.9,53.7,172.4,66.6,194.6L66.6,194.6z M112.8,74.6l11.5-20
+	c1.6-2.8,5.8-2.8,7.4,0l44.3,76.8c8.1,14.1,9.7,30.4,4.6,45.4c-0.5-2.4-1.3-4.9-2.3-7.4c-6.1-15.5-20-27.4-41.2-35.4
+	c-14.6-5.5-23.9-13.7-27.6-24.2C104.7,96.2,109.8,81.4,112.8,74.6L112.8,74.6z M93.1,108.6L80,131.4c-10,17.4-10,38.1,0,55.5
+	c10,17.4,28,27.7,48,27.7c13.3,0,25.7-4.6,35.5-12.7c1.3-3.2,5.2-14.9,0.3-27c-4.5-11.2-15.3-20.1-32.2-26.5
+	c-19-7.2-31.4-18.5-36.8-33.5C94.1,112.8,93.6,110.7,93.1,108.6z"/>
 </svg>

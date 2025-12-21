@@ -1,17 +1,20 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Generator: Adobe Illustrator 25.0.1, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
-<svg version="1.1" id="sol" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 viewBox="0 0 500 500" style="enable-background:new 0 0 500 500;" xml:space="preserve">
-<style type="text/css">
-	.st0{fill-rule:evenodd;clip-rule:evenodd;fill:url(#SVGID_2_);}
-</style>
-<path id="SVGID_1_" d="M250,0c138,0,250,111.9,250,250S388,500,250,500S0,388,0,250S111.9,0,250,0L250,0z"/>
-<linearGradient id="SVGID_2_" gradientUnits="userSpaceOnUse" x1="242.5198" y1="267.3304" x2="755.6802" y2="-245.8303" gradientTransform="matrix(0.5 0 0 0.5 0 250)">
-	<stop  offset="0" style="stop-color:#CB4EE8"/>
-	<stop  offset="1" style="stop-color:#10F4B1"/>
+<svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+<defs>
+<linearGradient id="paint0_linear" x1="33.7792" y1="12.7398" x2="20.523" y2="38.1307" gradientUnits="userSpaceOnUse">
+<stop stop-color="#00FFA3"/>
+<stop offset="1" stop-color="#DC1FFF"/>
 </linearGradient>
-<path class="st0" d="M115.6,226.1H347c2.9,0,5.6,1.1,7.6,3.2l36.6,36.8c6.8,6.8,2,18.4-7.6,18.4H152.2c-2.9,0-5.6-1.1-7.6-3.2
-	L108,244.5C101.2,237.8,106,226.1,115.6,226.1z M107.9,177.3l36.6-36.8c2.1-2.1,4.8-3.2,7.6-3.2h231.3c9.6,0,14.5,11.6,7.6,18.4
-	l-36.5,36.8c-2,2.1-4.8,3.2-7.6,3.2H115.6C106,195.7,101.2,184.1,107.9,177.3z M391.1,333.5l-36.6,36.9c-2,2-4.8,3.2-7.6,3.2H115.6
-	c-9.6,0-14.4-11.6-7.7-18.4l36.6-36.9c2.1-2,4.8-3.2,7.6-3.2h231.3C393.1,315,398,326.6,391.1,333.5z"/>
+<linearGradient id="paint1_linear" x1="27.9828" y1="9.71352" x2="14.7267" y2="35.1044" gradientUnits="userSpaceOnUse">
+<stop stop-color="#00FFA3"/>
+<stop offset="1" stop-color="#DC1FFF"/>
+</linearGradient>
+<linearGradient id="paint2_linear" x1="30.8626" y1="11.2169" x2="17.6064" y2="36.6078" gradientUnits="userSpaceOnUse">
+<stop stop-color="#00FFA3"/>
+<stop offset="1" stop-color="#DC1FFF"/>
+</linearGradient>
+</defs>
+<circle cx="24" cy="24" r="24" fill="#050505"/>
+<path d="M15.8996 29.3566C16.0445 29.2118 16.2436 29.1273 16.4548 29.1273H35.6089C35.959 29.1273 36.134 29.5497 35.8865 29.7972L32.1028 33.5809C31.958 33.7258 31.7588 33.8102 31.5476 33.8102H12.3935C12.0435 33.8102 11.8685 33.3878 12.1159 33.1404L15.8996 29.3566Z" fill="url(#paint0_linear)"/>
+<path d="M15.8996 15.2293C16.0505 15.0845 16.2496 15 16.4548 15H35.6089C35.959 15 36.134 15.4224 35.8865 15.6699L32.1028 19.4536C31.958 19.5984 31.7588 19.6829 31.5476 19.6829H12.3935C12.0435 19.6829 11.8685 19.2605 12.1159 19.0131L15.8996 15.2293Z" fill="url(#paint1_linear)"/>
+<path d="M32.1028 22.2476C31.958 22.1028 31.7588 22.0183 31.5476 22.0183H12.3935C12.0435 22.0183 11.8685 22.4407 12.1159 22.6882L15.8996 26.4719C16.0445 26.6167 16.2436 26.7012 16.4548 26.7012H35.6089C35.959 26.7012 36.134 26.2788 35.8865 26.0314L32.1028 22.2476Z" fill="url(#paint2_linear)"/>
 </svg>

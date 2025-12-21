@@ -1,12 +1,1 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Generator: Adobe Illustrator 23.0.2, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
-<svg version="1.1" id="ftm" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 viewBox="0 0 500 500" style="enable-background:new 0 0 500 500;" xml:space="preserve">
-<style type="text/css">
-	.st0{fill-rule:evenodd;clip-rule:evenodd;fill:#040505;}
-</style>
-<path class="st0" d="M274.2,173.6l90.1-52v104L274.2,173.6z M364.3,395.5l-118.7,68.6l-118.7-68.5V275l118.7,68.5L364.3,275V395.5z
-	 M126.9,121.6l90.1,52l-90.1,52V121.6z M259.9,198.3l90.1,51.9l-90.1,52V198.3z M231.3,302.2l-90-52l90-52V302.2z M350,96.8
-	l-104.4,60.3l0,0l0,0L141.1,96.8l104.5-60.3L350,96.8z M98.4,88.5v153.6v16.4v153.6l147.2,85L392.8,412V258.5V242V88.5l-147.2-85
-	L98.4,88.5z"/>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" viewBox="0 0 32 32"><defs><style>.cls-1{fill:#fff;fill-rule:evenodd;}.cls-2{fill:#13b5ec;}.cls-3{mask:url(#mask);}</style><mask id="mask" x="10" y="6" width="93.1" height="20" maskUnits="userSpaceOnUse"><g id="a"><path class="cls-1" d="M10,6h93.1V26H10Z"/></g></mask></defs><title>fa</title><g id="Layer_2" data-name="Layer 2"><g id="Layer_1-2" data-name="Layer 1"><circle class="cls-2" cx="16" cy="16" r="16"/><g class="cls-3"><path class="cls-1" d="M17.2,12.9l3.6-2.1V15Zm3.6,9L16,24.7l-4.8-2.8V17L16,19.8,20.8,17ZM11.2,10.8l3.6,2.1L11.2,15Zm5.4,3.1L20.2,16l-3.6,2.1Zm-1.2,4.2L11.8,16l3.6-2.1Zm4.8-8.3L16,12.2,11.8,9.8,16,7.3ZM10,9.4V22.5l6,3.4,6-3.4V9.4L16,6Z"/></g></g></g></svg>

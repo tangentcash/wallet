@@ -1,16 +1,1 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Generator: Adobe Illustrator 27.1.1, SVG Export Plug-In . SVG Version: 6.00 Build 0)  -->
-<svg version="1.1" id="wan" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
-	 viewBox="0 0 500 500" style="enable-background:new 0 0 500 500;" xml:space="preserve">
-<style type="text/css">
-	.st0{fill:#1269AB;}
-	.st1{fill:#3FBCED;}
-</style>
-<g>
-	<path class="st0" d="M250,222L34.4,348.6v69.6L250,291.6l215.6,126.6v-69.6L250,222z"/>
-	<path class="st1" d="M97.4,145.2L250,57.1l152.6,88.1l57-23.2L250,1L40.4,122L97.4,145.2z"/>
-	<path class="st0" d="M402.6,159.9v194.9L380,367.9l48.1,28.3l37.5-21.7V134.3L402.6,159.9z M120,367.9l-22.9-13.2V159.9l-62.8-25.5
-		v240.2l37.5,21.7L120,367.9z"/>
-	<path class="st1" d="M366.5,375.7L250,442.9l-116.5-67.3l-48.1,28.3L250,499l164.7-95.1L366.5,375.7z"/>
-</g>
-</svg>
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><g fill="none" fill-rule="evenodd"><circle cx="16" cy="16" r="16" fill="#136AAD"/><path fill="#FFF" d="M7 11.09l2.667 1.13v6.353L16 14.786l6.394 3.787V12.22L25 11.09v11.974l-9-5.315-9 5.315V11.09zm.303-.489L16 5.5l8.758 5.101-2.364.978L16 7.883l-6.333 3.696-2.364-.978zm1.879 11.821l1.97-1.13 4.878 2.825 4.818-2.825 2.03 1.13L16.03 26.5l-6.848-4.078z"/></g></svg>
