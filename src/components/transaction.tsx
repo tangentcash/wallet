@@ -560,13 +560,12 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           }
           {
             transaction.error &&
-            <DataList.Item align="center">
+            <DataList.Item>
               <DataList.Label>Off-chain relay:</DataList.Label>
               <DataList.Value>
-                <Button size="1" variant="surface" color="red" onClick={() => {
-                  navigator.clipboard.writeText(transaction.error || 'OK');
-                  AlertBox.open(AlertType.Info, 'Response copied!')
-                }}>FAULT { transaction.error != null ? (transaction.error.length >= 16 ? Readability.toAddress(transaction.error) : transaction.error) : 'OK' }</Button>
+                <Code color="tomato" wrap="balance" size="1" variant="soft" style={{ whiteSpace: 'pre-wrap', maxWidth: '340px' }}>
+                  <Box px="1" py="1">FAULT { transaction.error }</Box>
+                </Code>
               </DataList.Value>
             </DataList.Item>
           }

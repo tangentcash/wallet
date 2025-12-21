@@ -166,7 +166,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
     <Select.Root size="2" defaultValue="-1" onValueChange={(value) => {
       const index = parseInt(value);
       if (index >= 0) {
-        navigate(`/bridge?asset=${AssetId.fromHandle(assets[index].asset.chain).id}`);
+        navigate(`/bridge?asset=${assets[index].asset.id}`);
       }
     }}>
       <Select.Trigger variant="surface">

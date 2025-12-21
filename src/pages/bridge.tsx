@@ -39,8 +39,8 @@ export default function BridgePage() {
   const [moreBridges, setMoreBridges] = useState(true);
   const navigate = useNavigate();
   const asset = useMemo(() => {
-    const target = query.get('asset');
-    return target ? assets.find((v) => v.id == target) || null : null;
+    const target = new AssetId(query.get('asset') || '');
+    return target ? assets.find((v) => v.chain == target.chain) || null : null;
   }, [query, assets]);
   const findBridges = useCallback(async (refresh?: boolean) => {
     try {
@@ -78,6 +78,10 @@ export default function BridgePage() {
       return null;
     }
   }, [asset, preference, candidateBridges]);
+  const toTargetAsset = useCallback((asset: any) => {
+    const target = new AssetId(query.get('asset') || '');
+    return target && target.chain == asset.chain ? target : asset;
+  }, [query]);
   useEffectAsync(async () => {
     try {
       if (!assets.length) {
@@ -417,11 +421,11 @@ export default function BridgePage() {
                             <DropdownMenu.Content>
                               <DropdownMenu.Item shortcut="↙" onClick={() => {
                                 if (item.attestation.accepts_account_requests)
-                                  navigate(`/interaction?asset=${asset.id}&type=register&manager=${item.attestation.owner}`)
+                                  navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=register&manager=${item.attestation.owner}`)
                               }} disabled={!item.attestation.accepts_account_requests}>Deposit into account</DropdownMenu.Item>
                               <DropdownMenu.Item shortcut="↗" onClick={() => {
                                 if (item.attestation.accepts_withdrawal_requests)
-                                  navigate(`/interaction?asset=${asset.id}&type=withdraw&manager=${item.attestation.owner}`)
+                                  navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=withdraw&manager=${item.attestation.owner}`)
                               }} disabled={!item.attestation.accepts_withdrawal_requests}>Withdraw from account</DropdownMenu.Item>
                             </DropdownMenu.Content>
                           </DropdownMenu.Root>
