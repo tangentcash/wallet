@@ -166,7 +166,7 @@ export default function HomePage() {
       <Flex gap="2" align="center" justify="between" px="2" mb="2">
         <Flex align="center" gap="2">
           <Heading size={document.body.clientWidth < 450 ? '4' : '6'}>Wallet</Heading>
-          <Button radius="medium" variant="surface" size="1" color={ AppData.isWalletReady() ? 'jade' : 'red' } onClick={() => AppData.isWalletReady() ? undefined : navigate('/restore')}>{ AppData.isWalletReady() ? '' : 'RO:' }{ ownerAddress.substring(ownerAddress.length - 6).toUpperCase() }</Button>
+          <Button radius="medium" variant="surface" size="1" color={ AppData.isWalletReady() ? 'jade' : 'red' } onClick={() => AppData.isWalletReady() ? undefined : navigate('/restore')}>{ AppData.isWalletReady() ? '' : 'RO:' }{ ownerAddress.substring(ownerAddress.length - 6) }</Button>
         </Flex>
         <Flex justify="end" gap="1">
           <Dialog.Root onOpenChange={(opened) => setSearching(opened)} open={searching}>

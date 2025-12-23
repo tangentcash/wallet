@@ -337,7 +337,7 @@ export default function BridgePage() {
                     <Flex justify="between" align="center" mb="4">
                       <Flex align="center" gap="2">
                         <Heading size="4">{ item.founder ? 'Founder bridge' : 'Bridge' }</Heading>
-                        <Badge radius="medium" variant="surface" size="2">{ item.attestation.owner.substring(item.attestation.owner.length - 6).toUpperCase() }</Badge>
+                        <Badge radius="medium" variant="surface" size="2">{ item.attestation.owner.substring(item.attestation.owner.length - 6) }</Badge>
                       </Flex>
                       <Badge size="2" radius="medium" color={item.attestation && item.attestation.stake != null ? 'jade' : 'red'}>{ item.attestation && item.attestation.stake != null ? 'ONLINE' : 'OFFLINE' }</Badge>
                     </Flex>

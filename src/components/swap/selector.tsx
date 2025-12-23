@@ -15,7 +15,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
   const [assets, setAssets] = useState<AssetId[]>([]);
   const policy = useMemo((): BlockchainInfo | null => policyIndex != null ? Swap.descriptors[policyIndex] : null, [policyIndex]);
   const customToken = useMemo((): AssetId | null => {
-    const targetSymbol = symbol.toUpperCase().trim(), targetAddress = address.trim();
+    const targetSymbol = symbol.trim(), targetAddress = address.trim();
     return policy != null && targetSymbol.length > 0 && targetAddress.length >= 32 ? AssetId.fromHandle(policy.chain || policy.handle, targetSymbol, targetAddress) : null;
   }, [policy, symbol, address]);
   const updateQuery = useCallback((value: string) => {

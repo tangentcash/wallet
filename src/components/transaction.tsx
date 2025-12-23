@@ -39,7 +39,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           <DataList.Item>
             <DataList.Label>Using:</DataList.Label>
             <DataList.Value>
-              <Badge color="red">{ transaction.from[0].toUpperCase() + transaction.from.substring(1) }</Badge>
+              <Badge color="red">{ transaction.from[0] + transaction.from.substring(1) }</Badge>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -1029,8 +1029,8 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                     const zero = value.supply.eq(0) && value.reserve.eq(0);
                     return (
                       <Flex key={'X0' + transaction.hash + asset} gap="2">
-                        { (zero || !value.supply.eq(0)) && <Badge size="1" radius="medium" color={value.supply.gt(0) ? 'jade' : (value.supply.isNegative() ? 'red' : 'gray')} style={{ textTransform: 'uppercase' }}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge> }
-                        { !value.reserve.eq(0) && <Badge size="1" radius="medium" color="yellow" style={{ textTransform: 'uppercase' }}>{ Readability.toMoney(value.asset, value.reserve.negated(), true) }</Badge> }
+                        { (zero || !value.supply.eq(0)) && <Badge size="1" radius="medium" color={value.supply.gt(0) ? 'jade' : (value.supply.isNegative() ? 'red' : 'gray')}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge> }
+                        { !value.reserve.eq(0) && <Badge size="1" radius="medium" color="yellow">{ Readability.toMoney(value.asset, value.reserve.negated(), true) }</Badge> }
                       </Flex>
                     )
                   })
@@ -1039,7 +1039,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   state.bridge.balances[ownerAddress] && Object.keys(state.bridge.balances[ownerAddress]).map((asset) => {
                     const value = state.bridge.balances[ownerAddress][asset];
                     return (
-                      <Badge key={'X1' + transaction.hash + asset} size="1" radius="medium" color={value.supply.eq(0) ? 'gray' : 'brown'} style={{ textTransform: 'uppercase' }}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge>
+                      <Badge key={'X1' + transaction.hash + asset} size="1" radius="medium" color={value.supply.eq(0) ? 'gray' : 'brown'}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge>
                     )
                   })
                 }

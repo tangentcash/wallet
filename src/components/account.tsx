@@ -350,13 +350,13 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                       <Select.Item value="-1">
                         <Flex align="center" gap="1">
                           <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(new AssetId())} src={Readability.toAssetImage(new AssetId())} style={{ width: '20px', height: '20px' }} />
-                          <Text style={{ color: 'var(--accent-9)' }}>{ ownerAddress.substring(ownerAddress.length - 2).toUpperCase() }</Text>
+                          <Text style={{ color: 'var(--accent-9)' }}>{ ownerAddress.substring(ownerAddress.length - 2) }</Text>
                           <Text>{ Readability.toAssetName(new AssetId()).toUpperCase() }</Text>
                         </Flex>
                       </Select.Item>
                       {
                         addresses.map((item, index) => {
-                          const tag = item.addresses[0].address.substring(item.addresses[0].address.length - 2).toUpperCase();
+                          const tag = item.addresses[0].address.substring(item.addresses[0].address.length - 2);
                           return (
                             <Select.Item key={item.hash + '_address_select'} value={index.toString()}>
                               <Flex align="center" gap="1">

@@ -1282,7 +1282,7 @@ export default function InteractionPage() {
                         <Text as="div" weight="light" size="4" mb="1">— Claim { Readability.toAssetName(assets[asset].asset) } deposit address</Text>
                         { program.routingAddress.length > 0 && <Text as="div" weight="light" size="4" mb="1">— Claim <Text color="red">{ Readability.toAddress(program.routingAddress) }</Text> { Readability.toAssetName(assets[asset].asset) } {program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'sender/withdrawal' : 'withdrawal'} address</Text> }
                         <Text as="div" weight="light" size="4" mb="1">— Register through <Badge radius="medium" variant="surface" size="2">{ 
-                            (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6).toUpperCase()
+                            (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6)
                         }</Badge> node</Text>
                       </>
                     }
@@ -1291,7 +1291,7 @@ export default function InteractionPage() {
                       <>
                         <Text as="div" weight="light" size="4" mb="1">— Withdraw <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">1 account</Text></Text>
                         <Text as="div" weight="light" size="4" mb="1">— Withdraw through <Badge radius="medium" variant="surface" size="2">{ 
-                            (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6).toUpperCase()
+                            (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6)
                         }</Badge> node</Text>
                       </>
                     }
