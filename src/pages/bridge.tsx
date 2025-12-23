@@ -1,5 +1,5 @@
 import { mdiBackburger } from "@mdi/js";
-import { Avatar, Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Heading, Select, Text } from "@radix-ui/themes";
+import { Avatar, Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Heading, Select, Text, Tooltip } from "@radix-ui/themes";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useCallback, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
@@ -11,6 +11,36 @@ import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
 
 const DEPOSITORY_COUNT = 48;
+const ASSET_INFORMATION: Record<string, { depositTime: number, tokenStandard: string | null }> = {
+  "ADA": {
+    depositTime: 22,
+    tokenStandard: 'Native'
+  },
+  "BTC": {
+    depositTime: 60,
+    tokenStandard: null
+  },
+  "ETH": {
+    depositTime: 14,
+    tokenStandard: 'ERC20'
+  },
+  "SOL": {
+    depositTime: 1,
+    tokenStandard: 'SPL'
+  },
+  "TRX": {
+    depositTime: 2,
+    tokenStandard: 'TRC20'
+  },
+  "XLM": {
+    depositTime: 1,
+    tokenStandard: null
+  },
+  "XRP": {
+    depositTime: 1,
+    tokenStandard: null
+  }
+}
 
 function toBridgeIndex(policy: any): [boolean, string] {
   const index = policy.security_level / (Chain.policy.PARTICIPATION_COMMITTEE[1] * 0.83);
@@ -87,6 +117,12 @@ export default function BridgePage() {
       if (!assets.length) {
         const assetData = await RPC.getBlockchains();
         if (Array.isArray(assetData)) {
+          for (let i = 0; i < assetData.length; i++) {
+            const target = assetData[i];
+            const info = ASSET_INFORMATION[target.chain];
+            if (info != null)
+                target.info = info;
+          }
           setAssets(assetData.sort((a, b) => new AssetId(a.id).handle.localeCompare(new AssetId(b.id).handle)));
         }
       }
@@ -152,8 +188,14 @@ export default function BridgePage() {
                       <Flex gap="1">
                         <Badge size="1" color="jade">{ Readability.toAssetSymbol(item) }</Badge>
                         {
-                          item.token_policy != 'none' &&
-                          <Badge size="1" color="orange">{ item.token_policy[0].toUpperCase() + item.token_policy.substring(1) } tokens</Badge>
+                          item.info != null &&
+                          <>
+                            <Badge size="1" color="gold">ETA { item.info.depositTime }-{ item.info.depositTime + 10 } min.</Badge>
+                            {
+                              item.info.tokenStandard != null &&
+                              <Badge size="1" color="orange">{ item.info.tokenStandard } tokens</Badge>
+                            }
+                          </>
                         }
                       </Flex>
                     </Flex>
@@ -354,12 +396,14 @@ export default function BridgePage() {
                       {
                         item.master != null && item.master.addresses && walletAddresses.length > 0 &&
                         <DataList.Item>
-                          <DataList.Label>Master deposit address:</DataList.Label>
+                          <DataList.Label>Deposit address:</DataList.Label>
                           <DataList.Value>
-                            <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                              navigator.clipboard.writeText(item.master.addresses[0]);
-                              AlertBox.open(AlertType.Info, 'Address copied!')
-                            }}>{ Readability.toAddress(item.master.addresses[0]) }</Button>
+                            <Tooltip content="This is a deposit address shared by all users (master deposit address), send only from addresses you explicitly registered">
+                              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                                navigator.clipboard.writeText(item.master.addresses[0]);
+                                AlertBox.open(AlertType.Info, 'Address copied!')
+                              }}>{ Readability.toAddress(item.master.addresses[0]) }</Button>
+                            </Tooltip>
                           </DataList.Value>
                         </DataList.Item>
                       }
