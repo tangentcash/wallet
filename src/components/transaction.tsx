@@ -450,70 +450,48 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
       )
     case 'withdraw':
       return (
-        <>
-          <DataList.Root orientation={props.orientation} mb="4">
-            {
-              transaction.from_manager &&
-              <DataList.Item>
-                <DataList.Label>From manager account:</DataList.Label>
-                <DataList.Value>
-                  <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                    navigator.clipboard.writeText(transaction.from_manager || 'NULL');
-                    AlertBox.open(AlertType.Info, 'Address copied!')
-                  }}>{ Readability.toAddress(transaction.from_manager) }</Button>
-                  <Box ml="2">
-                    <Link className="router-link" to={'/account/' + transaction.from_manager}>▒▒</Link>
-                  </Box>
-                </DataList.Value>
-              </DataList.Item>
-            }
-            {
-              transaction.to_manager &&
-              <DataList.Item>
-                <DataList.Label>To manager account:</DataList.Label>
-                <DataList.Value>
-                  <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                    navigator.clipboard.writeText(transaction.to_manager || 'NULL');
-                    AlertBox.open(AlertType.Info, 'Address copied!')
-                  }}>{ Readability.toAddress(transaction.to_manager) }</Button>
-                  <Box ml="2">
-                    <Link className="router-link" to={'/account/' + transaction.to_manager}>▒▒</Link>
-                  </Box>
-                </DataList.Value>
-              </DataList.Item>
-            }
+        <DataList.Root orientation={props.orientation} mb="4">
+          {
+            transaction.manager &&
             <DataList.Item>
-              <DataList.Label>Execution policy:</DataList.Label>
+              <DataList.Label>From manager:</DataList.Label>
               <DataList.Value>
-                <Badge color={ transaction.only_if_not_in_queue ? 'red' : 'orange' }>{ transaction.only_if_not_in_queue ? 'Immediate or cancel' : 'Can wait in queue' }</Badge>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(transaction.manager || 'NULL');
+                  AlertBox.open(AlertType.Info, 'Address copied!')
+                }}>{ Readability.toAddress(transaction.manager) }</Button>
+                <Box ml="2">
+                  <Link className="router-link" to={'/account/' + transaction.manager}>▒▒</Link>
+                </Box>
               </DataList.Value>
             </DataList.Item>
-          </DataList.Root>
-          {
-            transaction.to && transaction.to.map((item: any, index: number) =>
-              <Card key={'IF4' + item.to + index} mb={index == transaction.to.length - 1 ? '0' : '4'}>
-                <DataList.Root orientation={props.orientation}>
-                  <DataList.Item>
-                    <DataList.Label>To address:</DataList.Label>
-                    <DataList.Value>
-                      <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                        navigator.clipboard.writeText(item.address);
-                        AlertBox.open(AlertType.Info, 'Address copied!')
-                      }}>{ Readability.toAddress(item.address) }</Button>
-                      <Box ml="2">
-                        <Link className="router-link" to={'/account/' + item.address}>▒▒</Link>
-                      </Box>
-                    </DataList.Value>
-                  </DataList.Item>
-                  <DataList.Item>
-                    <DataList.Label>Value:</DataList.Label>
-                    <DataList.Value>{ Readability.toMoney(transaction.asset, item.value) }</DataList.Value>
-                  </DataList.Item>
-                </DataList.Root>
-              </Card>
-            )
           }
-        </>
+          {
+            transaction.to_address &&
+            <DataList.Item>
+              <DataList.Label>To address:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(transaction.to_address);
+                  AlertBox.open(AlertType.Info, 'Address copied!')
+                }}>{ Readability.toAddress(transaction.to_address) }</Button>
+              </DataList.Value>
+            </DataList.Item>
+          }
+          {
+            transaction.to_value &&
+            <DataList.Item>
+              <DataList.Label>Value:</DataList.Label>
+              <DataList.Value>{ Readability.toMoney(transaction.asset, transaction.to_value) }</DataList.Value>
+            </DataList.Item>
+          }
+          <DataList.Item>
+            <DataList.Label>Execution policy:</DataList.Label>
+            <DataList.Value>
+              <Badge color={ transaction.only_if_not_in_queue ? 'red' : 'orange' }>{ transaction.only_if_not_in_queue ? 'Immediate or cancel' : 'Can wait in queue' }</Badge>
+            </DataList.Value>
+          </DataList.Item>
+        </DataList.Root>
       )
     case 'broadcast':
       return (

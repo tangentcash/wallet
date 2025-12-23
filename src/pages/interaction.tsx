@@ -44,7 +44,8 @@ export class ProgramRoute {
 
 export class ProgramWithdraw {
   routing: { chain: string, policy: string }[] = [];
-  to: { address: string, value: string }[] = [];
+  toAddress: string = '';
+  toValue: string = '';
   onlyIfNotInQueue: boolean = true;
 }
 
@@ -139,7 +140,7 @@ export default function InteractionPage() {
     } else if (program instanceof ProgramRoute) {
         return 'Address claim';
     } else if (program instanceof ProgramWithdraw) {
-      return program.to.length > 1 ? 'Withdraw to many' : 'Withdraw to one';
+      return 'Withdraw to address';
     } else if (program instanceof ProgramWithdrawAndMigrate) {
       return 'Bridge migration';
     } else if (program instanceof ApproveTransaction) {
@@ -158,14 +159,12 @@ export default function InteractionPage() {
         }
       }, new BigNumber(0));
     } else if (program instanceof ProgramWithdraw) {
-      return program.to.reduce((value, next) => {
-        try {
-          const numeric = new BigNumber(next.value.trim());
-          return numeric.isPositive() ? value.plus(numeric) : value;
-        } catch {
-          return value;
-        }
-      }, new BigNumber(0));
+      try {
+        const numeric = new BigNumber(program.toValue.trim());
+        return numeric.isPositive() ? numeric : new BigNumber(0);
+      } catch {
+        return new BigNumber(0);
+      }
     }
     return new BigNumber(0);
   }, [assets, program]);
@@ -301,22 +300,19 @@ export default function InteractionPage() {
   
       return true;
     } else if (program instanceof ProgramWithdraw) {
-      for (let i = 0; i < program.to.length; i++) {
-        const payment = program.to[i];
-        if (payment.address.trim() == ownerAddress)
-          return false;
-  
-        const publicKeyHash = Signing.decodeAddress(payment.address.trim());
-        if (publicKeyHash != null || !payment.address.length)
-          return false;
+      if (program.toAddress.trim() == ownerAddress)
+        return false;
 
-        try {
-          const numeric = new BigNumber(payment.value.trim());
-          if (numeric.isNaN() || !numeric.isPositive())
-            return false;
-        } catch {
+      const publicKeyHash = Signing.decodeAddress(program.toAddress.trim());
+      if (publicKeyHash != null || !program.toAddress.length)
+        return false;
+
+      try {
+        const numeric = new BigNumber(program.toValue.trim());
+        if (numeric.isNaN() || !numeric.isPositive())
           return false;
-        }
+      } catch {
+        return false;
       }
       
       if (params.manager == null)
@@ -356,7 +352,7 @@ export default function InteractionPage() {
     return program != null && program instanceof ApproveTransaction && params.transaction != null;
   }, [program]);
   const setRemainingValue = useCallback((index: number) => {
-    if (program instanceof ProgramTransfer || program instanceof ProgramWithdraw) {
+    if (program instanceof ProgramTransfer) {
       const balance = assets[asset].balance;
       let value = balance.minus(sendingValue);
       try {
@@ -367,6 +363,18 @@ export default function InteractionPage() {
       
       const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
       copy.to[index].value = value.lt(0) ? '0' : value.toString();
+      setProgram(copy);
+    } else if (program instanceof ProgramWithdraw) {
+      const balance = assets[asset].balance;
+      let value = balance.minus(sendingValue);
+      try {
+        const numeric = new BigNumber(program.toValue);
+        if (!numeric.isNaN() && numeric.isPositive())
+          value = value.minus(numeric);
+      } catch { }
+      
+      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+      copy.toValue = value.lt(0) ? '0' : value.toString();
       setProgram(copy);
     }
   }, [assets, asset, program]);
@@ -458,10 +466,8 @@ export default function InteractionPage() {
           args: {
             onlyIfNotInQueue: program.onlyIfNotInQueue,
             manager: Signing.decodeAddress(params.manager || ''),
-            to: program.to.map((payment) => ({
-              to: payment.address,
-              value: new BigNumber(payment.value)
-            }))
+            toAddress: program.toAddress,
+            toValue: new BigNumber(program.toValue)
           }
         });
       } else if (program instanceof ProgramWithdrawAndMigrate) {
@@ -641,7 +647,6 @@ export default function InteractionPage() {
       }
       case 'withdraw': {
         const result = new ProgramWithdraw();
-        result.to = [{ address: '', value: '' }];
         try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
         setProgram(result);
         break;
@@ -1141,60 +1146,31 @@ export default function InteractionPage() {
         </Card>
       }
       {
-        asset != -1 && program instanceof ProgramWithdraw && program.to.map((item, index) =>
-          <Card mt="4" key={index}>
-            <Heading size="4" mb="2">Withdraw to account{ program.to.length > 1 ? ' #' + (index + 1) : ''}</Heading>
-            <Flex gap="2" mb="3">
-              <Box width="100%">
-                <Tooltip content="Withdraw to off-chain address">
-                  <TextField.Root size="3" placeholder="Withdraw to address" type="text" value={item.address} onChange={(e) => {
-                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                    copy.to[index].address = e.target.value;
-                    setProgram(copy);
-                  }} />
-                </Tooltip>
-              </Box>
-              {
-                programReady &&
-                <Button size="3" variant="outline" color="gray" disabled={!programReady}>
-                  <Link className="router-link" to={'/account/' + item.address}>▒▒</Link>
-                </Button>
-              }
-            </Flex>
-            <Flex gap="2">
-              <Box width="100%">
-                <Tooltip content="Payment value received by account">
-                  <TextField.Root mb="3" size="3" placeholder={'Payment value in ' + Readability.toAssetSymbol(assets[asset].asset)} type="number" value={item.value} onChange={(e) => {
-                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                    copy.to[index].value = e.target.value;
-                    setProgram(copy);
-                  }} />
-                </Tooltip>
-              </Box>
-              {
-                omniTransaction &&
-                <Flex justify="end" gap="2">
-                  <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
-                  <IconButton variant="soft" size="3" color={index != 0 ? 'red' : 'jade'} disabled={!omniTransaction && index == 0} onClick={() => {
-                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                    if (index == 0) {
-                      copy.to.push({ address: '', value: '' });
-                    } else {
-                      copy.to.splice(index, 1);
-                    }
-                    setProgram(copy);
-                  }}>
-                    <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
-                  </IconButton>
-                </Flex>
-              }
-              {
-                !omniTransaction &&
-                <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
-              }
-            </Flex>
-          </Card>
-        )
+        asset != -1 && program instanceof ProgramWithdraw &&  
+        <Card mt="4">
+          <Heading size="4" mb="2">Withdrawal destination</Heading>
+          <Box width="100%" mb="3">
+            <Tooltip content="Withdraw to off-chain address">
+              <TextField.Root size="3" placeholder="Withdraw to address" type="text" value={program.toAddress} onChange={(e) => {
+                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                copy.toAddress = e.target.value;
+                setProgram(copy);
+              }} />
+            </Tooltip>
+          </Box>
+          <Flex gap="2">
+            <Box width="100%">
+              <Tooltip content="Payment value received by account">
+                <TextField.Root mb="3" size="3" placeholder={'Payment value in ' + Readability.toAssetSymbol(assets[asset].asset)} type="number" value={program.toValue} onChange={(e) => {
+                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                  copy.toValue = e.target.value;
+                  setProgram(copy);
+                }} />
+              </Tooltip>
+            </Box>
+            <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(0) }>Remaining</Button>
+          </Flex>
+        </Card>
       }
       {
         (program instanceof ApproveTransaction) && program.transaction != null &&
@@ -1313,7 +1289,7 @@ export default function InteractionPage() {
                     {
                       asset != -1 && program instanceof ProgramWithdraw &&
                       <>
-                        <Text as="div" weight="light" size="4" mb="1">— Withdraw <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', program.to.length) }</Text></Text>
+                        <Text as="div" weight="light" size="4" mb="1">— Withdraw <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">1 account</Text></Text>
                         <Text as="div" weight="light" size="4" mb="1">— Withdraw through <Badge radius="medium" variant="surface" size="2">{ 
                             (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6).toUpperCase()
                         }</Badge> node</Text>
