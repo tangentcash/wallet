@@ -992,8 +992,8 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
   return (
     <Card variant="surface" mt="4" style={{ borderRadius: '22px' }}>
       <Collapsible.Root open={props.open}>
-        <Flex gap="3" align="center">
-          <Avatar size="3" radius="full" fallback={Readability.toAssetFallback(transaction.asset)} src={Readability.toAssetImage(transaction.asset)} />
+        <Flex gap="3" align="start">
+          <Avatar size="3" mt="1" radius="full" fallback={Readability.toAssetFallback(transaction.asset)} src={Readability.toAssetImage(transaction.asset)} />
           <Box width="100%">
             <Flex justify="between" align="center" mb="1">
               <Text as="div" size="2" weight="bold">{ transaction.type == 'call' && transaction.function != null ? Readability.toFunctionName(transaction.function) : Readability.toTransactionType(transaction.type) }</Text>       

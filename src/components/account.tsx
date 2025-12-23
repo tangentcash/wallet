@@ -1,9 +1,9 @@
 import { useCallback, useState } from "react";
-import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, Flex, Heading, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, Flex, Heading, IconButton, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { RPC, EventResolver, SummaryState, AssetId, Readability } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowRightBoldHexagonOutline, mdiCellphoneKey, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft, mdiTagOutline, mdiTransitConnectionVariant } from "@mdi/js";
+import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiClose, mdiCoffin, mdiInformationOutline, mdiKeyOutline, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTagOutline, mdiTransitConnectionVariant } from "@mdi/js";
 import { AppData } from "../core/app";
 import { useNavigate } from "react-router";
 import { Swap } from "../core/swap";
@@ -22,7 +22,7 @@ function toAddressType(type: string): string {
     case 'witness':
       return 'Dismissed witness';
     default:
-      return 'Unknown';
+      return 'Tangent wallet';
   }
 }
 
@@ -43,8 +43,8 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   const [mempoolTransactions, setMempoolTransactions] = useState<any[]>([]);
   const [moreTransactions, setMoreTransactions] = useState(true);
   const addressPurpose = useCallback((address: any) => {
-    if (!address)
-      return <>None</>;
+    if (!address || !address.purpose)
+      return <>Tangent wallet with cross-chain capabilities.</>;
 
     const ownerType = address.owner == ownerAddress ? ' (this account)' : '';
     const managerType = address.manager == ownerAddress ? ' (this account)' : ' (validator)';
@@ -111,13 +111,15 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
         }
       })(),
       (async () => {
+        const defaultAddress = { asset: new AssetId(), addresses: [{ address: ownerAddress }] };
         try {
           let addressData = await RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count));
-          if (Array.isArray(addressData)) {
+          if (Array.isArray(addressData) && addressData.length > 0) {
             addressData = addressData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle)).map((item) => ({ ...item, addresses: item.addresses.map((address: string) => Readability.toTaggedAddress(address)) }));
-            setAddresses(addressData);
+            setAddresses([defaultAddress, ...addressData]);
           } else {
-            setAddresses([]);
+            setAddresses([defaultAddress]);
+            setSelectedAddress(0);
           }
         } catch (exception) {
           AlertBox.open(AlertType.Error, 'Failed to fetch account addresses: ' + (exception as Error).message)
@@ -182,7 +184,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
             </Flex>
           </Select.Item>
           {
-            assets.map((item, index) =>
+            assets.filter((v) => v.asset.chain != new AssetId().chain).map((item, index) =>
               <Select.Item key={item.asset.id + '_select'} value={index.toString()} disabled={item.asset.chain == new AssetId().chain}>
                 <Flex align="center" gap="1">
                   <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
@@ -250,19 +252,10 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               }
             </Tabs.Content>
             <Tabs.Content value="address">
-              <Box px="2" py="2">
-                <Flex justify="center" mb="4">
-                  {
-                    selectedAddress == -1 &&
-                    <Callout.Root size="1">
-                      <Callout.Icon>
-                        <Icon path={mdiInformationOutline} size={1} />
-                      </Callout.Icon>
-                      <Callout.Text>Tangent wallet with cross-chain capabilities.</Callout.Text>
-                    </Callout.Root>
-                  }
-                  {
-                    selectedAddress != -1 &&
+              {
+                selectedAddress >= 0 && selectedAddress < addresses.length &&
+                <Box px="2" py="2">
+                  <Flex justify="center" mb="4">
                     <Callout.Root size="1">
                       <Callout.Icon>
                         <Icon path={mdiInformationOutline} size={1} />
@@ -271,107 +264,115 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                         { addressPurpose(addresses[selectedAddress]) } 
                       </Callout.Text>
                     </Callout.Root>
-                  }
-                </Flex>
-                <Flex justify="center" width="100%">
-                  <Box width="80%" maxWidth="280px" px="3" py="3" style={{ borderRadius: '16px', backgroundColor: 'white' }}>
-                    <AspectRatio ratio={1}>
-                      <QRCode value={ selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion].address } style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
-                    </AspectRatio>
-                  </Box>
-                </Flex>
-                {
-                  selectedAddress != -1 &&
+                  </Flex>
+                  <Flex justify="center" width="100%">
+                    <Box width="80%" maxWidth="280px" px="3" py="3" style={{ borderRadius: '16px', backgroundColor: 'white' }}>
+                      <AspectRatio ratio={1}>
+                        <QRCode value={ addresses[selectedAddress].addresses[selectedAddressVersion].address } style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
+                      </AspectRatio>
+                    </Box>
+                  </Flex>
                   <Flex justify="center" mt="3">
                     <Badge size="2" color={addresses[selectedAddress].purpose != 'witness' ? 'orange' : 'red'} radius="medium" style={{ textTransform: 'uppercase' }}>{ toAddressType(addresses[selectedAddress].purpose) }</Badge>
                   </Flex>
-                }
-                <Box width="100%" mt="6">
-                  <TextField.Root size="2" variant="soft" readOnly={true} value={ Readability.toAddress(selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion].address, 12) } onClick={() => {
-                      navigator.clipboard.writeText(selectedAddress == -1 ? ownerAddress : addresses[selectedAddress].addresses[selectedAddressVersion].address);
-                      AlertBox.open(AlertType.Info, 'Address v' + (selectedAddress == -1 ? selectedAddressVersion + 1 : (addresses[selectedAddress].addresses.length - selectedAddressVersion)) + ' copied!')
-                    }}>
-                    <TextField.Slot color="gray">
-                      <Icon path={mdiKeyOutline} size={0.7} style={{ paddingLeft: '4px' }} />
-                    </TextField.Slot>
-                  </TextField.Root>
-                  {
-                    selectedAddress != -1 && addresses[selectedAddress].addresses[selectedAddressVersion].tag != null &&
-                    <TextField.Root mt="3" size="2" color="red" variant="soft" readOnly={true} value={ 'Memo #' + addresses[selectedAddress].addresses[selectedAddressVersion].tag } onClick={() => {
-                        navigator.clipboard.writeText(addresses[selectedAddress].addresses[selectedAddressVersion].tag);
-                        AlertBox.open(AlertType.Info, 'Destination tag / memo copied!')
-                      }}>
-                      <TextField.Slot color="red">
-                        <Icon path={mdiTagOutline} size={0.7} style={{ paddingLeft: '4px' }} />
-                      </TextField.Slot>
-                    </TextField.Root>
-                  }
-                  <Flex width="100%" mt="3">
-                    <Select.Root size="2" value={selectedAddressVersion.toString()} onValueChange={(value) => setSelectedAddressVersion(parseInt(value))}>
-                      <Select.Trigger variant="soft" color="gray" style={{ width: '100%' }}>
-                        <Flex as="span" align="center" gap="2">
-                          <Icon path={mdiQrcodeScan} size={0.7} style={{ color: 'var(--gray-11)' }} />
-                          <Text color="gray">{ selectedAddress == -1 ? 'Tangent' : Readability.toAssetName(addresses[selectedAddress].asset) } address { selectedAddress == -1 ? 'v1' : ('v' + (addresses[selectedAddress].addresses.length - selectedAddressVersion))}</Text>
-                        </Flex>
-                      </Select.Trigger>
-                      <Select.Content variant="soft">
-                        <Select.Group>
-                          <Select.Label>Address version</Select.Label>
-                          {
-                            selectedAddress == -1 &&
-                              <Select.Item value="0">
-                                <Flex align="center" gap="1">
-                                  <Text>Version 1</Text>
-                                </Flex>
-                              </Select.Item>
-                          }
-                          {
-                            selectedAddress != -1 &&
-                            addresses[selectedAddress].addresses.map((address: any, index: number) =>
-                              <Select.Item value={index.toString()} key={address + '_address'}>
-                                <Flex align="center" gap="1">
-                                  <Text>Version {addresses[selectedAddress].addresses.length - index}</Text>
-                                </Flex>
-                              </Select.Item>
-                            )
-                          }
-                        </Select.Group>
-                      </Select.Content>
-                    </Select.Root>
-                  </Flex>
+                  <Box mt="6">
+                    <Flex gap="2">
+                      <TextField.Root size="3" style={{ width: '100%' }} variant="soft" readOnly={true} value={ Readability.toAddress(addresses[selectedAddress].addresses[selectedAddressVersion].address, mobile ? 6 : 12) } onClick={() => {
+                          navigator.clipboard.writeText(addresses[selectedAddress].addresses[selectedAddressVersion].address);
+                          AlertBox.open(AlertType.Info, 'Address v' + (addresses[selectedAddress].addresses.length - selectedAddressVersion) + ' copied!')
+                        }}>
+                        <TextField.Slot color="gray">
+                          <Icon path={mdiKeyOutline} size={0.7} style={{ paddingLeft: '4px' }} />
+                        </TextField.Slot>
+                      </TextField.Root>
+                      <IconButton variant="soft" size="3" color="red" onClick={() => { setSelectedAddress(-1); setSelectedAddressVersion(0); }}>
+                        <Icon path={mdiClose} size={1}></Icon>
+                      </IconButton>
+                    </Flex>
+                    {
+                      addresses[selectedAddress].addresses[selectedAddressVersion].tag != null &&
+                      <TextField.Root mt="3" size="3" color="red" variant="soft" readOnly={true} value={ 'Memo #' + addresses[selectedAddress].addresses[selectedAddressVersion].tag } onClick={() => {
+                          navigator.clipboard.writeText(addresses[selectedAddress].addresses[selectedAddressVersion].tag);
+                          AlertBox.open(AlertType.Info, 'Destination tag / memo copied!')
+                        }}>
+                        <TextField.Slot color="red">
+                          <Icon path={mdiTagOutline} size={0.7} style={{ paddingLeft: '4px' }} />
+                        </TextField.Slot>
+                      </TextField.Root>
+                    }
+                    <Box width="100%" mt="3">
+                      <Select.Root size="3" value={selectedAddressVersion.toString()} onValueChange={(value) => setSelectedAddressVersion(parseInt(value))}>
+                        <Select.Trigger variant="soft" color="gray" style={{ width: '100%' }}>
+                          <Flex as="span" align="center" gap="2">
+                            <Icon path={mdiQrcodeScan} size={0.7} style={{ color: 'var(--gray-11)' }} />
+                            <Text color="gray">{ Readability.toAssetName(addresses[selectedAddress].asset) } address v{ addresses[selectedAddress].addresses.length - selectedAddressVersion }</Text>
+                          </Flex>
+                        </Select.Trigger>
+                        <Select.Content variant="soft">
+                          <Select.Group>
+                            <Select.Label>Address version</Select.Label>
+                            {
+                              addresses[selectedAddress].addresses.map((address: any, index: number) =>
+                                <Select.Item value={index.toString()} key={address + '_address'}>
+                                  <Flex align="center" gap="1">
+                                    <Text>Version {addresses[selectedAddress].addresses.length - index}</Text>
+                                  </Flex>
+                                </Select.Item>
+                              )
+                            }
+                          </Select.Group>
+                        </Select.Content>
+                      </Select.Root>
+                    </Box>
+                  </Box>
                 </Box>
-              </Box>
-              <Flex justify="center" mt="3">
-                <Select.Root size="2" value={selectedAddress.toString()} onValueChange={(value) => { setSelectedAddress(parseInt(value)); setSelectedAddressVersion(0); }}>
-                  <Select.Trigger variant="soft" />
-                  <Select.Content variant="soft">
-                    <Select.Group>
-                      <Select.Label>Account addresses</Select.Label>
-                      <Select.Item value="-1">
-                        <Flex align="center" gap="1">
-                          <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(new AssetId())} src={Readability.toAssetImage(new AssetId())} style={{ width: '20px', height: '20px' }} />
-                          <Text style={{ color: 'var(--accent-9)' }}>{ ownerAddress.substring(ownerAddress.length - 2) }</Text>
-                          <Text>{ Readability.toAssetName(new AssetId()).toUpperCase() }</Text>
-                        </Flex>
-                      </Select.Item>
-                      {
-                        addresses.map((item, index) => {
-                          const tag = item.addresses[0].address.substring(item.addresses[0].address.length - 2);
-                          return (
-                            <Select.Item key={item.hash + '_address_select'} value={index.toString()}>
-                              <Flex align="center" gap="1">
-                                <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '20px', height: '20px' }} />
-                                <Text style={{ color: 'var(--accent-9)' }}>{ tag }</Text>
-                                <Text>{ Readability.toAssetName(item.asset).toUpperCase() }</Text>
+              }
+              {
+                (selectedAddress < 0 || selectedAddress >= addresses.length) &&
+                <Box px="2" py="2">
+                  {
+                    addresses.map((item, index) =>
+                      <Box key={item.hash + '_address_select'} mb={ index == addresses.length - 1 ? undefined : '4' }>
+                        <Button variant="soft" color="gray" size="3" style={{ display: 'block', height: 'auto', width: '100%' }} onClick={() => { setSelectedAddress(index); setSelectedAddressVersion(0); }}>
+                          <Flex gap="3" align="center" py="3">
+                            <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '40px', height: '40px' }} />
+                            <Flex justify="between" align="center" width="100%">
+                              <Flex direction="column" align="start">
+                                <Text size="3" style={{ color: 'var(--gray-12)' }}>{ Readability.toAssetName(item.asset) }</Text>
+                                <Text size="1" color="gray">{ Readability.toAddress(item.addresses[0].address, 6) }{ item.addresses.length > 1 ? ' + ' + Readability.toCount('variant', item.addresses.length) : '' }</Text>
                               </Flex>
-                            </Select.Item>
-                          );
-                        })
-                      }
-                    </Select.Group>
-                  </Select.Content>
-                </Select.Root>
-              </Flex>
+                              {
+                                item.purpose == null &&
+                                <Box className="rt-reset rt-BaseButton rt-r-size-2 rt-variant-surface rt-IconButton" data-accent-color="jade">
+                                  <Icon path={mdiSourceCommitStartNextLocal} size={1}></Icon>
+                                </Box>
+                              }
+                              {
+                                item.purpose == 'bridge' && 
+                                <Box className="rt-reset rt-BaseButton rt-r-size-2 rt-variant-surface rt-IconButton" data-accent-color="blue">
+                                  <Icon path={mdiBridge} size={1}></Icon>
+                                </Box>
+                              }
+                              {
+                                item.purpose == 'routing' && 
+                                <Box className="rt-reset rt-BaseButton rt-r-size-2 rt-variant-surface rt-IconButton" data-accent-color="jade">
+                                  <Icon path={mdiSourceCommitLocal} size={1}></Icon>
+                                </Box>
+                              }
+                              {
+                                item.purpose == 'witness' && 
+                                <Box className="rt-reset rt-BaseButton rt-r-size-2 rt-variant-surface rt-IconButton" data-accent-color="red">
+                                  <Icon path={mdiCoffin} size={1}></Icon>
+                                </Box>
+                              }
+                            </Flex>
+                          </Flex>
+                        </Button>
+                      </Box>
+                    )
+                  }
+                </Box>
+              }
             </Tabs.Content>
             <Tabs.Content value="validator">
               <Flex px="2" py="2" gap="3">
