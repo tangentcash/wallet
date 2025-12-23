@@ -96,7 +96,7 @@ export default function BridgePage() {
     if (!asset)
       return;
 
-    await findBridges(true);
+    const possibleBridges = await findBridges(true);
     try {
       const addressData = cachedAddresses ? cachedAddresses : await RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count));
       if (!cachedAddresses && Array.isArray(addressData)) {
@@ -116,8 +116,17 @@ export default function BridgePage() {
           mapping[input.manager] = input;
         }
       }
-      
+
       const routingAddresses = addressData.filter((item) => item.asset.id.toString() == asset.id.toString() && item.purpose == 'routing').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
+      if (possibleBridges != null && routingAddresses.length > 0) {
+        for (let i = 0; i < possibleBridges.length; i++) {
+          const possibleBridge = possibleBridges[i];
+          if (possibleBridge && possibleBridge.master && possibleBridge.master.addresses.length > 0 && !mapping[possibleBridge.attestation.owner]) {
+            mapping[possibleBridge.attestation.owner] = possibleBridge.master;
+          }
+        }
+      }
+      
       setWalletAddresses(routingAddresses);  
       setAcquiredBridges(mapping);
     } catch {
@@ -179,8 +188,8 @@ export default function BridgePage() {
                     <Heading size="4">Deposit addresses</Heading>
                     {
                       Object.keys(acquiredBridges).length > 0 &&
-                      <Button size="1" radius="large" variant="soft" color="yellow">
-                        Preview
+                      <Button size="1" radius="large" variant="soft" color="jade" className="shadow-rainbow-animation">
+                        Bindings
                         <Box ml="1">
                           <DropdownMenu.TriggerIcon />
                         </Box>
@@ -336,12 +345,24 @@ export default function BridgePage() {
                   <Card>
                     <Flex justify="between" align="center" mb="4">
                       <Flex align="center" gap="2">
-                        <Heading size="4">{ item.founder ? 'Founder bridge' : 'Bridge' }</Heading>
+                        <Heading size="4">Bridge</Heading>
                         <Badge radius="medium" variant="surface" size="2">{ item.attestation.owner.substring(item.attestation.owner.length - 6) }</Badge>
                       </Flex>
                       <Badge size="2" radius="medium" color={item.attestation && item.attestation.stake != null ? 'jade' : 'red'}>{ item.attestation && item.attestation.stake != null ? 'ONLINE' : 'OFFLINE' }</Badge>
                     </Flex>
                     <DataList.Root orientation={orientation}>
+                      {
+                        item.master != null && item.master.addresses && walletAddresses.length > 0 &&
+                        <DataList.Item>
+                          <DataList.Label>Master deposit address:</DataList.Label>
+                          <DataList.Value>
+                            <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                              navigator.clipboard.writeText(item.master.addresses[0]);
+                              AlertBox.open(AlertType.Info, 'Address copied!')
+                            }}>{ Readability.toAddress(item.master.addresses[0]) }</Button>
+                          </DataList.Value>
+                        </DataList.Item>
+                      }
                       <DataList.Item>
                         <DataList.Label>Bridge account:</DataList.Label>
                         <DataList.Value>
@@ -369,7 +390,7 @@ export default function BridgePage() {
                                 <Badge key={item.attestation.hash + index + next.asset.id} size="1" radius="medium" color="yellow">{ Readability.toMoney(next.asset, next.supply) }</Badge>)
                             }
                             {
-                              !item.balances &&
+                              (!item.balances || !item.balances.length) &&
                               <Badge size="1" radius="medium" color="yellow">{ Readability.toMoney(asset, null) }</Badge>
                             }
                           </Flex>

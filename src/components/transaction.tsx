@@ -1046,7 +1046,8 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 {
                   Object.keys(state.witness.accounts).map((asset) => {
                     const aliases = state.witness.accounts[asset].aliases;
-                    return aliases.map((alias) => <Badge key={'X3' + alias} size="1" radius="medium" color="jade">{ Readability.toAddress(alias) }</Badge>)
+                    const bridge = state.witness.accounts[asset].purpose == 'bridge';
+                    return aliases.map((alias) => <Badge key={'X3' + alias} size="1" radius="medium" color={bridge ? 'blue' : 'jade'}>{ bridge ? '' : 'SELF ' }{ Readability.toAddress(alias) }</Badge>)
                   })
                 }
                 {

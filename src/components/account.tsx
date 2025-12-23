@@ -49,14 +49,14 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
     const ownerType = address.owner == ownerAddress ? ' (this account)' : '';
     const managerType = address.manager == ownerAddress ? ' (this account)' : ' (validator)';
     if (address.purpose == 'witness' && address.manager == address.owner)
-      return <>Witness wallet → dismissed. Linked to <Link href="#">{address.owner}</Link>{ ownerType }</>;
+      return <>Witness wallet → dismissed.</>;
     else if (address.purpose == 'routing' && address.manager == null)
-      return <>Routing wallet → receive/pay to bridge wallets. Linked to <Link href="#">{address.owner}</Link>{ ownerType }</>;
+      return <>Routing wallet → receive/pay to bridge wallets.</>;
     else if (address.purpose == 'bridge' && address.manager != null)
-      return <>Bridge wallet → receive/pay to routing wallets. Linked to <Link href="#">{address.manager}</Link>{ managerType }</>;
+      return <>Bridge wallet → receive/pay to routing wallets.</>;
     else if (address.manager != null)
       return <>Unknown wallet. Linked to <Link href="#">{address.owner}</Link>{ ownerType }, managed by <Link href="#">{address.manager}</Link>{ managerType }</>;
-    return <>Unknown wallett. Linked to <Link href="#">{address.owner}</Link>{ ownerType }</>;
+    return <>Unknown wallet. Linked to <Link href="#">{address.owner}</Link>{ ownerType }</>;
   }, [ownerAddress]);
   const findTransactions = useCallback(async (refresh?: boolean) => {
     try {
@@ -272,8 +272,12 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                       </AspectRatio>
                     </Box>
                   </Flex>
-                  <Flex justify="center" mt="3">
+                  <Flex align="center" justify="center" mt="3" direction="column" gap="2">
                     <Badge size="2" color={addresses[selectedAddress].purpose != 'witness' ? 'orange' : 'red'} radius="medium" style={{ textTransform: 'uppercase' }}>{ toAddressType(addresses[selectedAddress].purpose) }</Badge>
+                    {
+                      addresses[selectedAddress].purpose != 'bridge' &&
+                      <Badge size="2" color="red" radius="medium" style={{ textTransform: 'uppercase' }}>This is your wallet</Badge>
+                    }
                   </Flex>
                   <Box mt="6">
                     <Flex gap="2">
