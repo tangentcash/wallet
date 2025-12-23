@@ -295,7 +295,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                     </Flex>
                     {
                       addresses[selectedAddress].addresses[selectedAddressVersion].tag != null &&
-                      <TextField.Root mt="3" size="3" color="red" variant="soft" readOnly={true} value={ 'Memo #' + addresses[selectedAddress].addresses[selectedAddressVersion].tag } onClick={() => {
+                      <TextField.Root mt="3" size="3" color="red" variant="soft" readOnly={true} value={ 'Destination tag (memo) #' + addresses[selectedAddress].addresses[selectedAddressVersion].tag } onClick={() => {
                           navigator.clipboard.writeText(addresses[selectedAddress].addresses[selectedAddressVersion].tag);
                           AlertBox.open(AlertType.Info, 'Destination tag / memo copied!')
                         }}>

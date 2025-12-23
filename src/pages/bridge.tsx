@@ -268,7 +268,7 @@ export default function BridgePage() {
                                 {
                                   asset.routing_policy == 'memo' && bridge.addresses.map((walletAddress: string, walletAddressIndex: number) =>
                                     <Flex gap="2" wrap="wrap" pb={walletAddressIndex < bridge.addresses.length - 1 ? '2' : '0'} key={walletAddress}>
-                                      <Badge color="red">Any sender but include memo — { Readability.toTaggedAddress(walletAddress).tag || '0' }</Badge>
+                                      <Badge color="red">Any sender with destination tag (memo): { Readability.toTaggedAddress(walletAddress).tag || '0' }</Badge>
                                     </Flex>
                                   )
                                 }
