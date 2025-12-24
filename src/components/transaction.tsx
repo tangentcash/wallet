@@ -549,6 +549,23 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           }
         </DataList.Root>
       )
+    case 'anticast':
+      return (
+        <DataList.Root orientation={props.orientation}>
+          <DataList.Item>
+            <DataList.Label>Parent hash:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.broadcast_hash);
+                AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+              }}>{ Readability.toHash(transaction.broadcast_hash) }</Button>
+              <Box ml="2">
+                <Link className="router-link" to={'/transaction/' + transaction.broadcast_hash}>▒▒</Link>
+              </Box>
+            </DataList.Value>
+          </DataList.Item>
+        </DataList.Root>
+      )
     default:
       return <Text size="1" color="gray">No additional input fields</Text>
   }
@@ -1047,7 +1064,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   Object.keys(state.witness.accounts).map((asset) => {
                     const aliases = state.witness.accounts[asset].aliases;
                     const bridge = state.witness.accounts[asset].purpose == 'bridge';
-                    return aliases.map((alias) => <Badge key={'X3' + alias} size="1" radius="medium" color={bridge ? 'blue' : 'jade'}>{ bridge ? '' : 'SELF ' }{ Readability.toAddress(alias) }</Badge>)
+                    return aliases.map((alias) => <Badge key={'X3' + alias} size="1" radius="medium" color={bridge ? 'blue' : 'jade'}>{ Readability.toAddress(alias) }</Badge>)
                   })
                 }
                 {

@@ -54,6 +54,10 @@ export class ProgramWithdrawAndMigrate {
   onlyIfNotInQueue: boolean = true;
 }
 
+export class ProgramAnticast {
+    broadcastHash: string = '';
+}
+
 export class ApproveTransaction {
   hexMessage: string = '';
   transaction: any = null;
@@ -101,7 +105,7 @@ export default function InteractionPage() {
   const [loadingTransaction, setLoadingTransaction] = useState(false);
   const [loadingGasPriceAndPrice, setLoadingGasPriceAndPrice] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
-  const [program, setProgram] = useState<ProgramTransfer | ProgramSetup | ProgramRoute | ProgramWithdraw | ProgramWithdrawAndMigrate | ApproveTransaction | null>(null);
+  const [program, setProgram] = useState<ProgramTransfer | ProgramSetup | ProgramRoute | ProgramWithdraw | ProgramWithdrawAndMigrate | ProgramAnticast | ApproveTransaction | null>(null);
   const navigate = useNavigate();
   const maxFeeValue = useMemo((): BigNumber => {
     try {
@@ -143,6 +147,8 @@ export default function InteractionPage() {
       return 'Withdraw to address';
     } else if (program instanceof ProgramWithdrawAndMigrate) {
       return 'Bridge migration';
+    } else if (program instanceof ProgramAnticast) {
+        return 'Bridge protest';
     } else if (program instanceof ApproveTransaction) {
       return 'Approve action';
     }
@@ -320,7 +326,17 @@ export default function InteractionPage() {
   
       return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
     } else if (program instanceof ProgramWithdrawAndMigrate) {
-      return true;
+      return true;   
+    } else if (program instanceof ProgramAnticast) {
+      try {
+        const hash = new Uint256(program.broadcastHash);
+        if (!hash.gt(0))
+          throw false;
+
+        return true;
+      } catch {
+        return false;
+      }
     } else if (program instanceof ApproveTransaction) {
       return program.hexMessage != null && program.transaction != null;
     }
@@ -477,6 +493,13 @@ export default function InteractionPage() {
             onlyIfNotInQueue: program.onlyIfNotInQueue,
             manager: Signing.decodeAddress(ownerAddress || ''),
             to: []
+          }
+        });
+      } else if (program instanceof ProgramAnticast) {
+        return await buildProgram({
+          type: new Transactions.Anticast(),
+          args: {
+            broadcastHash: new Uint256(program.broadcastHash),
           }
         });
       } else if (program instanceof ApproveTransaction) {
@@ -651,6 +674,10 @@ export default function InteractionPage() {
         setProgram(result);
         break;
       }
+      case 'protest': {
+        setProgram(new ProgramAnticast());
+        break;
+      }
       case 'migrate': {
         requiresAllAssets = true;
         setProgram(new ProgramWithdrawAndMigrate());
@@ -725,12 +752,15 @@ export default function InteractionPage() {
               <Tooltip content="Approve and submit transaction from unverified source">
                 <DropdownMenu.Item onClick={() => navigate('/interaction?type=approve')}>Approve</DropdownMenu.Item>
               </Tooltip>
-              <DropdownMenu.Separator />
-              <Tooltip content="Validator: change block production and/or participation/attestation stake(s)">
-                <DropdownMenu.Item color="red" onClick={() => navigate('/interaction?type=configure')}>Setup</DropdownMenu.Item>
+              <Tooltip content="Protest a withdrawal broadcast transaction to get a refund">
+                <DropdownMenu.Item onClick={() => navigate('/interaction?type=protest')}>Protest</DropdownMenu.Item>
               </Tooltip>
-              <Tooltip content="Validator: migrate bridge manager to another manager along with custodial funds (for attestation unstaking)">
-                <DropdownMenu.Item color="red" onClick={() => navigate('/interaction?type=migrate')}>Migrate</DropdownMenu.Item>
+              <DropdownMenu.Separator />
+              <Tooltip content="For validator: change block production and/or participation/attestation stake(s)">
+                <DropdownMenu.Item onClick={() => navigate('/interaction?type=configure')}>Enter</DropdownMenu.Item>
+              </Tooltip>
+              <Tooltip content="For validator: migrate bridge manager to another manager along with custodial funds (for attestation unstaking)">
+                <DropdownMenu.Item onClick={() => navigate('/interaction?type=migrate')}>Exit</DropdownMenu.Item>
               </Tooltip>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
@@ -1173,6 +1203,21 @@ export default function InteractionPage() {
         </Card>
       }
       {
+        asset != -1 && program instanceof ProgramAnticast &&
+        <Card mt="4">
+          <Heading size="4" mb="2">Bridge broadcast transaction hash</Heading>
+          <Box width="100%">
+            <Tooltip content="Transaction hash of broadcast transaction that has off-chain relay success but no off-chain withdrawal received">
+              <TextField.Root size="3" placeholder={'Successful transaction hash'} type="text" value={program.broadcastHash || ''} onChange={(e) => {
+                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                copy.broadcastHash = e.target.value;
+                setProgram(copy);
+              }} />
+            </Tooltip>
+          </Box>
+        </Card>
+      }
+      {
         (program instanceof ApproveTransaction) && program.transaction != null &&
         <Box>
           <Transaction ownerAddress={ownerAddress} transaction={program.transaction} receipt={simulation?.receipt || undefined} state={simulation?.state || undefined} preview={true}></Transaction>
@@ -1298,6 +1343,10 @@ export default function InteractionPage() {
                     {
                       asset != -1 && program instanceof ProgramWithdrawAndMigrate &&
                       <Text as="div" weight="light" size="4" mb="1">— Migrate a { assets[asset].chain } bridge of a validator node to another bridge</Text>
+                    }
+                    {
+                      asset != -1 && program instanceof ProgramAnticast &&
+                      <Text as="div" weight="light" size="4" mb="1">— Protest <Badge radius="medium" variant="surface" size="2" color="red">{ Readability.toHash(program.broadcastHash, 4) }</Badge> withdrawal broadcast to get a refund</Text>
                     }
                     {
                       asset != -1 && program instanceof ApproveTransaction &&
