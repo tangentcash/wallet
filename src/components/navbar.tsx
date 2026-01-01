@@ -4,7 +4,6 @@ import { useLocation, useNavigate } from "react-router";
 import { AppData } from "../core/app";
 import { Swap } from "../core/swap";
 import { useMemo } from "react";
-import { useEffectAsync } from "../core/react";
 import Icon from "@mdi/react";
 
 const types: {
@@ -43,12 +42,6 @@ export function Navbar() {
   const locator = useMemo(() => {
     return filteredTypes.filter((item) => location.pathname.startsWith(item.path)).sort((a, b) => b.path.length - a.path.length)[0]?.path || null;
   }, [filteredTypes, location.pathname]);
-  useEffectAsync(async () => {
-    if (swap) {
-      const account = AppData.getWalletAddress();
-      await Swap.initialize(account ? [account] : []);
-    }
-  }, [swap]);
 
   AppData.state.setNavigation = navigate;
   return (

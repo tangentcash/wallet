@@ -15,7 +15,7 @@ function toAssetSymbol(asset: AssetId): string {
 }
 
 export default function ExplorerPage() {
-  const [market, setMarket] = useState<Market | null>(Swap.contracts[0] || null);
+  const [market, setMarket] = useState<Market | null>(null);
   const [pairs, setPairs] = useState<AggregatedPair[]>([]);
   const [launchablePair, setLaunchablePair] = useState<AggregatedPair | null>(null);
   const [marketLauncher, setMarketLauncher] = useState<{ primary: AssetId | null, secondary: AssetId | null }>({ primary: null, secondary: null });
@@ -39,6 +39,11 @@ export default function ExplorerPage() {
     return result;
   }, [pairs, assetQuery, launchablePair]);
   const navigate = useNavigate();
+  useEffectAsync(async () => {
+    await Swap.acquireDeferred();
+    if (Swap.contracts.length > 0)
+      setMarket(Swap.contracts[0]);
+  }, []);
   useEffectAsync(async () => {
     try {
       if (market != null) {

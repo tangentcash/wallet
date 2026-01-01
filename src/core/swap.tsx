@@ -2,6 +2,7 @@ import { AssetId, ByteUtil, Hashing, Readability, Stream, Viewable } from "tange
 import { AlertBox, AlertType } from "../components/alert"
 import { Storage } from "./storage"
 import BigNumber from "bignumber.js"
+import { AppData } from "./app"
 
 export enum MarketPolicy {
     Spot,
@@ -175,6 +176,8 @@ export type BlockchainInfo = AssetId & {
     bulkTransfer: boolean
 }
 
+export type Descriptors = Record<string, { asset: AssetId, price: { open: BigNumber | null, close: BigNumber | null } }>;
+
 export enum SwapField {
   Orderbook = '__orderbook__'
 }
@@ -189,6 +192,7 @@ export class Swap {
   static orderbook:  string | null = null;
   static socket: WebSocket | null = null;
   static pipeId: string | null = null;
+  static awaitables: (() => void)[] | null = [];
 
   static storeURL(params: URLSearchParams, key: string, value: any, parentPrefix = '') {
     const fullKey = parentPrefix ? `${parentPrefix}[${key}]` : key;
@@ -294,25 +298,43 @@ export class Swap {
   static getOrderbook(): string | null {
     return this.orderbook;
   }
-  static async initialize(addresses: string[]) {
+  static async acquire(): Promise<void> {
     try {
-      const [_, pricesResult, descriptorsResult, marketsResult] = await Promise.all([
-        this.channel(addresses),
-        this.assetPrices(),
-        this.assetDescriptors(),
-        this.markets()
-      ]);
+      const address = AppData.getWalletAddress();
+      this.location = AppData.props.swapper || '';
+      
+      const [_, portfolio] = await Promise.all([this.channel(address ? [address] : []), this.assetsPortfolio()]);
       this.orderbook = Storage.get(SwapField.Orderbook);
-      this.prices = pricesResult || { };
-      this.contracts = marketsResult || [];
-      this.descriptors = (descriptorsResult || []).sort((a, b) => Readability.toAssetSymbol(a).localeCompare(Readability.toAssetSymbol(b)));
+      this.prices = portfolio?.prices || { };
+      this.contracts = portfolio?.markets || [];
+      this.descriptors = (portfolio?.descriptors || []).sort((a, b) => Readability.toAssetSymbol(a).localeCompare(Readability.toAssetSymbol(b)));
       this.equityAsset = this.prices['__BASE__']?.asset || this.equityAsset;
       this.dispatchEvent('swap:ready', { data: { } });
+      if (this.awaitables != null) {
+        for (let i = 0; i < this.awaitables.length; i++) {
+          this.awaitables[i]();
+        }
+        this.awaitables = null;
+      }
     } catch (exception: any) {
       AlertBox.open(AlertType.Error, 'Swap server error: ' + exception.message);
     }
   }
-  static async fetch(method: 'GET' | 'POST' | 'DELETE', location: string, args: Record<string, any>) {
+  static acquireDeferred(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      if (this.awaitables != null) {
+        this.awaitables.push(resolve);
+        if (this.awaitables.length == 1)
+          this.acquire();
+      } else {
+        resolve();
+      }
+    });
+  }
+  static async fetch(method: 'GET' | 'POST' | 'DELETE', location: string, args: Record<string, any>, awaitable: boolean = true) {
+    if (awaitable)
+      await this.acquireDeferred();
+
     const body = method != 'GET';
     const search = new URLSearchParams();
     if (!body && args != null && typeof args == 'object')
@@ -385,11 +407,24 @@ export class Swap {
 
     return true;
   }
+  static async assetsPortfolio(): Promise<{ prices: Descriptors, descriptors: BlockchainInfo[], markets: Market[] } | null> {
+    const result = await this.fetch('GET', `assets/portfolio`, { }, false);
+    if (!result)
+      return null;
+
+    if (result.prices != null) {
+      for (let key in result.prices) {
+        const item = result.prices[key];
+        item.asset = new AssetId(item.asset.id);
+      }
+    }
+    return result;
+  }
   static async assetQuery(query: string): Promise<AssetId[]> {
     const result = await this.fetch('GET', `asset/query`, { query: query.trim() });
     return result.map((item: any) => new AssetId(item.id));
   }
-  static async assetPrices(): Promise<Record<string, { asset: AssetId, price: { open: BigNumber | null, close: BigNumber | null } }>> {
+  static async assetPrices(): Promise<Descriptors> {
     const result = await this.fetch('GET', `asset/prices`, { });
     for (let key in result) {
       const item = result[key];
@@ -470,6 +505,27 @@ export class Swap {
       price: item.price,
       quantity: item.quantity
     }));
+  }
+  static async accountPortfolio(account: AccountQuery): Promise<{ balances: Balance[], orders: Order[], pools: Pool[] } | null> {
+    const result = await this.fetch('GET', `account/portfolio`, {
+      id: account.id,
+      account: account.address
+    });
+    if (!result)
+      return null;
+
+    return {
+      balances: (result.balances || []).map((v: any) => {
+        return {
+          asset: new AssetId(v.asset.id),
+          unavailable: v.unavailable,
+          available: v.available,
+          price: v.price
+        }
+      }),
+      orders: (result.orders || []).map((v: any) => this.toOrder(v)),
+      pools: (result.pools || []).map((v: any) => this.toPool(v))
+    };
   }
   static async accountBalances(account: AccountQuery): Promise<Balance[]> {
     const result = await this.fetch('GET', `account/balances`, {

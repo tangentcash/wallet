@@ -11,7 +11,7 @@ export enum StorageField {
   Address = '__address__',
   Polling = '__polling__',
   Streaming = '__streaming__',
-  Props = '__props__',
+  AppProps = '__aprops__',
   InterfaceProps = '__iprops__'
 }
 

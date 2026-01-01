@@ -23,7 +23,6 @@ import BridgePage from "./../pages/bridge"
 import PortfolioPage from "../pages/swap/portfolio";
 import ExplorerPage from "../pages/swap/explorer";
 import OrderbookPage from "../pages/swap/orderbook";
-import { Swap } from "./swap";
 import { Navbar } from "../components/navbar";
 
 const CACHE_PREFIX = 'V000';
@@ -61,6 +60,7 @@ export type AppState = {
 export type AppProps = {
   resolver: string | null,
   server: string | null,
+  swapper: string | null,
   account: string | null,
   authorizer: boolean,
   appearance: 'dark' | 'light'
@@ -79,6 +79,7 @@ export class AppData {
   static props: AppProps = {
     resolver: null,
     server: null,
+    swapper: null,
     account: null,
     authorizer: false,
     appearance: 'dark'
@@ -299,7 +300,7 @@ export class AppData {
     }
   }
   private static save(): void {
-    Storage.set(StorageField.Props, this.props);
+    Storage.set(StorageField.AppProps, this.props);
   }
   private static render(): void {
     const element = document.getElementById("root") as HTMLElement;
@@ -526,7 +527,7 @@ export class AppData {
     }
   }
   static async main(): Promise<void> {
-    const props: AppProps | null = Storage.get(StorageField.Props);
+    const props: AppProps | null = Storage.get(StorageField.AppProps);
     if (this.isApp())
       core.invoke('platform_type').then((value) => this.platform = value as 'desktop' | 'mobile' | 'unknown');
     if (props != null)
@@ -582,12 +583,12 @@ export class AppData {
           throw new Error('invalid network');
       }
     })();
-    if (!Storage.get(StorageField.Props)) {
+    if (!Storage.get(StorageField.AppProps)) {
       this.props.resolver = config.resolverUrl;
       this.props.server = config.serverUrl;
+      this.props.swapper = config.swapUrl;
       this.props.authorizer = config.authorizer;
     }
-    Swap.location = config.swapUrl || '';
     RPC.applyResolver(this.props.resolver);
     RPC.applyServer(this.props.server);
     

@@ -44,14 +44,13 @@ export default function PortfolioPage() {
       if (!account)
         throw false;
 
-      const [assets, orders, pools] = await Promise.all([
-        Swap.accountBalances({ address: account }),
-        Swap.accountOrders({ address: account }),
-        Swap.accountPools({ address: account }),
-      ]);
-      setAssets(assets);
-      setOrders(orders);
-      setPools(pools);
+      const portfolio = await Swap.accountPortfolio({ address: account });
+      if (!portfolio)
+        throw false;
+      
+      setAssets(portfolio.balances);
+      setOrders(portfolio.orders);
+      setPools(portfolio.pools);
     } catch {
       setAssets([]);
       setOrders([]);
