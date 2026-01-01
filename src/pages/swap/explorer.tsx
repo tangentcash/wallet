@@ -1,6 +1,6 @@
 import { Avatar, Badge, Box, Button, Flex, Heading, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useEffect, useMemo, useState } from "react";
-import { AggregatedPair, Swap, Market, MarketPolicy } from "../../core/swap";
+import { AggregatedPair, Swap, Market } from "../../core/swap";
 import { AlertBox, AlertType } from "../../components/alert";
 import { useEffectAsync } from "../../core/react";
 import { mdiArrowLeftRight, mdiCurrencyBtc, mdiCurrencyUsd, mdiMagnify } from "@mdi/js";
@@ -10,20 +10,12 @@ import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 import AssetSelector from "../../components/swap/selector";
 
-function policyOf(market: Market | null): string {
-    switch (market ? market.marketPolicy.toNumber() : -1) {
-      case MarketPolicy.Spot:
-        return 'Spot';
-      case MarketPolicy.Margin:
-        return 'Margin';
-      default:
-        return 'Unknown';
-    }
+function toAssetSymbol(asset: AssetId): string {
+  return asset.chain == 'TAN' && asset.token ? (asset.token || '') : ((asset.token || '') + (asset.chain || ''));
 }
 
 export default function ExplorerPage() {
-  const [market, setMarket] = useState<Market | null>(null);
-  const [markets, setMarkets] = useState<Market[]>([]);
+  const [market, setMarket] = useState<Market | null>(Swap.contracts[0] || null);
   const [pairs, setPairs] = useState<AggregatedPair[]>([]);
   const [launchablePair, setLaunchablePair] = useState<AggregatedPair | null>(null);
   const [marketLauncher, setMarketLauncher] = useState<{ primary: AssetId | null, secondary: AssetId | null }>({ primary: null, secondary: null });
@@ -47,18 +39,6 @@ export default function ExplorerPage() {
     return result;
   }, [pairs, assetQuery, launchablePair]);
   const navigate = useNavigate();
-  useEffectAsync(async () => {
-    try {
-      const results = await Swap.markets();
-      if (Array.isArray(results)) {
-        setMarkets(results);
-        if (results.length > 0)
-          setMarket(results[0]);
-      }
-    } catch (exception: any) {
-      AlertBox.open(AlertType.Error, 'Failed to receive markets: ' + exception.message);
-    }
-  }, []);
   useEffectAsync(async () => {
     try {
       if (market != null) {
@@ -105,13 +85,13 @@ export default function ExplorerPage() {
   return (
     <Box px="4" pt="4" minWidth="285px" maxWidth="680px" mx="auto">
       <Flex justify="between" pb="2" align="center">
-        <Heading size="5">{ market ? policyOf(market) : 'Explore' }</Heading>
-        <Select.Root value={market ? market.id.toString() : ''} size="2">
+        <Heading size="5">{ market ? Swap.marketPolicyOf(market) : 'Explore' }</Heading>
+        <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => setMarket(Swap.contracts.find((v) => v.id.toString() == e) || null)} size="2">
           <Select.Trigger variant="soft" color="gray">{ market ? market.account.substring(market.account.length - 6) : 'no market' }</Select.Trigger>
           <Select.Content position="popper" side="bottom">
             <Select.Group>
               <Select.Label>Market contract</Select.Label>
-              { markets.map((item) => <Select.Item key={item.id.toString()} value={item.id.toString()}>{ policyOf(item) } contract — { item.account.substring(item.account.length - 6) }</Select.Item>) }
+              { Swap.contracts.map((item) => <Select.Item key={item.id.toString()} value={item.id.toString()}>{ Swap.marketPolicyOf(item) } contract — { item.account.substring(item.account.length - 6) }</Select.Item>) }
             </Select.Group>
           </Select.Content>
         </Select.Root>
@@ -196,9 +176,15 @@ export default function ExplorerPage() {
                     </Flex>
                     <Flex justify="between" align="center">
                       <Flex align="center">
-                        <Text size="1" color="gray">{ (item.primaryAsset.token || '') + (item.primaryAsset.chain || '') }{ (item.secondaryAsset.token || '') + (item.secondaryAsset.chain || '') }</Text>
+                        <Text size="1" color="gray">{ toAssetSymbol(item.primaryAsset) }{ toAssetSymbol(item.secondaryAsset) }</Text>
                       </Flex>
-                      <Badge radius="small" size="1" color={ (item.price.open || new BigNumber(0)).gt(item.price.close || new BigNumber(0)) ? 'red' : ((item.price.open || new BigNumber(0)).eq(item.price.close || new BigNumber(0)) ? 'gray' : 'jade') }>{ Readability.toPercentageDelta(item.price.open || new BigNumber(0), item.price.close || new BigNumber(0)) }</Badge>
+                      <Flex gap="1">
+                        {
+                          item.price.poolVolume && item.price.poolLiquidity &&
+                          <Badge radius="small" size="1" color="orange">{ Readability.toPercentageDeltaNumber((item.price.poolVolume || new BigNumber(0)).multipliedBy(market.maxPoolFeeRate), item.price.poolLiquidity || new BigNumber(0)).multipliedBy(365).toFixed(2) }% APY</Badge>
+                        }
+                        <Badge radius="small" size="1" color={ (item.price.open || new BigNumber(0)).gt(item.price.close || new BigNumber(0)) ? 'red' : ((item.price.open || new BigNumber(0)).eq(item.price.close || new BigNumber(0)) ? 'gray' : 'jade') }>{ Readability.toPercentageDelta(item.price.open || new BigNumber(0), item.price.close || new BigNumber(0)) }</Badge>
+                      </Flex>
                     </Flex>
                   </Box>
                 </Flex>

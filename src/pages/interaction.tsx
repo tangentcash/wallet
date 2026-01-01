@@ -963,7 +963,7 @@ export default function InteractionPage() {
                   </Heading>
                   <Box width="100%">
                     <Tooltip content="Locking value to activate/increase bridge attestation staking">
-                      <TextField.Root mb="3" size="3" placeholder={'Attestation stake in ' + Readability.toAssetSymbol(item.asset)} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
+                      <TextField.Root mb="3" size="3" placeholder={'Attestation stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
                         const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                         copy.attestations[index].stake = e.target.value;
                         setProgram(copy);

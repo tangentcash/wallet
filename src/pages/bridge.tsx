@@ -16,12 +16,88 @@ const ASSET_INFORMATION: Record<string, { depositTime: number, tokenStandard: st
     depositTime: 22,
     tokenStandard: 'Native'
   },
+  "ARB": {
+    depositTime: 1,
+    tokenStandard: 'ERC20'
+  },
+  "AVAX": {
+    depositTime: 3,
+    tokenStandard: 'ERC20'
+  },
+  "BASE": {
+    depositTime: 1,
+    tokenStandard: 'ERC20'
+  },
+  "BCH": {
+    depositTime: 60,
+    tokenStandard: null
+  },
+  "BLAST": {
+    depositTime: 3,
+    tokenStandard: 'ERC20'
+  },
+  "BNB": {
+    depositTime: 1,
+    tokenStandard: 'BEP20'
+  },
+  "BSV": {
+    depositTime: 12,
+    tokenStandard: null
+  },
   "BTC": {
     depositTime: 60,
     tokenStandard: null
   },
+  "BTG": {
+    depositTime: 60,
+    tokenStandard: null
+  },
+  "CELO": {
+    depositTime: 2,
+    tokenStandard: 'ERC20'
+  },
+  "DASH": {
+    depositTime: 15,
+    tokenStandard: null
+  },
+  "DGB": {
+    depositTime: 2,
+    tokenStandard: null
+  },
+  "DOGE": {
+    depositTime: 6,
+    tokenStandard: null
+  },
+  "ETC": {
+    depositTime: 14,
+    tokenStandard: 'ERC20'
+  },
   "ETH": {
     depositTime: 14,
+    tokenStandard: 'ERC20'
+  },
+  "GNO": {
+    depositTime: 6,
+    tokenStandard: 'ERC20'
+  },
+  "LTC": {
+    depositTime: 15,
+    tokenStandard: null
+  },
+  "LINEA": {
+    depositTime: 3,
+    tokenStandard: 'ERC20'
+  },
+  "MATIC": {
+    depositTime: 3,
+    tokenStandard: 'ERC20'
+  },
+  "OP": {
+    depositTime: 3,
+    tokenStandard: 'ERC20'
+  },
+  "S": {
+    depositTime: 1,
     tokenStandard: 'ERC20'
   },
   "SOL": {
@@ -32,14 +108,30 @@ const ASSET_INFORMATION: Record<string, { depositTime: number, tokenStandard: st
     depositTime: 2,
     tokenStandard: 'TRC20'
   },
+  "XEC": {
+    depositTime: 60,
+    tokenStandard: null
+  },
   "XLM": {
     depositTime: 1,
+    tokenStandard: null
+  },
+  "XMR": {
+    depositTime: 30,
     tokenStandard: null
   },
   "XRP": {
     depositTime: 1,
     tokenStandard: null
-  }
+  },
+  "ZEC": {
+    depositTime: 20,
+    tokenStandard: null
+  },
+  "ZK": {
+    depositTime: 3,
+    tokenStandard: 'ERC20'
+  },
 }
 
 function toBridgeIndex(policy: any): [boolean, string] {

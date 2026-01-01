@@ -78,7 +78,7 @@ export default function PortfolioPage() {
       <Card mt="3" variant="surface" style={{ borderRadius: '28px' }}>
         <Box px="2" py="1">
           <Box mb="2">
-            <Flex justify="between" align="center">
+            <Flex justify="between" align="center" mb="1">
               <Text size="3" color="gray">Portfolio</Text>
               <Badge size="2" color="red">{ Readability.toAddress(account || '') }</Badge>
             </Flex>

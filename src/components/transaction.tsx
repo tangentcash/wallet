@@ -111,10 +111,13 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
               }}>{ Readability.toHash(args, 20) }</Button>
             </DataList.Value>
           </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Value paid:</DataList.Label>
-            <DataList.Value>{ Readability.toMoney(transaction.asset, transaction.value) }</DataList.Value>
-          </DataList.Item>
+          {
+            Array.isArray(transaction.pays) && transaction.pays.map((item: any) =>
+              <DataList.Item key={item.asset.id}>
+                <DataList.Label>Value paid:</DataList.Label>
+                <DataList.Value>{ Readability.toMoney(item.asset, item.value) }</DataList.Value>
+              </DataList.Item>)
+          }
         </DataList.Root>
       )
     }
@@ -541,7 +544,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             <DataList.Item>
               <DataList.Label>Off-chain relay:</DataList.Label>
               <DataList.Value>
-                <Code color="tomato" wrap="balance" size="1" variant="soft" style={{ whiteSpace: 'pre-wrap', maxWidth: '340px' }}>
+                <Code color="tomato" wrap="balance" size="1" variant="soft" style={{ whiteSpace: 'pre', maxWidth: '340px' }}>
                   <Box px="1" py="1">FAULT { transaction.error }</Box>
                 </Code>
               </DataList.Value>
@@ -976,12 +979,12 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                       </DataList.Value>
                     </DataList.Item>
                     {
-                      copy.args.length > 0 &&
+                      copy.args != null &&
                       <DataList.Item key={index}>
                         <DataList.Label>Body:</DataList.Label>
                         <DataList.Value>
-                          <Code color="tomato" wrap="balance" size="1" variant="soft" style={{ whiteSpace: 'pre-wrap' }}>
-                            <Box px="1" py="1">{ JSON.stringify(copy.args.length > 1 ? copy.args : copy.args[0], null, 2) }</Box>
+                          <Code color="tomato" wrap="balance" size="1" variant="soft" style={{ whiteSpace: 'pre' }}>
+                            <Box px="1" py="1">{ JSON.stringify(copy.args, null, 1) }</Box>
                           </Code>
                         </DataList.Value>
                       </DataList.Item>

@@ -2,7 +2,7 @@ import { AspectRatio, Avatar, Badge, Box, Button, Card, Dialog, Flex, Heading, I
 import { useNavigate, useParams } from "react-router";
 import { AppData } from "../../core/app";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Swap, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide } from "../../core/swap";
+import { Swap, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide, Balance } from "../../core/swap";
 import { useEffectAsync } from "../../core/react";
 import { SeriesApiRef } from "lightweight-charts-react-components";
 import { BarPrice, ChartOptions, CrosshairMode, DeepPartial, IChartApi, LogicalRange, MouseEventParams, PriceScaleMode, Time } from "lightweight-charts";
@@ -131,12 +131,13 @@ export default function OrderbookPage() {
   const [tab, setTab] = useState<'info' | 'order' | 'book' | 'trades'>(mobile ? 'info' : 'order');
   const [orders, setOrders] = useState<Order[]>([]);
   const [levels, setLevels] = useState<{ ask: AggregatedLevel[], bid: AggregatedLevel[] }>({ ask: [], bid: [] })
-  const [balances, setBalances] = useState<{ primary: { price: BigNumber | null, value: BigNumber }, secondary: { price: BigNumber | null, value: BigNumber } }>({ primary: { price: null, value: new BigNumber(0) }, secondary: { price: null, value: new BigNumber(0) } });
+  const [polyBalances, setPolyBalances] = useState<{ primary: Balance[], secondary: Balance[] }>({ primary: [], secondary: [] });
   const [tiers, setTiers] = useState<AccountTier | null>(null);
   const [legendBar, setLegendBar] = useState<{ price?: PriceBar | null, volume?: VolumeBar | null }>({ });
   const [pair, setPair] = useState<AggregatedPair | null>(null);
   const [market, setMarket] = useState<Market | null>(null);
   const [trades, setTrades] = useState<AggregatedMatch[]>([]);
+  const [_, setPolyAssets] = useState<{ primary: AssetId[], secondary: AssetId[] }>({ primary: [], secondary: [] });
   const [incomingTrades, setIncomingTrades] = useState<CustomEvent<any>[]>([]);
   const [incomingLevels, setIncomingLevels] = useState<CustomEvent<any>[]>([]);
   const [seriesOptions, setSeriesOptions] = useState({
@@ -190,6 +191,14 @@ export default function OrderbookPage() {
       bid: levels.bid.reduce((a, b) => [a[0].plus(b.quantity), a[1].plus(b.price.multipliedBy(b.quantity))], [new BigNumber(0), new BigNumber(0)]),
     };
   }, [levels]);
+  const balances = useMemo((): { primary: { price: BigNumber | null, value: BigNumber }, secondary: { price: BigNumber | null, value: BigNumber } } => {
+    const primaryBalance = polyBalances.primary.reduce((p, n) => ({ p: n.price ? p.p.plus(n.price).div(2) : p.p, v: p.v.plus(n.available) }), { p: new BigNumber(NaN), v: new BigNumber(0) });
+    const secondaryBalance = polyBalances.secondary.reduce((p, n) => ({ p: n.price ? p.p.plus(n.price).div(2) : p.p, v: p.v.plus(n.available) }), { p: new BigNumber(NaN), v: new BigNumber(0) });
+    return {
+      primary: { price: primaryBalance.p.isNaN() ? null : primaryBalance.p, value: primaryBalance.v },
+      secondary: { price: secondaryBalance.p.isNaN() ? null : secondaryBalance.p, value: secondaryBalance.v },
+    };
+  }, [polyBalances]);
   const valuation = useMemo(() => {
     const rate = pair ? Swap.priceOf(seriesOptions.showPrimary ? pair.secondaryAsset : pair.primaryAsset)?.close : null;
     const basePrice = rate ? (seriesOptions.showPrimary ? balances.primary.price : balances.secondary.price)?.dividedBy(rate) || null : null;
@@ -385,39 +394,40 @@ export default function OrderbookPage() {
       const marketId = orderbook.marketId;
       const updateAccount = async () => {
         const account = AppData.getWalletAddress();
-        const ordersResult = account ? Swap.accountOrders({ marketId: marketId, pairId: result.id, address: account, active: true }) : null;
-        const tiersResult = account ? Swap.accountTiers({ marketId: marketId, pairId: result.id, address: account }) : null;
-        const balancesResult = account ? Swap.accountBalances({ address: account }) : null;
+        if (!account)
+          return;
+
+        const ordersResult = Swap.accountOrders({ marketId: marketId, pairId: result.id, address: account, active: true });
+        const tiersResult = Swap.accountTiers({ marketId: marketId, pairId: result.id, address: account });
+        const balancesResult = Swap.accountBalances({ address: account });
         try {
-          if (ordersResult != null)
-            setOrders(await ordersResult || []);
+          setOrders(await ordersResult || []);
         } catch (exception: any) {
           AlertBox.open(AlertType.Error, 'Failed to fetch account orders: ' + (exception.message || 'unknown error'));
         }
 
         try {
-          if (tiersResult != null)
-            setTiers(await tiersResult);
+          setTiers(await tiersResult);
         } catch (exception: any) {
           AlertBox.open(AlertType.Error, 'Failed to fetch account tiers: ' + (exception.message || 'unknown error'));
         }
 
         try {
-          if (balancesResult != null) {
-            const accountBalances = await balancesResult;
-            const primaryBalance = accountBalances?.find((v) => v.asset.id == result.primaryAsset.id);
-            const secondaryBalance = accountBalances?.find((v) => v.asset.id == result.secondaryAsset.id);
-            setBalances({
-              primary: { price: primaryBalance?.price || null, value: primaryBalance?.available || new BigNumber(0) },
-              secondary: { price: secondaryBalance?.price || null, value: secondaryBalance?.available || new BigNumber(0) }
+          const accountBalances = await balancesResult;
+          setPolyAssets((poly) => {
+            setPolyBalances({
+              primary: accountBalances?.filter((v) => v.asset.id == result.primaryAsset.id || poly.primary.findIndex((i) => i.id == v.asset.id) != -1),
+              secondary: accountBalances?.filter((v) => v.asset.id == result.secondaryAsset.id || poly.secondary.findIndex((i) => i.id == v.asset.id) != -1)
             });
-          }
+            return poly;
+          });
         } catch (exception: any) {
           AlertBox.open(AlertType.Error, 'Failed to fetch account balances: ' + (exception.message || 'unknown error'));
         }
       };
       const marketResult = Swap.market(orderbook.marketId);
       const levelsResult = Swap.marketPriceLevels(orderbook.marketId, result.id);
+      const assetsResult = Swap.marketAssets(orderbook.marketId, result.id);
       try {
         setMarket(await marketResult);
       } catch (exception: any) {
@@ -431,6 +441,14 @@ export default function OrderbookPage() {
         AlertBox.open(AlertType.Error, 'Failed to fetch orderbook: ' + (exception.message || 'unknown error'));
       }
 
+      try {
+        const assetsData = await assetsResult;
+        if (assetsData != null)
+          setPolyAssets(assetsData);
+      } catch (exception: any) {
+        AlertBox.open(AlertType.Error, 'Failed to fetch market poly assets: ' + (exception.message || 'unknown error'));
+      }
+
       if (typeof params.orderbook == 'string' && params.orderbook.length > 0) {
         const memorizedSeriesOptions = Storage.get(pathOfOrderbook(params.orderbook));
         if (memorizedSeriesOptions != null && typeof memorizedSeriesOptions == 'object') {
@@ -438,6 +456,7 @@ export default function OrderbookPage() {
         }
       }
       
+      await updateAccount();
       window.addEventListener('update:order', updateAccount);
       return () => window.removeEventListener('update:order', updateAccount);
     } catch (exception: any) {
@@ -487,8 +506,12 @@ export default function OrderbookPage() {
         low: BigNumber.min(pair.price?.low || new BigNumber(Number.MAX_SAFE_INTEGER), price || target.open || new BigNumber(Number.MAX_SAFE_INTEGER)), 
         high: BigNumber.max(pair.price?.high || new BigNumber(Number.MIN_SAFE_INTEGER), price || target.open || new BigNumber(Number.MIN_SAFE_INTEGER)), 
         close: price,
-        volume: (pair.price?.volume || new BigNumber(0)).plus(quantity),
-        liquidity: pair.price?.liquidity || new BigNumber(0)
+        orderLiquidity: pair.price?.orderLiquidity || new BigNumber(0),
+        poolLiquidity: pair.price?.poolLiquidity || new BigNumber(0),
+        totalLiquidity: pair.price?.totalLiquidity || new BigNumber(0),
+        orderVolume: (pair.price?.orderVolume || new BigNumber(0)).plus(quantity),
+        poolVolume: pair.price?.poolVolume || new BigNumber(0),
+        totalVolume: (pair.price?.totalVolume || new BigNumber(0)).plus(quantity),
       }
     });
     setTrades(prev => ([...trades, ...prev]));
@@ -590,11 +613,11 @@ export default function OrderbookPage() {
         </Box>
         <Flex direction="column" width="100%">
           <Flex justify="between">
-            <Text size={mobile ? '3' : '5'} style={{ height: '18px', color: 'var(--gray-12)' }}>{ orderbook?.primaryAsset ? Readability.toAssetSymbol(orderbook.primaryAsset) : '?' }</Text>
-            <Text size={mobile ? '3' : '5'} style={{ height: '18px' }}>{ Readability.toValue(null, pair?.price.close || null, false, true) }</Text>
+            <Text size={mobile ? '3' : '4'} style={{ height: '18px', color: 'var(--gray-12)' }}>{ orderbook?.primaryAsset ? Readability.toAssetName(orderbook.primaryAsset) : '?' }</Text>
+            <Text size={mobile ? '3' : '4'} style={{ height: '18px' }}>{ Readability.toValue(null, pair?.price.close || null, false, true) }</Text>
           </Flex>
           <Flex justify="between" align="center" mt={mobile ? undefined : '1'}>
-            <Text size={mobile ? '1' : '2'} color="gray">{ pair != null && pair.secondaryBase == null ? (orderbook?.primaryAsset ? Readability.toAssetSymbol(orderbook.primaryAsset) : '?') + 'x' + (orderbook?.secondaryAsset ? Readability.toAssetSymbol(orderbook.secondaryAsset) : '?') : (orderbook?.primaryAsset ? Readability.toAssetName(orderbook.primaryAsset) : '?') }</Text>
+            <Text size={mobile ? '1' : '2'} color="gray">{ (orderbook?.primaryAsset ? Readability.toAssetSymbol(orderbook.primaryAsset) : '?') + 'x' + (orderbook?.secondaryAsset ? Readability.toAssetSymbol(orderbook.secondaryAsset) : '?') }</Text>
             <Box>
               <Text size={mobile ? '1' : '2'}>{ Readability.toValue(null, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true, true) }</Text>
               <Text size={mobile ? '1' : '2'} color="gray"> | </Text>
@@ -747,16 +770,16 @@ export default function OrderbookPage() {
             }}>
               <Tabs.List size="2" style={mobile ? { backgroundColor: 'var(--color-panel)', paddingTop: '20px' } : { }}>
                 <Tabs.Trigger value="info" className="tab-padding-erase">
-                  <Badge size="3" radius="large">Info</Badge>
+                  <Badge size="3" radius="large">Market</Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="order" className="tab-padding-erase">
-                  <Badge size="3" radius="large">Order</Badge>
+                  <Badge size="3" radius="large">Trade</Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="book" className="tab-padding-erase">
                   <Badge size="3" radius="large">Book</Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="trades" className="tab-padding-erase">
-                  <Badge size="3" radius="large">Trades</Badge>
+                  <Badge size="3" radius="large">History</Badge>
                 </Tabs.Trigger>
               </Tabs.List>
               <Box pt={mobile ? undefined : '3'}>
@@ -803,6 +826,18 @@ export default function OrderbookPage() {
                         <Heading mb="3" size="5">Performance 24h</Heading>
                         <Flex direction="column" gap="1">
                           <Flex justify="between" wrap="wrap" gap="1">
+                            <Text size="2" color="gray">Revenue</Text>
+                            <Text size="2" color="red">{ Readability.toPercentageDeltaNumber((pair?.price.totalVolume || new BigNumber(0)).multipliedBy(BigNumber.max(market?.maxPoolFeeRate || new BigNumber(0), market?.maxMakerFee || new BigNumber(0), market?.maxTakerFee || new BigNumber(0))), pair?.price.totalLiquidity || new BigNumber(0)).multipliedBy(365).toFixed(2) }% APY</Text>
+                          </Flex>
+                          <Flex justify="between" wrap="wrap" gap="1">
+                            <Text size="2" color="gray">LPs revenue</Text>
+                            <Text size="2" color="orange">{ Readability.toPercentageDeltaNumber((pair?.price.poolVolume || new BigNumber(0)).multipliedBy(market?.maxPoolFeeRate || new BigNumber(0)), pair?.price.poolLiquidity || new BigNumber(0)).multipliedBy(365).toFixed(2) }% APY</Text>
+                          </Flex>
+                          <Flex justify="between" wrap="wrap" gap="1">
+                            <Text size="2" color="gray">Change</Text>
+                            <Text size="2" color={ (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'red' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'jade') }>{ Readability.toMoney(orderbook.secondaryAsset, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true) }</Text>
+                          </Flex>
+                          <Flex justify="between" wrap="wrap" gap="1">
                             <Text size="2" color="gray">Open</Text>
                             <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.open || null) }</Text>
                           </Flex>
@@ -811,12 +846,12 @@ export default function OrderbookPage() {
                             <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.close || null) }</Text>
                           </Flex>
                           <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Change</Text>
-                            <Text size="2" color={ (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'red' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'jade') }>{ Readability.toMoney(orderbook.secondaryAsset, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true) }</Text>
+                            <Text size="2" color="gray">Volume</Text>
+                            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.totalVolume || new BigNumber(0)) }</Text>
                           </Flex>
                           <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Volume</Text>
-                            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.primaryAsset, pair?.price.volume || null) }</Text>
+                            <Text size="2" color="gray">Liquidity</Text>
+                            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.totalLiquidity || new BigNumber(0)) }</Text>
                           </Flex>
                           <Flex justify="between" wrap="wrap" gap="1" mt="1">
                             <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toValue(null, pair?.price.low || null, false, true) }</Text>
@@ -877,17 +912,19 @@ export default function OrderbookPage() {
                             <Text size="2" color="gray">Pool fee</Text>
                             <Text size="2" style={{ color: 'var(--gray-12)' }}>0.00% — { (market?.maxPoolFeeRate || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
                           </Flex>
-                          <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Pool exit fee</Text>
-                            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.poolExitFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
-                          </Flex>
+                          <Tooltip content={`Exit fee is based on fee revenue of a pool and will be charged on pool withdrawal. Any change to exit fee only affects new pools, existing pools are not affected.`}>
+                            <Flex justify="between" wrap="wrap" gap="1">
+                              <Text size="2" color="gray">Pool exit fee</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.poolExitFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
+                            </Flex>
+                          </Tooltip>
                           <Tooltip content={`To reach lowest maker/taker fees, account impact must cover at least ${(market?.assetVolumeTarget || new BigNumber(0)).multipliedBy(100).toFixed(0) }% of ${ (market?.assetResetDays || new BigNumber(0)).toString() } day volume of this market pair within ${ (market?.accountResetDays || new BigNumber(0)).toString() } days`}>
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Impact rule</Text>
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>≥ { (market?.assetVolumeTarget || new BigNumber(0)).multipliedBy(100).toFixed(0) }% of { (market?.assetResetDays || new BigNumber(0)).toString() }d VOL</Text>
                             </Flex>
                           </Tooltip>
-                          <Tooltip content={`Maker/taker fee impact delay: fee will get lower exponentially as account impact grows, higher fee impact delay will slow down the fee discounts on smaller impact accounts and speed up the fee discounts on higher impact accounts`}>
+                          <Tooltip content={`Maker/taker fee impact difficulty: fee will get lower exponentially as account impact grows, higher fee impact difficulty will slow down the fee discounts on smaller impact accounts and speed up the fee discounts on higher impact accounts`}>
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Impact difficuly</Text>
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.makerFeeExponent || new BigNumber(0)).multipliedBy(100).toFixed(0) }% — { (market?.takerFeeExponent || new BigNumber(0)).multipliedBy(100).toFixed(0) }%</Text>
@@ -907,9 +944,8 @@ export default function OrderbookPage() {
                         marketId={orderbook.marketId}
                         pairId={pair.id}
                         primaryAsset={orderbook.primaryAsset}
-                        primaryBalance={balances.primary.value}
                         secondaryAsset={orderbook.secondaryAsset}
-                        secondaryBalance={balances.secondary.value}
+                        balances={polyBalances}
                         tiers={tiers || undefined}
                         preset={preset}></Maker>
                     }

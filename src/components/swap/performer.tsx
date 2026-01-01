@@ -13,7 +13,8 @@ export enum Authorization {
   OrderCreation = 'authorize/order/creation',
   OrderDeletion = 'authorize/order/deletion',
   PoolCreation = 'authorize/pool/creation',
-  PoolDeletion = 'authorize/pool/deletion'
+  PoolDeletion = 'authorize/pool/deletion',
+  AssetRepayment = 'authorize/asset/repayment'
 }
 
 export default function PerformerButton(props: { title: string, description: string, disabled?: boolean, variant?: string, color?: string, style?: CSSProperties, type: Authorization, onData?: () => Record<string, any> }) {
@@ -41,8 +42,9 @@ export default function PerformerButton(props: { title: string, description: str
         })
       });
       const entity: AuthEntity = await result.json();
-      if (!entity || !entity.sign.message)
-        throw new Error('Entity was not built');
+      const maybeError: any = entity;
+      if (!entity || !entity.sign || !entity.sign.message)
+        throw new Error(typeof maybeError.error == 'string' ? maybeError.error : 'Entity was not built');
 
       navigate(`/interaction?type=approve&transaction=${entity.sign.message}${entity.sign.asset != null ? '&asset=' + entity.sign.asset : ''}`);
     } catch (exception: any) {

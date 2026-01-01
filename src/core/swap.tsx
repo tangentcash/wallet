@@ -125,8 +125,12 @@ export type AggregatedPair = {
   secondaryBase: string | null,
   launchTime: number,
   price: {
-      liquidity: BigNumber | null,
-      volume: BigNumber | null,
+      orderLiquidity: BigNumber | null,
+      poolLiquidity: BigNumber | null,
+      totalLiquidity: BigNumber | null,
+      orderVolume: BigNumber | null,
+      poolVolume: BigNumber | null,
+      totalVolume: BigNumber | null,
       open: BigNumber | null,
       low: BigNumber | null,
       high: BigNumber | null,
@@ -179,6 +183,7 @@ export class Swap {
   static location: string = '';
   static subroute: string = '/swap';
   static prices: Record<string, { asset: AssetId, price: { open: BigNumber | null, close: BigNumber | null } }> = { };
+  static contracts: Market[] = [];
   static descriptors: BlockchainInfo[] = [];
   static equityAsset: AssetId = AssetId.fromHandle('USD');
   static orderbook:  string | null = null;
@@ -291,13 +296,15 @@ export class Swap {
   }
   static async initialize(addresses: string[]) {
     try {
-      const [_, pricesResult, descriptorsResult] = await Promise.all([
+      const [_, pricesResult, descriptorsResult, marketsResult] = await Promise.all([
         this.channel(addresses),
         this.assetPrices(),
-        this.assetDescriptors()
+        this.assetDescriptors(),
+        this.markets()
       ]);
       this.orderbook = Storage.get(SwapField.Orderbook);
-      this.prices = pricesResult;
+      this.prices = pricesResult || { };
+      this.contracts = marketsResult || [];
       this.descriptors = (descriptorsResult || []).sort((a, b) => Readability.toAssetSymbol(a).localeCompare(Readability.toAssetSymbol(b)));
       this.equityAsset = this.prices['__BASE__']?.asset || this.equityAsset;
       this.dispatchEvent('swap:ready', { data: { } });
@@ -440,6 +447,16 @@ export class Swap {
       bid: result.bid.map(toAggregatedLevel)
     };
   }
+  static async marketAssets(marketId: number | string | BigNumber, pairId: number | string | BigNumber): Promise<{ primary: AssetId[], secondary: AssetId[] }> {
+    const result = await this.fetch('GET', `market/assets`, {
+      marketId: marketId?.toString(),
+      pairId: pairId?.toString()
+    });
+    return {
+      primary: result.primary.map((item: any) => new AssetId(item.id)),
+      secondary: result.secondary.map((item: any) => new AssetId(item.id)),
+    };
+  }
   static async marketTrades(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber } & PageQuery): Promise<AggregatedMatch[]> {
     const result = await this.fetch('GET', `market/trades`, {
       marketId: account.marketId?.toString(),
@@ -556,6 +573,16 @@ export class Swap {
       lastAskPrice: new BigNumber(value.lastAskPrice),
       lastBidPrice: new BigNumber(value.lastBidPrice),
       active: value.active
+    }
+  }
+  static marketPolicyOf(market: Market | null): string {
+    switch (market ? market.marketPolicy.toNumber() : -1) {
+      case MarketPolicy.Spot:
+        return 'Spot';
+      case MarketPolicy.Margin:
+        return 'Margin';
+      default:
+        return 'Unknown';
     }
   }
 }
