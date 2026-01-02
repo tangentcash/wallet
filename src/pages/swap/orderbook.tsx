@@ -453,7 +453,7 @@ export default function OrderbookPage() {
       try {
         const tradesData = await tradesResult;
         if (tradesData != null) {
-          setTrades(prev => ([...prev, ...trades]));
+          setTrades(tradesData);
         }
       } catch (exception: any) {
         AlertBox.open(AlertType.Error, 'Failed to fetch market trades: ' + (exception.message || 'unknown error'));
@@ -524,7 +524,8 @@ export default function OrderbookPage() {
         totalVolume: (pair.price?.totalVolume || new BigNumber(0)).plus(quantity),
       }
     });
-    setTrades(prev => ([...trades, ...prev]));
+    if (trades.length > 0)
+      setTrades(prev => ([...trades, ...prev]));
     setIncomingTrades([]);
     setSeriesData(prev => {
       if (!price)
