@@ -186,7 +186,7 @@ export default function ExplorerPage() {
                       <Flex gap="1">
                         {
                           item.price.poolVolume && item.price.poolLiquidity &&
-                          <Badge radius="small" size="1" color="orange">{ Readability.toPercentageDeltaNumber((item.price.poolVolume || new BigNumber(0)).multipliedBy(market.maxPoolFeeRate), item.price.poolLiquidity || new BigNumber(0)).multipliedBy(365).toFixed(2) }% APY</Badge>
+                          <Badge radius="small" size="1" color="orange">{ (item.price.poolLiquidity || new BigNumber(0)).gt(0) ? (item.price.poolVolume || new BigNumber(0)).multipliedBy(market.maxPoolFeeRate).dividedBy(item.price.poolLiquidity || new BigNumber(0)).multipliedBy(365 * 100).toFixed(2) : '0.00' }% APY</Badge>
                         }
                         <Badge radius="small" size="1" color={ (item.price.open || new BigNumber(0)).gt(item.price.close || new BigNumber(0)) ? 'red' : ((item.price.open || new BigNumber(0)).eq(item.price.close || new BigNumber(0)) ? 'gray' : 'jade') }>{ Readability.toPercentageDelta(item.price.open || new BigNumber(0), item.price.close || new BigNumber(0)) }</Badge>
                       </Flex>

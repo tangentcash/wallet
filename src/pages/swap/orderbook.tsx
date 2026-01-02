@@ -837,12 +837,8 @@ export default function OrderbookPage() {
                         <Heading mb="3" size="5">Performance 24h</Heading>
                         <Flex direction="column" gap="1">
                           <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Revenue</Text>
-                            <Text size="2" color="red">{ Readability.toPercentageDeltaNumber((pair?.price.totalVolume || new BigNumber(0)).multipliedBy(BigNumber.max(market?.maxPoolFeeRate || new BigNumber(0), market?.maxMakerFee || new BigNumber(0), market?.maxTakerFee || new BigNumber(0))), pair?.price.totalLiquidity || new BigNumber(0)).multipliedBy(365).toFixed(2) }% APY</Text>
-                          </Flex>
-                          <Flex justify="between" wrap="wrap" gap="1">
                             <Text size="2" color="gray">LPs revenue</Text>
-                            <Text size="2" color="orange">{ Readability.toPercentageDeltaNumber((pair?.price.poolVolume || new BigNumber(0)).multipliedBy(market?.maxPoolFeeRate || new BigNumber(0)), pair?.price.poolLiquidity || new BigNumber(0)).multipliedBy(365).toFixed(2) }% APY</Text>
+                            <Text size="2" color="orange">{ (pair?.price.poolLiquidity || new BigNumber(0)).gt(0) ?(pair?.price.poolVolume || new BigNumber(0)).multipliedBy(market?.maxPoolFeeRate || new BigNumber(0)).dividedBy(pair?.price.poolLiquidity || new BigNumber(0)).multipliedBy(365 * 100).toFixed(2) : '0.00' }% APY</Text>
                           </Flex>
                           <Flex justify="between" wrap="wrap" gap="1">
                             <Text size="2" color="gray">Change</Text>
@@ -1061,7 +1057,7 @@ export default function OrderbookPage() {
                               <Text size="2" color={item.side == OrderSide.Buy ? 'jade' : 'red'}>{ Readability.toMoney(orderbook?.primaryAsset || null, item.quantity) }</Text>
                             </Flex>
                             <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>To</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>With</Text>
                               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                                 navigator.clipboard.writeText(item.account);
                                 AlertBox.open(AlertType.Info, 'Account address copied!')
