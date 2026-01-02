@@ -1,8 +1,8 @@
 import { AssetId, ByteUtil, Hashing, Readability, Stream, Viewable } from "tangentsdk"
 import { AlertBox, AlertType } from "../components/alert"
 import { Storage } from "./storage"
-import BigNumber from "bignumber.js"
 import { AppData } from "./app"
+import BigNumber from "bignumber.js"
 
 export enum MarketPolicy {
     Spot,
@@ -499,7 +499,7 @@ export class Swap {
       page: account.page
     });
     return result.map((item: any) => ({
-      time: new Date(item.time),
+      time: new Date(BigNumber.isBigNumber(item.time) ? item.time.toNumber() : item.time),
       account: item.account,
       side: item.side,
       price: item.price,
