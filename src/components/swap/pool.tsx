@@ -1,12 +1,23 @@
 import { Avatar, Badge, Box, Button, Card, DataList, Dialog, DropdownMenu, Flex, Text } from "@radix-ui/themes";
 import { Readability } from "tangentsdk";
-import { Pool } from "../../core/swap";
+import { Pool, Swap } from "../../core/swap";
+import { useMemo } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import PerformerButton, { Authorization } from "./performer";
 
 function FullPoolView(props: { item: Pool, open?: boolean, concentrated?: boolean, inRange?: boolean }) {
   const item = props.item;
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
+  const revenue = useMemo(() => {
+    const primaryPrice = Swap.priceOf(props.item.primaryAsset);
+    const secondaryPrice = Swap.priceOf(props.item.secondaryAsset);
+    if (!primaryPrice.close || !secondaryPrice.close)
+      return null;
+
+    const absolute = primaryPrice.close.multipliedBy(props.item.primaryRevenue).plus(secondaryPrice.close.multipliedBy(props.item.secondaryRevenue));
+    const relative = absolute.dividedBy(primaryPrice.close.multipliedBy(props.item.primaryValue).plus(secondaryPrice.close.multipliedBy(props.item.secondaryValue)));
+    return { absolute: absolute, relative: relative };
+  }, [props.item]);
 
   return (
   <Collapsible.Root open={props.open}>
@@ -28,17 +39,28 @@ function FullPoolView(props: { item: Pool, open?: boolean, concentrated?: boolea
         </Flex>
         <Flex justify="between" align="center">
           <Flex align="center" gap="2" pt="1">
-            <Badge variant="soft" radius="medium" color={'gray'} size="1">
-              <Flex align="center" style={{ textDecoration: item.active ? undefined : 'line-through' }}>
-                <Text size="1">{ Readability.toMoney(null, item.primaryValue.plus(item.primaryRevenue)) }</Text>
-                <Text size="1" color="gray">x</Text>
-                <Text size="1">{ Readability.toMoney(null, item.secondaryValue.plus(item.secondaryRevenue)) }</Text>
+            {
+              revenue != null &&
+              <Flex gap="1">
+                <Badge variant="soft" radius="medium" color="gold" size="1">P&L</Badge>
+                <Badge variant="soft" radius="medium" color="jade" size="1">{ Readability.toMoney(Swap.equityAsset, revenue.absolute, true) }</Badge>
+                <Badge variant="soft" radius="medium" color="jade" size="1">{ revenue.relative.gt(0) ? '+' : '' }{ revenue.relative.multipliedBy(100).toFixed(2) }%</Badge>
               </Flex>
-            </Badge>
+            }
+            {
+              !revenue &&
+              <Badge variant="soft" radius="medium" color={'gray'} size="1">
+                <Flex align="center" style={{ textDecoration: item.active ? undefined : 'line-through' }}>
+                  <Text size="1">{ Readability.toMoney(null, item.primaryValue.plus(item.primaryRevenue)) }</Text>
+                  <Text size="1" color="gray">x</Text>
+                  <Text size="1">{ Readability.toMoney(null, item.secondaryValue.plus(item.secondaryRevenue)) }</Text>
+                </Flex>
+              </Badge>
+            }
           </Flex>
           <Collapsible.Trigger asChild={true}>
             <Button size="1" radius="large" variant="soft" mt="1">
-              <Text size="1">Details</Text>
+              <Text size="1">State</Text>
               <Box ml="1">
                 <DropdownMenu.TriggerIcon />
               </Box>

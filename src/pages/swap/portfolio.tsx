@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Card, Flex, Heading, Tabs, Text } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, Flex, Heading, Spinner, Tabs, Text } from "@radix-ui/themes";
 import { AssetId, Readability } from "tangentsdk";
 import { useEffect, useMemo, useState } from "react";
 import { Swap, Balance, Order, Pool } from "../../core/swap";
@@ -14,6 +14,7 @@ export default function PortfolioPage() {
   const [assetUpdates, setAssetUpdates] = useState(0);
   const [dashboardUpdates, setDashboardUpdates] = useState(0);
   const [todayProfits, setTodayProfits] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [assets, setAssets] = useState<any[]>([])
   const [orders, setOrders] = useState<Order[]>([]);
   const [pools, setPools] = useState<Pool[]>([]);
@@ -40,6 +41,7 @@ export default function PortfolioPage() {
     }
   }, [equityAssets]);
   useEffectAsync(async () => {
+    setLoading(true);
     try {
       if (!account)
         throw false;
@@ -56,6 +58,7 @@ export default function PortfolioPage() {
       setOrders([]);
       setPools([]);
     }
+    setLoading(false);
   }, [account, dashboardUpdates]);
   useEffect(() => {
     const updateAssets = () => setAssetUpdates(new Date().getTime());
@@ -75,16 +78,31 @@ export default function PortfolioPage() {
   return (
     <Box px="4" pt="4" minWidth="285px" maxWidth="680px" mx="auto">
       <Card mt="3" variant="surface" style={{ borderRadius: '28px' }}>
-        <Box px="2" py="1">
-          <Box mb="2">
+        {
+          loading &&
+          <Box px="2" py="1">
             <Flex justify="between" align="center" mb="1">
               <Text size="3" color="gray">Portfolio</Text>
               <Badge size="2" color="red">{ Readability.toAddress(account || '') }</Badge>
             </Flex>
-            <Heading size="7">{ Readability.toMoney(Swap.equityAsset, equity.current) }</Heading>
+            <Box pt="5" pb="6">
+              <Spinner size="3"></Spinner>
+            </Box>
           </Box>
-          <Button variant="soft" size="2" color={ equity.previous.gt(equity.current) ? 'red' : (equity.previous.eq(equity.current) ? 'gray' : 'jade') } onClick={() => setTodayProfits(!todayProfits)}>{ Readability.toMoney(Swap.equityAsset, equity.current.minus(equity.previous), true) } ({ Readability.toPercentageDelta(equity.previous, equity.current) }) - { todayProfits ? 'Today' : 'Total' }</Button>
-        </Box>
+        }
+        {
+          !loading &&
+          <Box px="2" py="1">
+            <Box mb="2">
+              <Flex justify="between" align="center" mb="1">
+                <Text size="3" color="gray">Portfolio</Text>
+                <Badge size="2" color="red">{ Readability.toAddress(account || '') }</Badge>
+              </Flex>
+              <Heading size="7">{ Readability.toMoney(Swap.equityAsset, equity.current) }</Heading>
+            </Box>
+            <Button variant="soft" size="2" color={ equity.previous.gt(equity.current) ? 'red' : (equity.previous.eq(equity.current) ? 'gray' : 'jade') } onClick={() => setTodayProfits(!todayProfits)}>{ Readability.toMoney(Swap.equityAsset, equity.current.minus(equity.previous), true) } ({ Readability.toPercentageDelta(equity.previous, equity.current) }) - { todayProfits ? 'Today' : 'Total' }</Button>
+          </Box>
+        }
       </Card>
       <Tabs.Root defaultValue="balances" mt="4">
         <Tabs.List>
