@@ -192,8 +192,8 @@ export default function OrderbookPage() {
     };
   }, [levels]);
   const balances = useMemo((): { primary: { price: BigNumber | null, value: BigNumber }, secondary: { price: BigNumber | null, value: BigNumber } } => {
-    const primaryBalance = polyBalances.primary.reduce((p, n) => ({ p: n.price ? p.p.plus(n.price).div(2) : p.p, v: p.v.plus(n.available) }), { p: new BigNumber(NaN), v: new BigNumber(0) });
-    const secondaryBalance = polyBalances.secondary.reduce((p, n) => ({ p: n.price ? p.p.plus(n.price).div(2) : p.p, v: p.v.plus(n.available) }), { p: new BigNumber(NaN), v: new BigNumber(0) });
+    const primaryBalance = polyBalances.primary.reduce((p, n) => ({ p: n.price ? (p.p.isNaN() ? n.price : p.p.plus(n.price).div(2)) : p.p, v: p.v.plus(n.available) }), { p: new BigNumber(NaN), v: new BigNumber(0) });
+    const secondaryBalance = polyBalances.secondary.reduce((p, n) => ({ p: n.price ? (p.p.isNaN() ? n.price : p.p.plus(n.price).div(2)) : p.p, v: p.v.plus(n.available) }), { p: new BigNumber(NaN), v: new BigNumber(0) });
     return {
       primary: { price: primaryBalance.p.isNaN() ? null : primaryBalance.p, value: primaryBalance.v },
       secondary: { price: secondaryBalance.p.isNaN() ? null : secondaryBalance.p, value: secondaryBalance.v },
