@@ -383,8 +383,8 @@ export default function Maker(props: {
       const primary = TextUtil.toNumericValueOrPercent(primaryValue);
       primary.value = primary.relative ? primary.value.multipliedBy(balances.primary) : primary.value;
       if (primary.value.gt(0)) {
-        primary.value = primary.value.multipliedBy(1 - 0.001);
         if (concentrated) {
+          primary.value = primary.value.multipliedBy(1.0005);
           if (primary.value.gt(0)) {
             const sqrtPrice = new BigNumber(Math.sqrt(price.toNumber()));
             const sqrtMinPrice = new BigNumber(Math.sqrt(TextUtil.toNumericValue(state.minPrice).toNumber()));
@@ -407,7 +407,7 @@ export default function Maker(props: {
       const secondary = TextUtil.toNumericValueOrPercent(secondaryValue);
       secondary.value = secondary.relative ? secondary.value.multipliedBy(balances.secondary) : secondary.value;
       if (secondary.value.gt(0)) {
-        secondary.value = secondary.value.multipliedBy(1 - 0.001);
+        secondary.value = secondary.value.multipliedBy(1.0005);
         if (concentrated) {
           if (secondary.value.gt(0)) {
             const sqrtPrice = new BigNumber(Math.sqrt(price.toNumber()));
