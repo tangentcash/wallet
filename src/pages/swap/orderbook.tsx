@@ -428,6 +428,7 @@ export default function OrderbookPage() {
       const marketResult = Swap.market(orderbook.marketId);
       const levelsResult = Swap.marketPriceLevels(orderbook.marketId, result.id);
       const assetsResult = Swap.marketAssets(orderbook.marketId, result.id);
+      const tradesResult = Swap.marketTrades({ marketId: orderbook.marketId, pairId: result.id });
       try {
         setMarket(await marketResult);
       } catch (exception: any) {
@@ -447,6 +448,15 @@ export default function OrderbookPage() {
           setPolyAssets(assetsData);
       } catch (exception: any) {
         AlertBox.open(AlertType.Error, 'Failed to fetch market poly assets: ' + (exception.message || 'unknown error'));
+      }
+
+      try {
+        const tradesData = await tradesResult;
+        if (tradesData != null) {
+          setTrades(prev => ([...prev, ...trades]));
+        }
+      } catch (exception: any) {
+        AlertBox.open(AlertType.Error, 'Failed to fetch market trades: ' + (exception.message || 'unknown error'));
       }
 
       if (typeof params.orderbook == 'string' && params.orderbook.length > 0) {
