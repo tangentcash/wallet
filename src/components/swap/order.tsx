@@ -172,7 +172,7 @@ function FullOrderView(props: { item: Order, open?: boolean, price: BigNumber | 
             item.slippage &&
             <DataList.Item>
               <DataList.Label>Price slippage:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.slippage) }</DataList.Value>
+              <DataList.Value>{ item.slippage.lt(0) ? item.slippage.negated().multipliedBy(100).toFixed(2) + '%' : Readability.toMoney(item.secondaryAsset, item.slippage) }</DataList.Value>
             </DataList.Item>
           }
           <DataList.Item>
