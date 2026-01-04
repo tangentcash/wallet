@@ -34,6 +34,9 @@ export default function TransactionPage() {
         result.state = EventResolver.calculateSummaryState(result.receipt?.events);
       }
       
+      if (!AppData.tip)
+        await AppData.sync();
+
       setData(result);
     } catch (exception) {
       setTimeout(() => AlertBox.open(AlertType.Error, 'Transaction not found: ' + (exception as Error).message), 200);

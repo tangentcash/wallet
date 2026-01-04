@@ -1,4 +1,4 @@
-import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiReloadAlert } from "@mdi/js";
+import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiRefresh, mdiReloadAlert } from "@mdi/js";
 import { Badge, Box, Button, Card, DataList, Flex, Heading, Switch, Table, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
@@ -29,7 +29,9 @@ function toServerInfo(url: string): string {
 
 export default function ConfigurePage() {
   const [counter, setCounter] = useState(0);
-  const [loadingStreaming, setLoadingStreaming] = useState(false);
+  const [resolverAddress, setResolverAddress] = useState(AppData.props.resolver || '');
+  const [serverAddress, setServerAddress] = useState(AppData.props.server || '');
+  const [loadingProps, setLoadingProps] = useState(false);
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const networkInfo = useMemo<{ connections: number, sentBytes: number, receivedBytes: number, requests: number, responses: number, minTime: Date | null, maxTime: Date | null }>(() => {
     const indices = Object.entries(AppData.server.connections);
@@ -62,17 +64,71 @@ export default function ConfigurePage() {
       maxTime: maxTime
     };
   }, [counter]);
+  const setResolverServer = useCallback((address: string) => {
+    if (loadingProps)
+      return false;
+
+    setLoadingProps(true);
+    try {
+      const target = address || null;
+      if (target != null)
+        new URL(target);
+      
+      AppData.setResolver(target);
+      if (target != null)
+        AlertBox.open(AlertType.Info, 'Using ' + target + ' for server discovery');
+      else
+        AlertBox.open(AlertType.Warning, 'Server discovery disabled');
+    } catch {
+      AlertBox.open(AlertType.Error, 'Resolver address must be a valid URL');
+    }
+
+    setLoadingProps(false);
+    return true;
+  }, [loadingProps]);
+  const setOverriderServer = useCallback(async (address: string) => {
+    if (loadingProps)
+      return false;
+
+    setLoadingProps(true);
+    try {
+      const target = address || null;
+      if (target != null)
+        new URL('tcp://' + target);
+      
+      AppData.setServer(target);
+      if (target != null) {
+        await RPC.disconnectSocket();
+        AppData.reconfigure();
+        if (await AppData.sync()) {
+          AlertBox.open(AlertType.Info, 'Using ' + target + ' as overriding server');
+        } else {
+          AlertBox.open(AlertType.Warning, 'Server connection failed');
+        }
+      } else {
+        AlertBox.open(AlertType.Warning, 'Overriding server disabled');
+      }
+    } catch {
+      AlertBox.open(AlertType.Error, 'Server must be in a hostname:port format');
+    }
+
+    setLoadingProps(false);
+    return true;
+  }, [loadingProps]);
   const setWsStreaming = useCallback(async (streaming: boolean) => {
-    if (loadingStreaming)
+    if (loadingProps)
       return false;
 
     const props = RPC.getProps();
     props.streaming = streaming;
-    setLoadingStreaming(true);
+    setLoadingProps(true);
     if (props.streaming) {
-      const result = await AppData.reconfigure();
-      if (result != null && result > 0) {
+      await RPC.disconnectSocket();
+      AppData.reconfigure();
+      if (await AppData.sync()) {
         AlertBox.open(AlertType.Info, (RPC.socket?.url || '[unknown]') + ' channel: connection acquired');
+      } else {
+        AlertBox.open(AlertType.Warning, 'No applicable server found');
       }
     } else {
       const url = RPC.socket?.url || '[unknown]';
@@ -82,10 +138,10 @@ export default function ConfigurePage() {
       }
     }
 
-    setLoadingStreaming(false);
+    setLoadingProps(false);
     RPC.saveProps(props);
     return true;
-  }, [loadingStreaming]);
+  }, [loadingProps]);
   useEffect(() => {
     const timeout = setInterval(() => setCounter(new Date().getTime()), 1000);
     return () => clearInterval(timeout);
@@ -168,18 +224,22 @@ export default function ConfigurePage() {
       <Card mt="4">
         <Box px="2" py="2">
           <Heading size="5" mb="1">Server options</Heading>
-          <Tooltip content="This discovery server helps the client to find validator servers">
-            <TextField.Root size="2" placeholder="Resolver server address" type="text" mt="2" value={AppData.props.resolver || ''} onChange={(e) => {
-              AppData.setResolver(e.target.value);
-              setCounter(new Date().getTime());
-            }} />
-          </Tooltip>
-          <Tooltip content="This validator server is the only one used to interact with Tangent (if present)">
-            <TextField.Root size="2" placeholder="Validator server address" type="text" mt="2" value={AppData.props.server || ''} onChange={(e) => {
-              AppData.setServer(e.target.value);
-              setCounter(new Date().getTime());
-            }} />
-          </Tooltip>
+          <Flex gap="1" mt="2">
+            <Tooltip content="This discovery server helps the client to find validator servers">
+              <TextField.Root style={{ width: '100%' }} size="2" placeholder="Resolver server address" type="text" value={resolverAddress} onChange={(e) => setResolverAddress(e.target.value.trim())} />
+            </Tooltip>
+            <Button size="2" variant="soft" color="orange" onClick={() => setResolverServer(resolverAddress)}>
+              <Icon path={mdiRefresh} size={0.85} />
+            </Button>
+          </Flex>
+          <Flex gap="1" mt="2">
+            <Tooltip content="This validator server is the only one used to interact with Tangent (if present)">
+              <TextField.Root style={{ width: '100%' }} size="2" placeholder="Validator server address" type="text" value={serverAddress} onChange={(e) => setServerAddress(e.target.value.trim())} />
+            </Tooltip>
+            <Button size="2" variant="soft" color="orange" onClick={() => setOverriderServer(serverAddress)}>
+              <Icon path={mdiRefresh} size={0.85} />
+            </Button>
+          </Flex>
           <Text as="label" size="1">
             <Flex gap="2" align="center" justify="between" mt="3" pl="1">
               <Text size="2" color="gray">Use websocket streaming</Text>

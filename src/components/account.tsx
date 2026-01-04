@@ -152,6 +152,9 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
     ]);
   }, [ownerAddress]);
   useEffectAsync(async () => {
+    if (!AppData.tip)
+      await AppData.sync();
+    
     await updateFullAccountData();
     setLoading(false);
   }, [ownerAddress, props.nonce]);

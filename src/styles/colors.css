@@ -104,8 +104,8 @@
 .dark, .dark-theme {
   --color-panel-translucent: var(--gray-a3);
   --gray-surface: var(--gray-a3);
-  --layer-front: #11221b;
-  --layer-back: #070d0b;
+  --layer-front: #17211d;
+  --layer-back: #090d0c;
 
   --iris-1: #0b130f;
   --iris-2: #111c16;

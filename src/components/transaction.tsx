@@ -1006,7 +1006,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
   const state = props.state || null;
   const ownerAddress = props.ownerAddress;
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
-  if (!props.preview && receipt != null && receipt.block_number.gt(AppData.tip))
+  if (!props.preview && receipt != null && (!AppData.tip || receipt.block_number.gt(AppData.tip)))
     AppData.tip = receipt.block_number;
 
   return (

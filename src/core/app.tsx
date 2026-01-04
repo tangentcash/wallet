@@ -544,12 +544,12 @@ export class AppData {
       onCacheStore: (path: string, value: any): boolean => Storage.set(CACHE_PREFIX + ':' + path, value),
       onCacheLoad: (path: string): any | null => Storage.get(CACHE_PREFIX + ':' + path),
       onCacheKeys: (): string[] => Storage.keys().filter((v) => v.startsWith(CACHE_PREFIX)).map((v) => v.substring(CACHE_PREFIX.length + 1)),
-      onIpsetLoad: (type: 'http' | 'ws'): { online: string[], offline: string[] } => Storage.get(type == 'ws' ? StorageField.Streaming : StorageField.Polling),
-      onIpsetStore: (type: 'http' | 'ws', ipset: { online: string[], offline: string[] }) => Storage.set(type == 'ws' ? StorageField.Streaming : StorageField.Polling, ipset),
+      onIpsetLoad: (type: 'http' | 'ws'): { servers: string[] } => Storage.get(type == 'ws' ? StorageField.Streaming : StorageField.Polling),
+      onIpsetStore: (type: 'http' | 'ws', ipset: { servers: string[] }) => Storage.set(type == 'ws' ? StorageField.Streaming : StorageField.Polling, ipset),
       onPropsLoad: (): InterfaceProps | null => Storage.get(StorageField.InterfaceProps) as InterfaceProps | null,
       onPropsStore: (props: InterfaceProps): boolean => Storage.set(StorageField.InterfaceProps, props)
     });
-    await this.reconfigure();
+    this.reconfigure();
     
     const splashscreen = document.getElementById('splashscreen-content');
     if (splashscreen != null) {
@@ -563,7 +563,7 @@ export class AppData {
     if (this.isApp())
       await listen('authorizer', (event) => this.authorizerEvent(event));
   }
-  static async reconfigure(network?: NetworkType): Promise<number | null> {
+  static reconfigure(network?: NetworkType): void {
     if (!network)
       network = Storage.get(StorageField.Network) || this.defaultNetwork();
     if (network != null) {
@@ -589,13 +589,11 @@ export class AppData {
       this.props.swapper = config.swapUrl;
       this.props.authorizer = config.authorizer;
     }
-    RPC.applyResolver(this.props.resolver);
-    RPC.applyServer(this.props.server);
     
     const address = this.getWalletAddress();
-    const result = await RPC.connectSocket(address ? [address] : []);
-    this.sync();
-    return result;
+    RPC.applyAddresses(address ? [address] : []);
+    RPC.applyResolver(this.props.resolver);
+    RPC.applyServer(this.props.server);
   }
   static openDevTools(): void {
     if (this.isApp())
@@ -636,13 +634,13 @@ export class AppData {
     window.URL.revokeObjectURL(target);
     document.body.removeChild(link);
   }
-  static setResolver(value: string): void {
+  static setResolver(value: string | null): void {
     this.props.resolver = value;
     RPC.applyResolver(this.props.resolver);
     this.save();
   }
-  static setServer(value: string): void {
-    this.props.server = value || null;
+  static setServer(value: string | null): void {
+    this.props.server = value;
     RPC.applyServer(this.props.server);
     this.save();
   }

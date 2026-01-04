@@ -32,6 +32,9 @@ export default function BlockPage() {
       if (!result)
         throw false;
 
+      if (!AppData.tip)
+        await AppData.sync();
+
       setBlock(result);
       try {
         const childBlock = await RPC.getBlockByNumber(result.number.toNumber() + 1);
@@ -47,7 +50,7 @@ export default function BlockPage() {
   }, [params]);
 
   if (block != null) {
-    if (block.number.gt(AppData.tip))
+    if (!AppData.tip || block.number.gt(AppData.tip))
       AppData.tip = block.number;
 
     const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
