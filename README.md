@@ -32,5 +32,10 @@ yarn make        # Website files
 yarn tauri build # Standalone executable
 ```
 
+## Links
+
+* [Discord server](https://discord.gg/TyubmucCTB)
+* [Project website](https://tangent.cash/)
+
 ## License
 This project is licensed under the MIT license
