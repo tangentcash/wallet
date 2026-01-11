@@ -8,6 +8,8 @@ import { Chain, ClearCallback, InterfaceProps, Messages, NetworkType, Pubkey, Pu
 import { SafeStorage, Storage, StorageField } from "./storage";
 import { Alert, AlertBox, AlertType } from "./../components/alert";
 import { Prompter, PrompterBox } from "../components/prompter";
+import { Navbar } from "../components/navbar";
+import Color from 'colorjs.io';
 import Regtest from './../configs/regtest.json';
 import Testnet from './../configs/testnet.json';
 import Mainnet from './../configs/mainnet.json';
@@ -23,7 +25,6 @@ import BridgePage from "./../pages/bridge"
 import PortfolioPage from "../pages/swap/portfolio";
 import ExplorerPage from "../pages/swap/explorer";
 import OrderbookPage from "../pages/swap/orderbook";
-import { Navbar } from "../components/navbar";
 
 const CACHE_PREFIX = 'V000';
 
@@ -85,6 +86,7 @@ export class AppData {
     appearance: 'dark'
   };
   static mayNotify: boolean = false;
+  static colors: Record<string, string> = { };
   static styles: CSSStyleDeclaration | null = null;
   static platform: 'desktop' | 'mobile' | 'unknown' = 'unknown';
   static wallet: WalletKeychain | null = null;
@@ -645,6 +647,7 @@ export class AppData {
     this.save();
   }
   static setAppearance(value: 'dark' | 'light'): void {
+    this.colors = { };
     this.styles = null;
     this.props.appearance = value;
     this.save();
@@ -679,10 +682,29 @@ export class AppData {
   static styleOf(property: string): string | undefined {
     if (!this.styles) {
       const element = document.querySelector('.radix-themes')
-      if (element != null)
+      if (element != null) {
         this.styles = getComputedStyle(element);
+      }
     }
-    return this.styles?.getPropertyValue(property) || undefined;
+
+    const cache = this.colors[property];
+    if (cache != null)
+      return cache;
+
+    let result = this.styles?.getPropertyValue(property) || undefined;
+    if (!result)
+      return undefined;
+
+    if (!result.startsWith('#') && !result.startsWith('rgb')) {
+      try {
+        result = new Color(result).to('srgb').toString();
+      } catch {
+        return undefined;
+      }
+    }
+
+    this.colors[property] = result;
+    return result;
   }
   static defaultNetwork(): NetworkType {
     // @ts-ignore
