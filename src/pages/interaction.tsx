@@ -140,15 +140,15 @@ export default function InteractionPage() {
     if (program instanceof ProgramTransfer) {
       return program.to.length > 1 ? 'Send to many' : 'Send to one';
     } else if (program instanceof ProgramSetup) {
-      return 'Validator configuration';
+      return 'Validator setup';
     } else if (program instanceof ProgramRoute) {
-        return 'Address claim';
+        return 'Claim address';
     } else if (program instanceof ProgramWithdraw) {
       return 'Withdraw to address';
     } else if (program instanceof ProgramWithdrawAndMigrate) {
-      return 'Bridge migration';
+      return 'Migrate bridge';
     } else if (program instanceof ProgramAnticast) {
-        return 'Bridge protest';
+        return 'Protest bridge';
     } else if (program instanceof ApproveTransaction) {
       return 'Approve action';
     }
@@ -757,10 +757,10 @@ export default function InteractionPage() {
               </Tooltip>
               <DropdownMenu.Separator />
               <Tooltip content="For validator: change block production and/or participation/attestation stake(s)">
-                <DropdownMenu.Item onClick={() => navigate('/interaction?type=configure')}>Enter</DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => navigate('/interaction?type=configure')}>Setup</DropdownMenu.Item>
               </Tooltip>
               <Tooltip content="For validator: migrate bridge manager to another manager along with custodial funds (for attestation unstaking)">
-                <DropdownMenu.Item onClick={() => navigate('/interaction?type=migrate')}>Exit</DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => navigate('/interaction?type=migrate')}>Migrate</DropdownMenu.Item>
               </Tooltip>
             </DropdownMenu.Content>
           </DropdownMenu.Root>
@@ -888,7 +888,7 @@ export default function InteractionPage() {
       {
         asset != -1 && program instanceof ProgramSetup &&
         <Card mt="4">
-          <Heading size="4" mb="2">Validation configuration</Heading>
+          <Heading size="4" mb="2">Validation setup</Heading>
           <Select.Root size="3" value={program.blockProduction} onValueChange={(value) => {
             const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
             copy.blockProduction = value as any;
