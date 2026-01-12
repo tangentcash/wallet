@@ -9,10 +9,8 @@ export enum StorageField {
   SecretKey = '__secretkey__',
   PublicKey = '__publickey__',
   Address = '__address__',
-  Polling = '__polling__',
-  Streaming = '__streaming__',
-  AppProps = '__aprops__',
-  InterfaceProps = '__iprops__'
+  Ipset = '__ipset__',
+  App = '__app__'
 }
 
 export class Storage {

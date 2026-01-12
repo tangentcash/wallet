@@ -1,5 +1,5 @@
 import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiRefresh, mdiReloadAlert } from "@mdi/js";
-import { Badge, Box, Button, Card, DataList, Flex, Heading, Switch, Table, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, DataList, Flex, Heading, Table, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { SafeStorage, StorageField } from "../core/storage";
@@ -115,33 +115,6 @@ export default function ConfigurePage() {
     setLoadingProps(false);
     return true;
   }, [loadingProps]);
-  const setWsStreaming = useCallback(async (streaming: boolean) => {
-    if (loadingProps)
-      return false;
-
-    const props = RPC.getProps();
-    props.streaming = streaming;
-    setLoadingProps(true);
-    if (props.streaming) {
-      await RPC.disconnectSocket();
-      AppData.reconfigure();
-      if (await AppData.sync()) {
-        AlertBox.open(AlertType.Info, (RPC.socket?.url || '[unknown]') + ' channel: connection acquired');
-      } else {
-        AlertBox.open(AlertType.Warning, 'No applicable server found');
-      }
-    } else {
-      const url = RPC.socket?.url || '[unknown]';
-      const result = await RPC.disconnectSocket();
-      if (result) {
-        AlertBox.open(AlertType.Warning, url + ' channel: connection ended');
-      }
-    }
-
-    setLoadingProps(false);
-    RPC.saveProps(props);
-    return true;
-  }, [loadingProps]);
   useEffect(() => {
     const timeout = setInterval(() => setCounter(new Date().getTime()), 1000);
     return () => clearInterval(timeout);
@@ -240,12 +213,6 @@ export default function ConfigurePage() {
               <Icon path={mdiRefresh} size={0.85} />
             </Button>
           </Flex>
-          <Text as="label" size="1">
-            <Flex gap="2" align="center" justify="between" mt="3" pl="1">
-              <Text size="2" color="gray">Use websocket streaming</Text>
-              <Switch size="3" variant="soft" checked={RPC.getProps().streaming} onCheckedChange={(value) => setWsStreaming(value)}/>
-            </Flex>
-          </Text>
         </Box>
       </Card>
       <Card mt="4">

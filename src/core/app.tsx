@@ -4,7 +4,7 @@ import { BrowserRouter, Navigate, NavigateFunction, Route, Routes } from "react-
 import { Box, Theme } from "@radix-ui/themes";
 import { core } from '@tauri-apps/api';
 import { listen } from "@tauri-apps/api/event";
-import { Chain, ClearCallback, InterfaceProps, Messages, NetworkType, Pubkey, Pubkeyhash, Hashsig, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType, Authorizer, Viewable, Hashing, ByteUtil, AssetId, Approving, AuthEntity, AuthApproval, Readability } from "tangentsdk";
+import { Chain, ClearCallback, Messages, NetworkType, Pubkey, Pubkeyhash, Hashsig, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType, Authorizer, Viewable, Hashing, ByteUtil, AssetId, Approving, AuthEntity, AuthApproval, Readability } from "tangentsdk";
 import { SafeStorage, Storage, StorageField } from "./storage";
 import { Alert, AlertBox, AlertType } from "./../components/alert";
 import { Prompter, PrompterBox } from "../components/prompter";
@@ -302,7 +302,7 @@ export class AppData {
     }
   }
   private static save(): void {
-    Storage.set(StorageField.AppProps, this.props);
+    Storage.set(StorageField.App, this.props);
   }
   private static render(): void {
     const element = document.getElementById("root") as HTMLElement;
@@ -529,7 +529,7 @@ export class AppData {
     }
   }
   static async main(): Promise<void> {
-    const props: AppProps | null = Storage.get(StorageField.AppProps);
+    const props: AppProps | null = Storage.get(StorageField.App);
     if (this.isApp())
       core.invoke('platform_type').then((value) => this.platform = value as 'desktop' | 'mobile' | 'unknown');
     if (props != null)
@@ -546,10 +546,8 @@ export class AppData {
       onCacheStore: (path: string, value: any): boolean => Storage.set(CACHE_PREFIX + ':' + path, value),
       onCacheLoad: (path: string): any | null => Storage.get(CACHE_PREFIX + ':' + path),
       onCacheKeys: (): string[] => Storage.keys().filter((v) => v.startsWith(CACHE_PREFIX)).map((v) => v.substring(CACHE_PREFIX.length + 1)),
-      onIpsetLoad: (type: 'http' | 'ws'): { servers: string[] } => Storage.get(type == 'ws' ? StorageField.Streaming : StorageField.Polling),
-      onIpsetStore: (type: 'http' | 'ws', ipset: { servers: string[] }) => Storage.set(type == 'ws' ? StorageField.Streaming : StorageField.Polling, ipset),
-      onPropsLoad: (): InterfaceProps | null => Storage.get(StorageField.InterfaceProps) as InterfaceProps | null,
-      onPropsStore: (props: InterfaceProps): boolean => Storage.set(StorageField.InterfaceProps, props)
+      onIpsetLoad: (): { servers: string[] } => Storage.get(StorageField.Ipset),
+      onIpsetStore: (ipset: { servers: string[] }) => Storage.set(StorageField.Ipset, ipset)
     });
     this.reconfigure();
     
@@ -585,7 +583,7 @@ export class AppData {
           throw new Error('invalid network');
       }
     })();
-    if (!Storage.get(StorageField.AppProps)) {
+    if (!Storage.get(StorageField.App)) {
       this.props.resolver = config.resolverUrl;
       this.props.server = config.serverUrl;
       this.props.swapper = config.swapUrl;
