@@ -29,8 +29,8 @@
 }
 
 :root, .light, .light-theme {
-  --layer-front: #f0fdf5;
-  --layer-back: #f8fffb;
+  --layer-front: #ebebeb;
+  --layer-back: #fff;
 
   --iris-1: #f8fffb;
   --iris-2: #f0fdf5;
@@ -104,8 +104,8 @@
 .dark, .dark-theme {
   --color-panel-translucent: var(--gray-a3);
   --gray-surface: var(--gray-a3);
-  --layer-front: #17211d;
-  --layer-back: #090d0c;
+  --layer-front: #151515;
+  --layer-back: #000;
 
   --iris-1: #0b130f;
   --iris-2: #111c16;

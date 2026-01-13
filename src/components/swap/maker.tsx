@@ -461,7 +461,7 @@ export default function Maker(props: {
   const makeOrder = () => (
     <Box>
       <Box mb="4">
-        <Button variant="surface" color={state.side == OrderSide.Buy ? 'jade' : 'red'} style={{ display: 'block', height: 'auto', width: '100%', borderRadius: '24px' }} onClick={() => updateState(prev => ({ ...prev, value: valueBalance.toString() }))}>
+        <Button variant="soft" color={state.side == OrderSide.Buy ? 'jade' : 'red'} style={{ display: 'block', height: 'auto', width: '100%', borderRadius: '24px' }} onClick={() => updateState(prev => ({ ...prev, value: valueBalance.toString() }))}>
           <Flex align="center" gap="2" px="2" py="3">
             <Avatar size="2" fallback={Readability.toAssetFallback(valueAsset)} src={Readability.toAssetImage(valueAsset)} style={{ width: '40px', height: '40px' }} />
             <Box>
@@ -599,7 +599,7 @@ export default function Maker(props: {
   const makePool = () => (
     <Box>
       <Box mb="4">
-        <Button variant="surface" color="orange" style={{ display: 'block', height: 'auto', width: '100%', borderRadius: '24px' }}>
+        <Button variant="soft" color="orange" style={{ display: 'block', height: 'auto', width: '100%', borderRadius: '24px' }}>
           <Flex align="center" gap="2" px="2" py="3">
             <Box style={{ position: 'relative' }}>
               <Avatar size="2" fallback={Readability.toAssetFallback(props.secondaryAsset)} src={Readability.toAssetImage(props.secondaryAsset)} style={{ position: 'absolute', top: '20px', left: '-6px', width: '26px', height: '26px' }} />

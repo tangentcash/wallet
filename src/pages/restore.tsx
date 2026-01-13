@@ -187,11 +187,11 @@ export default function RestorePage() {
 
     setLoading(true);
     let mnemonic: string = '';
-    for (let i = 0; i < 32; i++) {
+    for (let i = 0; i < 64; i++) {
       mnemonic = Signing.mnemonicgen();
       setSeed(cyrb128(mnemonic)[0]);
       setMnemonic(mnemonic.split(' '));
-      await new Promise((resolve) => setTimeout(resolve, 200));
+      await new Promise((resolve) => setTimeout(resolve, 50));
     }
 
     let status = await AppData.resetWallet(mnemonic.split(' '), WalletType.Mnemonic, networkType);

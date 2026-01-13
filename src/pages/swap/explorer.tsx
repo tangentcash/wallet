@@ -103,7 +103,7 @@ export default function ExplorerPage() {
       </Flex>
       <Box pb="3">
         <Tooltip content="Find already launched market pairs by name">
-          <TextField.Root placeholder="Try ETH/USDT…" variant="surface" size="3" value={query} style={{ width: '100%' }} onInput={(e) => setQuery(e.currentTarget.value || '')}>
+          <TextField.Root placeholder="Try ETH/USDT…" variant="soft" color="gray" size="3" value={query} style={{ width: '100%' }} onInput={(e) => setQuery(e.currentTarget.value || '')}>
             <TextField.Slot>
               <Icon path={mdiMagnify} size={0.8}></Icon>
             </TextField.Slot>
@@ -112,7 +112,7 @@ export default function ExplorerPage() {
       </Box>
       <Flex gap="1">
         <AssetSelector title="token 1 to launch" value={marketLauncher.primary} onChange={(value) => setMarketLauncher(prev => ({ primary: value, secondary: prev?.secondary || null }))}>
-          <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--jade-1)', position: 'relative' }} color="red">
+          <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--jade-2)', position: 'relative' }} color="red">
             <Flex justify="center" align="center">
               {
                 marketLauncher.primary != null &&
@@ -127,7 +127,7 @@ export default function ExplorerPage() {
               }
             </Flex>
             <Box style={{ zIndex: '1', borderRadius: '16px', backgroundColor: 'var(--gray-1)', padding: '4px', position: 'absolute', bottom: '50%', right: '-25px', transform: 'translateY(50%)' }}>
-              <Flex justify="center" align="center" style={{ borderRadius: '12px', backgroundColor: 'var(--jade-3)', width: '40px', height: '40px' }}>
+              <Flex justify="center" align="center" style={{ borderRadius: '12px', backgroundColor: 'var(--jade-4)', width: '40px', height: '40px' }}>
                 <Icon path={mdiArrowLeftRight} size={1.2}></Icon>
               </Flex>
             </Box>
