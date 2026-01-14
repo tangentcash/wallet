@@ -107,6 +107,13 @@ export default function InteractionPage() {
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
   const [program, setProgram] = useState<ProgramTransfer | ProgramSetup | ProgramRoute | ProgramWithdraw | ProgramWithdrawAndMigrate | ProgramAnticast | ApproveTransaction | null>(null);
   const navigate = useNavigate();
+  const gasAsset = useMemo((): AssetId | null => {
+    if (asset == -1)
+      return null;
+
+    const transactionAsset = assets[asset];
+    return new AssetId(transactionAsset.asset.chain);
+  }, [assets, asset]);
   const maxFeeValue = useMemo((): BigNumber => {
     try {
       const price = new BigNumber(gasPrice.trim());
@@ -362,8 +369,9 @@ export default function InteractionPage() {
       return false;
     }
 
-    return maxFeeValue.plus(sendingValue).lte(assets[asset].balance);
-  }, [programReady, gasPrice, gasLimit, maxFeeValue, sendingValue]);
+    const gasAssetBalance = (gasAsset ? assets.find((v) => v.asset.id == gasAsset.id)?.balance : null) || new BigNumber(0);
+    return maxFeeValue.plus(sendingValue).lte(gasAssetBalance);
+  }, [programReady, gasPrice, gasLimit, gasAsset, maxFeeValue, sendingValue]);
   const readOnlyApproval = useMemo((): boolean => {
     return program != null && program instanceof ApproveTransaction && params.transaction != null;
   }, [program]);
@@ -1235,7 +1243,7 @@ export default function InteractionPage() {
         <Card mt="4">
           <Heading size="4" mb="2">Priority & cost</Heading>
           <Tooltip content="Higher gas price increases transaction priority">
-            <TextField.Root mt="3" mb="3" size="3" placeholder="Custom gas price" type="number" disabled={loadingGasPriceAndPrice} value={gasPrice} onChange={(e) => setGasPrice(e.target.value)} />
+            <TextField.Root mt="3" mb="3" size="3" placeholder={"Custom gas price " + Readability.toAssetSymbol(gasAsset || new AssetId())} type="number" disabled={loadingGasPriceAndPrice} value={gasPrice} onChange={(e) => setGasPrice(e.target.value)} />
           </Tooltip>
           <Tooltip content="Gas limit caps max transaction cost">
             <TextField.Root mb="3" size="3" placeholder="Custom gas limit" type="number" disabled={loadingGasPriceAndPrice} value={gasLimit} onChange={(e) => setGasLimit(e.target.value)} />
@@ -1243,7 +1251,7 @@ export default function InteractionPage() {
           <Flex gap="2">
             <Box width="100%">
               <Tooltip content="Max possible transaction fee">
-                <TextField.Root size="3" placeholder="Max fee value" readOnly={true} value={gasPrice.length > 0 && gasLimit.length > 0 ? 'Pay up to ' + Readability.toMoney(assets[asset].asset, maxFeeValue) + ' in fees' : 'Fee to be estimated'} onClick={() => {
+                <TextField.Root size="3" placeholder="Max fee value" readOnly={true} value={gasPrice.length > 0 && gasLimit.length > 0 ? 'Pay up to ' + Readability.toMoney(gasAsset, maxFeeValue) + ' in fees' : 'Fee to be estimated'} onClick={() => {
                   navigator.clipboard.writeText(maxFeeValue.toString());
                   AlertBox.open(AlertType.Info, 'Value copied!')
                 }}/>
@@ -1266,7 +1274,7 @@ export default function InteractionPage() {
             </DropdownMenu.Root>
           </Flex>
           {
-            sendingValue.gt(0) && maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber() > 40.0 &&
+            sendingValue.gt(0) && gasAsset?.id == assets[asset].asset.id && maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber() > 40.0 &&
             <Flex justify="end" pt="4">
               <Text color="orange" size="2" weight="medium">Warning: transaction fee may cost up to {maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber().toFixed(2)}% of paying value</Text>
             </Flex>
@@ -1360,7 +1368,7 @@ export default function InteractionPage() {
                         }
                       </>
                     }
-                    <Text as="div" weight="light" size="4" mb="1">— Pay up to <Text color="orange">{ Readability.toMoney(assets[asset].asset, maxFeeValue) }</Text> to <Text color="sky">miner as fee</Text></Text>
+                    <Text as="div" weight="light" size="4" mb="1">— Pay up to <Text color="orange">{ Readability.toMoney(gasAsset, maxFeeValue) }</Text> to <Text color="sky">miner as fee</Text></Text>
                   </Box>
                   <Flex gap="3" mt="4" justify="between">
                     <Dialog.Close>
