@@ -1205,7 +1205,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Gas price:</DataList.Label>
-              <DataList.Value>{ transaction.gas_price != null ? Readability.toMoney(new AssetId(transaction.asset.chain), transaction.gas_price) : <Badge color="yellow">Consensus override</Badge> }</DataList.Value>
+              <DataList.Value>{ transaction.gas_price != null ? Readability.toMoney(AssetId.fromHandle(transaction.asset.chain), transaction.gas_price) : <Badge color="yellow">Consensus override</Badge> }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Gas limit:</DataList.Label>
@@ -1222,7 +1222,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   transaction.gas_price != null &&
                   <DataList.Item>
                     <DataList.Label>Fee paid:</DataList.Label>
-                    <DataList.Value>{ Readability.toMoney(new AssetId(transaction.asset.chain), receipt.relative_gas_use.multipliedBy(transaction.gas_price)) }</DataList.Value>
+                    <DataList.Value>{ Readability.toMoney(AssetId.fromHandle(transaction.asset.chain), receipt.relative_gas_use.multipliedBy(transaction.gas_price)) }</DataList.Value>
                   </DataList.Item>
                 }
               </>

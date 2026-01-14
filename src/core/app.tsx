@@ -26,8 +26,6 @@ import PortfolioPage from "../pages/swap/portfolio";
 import ExplorerPage from "../pages/swap/explorer";
 import OrderbookPage from "../pages/swap/orderbook";
 
-const CACHE_PREFIX = 'V000';
-
 export type DecodedTransaction = {
   typename: string,
   type: number,
@@ -58,12 +56,16 @@ export type AppState = {
   setNavigation: NavigateFunction | null
 }
 
+export type AppDefs = {
+  prefix: string | null,
+  swapper: string | null,
+  authorizer: boolean,
+};
+
 export type AppProps = {
   resolver: string | null,
   server: string | null,
-  swapper: string | null,
   account: string | null,
-  authorizer: boolean,
   appearance: 'dark' | 'light'
 }
 
@@ -77,12 +79,15 @@ export class AppData {
     setState: null,
     setNavigation: null
   };
+  static defs: AppDefs = {
+    prefix: null,
+    swapper: null,
+    authorizer: false,
+  };
   static props: AppProps = {
     resolver: null,
     server: null,
-    swapper: null,
     account: null,
-    authorizer: false,
     appearance: 'dark'
   };
   static mayNotify: boolean = false;
@@ -181,7 +186,7 @@ export class AppData {
     AlertBox.open(AlertType.Error, `${address}${address.endsWith('/') ? '' : '/'}${method} error: ${(error as any)?.message || error}`);
   }
   private static async authorizerEvent(request: { event: string, id: number, payload: any}): Promise<boolean> {
-    if (!this.props.authorizer || PrompterBox.isOpen() || this.approveTransaction)
+    if (!this.defs.authorizer || PrompterBox.isOpen() || this.approveTransaction)
       return false;
 
     return await Authorizer.try(request.payload);
@@ -543,9 +548,9 @@ export class AppData {
       onNodeRequest: this.nodeRequest,
       onNodeResponse: this.nodeResponse,
       onNodeError: this.nodeError,
-      onCacheStore: (path: string, value: any): boolean => Storage.set(CACHE_PREFIX + ':' + path, value),
-      onCacheLoad: (path: string): any | null => Storage.get(CACHE_PREFIX + ':' + path),
-      onCacheKeys: (): string[] => Storage.keys().filter((v) => v.startsWith(CACHE_PREFIX)).map((v) => v.substring(CACHE_PREFIX.length + 1)),
+      onCacheStore: (path: string, value: any): boolean => Storage.set((this.defs.prefix || 'V') + ':' + path, value),
+      onCacheLoad: (path: string): any | null => Storage.get((this.defs.prefix || 'V') + ':' + path),
+      onCacheKeys: (): string[] => Storage.keys().filter((v) => v.startsWith((this.defs.prefix || 'V'))).map((v) => v.substring((this.defs.prefix || 'V').length + 1)),
       onIpsetLoad: (): { servers: string[] } => Storage.get(StorageField.Ipset),
       onIpsetStore: (ipset: { servers: string[] }) => Storage.set(StorageField.Ipset, ipset)
     });
@@ -571,7 +576,7 @@ export class AppData {
       Storage.set(StorageField.Network, network);
     } 
       
-    const config: { resolverUrl: string | null, serverUrl: string | null, swapUrl: string | null, authorizer: boolean } = (() => {
+    const config: { resolverUrl: string | null, serverUrl: string | null, swapUrl: string | null, cachePrefix: string | null, authorizer: boolean } = (() => {
       switch (network) {
         case NetworkType.Regtest:
           return Regtest;
@@ -583,12 +588,13 @@ export class AppData {
           throw new Error('invalid network');
       }
     })();
-    if (!Storage.get(StorageField.App)) {
+    this.defs.prefix = config.cachePrefix;
+    this.defs.swapper = config.swapUrl;
+    this.defs.authorizer = config.authorizer;
+    if (!this.props.resolver)
       this.props.resolver = config.resolverUrl;
+    if (!Storage.get(StorageField.App))
       this.props.server = config.serverUrl;
-      this.props.swapper = config.swapUrl;
-      this.props.authorizer = config.authorizer;
-    }
     
     const address = this.getWalletAddress();
     RPC.applyAddresses(address ? [address] : []);

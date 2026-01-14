@@ -1,4 +1,4 @@
-import { Avatar, Box, Button, Card, Flex, SegmentedControl, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Avatar, Box, Button, Card, Flex, SegmentedControl, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { AccountTier, Balance, OrderCondition, OrderPolicy, OrderSide, Swap } from "../../core/swap";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mdiCurrencyUsd } from "@mdi/js";
@@ -48,13 +48,16 @@ export default function Maker(props: {
   pairId: BigNumber,
   primaryAsset: AssetId,
   secondaryAsset: AssetId,
-  balances: { primary: Balance[], secondary: Balance[] },
+  balances?: { primary: Balance[], secondary: Balance[] },
   tiers?: AccountTier,
   preset?: ({ id: number } & Partial<typeof defaultState>) | null
 }) {
   const [presetId, setPresetId] = useState<number>(0);
   const [state, setState] = useState(defaultState);
-  const balances = useMemo((): { primary: BigNumber, secondary: BigNumber } => {
+  const balances = useMemo((): { primary: BigNumber, secondary: BigNumber } | null => {
+    if (!props.balances)
+      return null;
+
     const primaryBalance = props.balances.primary.reduce((p, n) => p.plus(n.available), new BigNumber(0));
     const secondaryBalance = props.balances.secondary.reduce((p, n) => p.plus(n.available), new BigNumber(0));
     return { primary: primaryBalance, secondary: secondaryBalance };
@@ -77,8 +80,8 @@ export default function Maker(props: {
   const valueAsset = useMemo((): AssetId => {
     return state.side == OrderSide.Buy ? props.secondaryAsset : props.primaryAsset;
   }, [props, state.side]);
-  const valueBalance = useMemo((): BigNumber => {
-    return state.side == OrderSide.Buy ? balances.secondary : balances.primary;
+  const valueBalance = useMemo((): BigNumber | null => {
+    return state.side == OrderSide.Buy ? balances?.secondary || null : balances?.primary || null;
   }, [balances, state.side]);
   const bestPrice = useMemo((): BigNumber => {
     if (hasPrice)
@@ -93,8 +96,8 @@ export default function Maker(props: {
     if (!finalValueQuantity.value.gt(0))
       return new BigNumber(NaN);
 
-    const finalValue = finalValueQuantity.relative ? valueBalance.multipliedBy(finalValueQuantity.relative) : finalValueQuantity.value;
-    if (!finalValue.gt(0) || finalValue.gt(valueBalance))
+    const finalValue = finalValueQuantity.relative ? valueBalance?.multipliedBy(finalValueQuantity.relative) : finalValueQuantity.value;
+    if (!finalValue || !valueBalance || !finalValue.gt(0) || finalValue.gt(valueBalance))
       return new BigNumber(NaN);
 
     return finalValue;
@@ -127,8 +130,8 @@ export default function Maker(props: {
     if (!finalValueQuantity.value.gt(0))
       return null;
 
-    const finalValue = finalValueQuantity.relative ? valueBalance.multipliedBy(finalValueQuantity.relative) : finalValueQuantity.value;
-    if (!finalValue.gt(0) || finalValue.gt(valueBalance))
+    const finalValue = finalValueQuantity.relative ? valueBalance?.multipliedBy(finalValueQuantity.relative) : finalValueQuantity.value;
+    if (!props.balances || !finalValue || !valueBalance || !finalValue.gt(0) || finalValue.gt(valueBalance))
       return null;
 
     let leftover = new BigNumber(finalValue);
@@ -307,6 +310,9 @@ export default function Maker(props: {
     if (withPriceRange && (minPrice.gte(price) || maxPrice.lte(price) || minPrice.gte(maxPrice)))
       return null;
 
+    if (!props.balances || !balances)
+      return null;
+
     const primary = TextUtil.toNumericValueOrPercent(state.primaryValue), secondary = TextUtil.toNumericValueOrPercent(state.secondaryValue);
     primary.value = primary.relative ? primary.value.multipliedBy(balances.primary) : primary.value;
     secondary.value = secondary.relative ? secondary.value.multipliedBy(balances.secondary) : secondary.value;
@@ -381,7 +387,7 @@ export default function Maker(props: {
     const price = TextUtil.toNumericValue(state.basePrice);
     if (price.gt(0)) {
       const primary = TextUtil.toNumericValueOrPercent(primaryValue);
-      primary.value = primary.relative ? primary.value.multipliedBy(balances.primary) : primary.value;
+      primary.value = balances ? (primary.relative ? primary.value.multipliedBy(balances.primary) : primary.value) : new BigNumber(0);
       if (primary.value.gt(0)) {
         if (concentrated) {
           primary.value = primary.value.multipliedBy(1.0005);
@@ -405,7 +411,7 @@ export default function Maker(props: {
     const price = TextUtil.toNumericValue(state.basePrice);
     if (price.gt(0)) {
       const secondary = TextUtil.toNumericValueOrPercent(secondaryValue);
-      secondary.value = secondary.relative ? secondary.value.multipliedBy(balances.secondary) : secondary.value;
+      secondary.value = balances ? (secondary.relative ? secondary.value.multipliedBy(balances.secondary) : secondary.value) : new BigNumber(0);
       if (secondary.value.gt(0)) {
         secondary.value = secondary.value.multipliedBy(1.0005);
         if (concentrated) {
@@ -461,12 +467,24 @@ export default function Maker(props: {
   const makeOrder = () => (
     <Box>
       <Box mb="4">
-        <Button variant="soft" color={state.side == OrderSide.Buy ? 'jade' : 'red'} style={{ display: 'block', height: 'auto', width: '100%', borderRadius: '24px' }} onClick={() => updateState(prev => ({ ...prev, value: valueBalance.toString() }))}>
+        <Button variant="soft" color={state.side == OrderSide.Buy ? 'jade' : 'red'} style={{ display: 'block', height: 'auto', width: '100%', borderRadius: '24px' }} onClick={() => {
+          if (valueBalance != null)
+            updateState(prev => ({ ...prev, value: valueBalance.toString() }));
+        }}>
           <Flex align="center" gap="2" px="2" py="3">
             <Avatar size="2" fallback={Readability.toAssetFallback(valueAsset)} src={Readability.toAssetImage(valueAsset)} style={{ width: '40px', height: '40px' }} />
             <Box>
               <Text align="left" style={{ display: 'block' }}>{ Readability.toAssetName(valueAsset) }</Text>
-              <Text align="left" weight="bold" size="3" style={{ display: 'block' }}>{ Readability.toMoney(valueAsset, valueBalance) }</Text>
+              {
+                valueBalance && 
+                <Text align="left" weight="bold" size="3" style={{ display: 'block' }}>{ Readability.toMoney(valueAsset, valueBalance) }</Text>
+              }
+              {
+                !valueBalance &&
+                <Box pt="1">
+                  <Spinner size="3"></Spinner>
+                </Box>
+              }
             </Box>
           </Flex>
         </Button>
@@ -605,10 +623,19 @@ export default function Maker(props: {
               <Avatar size="2" fallback={Readability.toAssetFallback(props.secondaryAsset)} src={Readability.toAssetImage(props.secondaryAsset)} style={{ position: 'absolute', top: '20px', left: '-6px', width: '26px', height: '26px' }} />
               <Avatar size="2" fallback={Readability.toAssetFallback(props.primaryAsset)} src={Readability.toAssetImage(props.primaryAsset)} style={{ width: '40px', height: '40px' }} />
             </Box>
-            <Box>
-              <Text align="left" weight="bold" size="3" style={{ display: 'block' }}>{ Readability.toMoney(props.primaryAsset, balances.primary) }</Text>
-              <Text align="left" style={{ display: 'block' }}>{ Readability.toMoney(props.secondaryAsset, balances.secondary) }</Text>
-            </Box>
+            {
+              balances &&
+              <Box>
+                <Text align="left" weight="bold" size="3" style={{ display: 'block' }}>{ Readability.toMoney(props.primaryAsset, balances.primary) }</Text>
+                <Text align="left" style={{ display: 'block' }}>{ Readability.toMoney(props.secondaryAsset, balances.secondary) }</Text>
+              </Box>
+            }
+            {
+              !balances &&
+              <Box pt="3" pb="3">
+                <Spinner size="3"></Spinner>
+              </Box>
+            }
           </Flex>
         </Button>
       </Box>

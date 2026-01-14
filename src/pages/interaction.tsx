@@ -112,7 +112,7 @@ export default function InteractionPage() {
       return null;
 
     const transactionAsset = assets[asset];
-    return new AssetId(transactionAsset.asset.chain);
+    return AssetId.fromHandle(transactionAsset.asset.chain);
   }, [assets, asset]);
   const maxFeeValue = useMemo((): BigNumber => {
     try {

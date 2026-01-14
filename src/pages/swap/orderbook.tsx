@@ -127,6 +127,7 @@ export default function OrderbookPage() {
   const seriesRef = useRef<IChartApi>(null);
   const priceSeriesRef = useRef<SeriesApiRef<'Candlestick' | 'Bar' | 'Area' | 'Line'>>(null);
   const volumeSeriesRef = useRef<SeriesApiRef<'Histogram'>>(null);
+  const [loading, setLoading] = useState<boolean>(true);
   const [preset, setPreset] = useState<{ id: number, condition: OrderCondition, side: OrderSide, price: string } | null>(null);
   const [tab, setTab] = useState<'info' | 'order' | 'book' | 'trades'>(mobile ? 'info' : 'order');
   const [orders, setOrders] = useState<Order[]>([]);
@@ -154,7 +155,7 @@ export default function OrderbookPage() {
       [60, "1m"]
     ],
     interval: 1800,
-    bars: 240,
+    bars: 256,
     priceLevel: '',
     priceScope: PriceScope.All,
     view: ChartViewType.Candles,
@@ -290,7 +291,7 @@ export default function OrderbookPage() {
     const reset = !seriesState.ready;
     setSeriesState(prev => ({ ...prev, ready: true, loading: true }));
     try {
-      const result = await Swap.marketPriceSeries(pair.id, from, to, seriesOptions.interval);
+      const result = await Swap.marketPriceSeries(pair.id, seriesOptions.interval, Math.floor(from / seriesOptions.interval));
       const price: PriceBar[] = [], volume: VolumeBar[] = [];
       let min = result.length > 0 ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER;
       let max = Number.MIN_SAFE_INTEGER;
@@ -376,6 +377,7 @@ export default function OrderbookPage() {
     });
   }, [params]);
   useEffectAsync(async () => {
+    setLoading(true);
     try {
       if (!orderbook || !orderbook.marketId || !orderbook.primaryAsset || !orderbook.secondaryAsset)
         throw false;
@@ -467,6 +469,7 @@ export default function OrderbookPage() {
       }
       
       await updateAccount();
+      setLoading(false);
       window.addEventListener('update:order', updateAccount);
       return () => window.removeEventListener('update:order', updateAccount);
     } catch (exception: any) {
@@ -944,18 +947,15 @@ export default function OrderbookPage() {
                 </Tabs.Content>
                 <Tabs.Content value="order">
                   <Box px={mobile ? '3' : undefined} pt={mobile ? '4' : undefined}>
-                    {
-                      orderbook?.marketId && orderbook.primaryAsset && orderbook.secondaryAsset && pair &&
-                      <Maker
-                        path={orderPath}
-                        marketId={orderbook.marketId}
-                        pairId={pair.id}
-                        primaryAsset={orderbook.primaryAsset}
-                        secondaryAsset={orderbook.secondaryAsset}
-                        balances={polyBalances}
-                        tiers={tiers || undefined}
-                        preset={preset}></Maker>
-                    }
+                    <Maker
+                      path={orderPath}
+                      marketId={orderbook?.marketId || new BigNumber(0)}
+                      pairId={pair?.id || new BigNumber(0)}
+                      primaryAsset={orderbook?.primaryAsset || new AssetId()}
+                      secondaryAsset={orderbook?.secondaryAsset || new AssetId()}
+                      balances={loading ? undefined : polyBalances}
+                      tiers={tiers || undefined}
+                      preset={preset}></Maker>
                     {
                       orders.map((item) =>
                         <Box mt="3" key={item.orderId.toString()}>

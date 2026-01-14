@@ -4,6 +4,8 @@ import { Storage } from "./storage"
 import { AppData } from "./app"
 import BigNumber from "bignumber.js"
 
+const WEBSOCKET_TIMEOUT = 24000;
+
 export enum MarketPolicy {
     Spot,
     Margin
@@ -177,6 +179,7 @@ export type BlockchainInfo = AssetId & {
 }
 
 export type Descriptors = Record<string, { asset: AssetId, price: { open: BigNumber | null, close: BigNumber | null } }>;
+export type PromiseCallback = (data: any) => void;
 
 export enum SwapField {
   Orderbook = '__orderbook__'
@@ -191,8 +194,11 @@ export class Swap {
   static equityAsset: AssetId = AssetId.fromHandle('USD');
   static orderbook:  string | null = null;
   static socket: WebSocket | null = null;
-  static pipeId: string | null = null;
   static awaitables: (() => void)[] | null = [];
+  static requests = {
+    pending: new Map<string, { resolve: PromiseCallback } >(),
+    count: 0
+  };
 
   static storeURL(params: URLSearchParams, key: string, value: any, parentPrefix = '') {
     const fullKey = parentPrefix ? `${parentPrefix}[${key}]` : key;
@@ -301,14 +307,21 @@ export class Swap {
   static async acquire(): Promise<void> {
     try {
       const address = AppData.getWalletAddress();
-      this.location = AppData.props.swapper || '';
+      this.location = AppData.defs.swapper || '';
       
-      const [_, portfolio] = await Promise.all([this.channel(address ? [address] : []), this.assetsPortfolio()]);
+      const connection = await this.channel(address ? [address] : []);
+      if (!connection)
+        throw new Error('Connection failed');
+
+      try {
+        const portfolio = await this.assetsPortfolio();
+        this.prices = portfolio?.prices || { };
+        this.contracts = portfolio?.markets || [];
+        this.descriptors = (portfolio?.descriptors || []).sort((a, b) => Readability.toAssetSymbol(a).localeCompare(Readability.toAssetSymbol(b)));
+        this.equityAsset = this.prices['__BASE__']?.asset || this.equityAsset;
+      } catch { }
+
       this.orderbook = Storage.get(SwapField.Orderbook);
-      this.prices = portfolio?.prices || { };
-      this.contracts = portfolio?.markets || [];
-      this.descriptors = (portfolio?.descriptors || []).sort((a, b) => Readability.toAssetSymbol(a).localeCompare(Readability.toAssetSymbol(b)));
-      this.equityAsset = this.prices['__BASE__']?.asset || this.equityAsset;
       this.dispatchEvent('swap:ready', { data: { } });
       if (this.awaitables != null) {
         for (let i = 0; i < this.awaitables.length; i++) {
@@ -335,18 +348,50 @@ export class Swap {
     if (awaitable)
       await this.acquireDeferred();
 
-    const body = method != 'GET';
-    const search = new URLSearchParams();
-    if (!body && args != null && typeof args == 'object')
-      Object.keys(args).forEach(key => this.storeURL(search, key, args[key]));
+    if (this.socket) {
+      console.log('[swap-rpc]', `${this.location.replace('http', 'ws')}/${location}`, 'call', args);
+      const id = (++this.requests.count).toString();
+      const data: any | Error = await new Promise((resolve, reject) => {
+        const context = { resolve: (_: any) => { } };
+        const timeout = setTimeout(() => context.resolve(new Error('connection timed out')), WEBSOCKET_TIMEOUT);
+        context.resolve = (data: any | Error) => {
+          this.requests.pending.delete(id);
+          clearTimeout(timeout);
+          if (data instanceof Error)
+            reject(data);
+          else
+            resolve(data);
+        };
+        this.requests.pending.set(id, context);
+        if (this.socket != null) {
+          this.socket.send(JSON.stringify({
+            id: id,
+            method: method.toLowerCase() + '://' + location,
+            params: args
+          }));
+        } else {
+          context.resolve(new Error('connection reset'));
+        }
+      });
+      console.log('[swap-rpc]', `${this.location.replace('http', 'ws')}/${location}`, 'return', data);
+      return this.fetchData(data instanceof Error ? { error: data.toString() } : data);
+    } else {
+      console.log('[swap-rpc]', `${this.location}/${location}`, 'call', args);
+      const body = method != 'GET';
+      const search = new URLSearchParams();
+      if (!body && args != null && typeof args == 'object')
+        Object.keys(args).forEach(key => this.storeURL(search, key, args[key]));
 
-    const url = new URL(`${this.location}/${location}${search.size > 0 ? '?' : ''}${search.toString()}`);
-    const response = await fetch(url, {
-      method: method,
-      headers: body && args != null ? { 'Content-Type': 'application/json' } : undefined,
-      body: body && args != null ? JSON.stringify(args) : undefined,
-    });
-    return this.fetchData(await response.json());
+      const url = new URL(`${this.location}/${location}${search.size > 0 ? '?' : ''}${search.toString()}`);
+      const response = await fetch(url, {
+        method: method,
+        headers: body && args != null ? { 'Content-Type': 'application/json' } : undefined,
+        body: body && args != null ? JSON.stringify(args) : undefined,
+      });
+      const data = await response.json();
+      console.log('[swap-rpc]', `${this.location}/${location}`, 'return', data);
+      return this.fetchData(data);
+    }
   }
   static async channel(addresses: string[] | null): Promise<boolean> {
     if (addresses == null) {
@@ -376,10 +421,14 @@ export class Swap {
           try {
             const data: any = JSON.parse(message);
             if (data != null && typeof data.id != 'undefined') {
-              if (typeof data.result == 'object' && typeof data.result.pipeId == 'string')
-                this.pipeId = data.result.pipeId;
-              if (typeof data.notification == 'object' && data.notification != null && typeof data.notification.type == 'string')
-                this.dispatchEvent(data.notification.type, data.notification);
+              if (typeof data.notification == 'object') {
+                if (data.notification != null && typeof data.notification.type == 'string')
+                  this.dispatchEvent(data.notification.type, data.notification);
+              } else if (typeof data.result != 'undefined' && data.id != null) {
+                const response = this.requests.pending.get(data.id.toString());
+                if (response != null)
+                  response.resolve(data);
+              }
             }
           } catch { }
         };
@@ -402,7 +451,12 @@ export class Swap {
     }
 
     if (this.socket != null) {
-      this.socket.send(JSON.stringify({ accounts: addresses }))
+      this.socket.send(JSON.stringify({
+        method: 'post://pipe',
+        params: {
+          accounts: addresses
+        }
+      }));
     }
 
     return true;
@@ -458,8 +512,8 @@ export class Swap {
     result.secondaryAsset = new AssetId(result.secondaryAsset);
     return result;
   }
-  static async marketPriceSeries(pairId: number | string | BigNumber, from: string | number | BigNumber, to: string | number | BigNumber, interval: string | number | BigNumber): Promise<{ time: number, sentiment: number, volume: BigNumber, open: BigNumber, low: BigNumber, high: BigNumber, close: BigNumber }[]> {
-    const result = await this.fetch('GET', `market/price/series`, { pairId: pairId.toString(), from: from.toString(), to: to.toString(), interval: interval.toString() });
+  static async marketPriceSeries(pairId: number | string | BigNumber, interval: string | number | BigNumber, page: string | number | BigNumber): Promise<{ time: number, sentiment: number, volume: BigNumber, open: BigNumber, low: BigNumber, high: BigNumber, close: BigNumber }[]> {
+    const result = await this.fetch('GET', `market/price/series`, { pairId: pairId.toString(), interval: interval.toString(), page: page.toString() });
     return result.map((v: any[]) => ({
       time: v[0].toNumber(),
       sentiment: v[1].toNumber(),
@@ -570,9 +624,6 @@ export class Swap {
       account: account.address
     });
     return result;
-  }
-  static getPipeId(): string | null {
-    return this.pipeId;
   }
   static getURL(): string {
     return this.location;
