@@ -194,6 +194,7 @@ export class Swap {
   static equityAsset: AssetId = AssetId.fromHandle('USD');
   static orderbook:  string | null = null;
   static socket: WebSocket | null = null;
+  static pipeId: string | null = null;
   static awaitables: (() => void)[] | null = [];
   static requests = {
     pending: new Map<string, { resolve: PromiseCallback } >(),
@@ -425,9 +426,13 @@ export class Swap {
                 if (data.notification != null && typeof data.notification.type == 'string')
                   this.dispatchEvent(data.notification.type, data.notification);
               } else if (typeof data.result != 'undefined' && data.id != null) {
-                const response = this.requests.pending.get(data.id.toString());
-                if (response != null)
-                  response.resolve(data);
+                if (data.id != 'connect') {
+                  const response = this.requests.pending.get(data.id.toString());
+                  if (response != null)
+                    response.resolve(data);
+                } else {
+                  this.pipeId = data.id;
+                }
               }
             }
           } catch { }
@@ -455,7 +460,8 @@ export class Swap {
         method: 'post://pipe',
         params: {
           accounts: addresses
-        }
+        },
+        id: "connect"
       }));
     }
 

@@ -26,8 +26,7 @@ export default function PerformerButton(props: { title: string, description: str
 
     setLoading(true);
     try {
-      const id = Swap.getPipeId();
-      if (!id)
+      if (!Swap.pipeId)
         throw new Error('No connection to API server');
 
       const args: Record<string, any> = props.onData ? props.onData() || { } : { };
@@ -37,7 +36,7 @@ export default function PerformerButton(props: { title: string, description: str
         body: JSON.stringify({
             type: 'challenge',
             challenge: ByteUtil.uint8ArrayToHexString(Hashing.hash256(randomBytes(32))),
-            id: id,
+            id: Swap.pipeId,
             ...args
         })
       });
