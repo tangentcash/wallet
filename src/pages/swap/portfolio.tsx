@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Card, Flex, Heading, Spinner, Tabs, Text } from "@radix-ui/themes";
+import { Box, Button, Card, Flex, Heading, Spinner, Tabs, Text } from "@radix-ui/themes";
 import { AssetId, Readability } from "tangentsdk";
 import { useEffect, useMemo, useState } from "react";
 import { Swap, Balance, Order, Pool } from "../../core/swap";
@@ -8,6 +8,8 @@ import BigNumber from "bignumber.js";
 import BalanceView from "../../components/swap/balance";
 import OrderView from "../../components/swap/order";
 import PoolView from "../../components/swap/pool";
+import Icon from "@mdi/react";
+import { mdiRefresh } from "@mdi/js";
 
 export default function PortfolioPage() {
   const account = AppData.getWalletAddress();
@@ -46,7 +48,7 @@ export default function PortfolioPage() {
       if (!account)
         throw false;
 
-      const portfolio = await Swap.accountPortfolio({ address: account });
+      const portfolio = await Swap.accountPortfolio({ address: account, resync: dashboardUpdates == -1 });
       if (!portfolio)
         throw false;
       
@@ -83,7 +85,9 @@ export default function PortfolioPage() {
           <Box px="2" py="1">
             <Flex justify="between" align="center" mb="1">
               <Text size="3" color="gray">Portfolio</Text>
-              <Badge size="2" color="red">{ Readability.toAddress(account || '') }</Badge>
+              <Button variant="soft" size="2" color="orange" disabled={true}>
+                <Icon path={mdiRefresh} size={0.8}></Icon> { (account || '').substring(Math.max((account || '').length - 6, 0)) }
+              </Button>
             </Flex>
             <Box pt="5" pb="6">
               <Spinner size="3"></Spinner>
@@ -96,7 +100,9 @@ export default function PortfolioPage() {
             <Box mb="2">
               <Flex justify="between" align="center" mb="1">
                 <Text size="3" color="gray">Portfolio</Text>
-                <Badge size="2" color="red">{ Readability.toAddress(account || '') }</Badge>
+                <Button variant="soft" size="2" color="orange" disabled={loading} onClick={() => setDashboardUpdates(-1)}>
+                  <Icon path={mdiRefresh} size={0.8}></Icon> { (account || '').substring(Math.max((account || '').length - 6, 0)) }
+                </Button>
               </Flex>
               <Heading size="7">{ Readability.toMoney(Swap.equityAsset, equity.current) }</Heading>
             </Box>

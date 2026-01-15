@@ -566,10 +566,11 @@ export class Swap {
       quantity: item.quantity
     }));
   }
-  static async accountPortfolio(account: AccountQuery): Promise<{ balances: Balance[], orders: Order[], pools: Pool[] } | null> {
+  static async accountPortfolio(account: AccountQuery & { resync?: boolean }): Promise<{ balances: Balance[], orders: Order[], pools: Pool[] } | null> {
     const result = await this.fetch('GET', `account/portfolio`, {
       id: account.id,
-      account: account.address
+      account: account.address,
+      resync: account.resync
     });
     if (!result)
       return null;
@@ -587,10 +588,11 @@ export class Swap {
       pools: (result.pools || []).map((v: any) => this.toPool(v))
     };
   }
-  static async accountBalances(account: AccountQuery): Promise<Balance[]> {
+  static async accountBalances(account: AccountQuery & { resync?: boolean }): Promise<Balance[]> {
     const result = await this.fetch('GET', `account/balances`, {
       id: account.id,
-      account: account.address
+      account: account.address,
+      resync: account.resync
     });
     return result.map((v: any) => {
       return {
