@@ -267,7 +267,7 @@ export default function OrderbookPage() {
           priceFormatter: (price: BarPrice): string => Readability.toValue(null, price, false, true)
       }
     };
-  }, [pair, seriesOptions.crosshair, seriesOptions.view, seriesOptions.inverted, seriesOptions.price]);
+  }, [pair?.id, seriesOptions.crosshair, seriesOptions.view, seriesOptions.inverted, seriesOptions.price]);
   const fetchSeries = useCallback(async (range: LogicalRange | null) => {
     if (!pair || !priceSeriesRef.current || seriesState.loading)
       return;
