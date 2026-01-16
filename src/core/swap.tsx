@@ -1,4 +1,4 @@
-import { AssetId, ByteUtil, Hashing, Readability, Stream, Viewable } from "tangentsdk"
+import { AssetId, ByteUtil, Chain, Hashing, Readability, Stream, Viewable } from "tangentsdk"
 import { AlertBox, AlertType } from "../components/alert"
 import { Storage } from "./storage"
 import { AppData } from "./app"
@@ -188,7 +188,8 @@ export enum SwapField {
 export class Swap {
   static location: string = '';
   static subroute: string = '/swap';
-  static prices: Record<string, { asset: AssetId, price: { open: BigNumber | null, close: BigNumber | null } }> = { };
+  static whitelist: Set<string> = new Set<string>();
+  static prices: Descriptors = { };
   static contracts: Market[] = [];
   static descriptors: BlockchainInfo[] = [];
   static equityAsset: AssetId = AssetId.fromHandle('USD');
@@ -321,6 +322,16 @@ export class Swap {
         this.descriptors = (portfolio?.descriptors || []).sort((a, b) => Readability.toAssetSymbol(a).localeCompare(Readability.toAssetSymbol(b)));
         this.equityAsset = this.prices['__BASE__']?.asset || this.equityAsset;
       } catch { }
+
+      try {
+        const whitelist = await (await fetch(`${this.location}/asset/whitelist`)).json();
+        if (!Array.isArray(whitelist))
+          throw false;
+
+        this.whitelist = new Set<string>(whitelist as string[]);
+      } catch {
+        this.whitelist = new Set<string>();
+      }
 
       this.orderbook = Storage.get(SwapField.Orderbook);
       this.dispatchEvent('swap:ready', { data: { } });
@@ -699,5 +710,20 @@ export class Swap {
       default:
         return 'Unknown';
     }
+  }
+  static whitelistOf(asset: AssetId): boolean {
+    if (!asset.token || !asset.checksum) {
+      return true;
+    } else if (asset.chain != Chain.policy.TOKEN_NAME) {
+      return this.whitelist.has(asset.id);
+    }
+
+    for (let i = 0; i < this.contracts.length; i++) {
+      const contract = this.contracts[i];
+      if (asset.checksum == AssetId.checksumOf(contract.account).substring(0, asset.checksum.length))
+        return true;
+    }
+
+    return false;
   }
 }

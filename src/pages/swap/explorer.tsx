@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { AggregatedPair, Swap, Market } from "../../core/swap";
 import { AlertBox, AlertType } from "../../components/alert";
 import { useEffectAsync } from "../../core/react";
-import { mdiArrowLeftRight, mdiCurrencyBtc, mdiCurrencyUsd, mdiMagnify } from "@mdi/js";
+import { mdiArrowLeftRight, mdiCheckDecagram, mdiCurrencyBtc, mdiCurrencyUsd, mdiMagnify } from "@mdi/js";
 import { AssetId, Readability } from "tangentsdk";
 import { useNavigate } from "react-router";
 import BigNumber from "bignumber.js";
@@ -16,7 +16,7 @@ function toAssetSymbol(asset: AssetId): string {
 
 export default function ExplorerPage() {
   const [market, setMarket] = useState<Market | null>(null);
-  const [pairs, setPairs] = useState<AggregatedPair[]>([]);
+  const [pairs, setPairs] = useState<{ pair: AggregatedPair, whitelisted: boolean }[]>([]);
   const [launchablePair, setLaunchablePair] = useState<AggregatedPair | null>(null);
   const [marketLauncher, setMarketLauncher] = useState<{ primary: AssetId | null, secondary: AssetId | null }>({ primary: null, secondary: null });
   const [query, setQuery] = useState<string>('');
@@ -27,14 +27,14 @@ export default function ExplorerPage() {
       secondary: secondary || null
     };
   }, [query]);
-  const pairsFilter = useMemo((): AggregatedPair[] => {
+  const pairsFilter = useMemo((): { pair: AggregatedPair, whitelisted: boolean }[] => {
     let result = [...pairs].filter((item) => {
-      const primaryMatches = !assetQuery.primary || Readability.toAssetQuery(item.primaryAsset).toLowerCase().indexOf(assetQuery.primary) != -1;
-      const secondaryMatches = !assetQuery.secondary || Readability.toAssetQuery(item.secondaryAsset).toLowerCase().indexOf(assetQuery.secondary) != -1;
+      const primaryMatches = !assetQuery.primary || Readability.toAssetQuery(item.pair.primaryAsset).toLowerCase().indexOf(assetQuery.primary) != -1;
+      const secondaryMatches = !assetQuery.secondary || Readability.toAssetQuery(item.pair.secondaryAsset).toLowerCase().indexOf(assetQuery.secondary) != -1;
       return primaryMatches && secondaryMatches;
     });
     if (launchablePair != null) {
-      result = [launchablePair, ...result];
+      result = [{ pair: launchablePair, whitelisted: Swap.whitelistOf(launchablePair.primaryAsset) && Swap.whitelistOf(launchablePair.secondaryAsset) }, ...result];
     }
     return result;
   }, [pairs, assetQuery, launchablePair]);
@@ -48,8 +48,9 @@ export default function ExplorerPage() {
     try {
       if (market != null) {
         const results = await Swap.marketPairs(market.id);
-        if (Array.isArray(results))
-          setPairs(results)
+        if (Array.isArray(results)) {
+          setPairs(results.map((x) => ({ pair: x, whitelisted: Swap.whitelistOf(x.primaryAsset) && Swap.whitelistOf(x.secondaryAsset) })));
+        }
       } else {
         setPairs([]);
       }
@@ -76,9 +77,9 @@ export default function ExplorerPage() {
         const copy = [...prev];
         for (let i = 0; i < copy.length; i++) {
           const symbol = copy[i];
-          const target = Swap.priceOf(symbol.primaryAsset, symbol.secondaryAsset);
-          symbol.price.open = target.open || symbol.price.open;
-          symbol.price.close = target.close || symbol.price.close;
+          const target = Swap.priceOf(symbol.pair.primaryAsset, symbol.pair.secondaryAsset);
+          symbol.pair.price.open = target.open || symbol.pair.price.open;
+          symbol.pair.price.close = target.close || symbol.pair.price.close;
         }
         return copy;
       });
@@ -154,41 +155,44 @@ export default function ExplorerPage() {
       <Box pt="4">
         {
           market != null && pairsFilter.map((item, index) =>
-            <Button variant="ghost" radius="none" style={{ display: 'block', width: '100%', borderRadius: '24px' }} mb={index < pairsFilter.length - 1 ? '4' : undefined} key={item.id.toString()} onClick={() => navigate(`/swap/orderbook/${Swap.toOrderbookQuery(market.id, item.primaryAsset, item.secondaryAsset)}`)}>
+            <Button variant="ghost" radius="none" style={{ display: 'block', width: '100%', borderRadius: '24px' }} mb={index < pairsFilter.length - 1 ? '4' : undefined} key={item.pair.id.toString()} onClick={() => navigate(`/swap/orderbook/${Swap.toOrderbookQuery(market.id, item.pair.primaryAsset, item.pair.secondaryAsset)}`)}>
               <Box px="2" py="2">
                 <Flex justify="start" align="center" gap="3">
                   <Box style={{ position: 'relative' }}>
-                    <Avatar size="2" fallback={Readability.toAssetFallback(item.secondaryAsset)} src={Readability.toAssetImage(item.secondaryAsset)} style={{ position: 'absolute', top: '24px', left: '-6px' }} />
-                    <Avatar size="4" fallback={Readability.toAssetFallback(item.primaryAsset)} src={Readability.toAssetImage(item.primaryAsset)} />
+                    <Avatar size="2" fallback={Readability.toAssetFallback(item.pair.secondaryAsset)} src={Readability.toAssetImage(item.pair.secondaryAsset)} style={{ position: 'absolute', top: '24px', left: '-6px' }} />
+                    <Avatar size="4" fallback={Readability.toAssetFallback(item.pair.primaryAsset)} src={Readability.toAssetImage(item.pair.primaryAsset)} />
                   </Box>
                   <Box width="100%">
                     <Flex justify="between" align="center">
-                      <Flex align="center">
-                        {
-                          item.secondaryBase == null &&
-                          <>
-                            <Text size="2" weight="bold" style={{ color: 'var(--gray-12)' }}>{ item.primaryAsset.token || item.primaryAsset.chain }</Text>
-                            <Text size="2" color="gray" mx="1">x</Text>
-                            <Text size="2" weight="bold" style={{ color: 'var(--gray-12)' }}>{ item.secondaryAsset.token || item.secondaryAsset.chain }</Text>
-                          </>
-                        }
-                        {
-                          item.secondaryBase != null &&
-                          <Text size="2" weight="bold" style={{ color: 'var(--gray-12)' }}>{ Readability.toAssetName(item.primaryAsset) }</Text>
-                        }
+                      <Flex gap="1">
+                        <Flex align="center">
+                          {
+                            item.pair.secondaryBase == null &&
+                            <>
+                              <Text size="2" weight="bold" style={{ color: 'var(--gray-12)' }}>{ item.pair.primaryAsset.token || item.pair.primaryAsset.chain }</Text>
+                              <Text size="2" color="gray" mx="1">x</Text>
+                              <Text size="2" weight="bold" style={{ color: 'var(--gray-12)' }}>{ item.pair.secondaryAsset.token || item.pair.secondaryAsset.chain }</Text>
+                            </>
+                          }
+                          {
+                            item.pair.secondaryBase != null &&
+                            <Text size="2" weight="bold" style={{ color: 'var(--gray-12)' }}>{ Readability.toAssetName(item.pair.primaryAsset) }</Text>
+                          }
+                        </Flex>
+                        { item.whitelisted && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.7}></Icon> }
                       </Flex>
-                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(item.secondaryAsset, item.price.close && item.secondaryBase != null ? item.price.close.dp(2) : item.price.close) }</Text>
+                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(item.pair.secondaryAsset, item.pair.price.close && item.pair.secondaryBase != null ? item.pair.price.close.dp(2) : item.pair.price.close) }</Text>
                     </Flex>
                     <Flex justify="between" align="center">
                       <Flex align="center">
-                        <Text size="1" color="gray">{ toAssetSymbol(item.primaryAsset) }{ toAssetSymbol(item.secondaryAsset) }</Text>
+                        <Text size="1" color="gray">{ toAssetSymbol(item.pair.primaryAsset) }{ toAssetSymbol(item.pair.secondaryAsset) }</Text>
                       </Flex>
                       <Flex gap="1">
                         {
-                          item.price.poolVolume && item.price.poolLiquidity &&
-                          <Badge radius="full" size="1" color="orange">{ (item.price.poolLiquidity || new BigNumber(0)).gt(0) ? (item.price.poolVolume || new BigNumber(0)).multipliedBy(market.maxPoolFeeRate).dividedBy(item.price.poolLiquidity || new BigNumber(0)).multipliedBy(365 * 100).toFixed(2) : '0.00' }% APY</Badge>
+                          item.pair.price.poolVolume && item.pair.price.poolLiquidity &&
+                          <Badge radius="full" size="1" color="orange">{ (item.pair.price.poolLiquidity || new BigNumber(0)).gt(0) ? (item.pair.price.poolVolume || new BigNumber(0)).multipliedBy(market.maxPoolFeeRate).dividedBy(item.pair.price.poolLiquidity || new BigNumber(0)).multipliedBy(365 * 100).toFixed(2) : '0.00' }% APY</Badge>
                         }
-                        <Badge radius="full" size="1" color={ (item.price.open || new BigNumber(0)).gt(item.price.close || new BigNumber(0)) ? 'red' : ((item.price.open || new BigNumber(0)).eq(item.price.close || new BigNumber(0)) ? 'gray' : 'jade') }>{ Readability.toPercentageDelta(item.price.open || new BigNumber(0), item.price.close || new BigNumber(0)) }</Badge>
+                        <Badge radius="full" size="1" color={ (item.pair.price.open || new BigNumber(0)).gt(item.pair.price.close || new BigNumber(0)) ? 'red' : ((item.pair.price.open || new BigNumber(0)).eq(item.pair.price.close || new BigNumber(0)) ? 'gray' : 'jade') }>{ Readability.toPercentageDelta(item.pair.price.open || new BigNumber(0), item.pair.price.close || new BigNumber(0)) }</Badge>
                       </Flex>
                     </Flex>
                   </Box>

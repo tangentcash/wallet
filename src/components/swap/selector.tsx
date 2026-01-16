@@ -1,4 +1,4 @@
-import { mdiAlphabeticalVariant, mdiCancel, mdiConsole, mdiMagnify, mdiPlus } from "@mdi/js";
+import { mdiAlphabeticalVariant, mdiCancel, mdiCheckDecagram, mdiConsole, mdiMagnify, mdiPlus } from "@mdi/js";
 import { Avatar, Box, Button, Dialog, Flex, IconButton, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { AssetId, Readability } from "tangentsdk";
@@ -12,7 +12,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
   const [symbol, setSymbol] = useState('');
   const [address, setAddress] = useState('');
   const [query, setQuery] = useState('');
-  const [assets, setAssets] = useState<AssetId[]>([]);
+  const [assets, setAssets] = useState<{ asset: AssetId, whitelisted: boolean }[]>([]);
   const policy = useMemo((): BlockchainInfo | null => policyIndex != null ? Swap.descriptors[policyIndex] : null, [policyIndex]);
   const customToken = useMemo((): AssetId | null => {
     const targetSymbol = symbol.trim(), targetAddress = address.trim();
@@ -28,7 +28,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
       setLoading(setTimeout(async () => {
         try {
           const result = await Swap.assetQuery(value);
-          setAssets(result);
+          setAssets(result.map((x) => ({ asset: x, whitelisted: Swap.whitelistOf(x) })));
         } catch { }
         setLoading(null);
       }, 300) as any);
@@ -47,10 +47,11 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
     setAddress('');
     if (props.value != null) {
       const policyId = Swap.descriptors.findIndex((item) => item.chain == props.value?.chain);
+      const asset = new AssetId(props.value.id);
       setQuery(props.value.handle);
       setPolicyIndex(policyId != -1 ? policyId : null);
       setSymbol(props.value?.token || '');
-      setAssets([new AssetId(props.value.id)]);
+      setAssets([{ asset: asset, whitelisted: Swap.whitelistOf(asset) }]);
     } else {
       setQuery('');
       setPolicyIndex(null);
@@ -84,13 +85,16 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
         <Box px="2" pt="1">
           {
             assets.map((item) =>
-              <Dialog.Close key={item.id}>
-                <Button variant="ghost" color="gray" size="4" radius="none" style={{ width: '100%', padding: '8px 8px', display: 'block', borderRadius: '24px' }} mt="4" onClick={() => useAsset(item)}>
+              <Dialog.Close key={item.asset.id}>
+                <Button variant="ghost" color="gray" size="4" radius="none" style={{ width: '100%', padding: '8px 8px', display: 'block', borderRadius: '24px' }} mt="4" onClick={() => useAsset(item.asset)}>
                   <Flex align="center" gap="2">
-                    <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item)} src={Readability.toAssetImage(item)} style={{ width: '42px', height: '42px' }} />
+                    <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '42px', height: '42px' }} />
                     <Flex align="start" direction="column">
-                      <Text size="3" style={{ color: 'var(--gray-12)' }}>{ Readability.toAssetName(item) }</Text>
-                      <Text size="2">{ Readability.toAssetSymbol(item) }</Text>
+                      <Flex align="center" gap="1">
+                        <Text size="3" style={{ color: 'var(--gray-12)' }}>{ Readability.toAssetName(item.asset) }</Text>
+                        { item.whitelisted && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.7}></Icon> }
+                      </Flex>
+                      <Text size="2">{ Readability.toAssetSymbol(item.asset) }</Text>
                     </Flex>
                   </Flex>
                 </Button>

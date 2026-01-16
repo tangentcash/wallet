@@ -6,7 +6,7 @@ import { Swap, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Ma
 import { useEffectAsync } from "../../core/react";
 import { SeriesApiRef } from "lightweight-charts-react-components";
 import { BarPrice, ChartOptions, CrosshairMode, DeepPartial, IChartApi, LogicalRange, MouseEventParams, PriceScaleMode, Time } from "lightweight-charts";
-import { mdiArrowRightThin, mdiCog, mdiCurrencyUsd } from "@mdi/js";
+import { mdiArrowRightThin, mdiCheckDecagram, mdiCog, mdiCurrencyUsd } from "@mdi/js";
 import { GenericBar, PriceBar, VolumeBar, ChartViewType, ChartView } from "../../components/swap/chart";
 import { AlertBox, AlertType } from "../../components/alert";
 import { AssetId, Readability } from "tangentsdk";
@@ -127,6 +127,7 @@ export default function OrderbookPage() {
   const seriesRef = useRef<IChartApi>(null);
   const priceSeriesRef = useRef<SeriesApiRef<'Candlestick' | 'Bar' | 'Area' | 'Line'>>(null);
   const volumeSeriesRef = useRef<SeriesApiRef<'Histogram'>>(null);
+  const [whitelisted, setWhitelisted] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [preset, setPreset] = useState<{ id: number, condition: OrderCondition, side: OrderSide, price: string } | null>(null);
   const [tab, setTab] = useState<'info' | 'order' | 'book' | 'trades'>(mobile ? 'info' : 'order');
@@ -469,6 +470,7 @@ export default function OrderbookPage() {
       }
 
       await updateAccount();
+      setWhitelisted(Swap.whitelistOf(result.primaryAsset) && Swap.whitelistOf(result.secondaryAsset));
       setLoading(false);
       window.addEventListener('update:order', updateAccount);
       return () => window.removeEventListener('update:order', updateAccount);
@@ -631,7 +633,10 @@ export default function OrderbookPage() {
         </Box>
         <Flex direction="column" width="100%">
           <Flex justify="between">
-            <Text size={mobile ? '3' : '4'} style={{ height: '18px', color: 'var(--gray-12)' }}>{ orderbook?.primaryAsset ? Readability.toAssetName(orderbook.primaryAsset) : '?' }</Text>
+            <Flex gap="1">
+              <Text size={mobile ? '3' : '4'} style={{ height: '18px', color: 'var(--gray-12)' }}>{ orderbook?.primaryAsset ? Readability.toAssetName(orderbook.primaryAsset) : '?' }</Text>
+              { whitelisted && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.75} style={{ transform: 'translateY(3px)' }}></Icon> }
+            </Flex>
             <Text size={mobile ? '3' : '4'} style={{ height: '18px' }}>{ Readability.toValue(null, pair?.price.close || null, false, true) }</Text>
           </Flex>
           <Flex justify="between" align="center" mt={mobile ? undefined : '1'}>
@@ -892,6 +897,10 @@ export default function OrderbookPage() {
                                 <Text>{ Readability.toAssetSymbol(orderbook.secondaryAsset) }</Text>
                               </Flex>
                             </Flex>
+                          </Flex>
+                          <Flex justify="between" wrap="wrap" gap="1">
+                            <Text size="2" color="gray">Risk</Text>
+                            <Text size="2" style={{ color: whitelisted ? 'var(--jade-11)' : 'var(--red-11)' }}>{ whitelisted ? 'Low' : 'High' } risk pair</Text>
                           </Flex>
                           <Flex justify="between" wrap="wrap" gap="1">
                             <Text size="2" color="gray">Type</Text>
