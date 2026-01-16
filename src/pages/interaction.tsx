@@ -100,6 +100,7 @@ export default function InteractionPage() {
   const [asset, setAsset] = useState(-1);
   const [nonce, setNonce] = useState<BigNumber | null>();
   const [simulation, setSimulation] = useState<{ receipt: any, state: SummaryState } | null>(null);
+  const [paidGas, setPaidGas] = useState(false);
   const [gasPrice, setGasPrice] = useState('');
   const [gasLimit, setGasLimit] = useState('');
   const [loadingTransaction, setLoadingTransaction] = useState(false);
@@ -357,6 +358,9 @@ export default function InteractionPage() {
       const numeric = new BigNumber(gasPrice.trim());
       if (numeric.isNaN() || !numeric.gte(0))
         return false;
+
+      if (paidGas && !numeric.gt(0))
+        return false;
     } catch {
       return false;
     }
@@ -371,7 +375,7 @@ export default function InteractionPage() {
 
     const gasAssetBalance = (gasAsset ? assets.find((v) => v.asset.id == gasAsset.id)?.balance : null) || new BigNumber(0);
     return maxFeeValue.plus(sendingValue).lte(gasAssetBalance);
-  }, [programReady, gasPrice, gasLimit, gasAsset, maxFeeValue, sendingValue]);
+  }, [programReady, paidGas, gasPrice, gasLimit, gasAsset, maxFeeValue, sendingValue]);
   const readOnlyApproval = useMemo((): boolean => {
     return program != null && program instanceof ApproveTransaction && params.transaction != null;
   }, [program]);
@@ -554,7 +558,17 @@ export default function InteractionPage() {
     setLoadingGasPriceAndPrice(loadingRequired);
     if (presetGasPrice.eq(-1)) {
       try {
-        presetGasPrice = await RPC.getGasPrice(new AssetId(assets[asset].asset.id), percentile);
+        const gas = await RPC.getGasPrice(new AssetId(assets[asset].asset.id), percentile);
+        if (!gas)
+          throw false;
+        
+        setPaidGas(gas.paid);
+        if (gas.paid && !gas.price.gt(0)) {
+          AlertBox.open(AlertType.Warning, 'Must specify gas price manually: network is congested (anti-spam)')
+          throw false;
+        }
+
+        presetGasPrice = gas.price;
         presetGasPrice = presetGasPrice != null && BigNumber.isBigNumber(presetGasPrice) && presetGasPrice.gte(0) ? presetGasPrice : new BigNumber(0);
       } catch { }
     }
@@ -1275,7 +1289,7 @@ export default function InteractionPage() {
           </Flex>
           {
             sendingValue.gt(0) && gasAsset?.id == assets[asset].asset.id && maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber() > 40.0 &&
-            <Flex justify="end" pt="4">
+            <Flex justify="center" pt="4">
               <Text color="orange" size="2" weight="medium">Warning: transaction fee may cost up to {maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber().toFixed(2)}% of paying value</Text>
             </Flex>
           }
@@ -1289,97 +1303,94 @@ export default function InteractionPage() {
               <Dialog.Trigger>
                 <Button variant="outline" size="3" color="jade" className="shadow-rainbow-animation" loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => transactionReady ? buildTransaction() : calculateTransactionGas(0.95)}>Review transaction</Button>
               </Dialog.Trigger>
-              {
-                transactionReady &&
-                <Dialog.Content maxWidth="500px">
-                  <Flex justify="between" align="center">
-                    <Dialog.Title mb="0">Review</Dialog.Title>
-                    <Button variant="surface" color="indigo" radius="medium" size="1" onClick={() => {
-                      navigator.clipboard.writeText(JSON.stringify(toSimpleTransaction(transactionData), null, 4));
-                      AlertBox.open(AlertType.Info, 'Transaction dump copied!')
-                    }}>
-                      <Icon path={mdiCodeJson} size={0.6}></Icon>
-                      Dump
-                    </Button>
-                  </Flex>
-                  <Dialog.Description mb="3" size="2" color="gray">Side effects:</Dialog.Description>
-                  <Box>
-                    {
-                      asset != -1 && program instanceof ProgramTransfer &&
-                      <Text as="div" weight="light" size="4" mb="1">— Send <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', program.to.length) }</Text></Text>        
-                    }
-                    {
-                      asset != -1 && program instanceof ProgramSetup &&
-                      <>
-                        {
-                          program.blockProduction != 'standby' &&
-                          <Text as="div" weight="light" size="4" mb="1">— { program.blockProduction == 'enable' ? 'Enable' : 'Disable' } <Text color="red">block production</Text> of a validator node</Text>
-                        }
-                        {
-                          program.bridgeParticipation != 'standby' &&
-                          <Text as="div" weight="light" size="4" mb="1">— { program.bridgeParticipation == 'enable' ? 'Enable' : 'Disable' } <Text color="red">bridge participation</Text> of a validator node</Text>
-                        }
-                        {
-                          program.attestations.length > 0 &&
-                          <Text as="div" weight="light" size="4" mb="1">— Update policy of <Text color="red">{ Readability.toCount('attester', program.attestations.length) }</Text> of a validator node</Text>
-                        }
-                        {
-                          program.migrations.length > 0 &&
-                          <Text as="div" weight="light" size="4" mb="1">— Migrate <Text color="red">{ Readability.toCount('participant', program.migrations.length) }</Text> of a validator node</Text>
-                        }
-                      </>
-                    }
-                    {
-                      asset != -1 && program instanceof ProgramRoute &&
-                      <>
-                        <Text as="div" weight="light" size="4" mb="1">— Claim { Readability.toAssetName(assets[asset].asset) } deposit address</Text>
-                        { program.routingAddress.length > 0 && <Text as="div" weight="light" size="4" mb="1">— Claim <Text color="red">{ Readability.toAddress(program.routingAddress) }</Text> { Readability.toAssetName(assets[asset].asset) } {program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'sender/withdrawal' : 'withdrawal'} address</Text> }
-                        <Text as="div" weight="light" size="4" mb="1">— Register through <Badge radius="medium" variant="surface" size="2">{ 
-                            (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6)
-                        }</Badge> node</Text>
-                      </>
-                    }
-                    {
-                      asset != -1 && program instanceof ProgramWithdraw &&
-                      <>
-                        <Text as="div" weight="light" size="4" mb="1">— Withdraw <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">1 account</Text></Text>
-                        <Text as="div" weight="light" size="4" mb="1">— Withdraw through <Badge radius="medium" variant="surface" size="2">{ 
-                            (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6)
-                        }</Badge> node</Text>
-                      </>
-                    }
-                    {
-                      asset != -1 && program instanceof ProgramWithdrawAndMigrate &&
-                      <Text as="div" weight="light" size="4" mb="1">— Migrate a { assets[asset].chain } bridge of a validator node to another bridge</Text>
-                    }
-                    {
-                      asset != -1 && program instanceof ProgramAnticast &&
-                      <Text as="div" weight="light" size="4" mb="1">— Protest <Badge radius="medium" variant="surface" size="2" color="red">{ Readability.toHash(program.broadcastHash, 4) }</Badge> withdrawal broadcast to get a refund</Text>
-                    }
-                    {
-                      asset != -1 && program instanceof ApproveTransaction &&
-                      <>
-                        <Text as="div" weight="light" size="4" mb="1">— From unverified data (careful!)</Text>
-                        <Text as="div" weight="light" size="4" mb="1">— Execute <Badge radius="medium" variant="surface" size="2" color="red">{ program.typename || 'unknown' } transaction</Badge></Text>
-                        {
-                          Array.isArray(program.transaction.transactions) && program.transaction.transactions.map((subtransaction: any, index: number) =>
-                            <Text as="div" weight="light" size="4" mb="1" key={subtransaction.hash + 'x' + index.toString()}>— Execute internal <Badge radius="medium" variant="surface" size="2" color="red">{ Readability.toTransactionType(subtransaction.type) } transaction</Badge></Text>
-                          )
-                        }
-                      </>
-                    }
-                    <Text as="div" weight="light" size="4" mb="1">— Pay up to <Text color="orange">{ Readability.toMoney(gasAsset, maxFeeValue) }</Text> to <Text color="sky">miner as fee</Text></Text>
-                  </Box>
-                  <Flex gap="3" mt="4" justify="between">
-                    <Dialog.Close>
-                      <Button variant="soft" color="gray">Cancel</Button>
-                    </Dialog.Close>
-                    <Dialog.Close>
-                      <Button color="red" disabled={loadingGasPriceAndPrice} loading={loadingTransaction} onClick={() => submitTransaction()}>Submit</Button>
-                    </Dialog.Close>
-                  </Flex>
-                </Dialog.Content>
-              }
+              <Dialog.Content maxWidth="500px">
+                <Flex justify="between" align="center">
+                  <Dialog.Title mb="0">Review</Dialog.Title>
+                  <Button variant="surface" color="indigo" radius="medium" size="1" onClick={() => {
+                    navigator.clipboard.writeText(JSON.stringify(toSimpleTransaction(transactionData), null, 4));
+                    AlertBox.open(AlertType.Info, 'Transaction dump copied!')
+                  }}>
+                    <Icon path={mdiCodeJson} size={0.6}></Icon>
+                    Dump
+                  </Button>
+                </Flex>
+                <Dialog.Description mb="3" size="2" color="gray">Side effects:</Dialog.Description>
+                <Box>
+                  {
+                    asset != -1 && program instanceof ProgramTransfer &&
+                    <Text as="div" weight="light" size="4" mb="1">— Send <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', program.to.length) }</Text></Text>        
+                  }
+                  {
+                    asset != -1 && program instanceof ProgramSetup &&
+                    <>
+                      {
+                        program.blockProduction != 'standby' &&
+                        <Text as="div" weight="light" size="4" mb="1">— { program.blockProduction == 'enable' ? 'Enable' : 'Disable' } <Text color="red">block production</Text> of a validator node</Text>
+                      }
+                      {
+                        program.bridgeParticipation != 'standby' &&
+                        <Text as="div" weight="light" size="4" mb="1">— { program.bridgeParticipation == 'enable' ? 'Enable' : 'Disable' } <Text color="red">bridge participation</Text> of a validator node</Text>
+                      }
+                      {
+                        program.attestations.length > 0 &&
+                        <Text as="div" weight="light" size="4" mb="1">— Update policy of <Text color="red">{ Readability.toCount('attester', program.attestations.length) }</Text> of a validator node</Text>
+                      }
+                      {
+                        program.migrations.length > 0 &&
+                        <Text as="div" weight="light" size="4" mb="1">— Migrate <Text color="red">{ Readability.toCount('participant', program.migrations.length) }</Text> of a validator node</Text>
+                      }
+                    </>
+                  }
+                  {
+                    asset != -1 && program instanceof ProgramRoute &&
+                    <>
+                      <Text as="div" weight="light" size="4" mb="1">— Claim { Readability.toAssetName(assets[asset].asset) } deposit address</Text>
+                      { program.routingAddress.length > 0 && <Text as="div" weight="light" size="4" mb="1">— Claim <Text color="red">{ Readability.toAddress(program.routingAddress) }</Text> { Readability.toAssetName(assets[asset].asset) } {program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'sender/withdrawal' : 'withdrawal'} address</Text> }
+                      <Text as="div" weight="light" size="4" mb="1">— Register through <Badge radius="medium" variant="surface" size="2">{ 
+                          (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6)
+                      }</Badge> node</Text>
+                    </>
+                  }
+                  {
+                    asset != -1 && program instanceof ProgramWithdraw &&
+                    <>
+                      <Text as="div" weight="light" size="4" mb="1">— Withdraw <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">1 account</Text></Text>
+                      <Text as="div" weight="light" size="4" mb="1">— Withdraw through <Badge radius="medium" variant="surface" size="2">{ 
+                          (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6)
+                      }</Badge> node</Text>
+                    </>
+                  }
+                  {
+                    asset != -1 && program instanceof ProgramWithdrawAndMigrate &&
+                    <Text as="div" weight="light" size="4" mb="1">— Migrate a { assets[asset].chain } bridge of a validator node to another bridge</Text>
+                  }
+                  {
+                    asset != -1 && program instanceof ProgramAnticast &&
+                    <Text as="div" weight="light" size="4" mb="1">— Protest <Badge radius="medium" variant="surface" size="2" color="red">{ Readability.toHash(program.broadcastHash, 4) }</Badge> withdrawal broadcast to get a refund</Text>
+                  }
+                  {
+                    asset != -1 && program instanceof ApproveTransaction &&
+                    <>
+                      <Text as="div" weight="light" size="4" mb="1">— From unverified data (careful!)</Text>
+                      <Text as="div" weight="light" size="4" mb="1">— Execute <Badge radius="medium" variant="surface" size="2" color="red">{ program.typename || 'unknown' } transaction</Badge></Text>
+                      {
+                        Array.isArray(program.transaction.transactions) && program.transaction.transactions.map((subtransaction: any, index: number) =>
+                          <Text as="div" weight="light" size="4" mb="1" key={subtransaction.hash + 'x' + index.toString()}>— Execute internal <Badge radius="medium" variant="surface" size="2" color="red">{ Readability.toTransactionType(subtransaction.type) } transaction</Badge></Text>
+                        )
+                      }
+                    </>
+                  }
+                  <Text as="div" weight="light" size="4" mb="1">— Pay up to <Text color="orange">{ Readability.toMoney(gasAsset, maxFeeValue) }</Text> to <Text color="sky">miner as fee</Text></Text>
+                </Box>
+                <Flex gap="3" mt="4" justify="between">
+                  <Dialog.Close>
+                    <Button variant="soft" color="gray">Cancel</Button>
+                  </Dialog.Close>
+                  <Dialog.Close>
+                    <Button color="red" disabled={loadingGasPriceAndPrice || !transactionReady} loading={loadingTransaction} onClick={() => submitTransaction()}>Submit</Button>
+                  </Dialog.Close>
+                </Flex>
+              </Dialog.Content>
             </Dialog.Root>
           </Flex>
         </Box>

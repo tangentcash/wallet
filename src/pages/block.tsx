@@ -1,7 +1,7 @@
 import { Link, useNavigate, useParams } from "react-router";
 import { useEffectAsync } from "../core/react";
 import { useCallback, useState } from "react";
-import { Badge, Box, Button, Card, DataList, Flex, Heading, IconButton, Spinner, Table } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, DataList, Flex, Heading, IconButton, Progress, Spinner, Table } from "@radix-ui/themes";
 import { mdiArrowLeftBoldCircleOutline, mdiArrowRightBoldCircleOutline } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
 import { AssetId, Chain, RPC, Readability, lerp } from "tangentsdk";
@@ -246,19 +246,39 @@ export default function BlockPage() {
               <DataList.Value>{ Readability.toGas(block.gas_use) } | { (block.gas_use.div(block.gas_limit.gt(0) ? block.gas_limit : 1).toNumber() * 100).toFixed(2) }%</DataList.Value>
             </DataList.Item>
           </DataList.Root>
+          <Box mt="2">
+            <Progress variant="surface" size="3" color="orange" value={block.gas_use.div(block.gas_limit.gt(0) ? block.gas_limit : 1).toNumber() * 100} />
+          </Box>
           <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
           <DataList.Root orientation={orientation}>
             <DataList.Item>
               <DataList.Label>Slot activity:</DataList.Label>
               <DataList.Value>
-                <Badge color="yellow">{ Readability.toCount('block', block.slot_length) } in { Readability.toTimespan(block.slot_duration) }</Badge>
+                <Badge color="yellow">{ Readability.toCount('block', block.slot.length) } in { Readability.toTimespan(block.slot.duration_total) }</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>Slot time average:</DataList.Label>
-              <DataList.Value>{ Readability.toTimespan(block.slot_duration_average) } per block</DataList.Value>
+              <DataList.Label>Slot status:</DataList.Label>
+              <DataList.Value>
+                <Badge color={block.slot.congestion ? 'red' : 'jade'}>{ block.slot.congestion ? 'Only paid transactions in next block' : 'Costless transactions in next block' }</Badge>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Slot block time:</DataList.Label>
+              <DataList.Value>{ Readability.toTimespan(block.slot.duration_average) } per block</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Slot gas limit:</DataList.Label>
+              <DataList.Value>{ Readability.toGas(block.slot.gas_limit) } | &lt; { Readability.toCount('KB', (block.slot.gas_use / 32) / 1024) }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Slot gas use:</DataList.Label>
+              <DataList.Value>{ Readability.toGas(block.slot.gas_use) } | { (block.slot.gas_use.div(block.slot.gas_limit.gt(0) ? block.slot.gas_limit : 1).toNumber() * 100).toFixed(2) }%</DataList.Value>
             </DataList.Item>
           </DataList.Root>
+          <Box mt="2">
+            <Progress variant="surface" size="3" color="red" value={block.slot.gas_use.div(block.slot.gas_limit.gt(0) ? block.slot.gas_limit : 1).toNumber() * 100} />
+          </Box>
           <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
           <Table.Root variant="surface" size="1">
             <Table.Header>

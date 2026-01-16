@@ -593,7 +593,7 @@ export class AppData {
     this.defs.authorizer = config.authorizer;
     if (!this.props.resolver)
       this.props.resolver = config.resolverUrl;
-    if (!Storage.get(StorageField.App))
+    if ((!this.props.resolver && !this.props.server) || !Storage.get(StorageField.App))
       this.props.server = config.serverUrl;
     
     const address = this.getWalletAddress();
