@@ -369,7 +369,7 @@ export default function BridgePage() {
                                     return wallet.addresses.map((walletAddress: string, addressIndex: number) =>
                                       <Flex gap="1" pb={walletAddressIndex < walletAddresses.length - 1 ? '2' : '0'} key={walletAddress}>
                                         <Text size="2">Send from</Text>
-                                        <Button size="1" radius="medium" variant="soft" color="yellow" onClick={() => {
+                                        <Button size="1" variant="soft" color="yellow" onClick={() => {
                                           navigator.clipboard.writeText(walletAddress);
                                           AlertBox.open(AlertType.Info, 'Address copied!')
                                         }}>{ Readability.toAddress(walletAddress) }</Button>
@@ -480,9 +480,9 @@ export default function BridgePage() {
                     <Flex justify="between" align="center" mb="4">
                       <Flex align="center" gap="2">
                         <Heading size="4">Bridge</Heading>
-                        <Badge radius="medium" variant="surface" size="2">{ item.attestation.owner.substring(item.attestation.owner.length - 6) }</Badge>
+                        <Badge variant="surface" size="2">{ item.attestation.owner.substring(item.attestation.owner.length - 6) }</Badge>
                       </Flex>
-                      <Badge size="2" radius="medium" color={item.attestation && item.attestation.stake != null ? 'jade' : 'red'}>{ item.attestation && item.attestation.stake != null ? 'ONLINE' : 'OFFLINE' }</Badge>
+                      <Badge size="2" color={item.attestation && item.attestation.stake != null ? 'jade' : 'red'}>{ item.attestation && item.attestation.stake != null ? 'ONLINE' : 'OFFLINE' }</Badge>
                     </Flex>
                     <DataList.Root orientation={orientation}>
                       {
@@ -514,7 +514,7 @@ export default function BridgePage() {
                       <DataList.Item>
                         <DataList.Label>Bridge status:</DataList.Label>
                         <DataList.Value>
-                          <Badge size="1" radius="medium" color={!item.attestation.accepts_account_requests || !item.attestation.accepts_withdrawal_requests ? 'red' : 'jade'}>{ toBridgeStatus(item.attestation) }</Badge>
+                          <Badge size="1" color={!item.attestation.accepts_account_requests || !item.attestation.accepts_withdrawal_requests ? 'red' : 'jade'}>{ toBridgeStatus(item.attestation) }</Badge>
                         </DataList.Value>
                       </DataList.Item>
                       <DataList.Item>
@@ -523,11 +523,11 @@ export default function BridgePage() {
                           <Flex wrap="wrap" gap="1">
                             {
                               item.balances && item.balances.map((next: any) =>
-                                <Badge key={item.attestation.hash + index + next.asset.id} size="1" radius="medium" color="yellow">{ Readability.toMoney(next.asset, next.supply) }</Badge>)
+                                <Badge key={item.attestation.hash + index + next.asset.id} size="1" color="yellow">{ Readability.toMoney(next.asset, next.supply) }</Badge>)
                             }
                             {
                               (!item.balances || !item.balances.length) &&
-                              <Badge size="1" radius="medium" color="yellow">{ Readability.toMoney(asset, null) }</Badge>
+                              <Badge size="1" color="yellow">{ Readability.toMoney(asset, null) }</Badge>
                             }
                           </Flex>
                         </DataList.Value>
@@ -535,7 +535,7 @@ export default function BridgePage() {
                       <DataList.Item>
                         <DataList.Label>Security to speed index:</DataList.Label>
                         <DataList.Value>
-                          <Badge size="1" radius="medium" color={toBridgeIndex(item.attestation)[0] ? 'tomato' : 'jade'}>{ toBridgeIndex(item.attestation)[1] }</Badge>
+                          <Badge size="1" color={toBridgeIndex(item.attestation)[0] ? 'tomato' : 'jade'}>{ toBridgeIndex(item.attestation)[1] }</Badge>
                         </DataList.Value>
                       </DataList.Item>
                       <DataList.Item>
@@ -547,7 +547,7 @@ export default function BridgePage() {
                           }
                           {
                             (!item.attestation || item.attestation.incoming_fee.lte(0)) &&
-                            <Badge size="1" radius="medium" color="jade">Free</Badge>
+                            <Badge size="1" color="jade">Free</Badge>
                           }
                         </DataList.Value>
                       </DataList.Item>
@@ -560,7 +560,7 @@ export default function BridgePage() {
                           }
                           {
                             (!item.attestation || item.attestation.outgoing_fee.lte(0)) &&
-                            <Badge size="1" radius="medium" color="jade">Free</Badge>
+                            <Badge size="1" color="jade">Free</Badge>
                           }
                         </DataList.Value>
                       </DataList.Item>

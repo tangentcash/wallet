@@ -1,19 +1,20 @@
-import { Avatar, Box, Button, Card, DropdownMenu, Flex, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Avatar, Badge, Box, Button, Card, Flex, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { Swap, Balance, Market } from "../../core/swap";
 import { AssetId, Readability, TextUtil } from "tangentsdk";
-import { mdiCurrencyUsd, mdiLockOutline } from "@mdi/js";
+import { mdiCurrencyUsd, mdiLockOutline, mdiSetRight } from "@mdi/js";
+import { useMemo, useState } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 import PerformerButton, { Authorization } from "./performer";
 import AssetSelector from "./selector";
-import { useMemo, useState } from "react";
 
 function RepayableBalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } } }) {
   const item = props.item;
   const baseEquity = item.equity.current || item.equity.previous || new BigNumber(0);
   const previousEquity = item.equity.previous ? item.equity.previous : baseEquity;
   const currentEquity = item.equity.current ? item.equity.current : baseEquity;
+  const [expanded, setExpanded] = useState(false);
   const [market, setMarket] = useState<Market | null>(Swap.contracts[0] || null);
   const [asset, setAsset] = useState<AssetId | null>(null);
   const [amount, setAmount] = useState<string>('');
@@ -42,9 +43,9 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
     }
   }, [asset, amount]);
   return (
-    <Card mb="4" variant="surface" style={{ borderRadius: '24px', position: "relative", overflow: 'visible' }}>
-      <Collapsible.Root>
-        <Flex justify="start" align="center" gap="3" px="1" py="1">
+    <Collapsible.Root open={expanded}>
+      <Card mb="4" variant="surface" style={{ borderRadius: '24px', position: "relative", overflow: 'visible' }}>
+        <Flex justify="start" align="center" gap="3" px="1" py="1" className="card-expander" onClick={() => setExpanded(!expanded)}>
           <Avatar size="4" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
           <Box width="100%">
             <Flex justify="between">
@@ -58,14 +59,12 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
                   <Text size="2" color="gray">{ Readability.toMoney(null, item.available.plus(item.unavailable)) }</Text>
                 </Flex>
               </Tooltip>
-              <Collapsible.Trigger asChild={true}>
-                  <Button size="1" radius="large" variant="soft" color={previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : 'jade')} mt="1">
-                    <Text size="1">{ Readability.toPercentageDelta(previousEquity, currentEquity) }</Text>
-                    <Box ml="1">
-                      <DropdownMenu.TriggerIcon />
-                    </Box>
-                  </Button>
-              </Collapsible.Trigger>
+              <Tooltip content={ Readability.toMoney(Swap.equityAsset, currentEquity.minus(previousEquity), true) }>
+                <Badge size="2" variant="soft" color={previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : 'jade')} mt="1">
+                  <Icon path={mdiSetRight} size={0.7}></Icon>
+                  <Text size="1">{ Readability.toPercentageDelta(previousEquity, currentEquity) }</Text>
+                </Badge>
+              </Tooltip>
             </Flex>
           </Box>
         </Flex>
@@ -98,8 +97,8 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
             }}></PerformerButton>
           </Flex>
         </Collapsible.Content>
-      </Collapsible.Root>
-    </Card>
+      </Card>
+    </Collapsible.Root>
   );
 }
 function DefaultBalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } } }) {
@@ -124,9 +123,9 @@ function DefaultBalanceView(props: { item: Balance & { equity: { current: BigNum
               </Flex>
             </Tooltip>
             <Tooltip content={ Readability.toMoney(Swap.equityAsset, currentEquity.minus(previousEquity), true) }>
-              <Button size="1" radius="large" variant="soft" color={previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : 'jade')} mt="1">
+              <Badge size="2" variant="soft" color={previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : 'jade')} mt="1">
                 <Text size="1">{ Readability.toPercentageDelta(previousEquity, currentEquity) }</Text>
-              </Button>
+              </Badge>
             </Tooltip>
           </Flex>
         </Box>

@@ -373,8 +373,13 @@ export default function InteractionPage() {
       return false;
     }
 
-    const gasAssetBalance = (gasAsset ? assets.find((v) => v.asset.id == gasAsset.id)?.balance : null) || new BigNumber(0);
-    return maxFeeValue.plus(sendingValue).lte(gasAssetBalance);
+    const payAsset = assets[asset];
+    if (payAsset.asset.id != (gasAsset ? gasAsset.id : null)) {
+      const gasAssetBalance = (gasAsset ? assets.find((v) => v.asset.id == gasAsset.id)?.balance : null) || new BigNumber(0);
+      return maxFeeValue.lte(gasAssetBalance) && sendingValue.lte(payAsset.balance);
+    } else {
+      return maxFeeValue.plus(sendingValue).lte(payAsset.balance);
+    }
   }, [programReady, paidGas, gasPrice, gasLimit, gasAsset, maxFeeValue, sendingValue]);
   const readOnlyApproval = useMemo((): boolean => {
     return program != null && program instanceof ApproveTransaction && params.transaction != null;
@@ -1306,7 +1311,7 @@ export default function InteractionPage() {
               <Dialog.Content maxWidth="500px">
                 <Flex justify="between" align="center">
                   <Dialog.Title mb="0">Review</Dialog.Title>
-                  <Button variant="surface" color="indigo" radius="medium" size="1" onClick={() => {
+                  <Button variant="surface" color="indigo" size="1" onClick={() => {
                     navigator.clipboard.writeText(JSON.stringify(toSimpleTransaction(transactionData), null, 4));
                     AlertBox.open(AlertType.Info, 'Transaction dump copied!')
                   }}>
@@ -1346,7 +1351,7 @@ export default function InteractionPage() {
                     <>
                       <Text as="div" weight="light" size="4" mb="1">— Claim { Readability.toAssetName(assets[asset].asset) } deposit address</Text>
                       { program.routingAddress.length > 0 && <Text as="div" weight="light" size="4" mb="1">— Claim <Text color="red">{ Readability.toAddress(program.routingAddress) }</Text> { Readability.toAssetName(assets[asset].asset) } {program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'sender/withdrawal' : 'withdrawal'} address</Text> }
-                      <Text as="div" weight="light" size="4" mb="1">— Register through <Badge radius="medium" variant="surface" size="2">{ 
+                      <Text as="div" weight="light" size="4" mb="1">— Register through <Badge variant="surface" size="2">{ 
                           (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6)
                       }</Badge> node</Text>
                     </>
@@ -1355,7 +1360,7 @@ export default function InteractionPage() {
                     asset != -1 && program instanceof ProgramWithdraw &&
                     <>
                       <Text as="div" weight="light" size="4" mb="1">— Withdraw <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">1 account</Text></Text>
-                      <Text as="div" weight="light" size="4" mb="1">— Withdraw through <Badge radius="medium" variant="surface" size="2">{ 
+                      <Text as="div" weight="light" size="4" mb="1">— Withdraw through <Badge variant="surface" size="2">{ 
                           (params.manager || 'NULL').substring((params.manager || 'NULL').length - 6)
                       }</Badge> node</Text>
                     </>
@@ -1366,16 +1371,16 @@ export default function InteractionPage() {
                   }
                   {
                     asset != -1 && program instanceof ProgramAnticast &&
-                    <Text as="div" weight="light" size="4" mb="1">— Protest <Badge radius="medium" variant="surface" size="2" color="red">{ Readability.toHash(program.broadcastHash, 4) }</Badge> withdrawal broadcast to get a refund</Text>
+                    <Text as="div" weight="light" size="4" mb="1">— Protest <Badge variant="surface" size="2" color="red">{ Readability.toHash(program.broadcastHash, 4) }</Badge> withdrawal broadcast to get a refund</Text>
                   }
                   {
                     asset != -1 && program instanceof ApproveTransaction &&
                     <>
                       <Text as="div" weight="light" size="4" mb="1">— From unverified data (careful!)</Text>
-                      <Text as="div" weight="light" size="4" mb="1">— Execute <Badge radius="medium" variant="surface" size="2" color="red">{ program.typename || 'unknown' } transaction</Badge></Text>
+                      <Text as="div" weight="light" size="4" mb="1">— Execute <Badge variant="surface" size="2" color="red">{ program.typename || 'unknown' } transaction</Badge></Text>
                       {
                         Array.isArray(program.transaction.transactions) && program.transaction.transactions.map((subtransaction: any, index: number) =>
-                          <Text as="div" weight="light" size="4" mb="1" key={subtransaction.hash + 'x' + index.toString()}>— Execute internal <Badge radius="medium" variant="surface" size="2" color="red">{ Readability.toTransactionType(subtransaction.type) } transaction</Badge></Text>
+                          <Text as="div" weight="light" size="4" mb="1" key={subtransaction.hash + 'x' + index.toString()}>— Execute internal <Badge variant="surface" size="2" color="red">{ Readability.toTransactionType(subtransaction.type) } transaction</Badge></Text>
                         )
                       }
                     </>
@@ -1387,7 +1392,7 @@ export default function InteractionPage() {
                     <Button variant="soft" color="gray">Cancel</Button>
                   </Dialog.Close>
                   <Dialog.Close>
-                    <Button color="red" disabled={loadingGasPriceAndPrice || !transactionReady} loading={loadingTransaction} onClick={() => submitTransaction()}>Submit</Button>
+                    <Button color="red" disabled={!transactionReady} loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => submitTransaction()}>Submit</Button>
                   </Dialog.Close>
                 </Flex>
               </Dialog.Content>

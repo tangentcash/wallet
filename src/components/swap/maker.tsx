@@ -702,7 +702,7 @@ export default function Maker(props: {
   );
   return (
     <Box>
-      <Card>
+      <Card variant="surface" style={{ borderRadius: '22px' }}>
         <Box mb="2">
           <SegmentedControl.Root size="2" style={{ width: '100%' }} value={state.pool ? 'pool' : state.side.toString()} onValueChange={(e) => updateState(prev => ({ ...prev, side: e == 'pool' ? prev.side : parseInt(e), pool: e == 'pool' }))}>
             <SegmentedControl.Item value={OrderSide.Buy.toString()}>Buy</SegmentedControl.Item>

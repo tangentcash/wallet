@@ -92,7 +92,7 @@ export function Prompter() {
           <AlertDialog.Title>
             <Flex justify="between" align="center">
               Approve { metadata.kind }
-              <Badge size="2" radius="small" color={metadata.trulyTrustless ? 'jade' : 'red'}>{ metadata.trulyTrustless ? 'SECURE' : 'NOT SECURE' }</Badge>
+              <Badge size="2" color={metadata.trulyTrustless ? 'jade' : 'red'}>{ metadata.trulyTrustless ? 'SECURE' : 'NOT SECURE' }</Badge>
             </Flex>
           </AlertDialog.Title>
           <Card mb="4">
@@ -104,7 +104,7 @@ export function Prompter() {
                   <Text color="gray" size="1">{ Readability.toAddress(metadata.encodedPublicKey || '0x00000000') }</Text>
                 </Flex>
               </Flex>
-              <IconButton variant="soft" size="3" radius="medium" color={metadata.trulyTrustless ? 'grass' : 'amber'} onClick={() => {
+              <IconButton variant="soft" size="3" color={metadata.trulyTrustless ? 'grass' : 'amber'} onClick={() => {
                 if (entity != null) {
                   navigator.clipboard.writeText(Authorizer.schema(entity));
                   AlertBox.open(AlertType.Info, 'App scheme copied!')
@@ -118,15 +118,15 @@ export function Prompter() {
             <Text size="2">—— Effects:</Text>
             {
               metadata.kind == 'account' &&
-              <Badge color="yellow" radius="small" size="1">Address reveal</Badge>
+              <Badge color="yellow" size="1">Address reveal</Badge>
             }
             {
               metadata.kind == 'identity' &&
-              <Badge color="orange" radius="small" size="1">Public key reveal</Badge>
+              <Badge color="orange" size="1">Public key reveal</Badge>
             }
             {
               (metadata.kind == 'message' || metadata.kind == 'transaction') &&
-              <Badge color="red" radius="small" size="1">{ metadata.decodedTransaction ? 'Transaction' : 'Message' } signature</Badge>
+              <Badge color="red" size="1">{ metadata.decodedTransaction ? 'Transaction' : 'Message' } signature</Badge>
             }
           </Flex>
           {
@@ -160,7 +160,7 @@ export function Prompter() {
               <Separator my="3" size="4" />
               <Flex mt="4" align="center" gap="2">
                 <Text size="2">Message to sign: </Text>
-                <Button size="2" variant="ghost" radius="small" color="indigo" style={{ padding: '0 0.25rem' }} onClick={() => {
+                <Button size="2" variant="ghost" color="indigo" style={{ padding: '0 0.25rem' }} onClick={() => {
                   navigator.clipboard.writeText(metadata.encodedMessage || '');
                   AlertBox.open(AlertType.Info, 'Message copied!')
                 }}>{ Readability.toAddress(metadata.encodedMessage) }</Button>

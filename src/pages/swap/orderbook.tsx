@@ -1,4 +1,4 @@
-import { AspectRatio, Avatar, Badge, Box, Button, Card, Dialog, Flex, Heading, IconButton, SegmentedControl, Select, Separator, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { AspectRatio, Avatar, Badge, Box, Button, Card, Dialog, Flex, Heading, IconButton, SegmentedControl, Select, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useNavigate, useParams } from "react-router";
 import { AppData } from "../../core/app";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -393,6 +393,13 @@ export default function OrderbookPage() {
         ready: false
       }));
 
+      if (typeof params.orderbook == 'string' && params.orderbook.length > 0) {
+        const memorizedSeriesOptions = Storage.get(pathOfOrderbook(params.orderbook));
+        if (memorizedSeriesOptions != null && typeof memorizedSeriesOptions == 'object') {
+          setSeriesOptions(prev => ({ ...prev, ...memorizedSeriesOptions }));
+        }
+      }
+      
       const marketId = orderbook.marketId;
       const updateAccount = async () => {
         const account = AppData.getWalletAddress();
@@ -461,13 +468,6 @@ export default function OrderbookPage() {
         AlertBox.open(AlertType.Error, 'Failed to fetch market trades: ' + (exception.message || 'unknown error'));
       }
 
-      if (typeof params.orderbook == 'string' && params.orderbook.length > 0) {
-        const memorizedSeriesOptions = Storage.get(pathOfOrderbook(params.orderbook));
-        if (memorizedSeriesOptions != null && typeof memorizedSeriesOptions == 'object') {
-          setSeriesOptions(prev => ({ ...prev, ...memorizedSeriesOptions }));
-        }
-      }
-      
       await updateAccount();
       setLoading(false);
       window.addEventListener('update:order', updateAccount);
@@ -538,25 +538,29 @@ export default function OrderbookPage() {
       const time = upperTimeSlot(seriesOptions.interval, Math.floor(new Date().getTime() / 1000)); 
       const prevPrice: PriceBar | null = priceSeries.length > 0 ? priceSeries[priceSeries.length - 1] : null;
       const prevVolume: VolumeBar | null = volumeSeries.length > 0 ? volumeSeries[volumeSeries.length - 1] : null;
-      const merge = prevPrice && prevPrice.time == time && prevVolume && prevVolume.time == time;
+      const mergePrice = prevPrice && prevPrice.time == time;
+      const mergeVolume = prevVolume && prevVolume.time == time;
       const nextPrice: PriceBar = {
           time: time as Time,
-          open: merge ? prevPrice.open : price.toNumber(),
-          low: merge ? Math.min(prevPrice.low, price.toNumber()) : price.toNumber(),
-          high: merge ? Math.max(prevPrice.high, price.toNumber()) : price.toNumber(),
+          open: mergePrice ? prevPrice.open : price.toNumber(),
+          low: mergePrice ? Math.min(prevPrice.low, price.toNumber()) : price.toNumber(),
+          high: mergePrice ? Math.max(prevPrice.high, price.toNumber()) : price.toNumber(),
           close: price.toNumber(),
           value: price.toNumber()
       };
       const nextVolume: VolumeBar = {
         time: time as Time,
-        value: merge ? prevVolume.value + quantity.toNumber() : quantity.toNumber(),
-        color: merge && prevVolume.value * 0.5 >= quantity.toNumber() ? prevVolume.color : (sentiment >= 0 ? UP_COLOR : DOWN_COLOR)
+        value: mergeVolume ? prevVolume.value + quantity.toNumber() : quantity.toNumber(),
+        color: mergeVolume && prevVolume.value * 0.5 >= quantity.toNumber() ? prevVolume.color : (sentiment >= 0 ? UP_COLOR : DOWN_COLOR)
       };
-      if (merge) {
+      if (mergePrice) {
         priceSeries[priceSeries.length - 1] = nextPrice;
-        volumeSeries[volumeSeries.length - 1] = nextVolume;
       } else {
         priceSeries.push(nextPrice);
+      }
+      if (mergeVolume) {
+        volumeSeries[volumeSeries.length - 1] = nextVolume;
+      } else {
         volumeSeries.push(nextVolume);
       }
       return {
@@ -619,8 +623,8 @@ export default function OrderbookPage() {
   }, []);
 
   const ChartWidget = () => (
-    <Box width="100%" mb={mobile ? undefined : '3'} style={mobile ? { } : { backgroundColor: 'var(--color-panel)', borderRadius: '9px', overflow: 'hidden' }}>
-      <Flex align="center" pt={mobile ? '4' : '3'} pb={mobile ? '4' : '3'} px="3" style={mobile ? { backgroundColor: 'var(--color-panel)' } : { }}>
+    <Box width="100%" mb={mobile ? undefined : '3'} style={mobile ? { } : { backgroundColor: 'var(--color-panel)', borderRadius: '22px', overflow: 'hidden' }}>
+      <Flex align="center" pt={mobile ? '4' : '3'} pb={mobile ? '4' : '3'} px="3">
         <Box style={{ position: 'relative' }} mr="2">
           <Avatar size="2" fallback={orderbook?.secondaryAsset ? Readability.toAssetFallback(orderbook.secondaryAsset) : '?'} src={orderbook?.secondaryAsset ? Readability.toAssetImage(orderbook.secondaryAsset) : undefined} style={{ position: 'absolute', top: mobile ? '18px' : '24px', left: '-6px' }} />
           <Avatar size={mobile ? '3' : '4'} fallback={orderbook?.primaryAsset ? Readability.toAssetFallback(orderbook.primaryAsset) : '?'} src={orderbook?.primaryAsset ? Readability.toAssetImage(orderbook.primaryAsset) : undefined} />
@@ -640,8 +644,7 @@ export default function OrderbookPage() {
           </Flex>
         </Flex>
       </Flex>
-      { mobile && <Separator size="4" /> }
-      <AspectRatio ratio={mobile ? (2.7 / 3) : (16 / 9)}>
+      <AspectRatio ratio={mobile ? (7 / 9) : (16 / 9)}>
         <ChartView
           type={seriesOptions.view}
           options={seriesChartOptions}
@@ -753,18 +756,21 @@ export default function OrderbookPage() {
                   </Select.Group>
                 </Select.Content>
               </Select.Root>
-              <Select.Root value={seriesOptions.crosshair.toString()} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, crosshair: parseInt(e) }))}>
-                <Select.Trigger />
-                <Select.Content>
-                  <Select.Group>
-                    <Select.Label>Crosshair mode</Select.Label>
-                    <Select.Item value={CrosshairMode.Normal.toString()}>Normal crosshair</Select.Item>
-                    <Select.Item value={CrosshairMode.Magnet.toString()}>Magnet crosshair</Select.Item>
-                    <Select.Item value={CrosshairMode.Hidden.toString()}>Hidden crosshair</Select.Item>
-                    <Select.Item value={CrosshairMode.MagnetOHLC.toString()}>Magent OHLC crosshair</Select.Item>
-                  </Select.Group>
-                </Select.Content>
-              </Select.Root>
+              {
+                !mobile &&
+                <Select.Root value={seriesOptions.crosshair.toString()} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, crosshair: parseInt(e) }))}>
+                  <Select.Trigger />
+                  <Select.Content>
+                    <Select.Group>
+                      <Select.Label>Crosshair mode</Select.Label>
+                      <Select.Item value={CrosshairMode.Normal.toString()}>Normal crosshair</Select.Item>
+                      <Select.Item value={CrosshairMode.Magnet.toString()}>Magnet crosshair</Select.Item>
+                      <Select.Item value={CrosshairMode.Hidden.toString()}>Hidden crosshair</Select.Item>
+                      <Select.Item value={CrosshairMode.MagnetOHLC.toString()}>Magent OHLC crosshair</Select.Item>
+                    </Select.Group>
+                  </Select.Content>
+                </Select.Root>
+              }
             </Flex>
           </Dialog.Content>
         </Dialog.Root>
@@ -782,7 +788,7 @@ export default function OrderbookPage() {
               if (e != 'order')
                 setPreset(null);
             }}>
-              <Tabs.List size="2" style={mobile ? { backgroundColor: 'var(--color-panel)', paddingTop: '20px' } : { }}>
+              <Tabs.List size="2" justify="center" color="amber" style={mobile ? { backgroundColor: 'var(--color-panel)', paddingTop: '20px' } : { }}>
                 <Tabs.Trigger value="info" className="tab-padding-erase">
                   <Badge size="3" radius="large">Market</Badge>
                 </Tabs.Trigger>
@@ -804,7 +810,7 @@ export default function OrderbookPage() {
                     <Box px={mobile ? '3' : undefined}>
                       {
                         valuation != null && (balances.primary.value.gt(0) || balances.secondary.value.gt(0)) &&
-                        <Card mb={mobile ? '6' : '3'} style={mobile ? { borderRadius: '24px' } : { }}>
+                        <Card mb={mobile ? '6' : '3'} variant="surface" style={{ borderRadius: '22px' }}>
                           <Flex align="center" justify="between" mb="3">
                             <Heading size="5">P&L</Heading>
                             <SegmentedControl.Root size="1" value={seriesOptions.showPrimary ? '1' : '0'} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, showPrimary: parseInt(e) > 0 }))}>
@@ -836,7 +842,7 @@ export default function OrderbookPage() {
                           </Flex>
                         </Card>
                       }
-                      <Card mb="3">
+                      <Card mb="3" variant="surface" style={{ borderRadius: '22px' }}>
                         <Heading mb="3" size="5">Performance 24h</Heading>
                         <Flex direction="column" gap="1">
                           <Flex justify="between" wrap="wrap" gap="1">
@@ -870,7 +876,7 @@ export default function OrderbookPage() {
                           </Flex>
                         </Flex>
                       </Card>
-                      <Card mb="3">
+                      <Card mb="3" variant="surface" style={{ borderRadius: '22px' }}>
                         <Heading mb="3" size="5">Contract</Heading>
                         <Flex direction="column" gap="1">
                           <Flex justify="between" wrap="wrap" gap="1">
@@ -907,7 +913,7 @@ export default function OrderbookPage() {
                           </Flex>
                         </Flex>
                       </Card>
-                      <Card mb="3">
+                      <Card mb="3" variant="surface" style={{ borderRadius: '22px' }}>
                         <Heading mb="3" size="5">Rules</Heading>
                         <Flex direction="column" gap="1">
                           <Flex justify="between" wrap="wrap" gap="1">
@@ -966,7 +972,7 @@ export default function OrderbookPage() {
                 </Tabs.Content>
                 <Tabs.Content value="book">
                   <Box px={mobile ? '3' : undefined} pt={mobile ? '4' : undefined}>
-                    <Card>
+                    <Card variant="surface" style={{ borderRadius: '22px' }}>
                       <Box mb="2">
                         <SegmentedControl.Root mb="2" style={{ width: '100%' }} value={seriesOptions.priceScope.toString()} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, priceScope: parseInt(e) }))}>
                           <SegmentedControl.Item value={PriceScope.Bid.toString()}>Bid</SegmentedControl.Item>
@@ -1046,7 +1052,7 @@ export default function OrderbookPage() {
                   <Box px={mobile ? '3' : undefined} pt={mobile ? '4' : undefined}>
                     {
                       trades.map((item) =>
-                        <Box key={item.account + item.time.getTime()} mb="3" style={{ width: '100%', height: 'auto', backgroundColor: 'var(--color-panel)', borderRadius: '12px' }}>
+                        <Box key={item.account + item.time.getTime()} mb="3" style={{ width: '100%', height: 'auto', backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
                           <Flex direction="column" gap="2" style={{ padding: '12px' }}>
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">At</Text>

@@ -166,7 +166,7 @@ export default function HomePage() {
       <Flex gap="2" align="center" justify="between" px="2" mb="2">
         <Flex align="center" gap="2">
           <Heading size={document.body.clientWidth < 450 ? '4' : '6'}>Wallet</Heading>
-          <Button radius="medium" variant="surface" size="1" color={ AppData.isWalletReady() ? 'jade' : 'red' } onClick={() => AppData.isWalletReady() ? undefined : navigate('/restore')}>{ AppData.isWalletReady() ? '' : 'RO:' }{ ownerAddress.substring(ownerAddress.length - 6) }</Button>
+          <Button variant="surface" size="1" color={ AppData.isWalletReady() ? 'jade' : 'red' } onClick={() => AppData.isWalletReady() ? undefined : navigate('/restore')}>{ AppData.isWalletReady() ? '' : 'RO:' }{ ownerAddress.substring(ownerAddress.length - 6) }</Button>
         </Flex>
         <Flex justify="end" gap="1">
           <Dialog.Root onOpenChange={(opened) => setSearching(opened)} open={searching}>
@@ -179,7 +179,7 @@ export default function HomePage() {
               <form action="">
                 <Flex justify="between" align="center" mb="2">
                   <Dialog.Title mb="0">Explorer</Dialog.Title>
-                  <Button radius="medium" size="1" variant="outline" type="button" disabled={loading} onClick={() => searchLatest()}>Last block</Button>
+                  <Button size="1" variant="soft" type="button" disabled={loading} onClick={() => searchLatest()}>Tip block</Button>
                 </Flex>
                 <TextField.Root placeholder="Address, hash or number…" size="3" variant="soft" value={query} onChange={(e) => setQuery(e.target.value)} readOnly={loading} ref={searchInput}>
                   <TextField.Slot>

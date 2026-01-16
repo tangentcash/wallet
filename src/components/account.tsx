@@ -187,7 +187,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                   <Box width="100%">
                     <Flex justify="between" align="center">
                       <Text as="div" size="2" weight="light">N/A</Text>
-                      <Badge size="1" radius="medium">0.00%</Badge>
+                      <Badge size="1">0.00%</Badge>
                     </Flex>
                     <Text as="div" size="2" weight="medium">0.0</Text>
                   </Box>
@@ -210,7 +210,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                           <Text style={{ display: 'block' }} mt="1">Total value: { new BigNumber(item.supply).toString() } { Readability.toAssetSymbol(item.asset) }</Text>
                         </>
                         }>
-                        <Badge size="1" radius="medium" color={item.reserve.gt(0) ? 'yellow' : 'jade'}>{ (Math.floor(10000 - item.reserve.dividedBy(item.supply).toNumber() * 10000) / 100).toFixed(1) }%</Badge>
+                        <Badge size="1" color={item.reserve.gt(0) ? 'yellow' : 'jade'}>{ (Math.floor(10000 - item.reserve.dividedBy(item.supply).toNumber() * 10000) / 100).toFixed(1) }%</Badge>
                       </Tooltip>
                     </Flex>
                     <Text as="div" size="2" weight="medium">{ Readability.toMoney(item.asset, item.supply) }</Text>
@@ -240,11 +240,11 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                     </AspectRatio>
                   </Box>
                 </Flex>
-                <Flex align="center" justify="center" mt="3" direction="column" gap="2">
-                  <Badge size="2" color={addresses[selectedAddress].purpose != 'witness' ? 'orange' : 'red'} radius="medium" style={{ textTransform: 'uppercase' }}>{ toAddressType(addresses[selectedAddress].purpose) }</Badge>
+                <Flex align="center" justify="center" mt="3" gap="2">
+                  <Badge size="2" color={addresses[selectedAddress].purpose != 'witness' ? 'orange' : 'red'} style={{ textTransform: 'uppercase' }}>{ toAddressType(addresses[selectedAddress].purpose) }</Badge>
                   {
                     addresses[selectedAddress].purpose != 'bridge' &&
-                    <Badge size="2" color="red" radius="medium" style={{ textTransform: 'uppercase' }}>This is your wallet</Badge>
+                    <Badge size="2" color="red" style={{ textTransform: 'uppercase' }}>Your wallet</Badge>
                   }
                 </Flex>
                 <Box mt="6">

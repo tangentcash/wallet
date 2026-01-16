@@ -1,8 +1,9 @@
-import { Avatar, Badge, Box, Button, Card, Code, DataList, DropdownMenu, Flex, Spinner, Text } from "@radix-ui/themes";
+import { Avatar, Badge, Box, Button, Card, Code, DataList, Flex, Spinner, Text } from "@radix-ui/themes";
 import { EventResolver, SummaryState, AssetId, Readability, EventType } from 'tangentsdk';
 import { AlertBox, AlertType } from "./alert";
 import { Link } from "react-router";
 import { AppData } from "../core/app";
+import { useState } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
 
@@ -1006,42 +1007,40 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
   const state = props.state || null;
   const ownerAddress = props.ownerAddress;
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
+  const [expanded, setExpanded] = useState(props.open || false);
   if (!props.preview && receipt != null && (!AppData.tip || receipt.block_number.gt(AppData.tip)))
     AppData.tip = receipt.block_number;
 
   return (
-    <Card variant="surface" mt="4" style={{ borderRadius: '22px' }}>
-      <Collapsible.Root open={props.open}>
-        <Flex gap="3" align="start">
+    <Collapsible.Root open={expanded}>
+      <Card variant="surface" mt="4" style={{ borderRadius: '22px', position: 'relative' }}>
+        <Flex gap="3" align="start" className="card-expander" onClick={() => props.open ? undefined : setExpanded(!expanded)}>
           <Avatar size="3" mt="1" radius="full" fallback={Readability.toAssetFallback(transaction.asset)} src={Readability.toAssetImage(transaction.asset)} />
           <Box width="100%">
             <Flex justify="between" align="center" mb="1">
               <Text as="div" size="2" weight="bold">{ transaction.type == 'call' && transaction.function != null ? Readability.toFunctionName(transaction.function) : Readability.toTransactionType(transaction.type) }</Text>       
-              <Collapsible.Trigger asChild={true}>
-                <Button size="1" radius="large" variant="soft" color={props.preview ? 'yellow' : 'gray'}>
-                  { !props.preview && receipt && <Text mr="-1" as="div" size="1" weight="light" color="gray">{ receipt.block_time ? new Date(receipt.block_time.toNumber()).toLocaleTimeString() : 'NULL' }</Text> }
+              <Badge size="1" variant="soft" color={props.preview ? 'yellow' : 'gray'}>
+                <Box px="1">
+                  { !props.preview && receipt && <Text as="div" size="1" weight="light" color="gray">{ receipt.block_time ? new Date(receipt.block_time.toNumber()).toLocaleTimeString() : 'NULL' }</Text> }
                   { !props.preview && !receipt && <Spinner /> }
-                  { props.preview && <Text mr="-1" as="div" size="1" weight="light" color="yellow">Preview!</Text> }
-                  <Box ml="1">
-                    <DropdownMenu.TriggerIcon />
-                  </Box>
-                </Button>
-              </Collapsible.Trigger>
+                  { props.preview && <Text as="div" size="1" weight="light" color="yellow">Preview!</Text> }
+                </Box>
+              </Badge>
             </Flex>
             {
               state != null &&
               <Flex gap="2" wrap="wrap">
                 {
                   !transaction.error && EventResolver.isSummaryStateEmpty(state, ownerAddress) &&
-                  <Badge size="1" radius="medium" color={receipt.successful ? 'jade' : 'red'}>{ receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Rollback' }</Badge>
+                  <Badge size="1" color={receipt.successful ? 'jade' : 'red'}>{ receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Rollback' }</Badge>
                 }
                 {
                   transaction.error != null &&
-                  <Badge size="1" radius="medium" color="red">Refund</Badge>
+                  <Badge size="1" color="red">Refund</Badge>
                 }
                 {
                   state.errors.length > 0 &&
-                  <Badge size="1" radius="medium" color="red">{ Readability.toCount('execution error', state.errors.length) }</Badge>
+                  <Badge size="1" color="red">{ Readability.toCount('execution error', state.errors.length) }</Badge>
                 }
                 {
                   state.account.balances[ownerAddress] && Object.keys(state.account.balances[ownerAddress]).map((asset) => {
@@ -1049,8 +1048,8 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                     const zero = value.supply.eq(0) && value.reserve.eq(0);
                     return (
                       <Flex key={'X0' + transaction.hash + asset} gap="2">
-                        { (zero || !value.supply.eq(0)) && <Badge size="1" radius="medium" color={value.supply.gt(0) ? 'jade' : (value.supply.isNegative() ? 'red' : 'gray')}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge> }
-                        { !value.reserve.eq(0) && <Badge size="1" radius="medium" color="yellow">{ Readability.toMoney(value.asset, value.reserve.negated(), true) }</Badge> }
+                        { (zero || !value.supply.eq(0)) && <Badge size="1" color={value.supply.gt(0) ? 'jade' : (value.supply.isNegative() ? 'red' : 'gray')}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge> }
+                        { !value.reserve.eq(0) && <Badge size="1" color="yellow">{ Readability.toMoney(value.asset, value.reserve.negated(), true) }</Badge> }
                       </Flex>
                     )
                   })
@@ -1059,7 +1058,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   state.bridge.balances[ownerAddress] && Object.keys(state.bridge.balances[ownerAddress]).map((asset) => {
                     const value = state.bridge.balances[ownerAddress][asset];
                     return (
-                      <Badge key={'X1' + transaction.hash + asset} size="1" radius="medium" color={value.supply.eq(0) ? 'gray' : 'brown'}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge>
+                      <Badge key={'X1' + transaction.hash + asset} size="1" color={value.supply.eq(0) ? 'gray' : 'brown'}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge>
                     )
                   })
                 }
@@ -1067,42 +1066,42 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   Object.keys(state.witness.accounts).map((asset) => {
                     const aliases = state.witness.accounts[asset].aliases;
                     const bridge = state.witness.accounts[asset].purpose == 'bridge';
-                    return aliases.map((alias) => <Badge key={'X3' + alias} size="1" radius="medium" color={bridge ? 'blue' : 'jade'}>{ Readability.toAddress(alias) }</Badge>)
+                    return aliases.map((alias) => <Badge key={'X3' + alias} size="1" color={bridge ? 'blue' : 'jade'}>{ Readability.toAddress(alias) }</Badge>)
                   })
                 }
                 {
                   Object.keys(state.bridge.migrations).length > 0 &&
-                  <Badge size="1" radius="medium" color="yellow">Migrate { Readability.toCount('participant', Object.keys(state.bridge.migrations).length) }</Badge>
+                  <Badge size="1" color="yellow">Migrate { Readability.toCount('participant', Object.keys(state.bridge.migrations).length) }</Badge>
                 }
                 {
                   Object.keys(state.bridge.policies).length > 0 &&
-                  <Badge size="1" radius="medium" color="yellow">{ Readability.toCount('change', Object.keys(state.bridge.policies).length) }</Badge>
+                  <Badge size="1" color="yellow">{ Readability.toCount('change', Object.keys(state.bridge.policies).length) }</Badge>
                 }
                 {
                   Object.keys(state.bridge.accounts).length > 0 && !Object.keys(state.witness.accounts).length &&
-                  <Badge size="1" radius="medium" color="brown">{ Readability.toCount('account', Object.keys(state.bridge.accounts).length, true) }</Badge>
+                  <Badge size="1" color="brown">{ Readability.toCount('account', Object.keys(state.bridge.accounts).length, true) }</Badge>
                 }
                 {
                   state.bridge.participants.size > 0 &&
-                  <Badge size="1" radius="medium" color="brown">{ Readability.toCount('participant', state.bridge.participants.size) }</Badge>
+                  <Badge size="1" color="brown">{ Readability.toCount('participant', state.bridge.participants.size) }</Badge>
                 }
                 {
                   Object.keys(state.receipts).length > 0 &&
-                  <Badge size="1" radius="medium" color="brown">{ Readability.toCount('receipt', Object.keys(state.receipts).length) }</Badge>
+                  <Badge size="1" color="brown">{ Readability.toCount('receipt', Object.keys(state.receipts).length) }</Badge>
                 }
                 {
                   Object.entries(state.bridge.queues).map((data) => {
                     return Object.entries(state.bridge.queues[data[0]]).map((inputs) => {
                       const event = inputs[1];
                       const transactionHash = event.transactionHash || transaction.withdraw_hash || transaction.hash;
-                      return <Badge key={'X2' + event.asset.handle + transactionHash} size="1" radius="medium" color="brown">{ Readability.toAddress(transactionHash, 4) }</Badge>
+                      return <Badge key={'X2' + event.asset.handle + transactionHash} size="1" color="brown">{ Readability.toAddress(transactionHash, 4) }</Badge>
                     })
                   })
                 }
                 {
                   Object.keys(state.witness.transactions).map((asset) => {
                     const event = state.witness.transactions[asset];
-                    return event.stateHashes.map((stateHash) => <Badge key={'X4' + event.asset.toHex() + stateHash} size="1" radius="medium" color="brown">{ Readability.toAddress(stateHash, 4) }</Badge>)
+                    return event.stateHashes.map((stateHash) => <Badge key={'X4' + event.asset.toHex() + stateHash} size="1" color="brown">{ Readability.toAddress(stateHash, 4) }</Badge>)
                   })
                 }
               </Flex>
@@ -1110,7 +1109,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
             {
               state == null &&
               <Flex gap="2" wrap="wrap" justify="between">
-                <Badge size="1" radius="medium" color={props.preview ? 'orange' : 'gray'}>{ props.preview ? (typeof props.preview == 'string' ? props.preview : 'Preview transaction!') : 'Pending transaction' }</Badge>
+                <Badge size="1" color={props.preview ? 'orange' : 'gray'}>{ props.preview ? (typeof props.preview == 'string' ? props.preview : 'Preview transaction!') : 'Pending transaction' }</Badge>
               </Flex>
             }
           </Box>
@@ -1238,7 +1237,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
             </>
           }
         </Collapsible.Content>
-      </Collapsible.Root>
-    </Card>
+      </Card>
+    </Collapsible.Root>
   )
 }

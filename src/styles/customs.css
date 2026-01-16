@@ -6,3 +6,20 @@
 .tab-padding-erase > span {
   padding: 0;
 }
+
+.card-expander:hover {
+  cursor: pointer;
+}
+
+.card-expander:hover::before,
+.card-expander:active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--gray-a2);
+  border-radius: 22px;
+  pointer-events: none;
+}

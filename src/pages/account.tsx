@@ -13,7 +13,7 @@ export default function AccountPage() {
     <Box px="4" pt="4" maxWidth="680px" mx="auto">
       <Flex align="center" gap="2" px="2">
         <Heading size="6">Account</Heading>
-        <Badge radius="medium" variant="surface" color="blue" size="2">{ baseAddress.substring(baseAddress.length - 6) }</Badge>
+        <Badge variant="surface" color="blue" size="2">{ baseAddress.substring(baseAddress.length - 6) }</Badge>
       </Flex>
       <Account ownerAddress={baseAddress}></Account>
     </Box>

@@ -1,13 +1,28 @@
-import { Avatar, Badge, Box, Button, Card, DataList, Dialog, DropdownMenu, Flex, Text } from "@radix-ui/themes";
+import { Avatar, Badge, Box, Button, Card, DataList, Dialog, Flex, Text } from "@radix-ui/themes";
 import { Order, OrderCondition, OrderPolicy, OrderSide, Swap } from "../../core/swap";
 import { AssetId, Readability } from "tangentsdk";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import PerformerButton, { Authorization } from "./performer";
 
-function FullOrderView(props: { item: Order, open?: boolean, price: BigNumber | null, quantity: BigNumber | null, paidAsset: AssetId }) {
+export default function OrderView(props: { item: Order, open?: boolean, flash?: boolean }) {
   const item = props.item;
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
+  const [expanded, setExpanded] = useState(props.open || false);
+  const price = useMemo((): BigNumber | null => {
+    return item.fillingPrice || item.price || item.stopPrice || null;
+  }, [props]);
+  const possiblePrice = useMemo((): BigNumber | null => {
+    return price || Swap.priceOf(item.primaryAsset, item.secondaryAsset).close
+  }, [props, price]);
+  const quantity = useMemo((): BigNumber | null => {
+    if (item.side == OrderSide.Sell)
+      return item.startingValue;
+    return price ? item.startingValue.dividedBy(price) : null;
+  }, [price]);
+  const paidAsset = useMemo((): AssetId => {
+    return item.side == OrderSide.Buy ? item.secondaryAsset : item.primaryAsset;
+  }, [props]);
   const condition = useMemo((): string => {
     switch (item.condition) {
       case OrderCondition.Market:
@@ -57,10 +72,10 @@ function FullOrderView(props: { item: Order, open?: boolean, price: BigNumber | 
 
     return (progress > 0 ? (progress >= 100 ? 'Filled' : 'Partially filled') : 'No match yet');
   }, [progress]);
-  
-  return (
-    <Collapsible.Root open={props.open}>
-      <Flex justify="start" align="center" gap="3">
+
+  const FullOrderView = (subprops: { open?: boolean }) => (
+    <Collapsible.Root open={subprops.open || expanded}>
+      <Flex justify="start" align="center" gap="3" className={subprops.open ? undefined : 'card-expander'} onClick={() => subprops.open ? undefined : setExpanded(!expanded)}>
         <Box style={{ position: 'relative' }}>
           <Avatar size="2" fallback={Readability.toAssetFallback(item.secondaryAsset)} src={Readability.toAssetImage(item.secondaryAsset)} style={{ position: 'absolute', top: '24px', left: '-6px' }} />
           <Avatar size="4" fallback={Readability.toAssetFallback(item.primaryAsset)} src={Readability.toAssetImage(item.primaryAsset)} />
@@ -73,23 +88,18 @@ function FullOrderView(props: { item: Order, open?: boolean, price: BigNumber | 
               <Text size="2">{ item.secondaryAsset.token || item.secondaryAsset.chain }</Text>
             </Flex>
             <Flex align="center" style={{ textDecoration: item.active ? undefined : 'line-through' }}>
-              <Text size="2">{ props.quantity ? Readability.toMoney(null, props.quantity) : '(N/A)' }</Text>
+              <Text size="2">{ quantity ? Readability.toMoney(null, quantity) : '(N/A)' }</Text>
               <Text size="2" color="gray">x</Text>
-              <Text size="2">{ props.price ? Readability.toMoney(null, props.price) : '(N/A)' }</Text>
+              <Text size="2">{ price ? Readability.toMoney(null, price) : '(N/A)' }</Text>
             </Flex>
           </Flex>
           <Flex justify="between" align="center">
             <Flex align="center" gap="2" pt="1">
-              <Badge variant="soft" radius="medium" color={item.active ? (item.side == OrderSide.Buy ? 'jade' : 'red') : 'gray'} size="1">{ side } — { condition }</Badge>
+              <Badge variant="soft" color={item.active ? (item.side == OrderSide.Buy ? 'jade' : 'red') : 'gray'} size="2">{ side } — { condition }</Badge>
             </Flex>
-            <Collapsible.Trigger asChild={true}>
-              <Button size="1" radius="large" variant="soft" color={item.active ? (progress > 0 ? (progress >= 100 ? 'jade' : 'orange') : 'gray') : 'gray'} mt="1">
-                <Text size="1">{ progress.toFixed(1) }% fill</Text>
-                <Box ml="1">
-                  <DropdownMenu.TriggerIcon />
-                </Box>
-              </Button>
-            </Collapsible.Trigger>
+            <Badge size="2" variant="soft" color={item.active ? (progress > 0 ? (progress >= 100 ? 'jade' : 'orange') : 'gray') : 'gray'} mt="1">
+              <Text size="1">{ progress.toFixed(1) }% fill</Text>
+            </Badge>
           </Flex>
         </Box>
       </Flex>
@@ -138,10 +148,10 @@ function FullOrderView(props: { item: Order, open?: boolean, price: BigNumber | 
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Price:</DataList.Label>
-            <DataList.Value>{ Readability.toMoney(item.secondaryAsset, props.price) }</DataList.Value>
+            <DataList.Value>{ Readability.toMoney(item.secondaryAsset, price) }</DataList.Value>
           </DataList.Item>
           {
-            item.price && (!props.price || !item.price.eq(props.price)) &&
+            item.price && (!price || !item.price.eq(price)) &&
             <DataList.Item>
               <DataList.Label>Base price:</DataList.Label>
               <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.price) }</DataList.Value>
@@ -177,11 +187,11 @@ function FullOrderView(props: { item: Order, open?: boolean, price: BigNumber | 
           }
           <DataList.Item>
             <DataList.Label>Quantity:</DataList.Label>
-            <DataList.Value>{ Readability.toMoney(item.primaryAsset, props.quantity) } { props.quantity && props.quantity.isFinite() && props.price && props.price.isFinite() ? `/ ${Readability.toMoney(item.secondaryAsset, props.quantity.multipliedBy(props.price))}` : '' }</DataList.Value>
+            <DataList.Value>{ Readability.toMoney(item.primaryAsset, quantity) } { quantity && quantity.isFinite() && price && price.isFinite() ? `/ ${Readability.toMoney(item.secondaryAsset, quantity.multipliedBy(price))}` : '' }</DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Leftover:</DataList.Label>
-            <DataList.Value>{ Readability.toMoney(props.paidAsset, item.value) } / { (100 - progress).toFixed(2) }%</DataList.Value>
+            <DataList.Value>{ Readability.toMoney(paidAsset, item.value) } / { (100 - progress).toFixed(2) }%</DataList.Value>
           </DataList.Item>
         </DataList.Root>
         {
@@ -195,32 +205,13 @@ function FullOrderView(props: { item: Order, open?: boolean, price: BigNumber | 
       </Collapsible.Content>
     </Collapsible.Root>
   );
-}
-
-export default function OrderView(props: { item: Order, open?: boolean, flash?: boolean }) {
-  const item = props.item;
-  const price = useMemo((): BigNumber | null => {
-    return item.fillingPrice || item.price || item.stopPrice || null;
-  }, [props]);
-  const possiblePrice = useMemo((): BigNumber | null => {
-    return price || Swap.priceOf(item.primaryAsset, item.secondaryAsset).close
-  }, [props, price]);
-  const quantity = useMemo((): BigNumber | null => {
-    if (item.side == OrderSide.Sell)
-      return item.startingValue;
-    return price ? item.startingValue.dividedBy(price) : null;
-  }, [price]);
-  const paidAsset = useMemo((): AssetId => {
-    return item.side == OrderSide.Buy ? item.secondaryAsset : item.primaryAsset;
-  }, [props]);
-
   return (
     <>
       {
         props.flash &&
         <Dialog.Root>
           <Dialog.Trigger>
-            <Button style={{ display: 'block', width: '100%', height: 'auto', padding: '0', backgroundColor: 'var(--color-panel)', borderRadius: '12px' }}>
+            <Button style={{ display: 'block', width: '100%', height: 'auto', padding: '0', backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
               <Flex direction="column" gap="2" style={{ padding: '12px' }}>
                 {
                   item.stopPrice &&
@@ -260,15 +251,15 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
           </Dialog.Trigger>
           <Dialog.Content maxWidth="450px">
             <Dialog.Title>Order #{item.orderId.toString()}</Dialog.Title>
-            <FullOrderView item={props.item} open={true} price={price} quantity={quantity} paidAsset={paidAsset}></FullOrderView>
+            <FullOrderView open={true}></FullOrderView>
           </Dialog.Content>
         </Dialog.Root>
       }
       {
         !props.flash &&
-        <Card variant="surface" style={{ borderRadius: '24px' }}>
+        <Card variant="surface" style={{ borderRadius: '22px', position: "relative" }}>
           <Box px="1" py="1">
-            <FullOrderView item={props.item} open={props.open} price={price} quantity={quantity} paidAsset={paidAsset}></FullOrderView>
+            <FullOrderView></FullOrderView>
           </Box>
         </Card>
       }

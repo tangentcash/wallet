@@ -239,7 +239,7 @@ export default function BlockPage() {
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Gas limit:</DataList.Label>
-              <DataList.Value>{ Readability.toGas(block.gas_limit) } | &lt; { Readability.toCount('KB', (block.gas_use / 32) / 1024) }</DataList.Value>
+              <DataList.Value>{ Readability.toGas(block.gas_limit) } | &lt; { Readability.toCount('KB', ((block.gas_limit / 32) / 1024).toFixed(2)) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Gas use:</DataList.Label>
@@ -269,7 +269,7 @@ export default function BlockPage() {
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Slot gas limit:</DataList.Label>
-              <DataList.Value>{ Readability.toGas(block.slot.gas_limit) } | &lt; { Readability.toCount('KB', (block.slot.gas_use / 32) / 1024) }</DataList.Value>
+              <DataList.Value>{ Readability.toGas(block.slot.gas_limit) } | &lt; { Readability.toCount('KB', ((block.slot.gas_limit / 32) / 1024).toFixed(2)) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Slot gas use:</DataList.Label>
