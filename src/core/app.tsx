@@ -551,8 +551,8 @@ export class AppData {
       onCacheStore: (path: string, value: any): boolean => Storage.set((this.defs.prefix || 'V') + ':' + path, value),
       onCacheLoad: (path: string): any | null => Storage.get((this.defs.prefix || 'V') + ':' + path),
       onCacheKeys: (): string[] => Storage.keys().filter((v) => v.startsWith((this.defs.prefix || 'V'))).map((v) => v.substring((this.defs.prefix || 'V').length + 1)),
-      onIpsetLoad: (): { servers: string[] } => Storage.get(StorageField.Ipset),
-      onIpsetStore: (ipset: { servers: string[] }) => Storage.set(StorageField.Ipset, ipset)
+      onIpsetLoad: (): { servers: string[] } => Storage.get(StorageField.Discovery),
+      onIpsetStore: (ipset: { servers: string[] }) => Storage.set(StorageField.Discovery, ipset)
     });
     this.reconfigure();
     

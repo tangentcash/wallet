@@ -506,12 +506,12 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               </Select.Group>
             </Select.Content>
           </Select.Root>
-          <Button color="bronze" size="3" variant="soft" onClick={() => navigate(Swap.subroute)}>
+          <Button color="jade" size="3" variant="soft" className="shadow-rainbow-hover" onClick={() => navigate(Swap.subroute)}>
             <Flex align="center" gap="2">
               <Box style={{ transform: 'translateY(2px)' }}>
-                <Icon path={mdiRulerSquareCompass} size={0.9} color="var(--bronze-11)"></Icon>
+                <Icon path={mdiRulerSquareCompass} size={0.9} color="var(--jade-11)"></Icon>
               </Box>
-              <Text size="3" weight="light" color="bronze">Trade</Text>
+              <Text size="3" weight="light" color="jade">Trade</Text>
             </Flex>
           </Button>
         </Flex>

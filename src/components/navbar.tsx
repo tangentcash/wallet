@@ -51,6 +51,7 @@ export function Navbar() {
           <Box style={{
             display: 'inline-block',
             backgroundColor: 'var(--color-panel)',
+            border: '1px solid var(--gray-a5)',
             borderRadius: "100px",
             filter: "saturate(0.5) brightness(1.1)",
             WebkitBackdropFilter: "blur(24px)",
