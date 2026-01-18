@@ -4,8 +4,10 @@ import { AssetId, Readability } from "tangentsdk";
 import { useMemo, useState } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import PerformerButton, { Authorization } from "./performer";
+import { AlertBox, AlertType } from "../alert";
+import { Link } from "react-router";
 
-export default function OrderView(props: { item: Order, open?: boolean, flash?: boolean }) {
+export default function OrderView(props: { item: Order, open?: boolean, flash?: boolean, readOnly?: boolean }) {
   const item = props.item;
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [expanded, setExpanded] = useState(props.open || false);
@@ -108,7 +110,15 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
         <DataList.Root orientation={orientation}>
           <DataList.Item>
             <DataList.Label>Market account:</DataList.Label>
-            <DataList.Value>{ Readability.toAddress(item.marketAccount) }</DataList.Value>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(item.marketAccount || 'NULL');
+                AlertBox.open(AlertType.Info, 'Address copied!')
+              }}>{ Readability.toAddress(item.marketAccount || 'NULL') }</Button>
+              <Box ml="2">
+                <Link className="router-link" to={'/swap/' + item.marketAccount}>▒▒</Link>
+              </Box>
+            </DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Primary asset:</DataList.Label>
@@ -195,7 +205,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
           </DataList.Item>
         </DataList.Root>
         {
-          item.active &&
+          !props.readOnly && item.active &&
           <Flex justify="center" mt="4">
             <PerformerButton title="Cancel this order" description="Smart contract will re-pay you back all unfilled value after this action" variant="surface" color="red" type={Authorization.OrderDeletion} onData={() => {
               return { orderId: item.id.toString() }

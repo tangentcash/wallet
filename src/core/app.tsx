@@ -740,7 +740,7 @@ export function App() {
             <Route path="/transaction/:id" element={<TransactionPage />} />
             <Route path="/account/:id" element={<AccountPage />} />
             <Route path="/restore" element={<RestorePage />} />
-            <Route path="/swap" element={<PortfolioPage />} />
+            <Route path="/swap/:account?" element={<PortfolioPage />} />
             <Route path="/swap/explorer" element={<ExplorerPage />} />
             <Route path="/swap/orderbook/:orderbook?" element={<OrderbookPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />

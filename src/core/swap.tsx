@@ -324,7 +324,7 @@ export class Swap {
       } catch { }
 
       try {
-        const whitelist = await (await fetch(`${this.location}/asset/whitelist`)).json();
+        const whitelist = (await (await fetch(`${this.location}/asset/whitelist`)).json()).result;
         if (!Array.isArray(whitelist))
           throw false;
 

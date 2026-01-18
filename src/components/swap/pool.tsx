@@ -4,8 +4,10 @@ import { Pool, Swap } from "../../core/swap";
 import { useMemo, useState } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import PerformerButton, { Authorization } from "./performer";
+import { Link } from "react-router";
+import { AlertBox, AlertType } from "../alert";
 
-export default function PoolView(props: { item: Pool, open?: boolean, flash?: boolean }) {
+export default function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, readOnly?: boolean }) {
   const item = props.item;
   const concentrated = item.minPrice?.gt(0) && item.maxPrice?.gt(0);
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
@@ -69,7 +71,15 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
         <DataList.Root orientation={orientation}>
           <DataList.Item>
             <DataList.Label>Market account:</DataList.Label>
-            <DataList.Value>{ Readability.toAddress(item.marketAccount) }</DataList.Value>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(item.marketAccount || 'NULL');
+                AlertBox.open(AlertType.Info, 'Address copied!')
+              }}>{ Readability.toAddress(item.marketAccount || 'NULL') }</Button>
+              <Box ml="2">
+                <Link className="router-link" to={'/swap/' + item.marketAccount}>▒▒</Link>
+              </Box>
+            </DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Primary asset:</DataList.Label>
@@ -137,7 +147,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
           </DataList.Item>
         </DataList.Root>
         {
-          item.active &&
+          !props.readOnly && item.active &&
           <Flex justify="center" mt="4">
             <PerformerButton title="Close this pool" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" variant="surface" color="red" type={Authorization.PoolDeletion} onData={() => {
               return { poolId: item.id.toString() }

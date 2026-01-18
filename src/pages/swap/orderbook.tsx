@@ -1,5 +1,5 @@
 import { AspectRatio, Avatar, Badge, Box, Button, Card, Dialog, Flex, Heading, IconButton, SegmentedControl, Select, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams } from "react-router";
 import { AppData } from "../../core/app";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Swap, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide, Balance } from "../../core/swap";
@@ -849,7 +849,7 @@ export default function OrderbookPage() {
                       }
                       <Card mb="3" variant="surface" style={{ borderRadius: '22px' }}>
                         <Heading mb="3" size="5">Performance 24h</Heading>
-                        <Flex direction="column" gap="1">
+                        <Flex direction="column" gap="2">
                           <Flex justify="between" wrap="wrap" gap="1">
                             <Text size="2" color="gray">LPs revenue</Text>
                             <Text size="2" color="orange">{ (pair?.price.poolLiquidity || new BigNumber(0)).gt(0) ?(pair?.price.poolVolume || new BigNumber(0)).multipliedBy(market?.maxPoolFeeRate || new BigNumber(0)).dividedBy(pair?.price.poolLiquidity || new BigNumber(0)).multipliedBy(365 * 100).toFixed(2) : '0.00' }% APY</Text>
@@ -883,7 +883,7 @@ export default function OrderbookPage() {
                       </Card>
                       <Card mb="3" variant="surface" style={{ borderRadius: '22px' }}>
                         <Heading mb="3" size="5">Contract</Heading>
-                        <Flex direction="column" gap="1">
+                        <Flex direction="column" gap="2">
                           <Flex justify="between" wrap="wrap" gap="1">
                             <Text size="2" color="gray">Pair</Text>
                             <Flex gap="1">
@@ -908,23 +908,33 @@ export default function OrderbookPage() {
                           </Flex>
                           <Flex justify="between" wrap="wrap" gap="1">
                             <Text size="2" color="gray">Program</Text>
-                            <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                              navigator.clipboard.writeText(market?.account || '');
-                              AlertBox.open(AlertType.Info, 'Program account address copied!')
-                            }}>{ Readability.toHash(market?.account, 5) }</Button>
+                            <Flex>
+                              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                                navigator.clipboard.writeText(market?.account || 'NULL');
+                                AlertBox.open(AlertType.Info, 'Program account address copied!')
+                              }}>{ Readability.toAddress(market?.account || 'NULL', 5) }</Button>
+                              <Box ml="2">
+                                <Link className="router-link" to={'/swap/' + market?.account}>▒▒</Link>
+                              </Box>
+                            </Flex>
                           </Flex>
                           <Flex justify="between" wrap="wrap" gap="1">
                             <Text size="2" color="gray">Deployer</Text>
-                            <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                              navigator.clipboard.writeText(market?.deployerAccount || '');
-                              AlertBox.open(AlertType.Info, 'Deployer account address copied!')
-                            }}>{ Readability.toHash(market?.deployerAccount, 5) }</Button>
+                            <Flex>
+                              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                                navigator.clipboard.writeText(market?.deployerAccount || 'NULL');
+                                AlertBox.open(AlertType.Info, 'Deployer account address copied!')
+                              }}>{ Readability.toAddress(market?.deployerAccount || 'NULL', 5) }</Button>
+                              <Box ml="2">
+                                <Link className="router-link" to={'/swap/' + market?.deployerAccount}>▒▒</Link>
+                              </Box>
+                            </Flex>
                           </Flex>
                         </Flex>
                       </Card>
                       <Card mb="3" variant="surface" style={{ borderRadius: '22px' }}>
                         <Heading mb="3" size="5">Rules</Heading>
-                        <Flex direction="column" gap="1">
+                        <Flex direction="column" gap="2">
                           <Flex justify="between" wrap="wrap" gap="1">
                             <Text size="2" color="gray">Maker fee</Text>
                             <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.minMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% — { (market?.maxMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
@@ -1073,10 +1083,15 @@ export default function OrderbookPage() {
                             </Flex>
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>With</Text>
-                              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                navigator.clipboard.writeText(item.account);
-                                AlertBox.open(AlertType.Info, 'Account address copied!')
-                              }}>{ Readability.toHash(item.account, 5) }</Button>
+                              <Flex>
+                                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                                  navigator.clipboard.writeText(item.account || 'NULL');
+                                  AlertBox.open(AlertType.Info, 'Account address copied!')
+                                }}>{ Readability.toAddress(item.account || 'NULL', 5) }</Button>
+                                <Box ml="2">
+                                  <Link className="router-link" to={'/swap/' + item.account}>▒▒</Link>
+                                </Box>
+                              </Flex>
                             </Flex>
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Age</Text>

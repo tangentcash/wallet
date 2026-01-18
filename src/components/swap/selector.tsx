@@ -28,6 +28,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
       setLoading(setTimeout(async () => {
         try {
           const result = await Swap.assetQuery(value);
+          console.log(result.map((x) => ({ asset: x, whitelisted: Swap.whitelistOf(x) })));
           setAssets(result.map((x) => ({ asset: x, whitelisted: Swap.whitelistOf(x) })));
         } catch { }
         setLoading(null);

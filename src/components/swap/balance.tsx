@@ -133,7 +133,7 @@ function DefaultBalanceView(props: { item: Balance & { equity: { current: BigNum
     </Card>
   );
 }
-export default function BalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } } }) {
+export default function BalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } }, readOnly?: boolean }) {
   const repayable = props.item.asset.token != null && props.item.asset.chain == new AssetId().chain;
-  return repayable ? RepayableBalanceView(props) : DefaultBalanceView(props);
+  return repayable && !props.readOnly ? RepayableBalanceView(props) : DefaultBalanceView(props);
 }
