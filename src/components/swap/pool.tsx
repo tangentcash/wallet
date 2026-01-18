@@ -6,6 +6,8 @@ import * as Collapsible from "@radix-ui/react-collapsible";
 import PerformerButton, { Authorization } from "./performer";
 import { Link } from "react-router";
 import { AlertBox, AlertType } from "../alert";
+import Icon from "@mdi/react";
+import { mdiInformationOutline } from "@mdi/js";
 
 export default function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, readOnly?: boolean }) {
   const item = props.item;
@@ -62,7 +64,10 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
                 </Badge>
               }
             </Flex>
-            <Badge variant="soft" color="gold" size="2">P&L</Badge>
+            <Badge variant="soft" color="gold" size="2">    
+              <Icon path={mdiInformationOutline} size={0.65}></Icon>
+              <Text>P&L</Text>
+            </Badge>
           </Flex>
         </Box>
       </Flex>

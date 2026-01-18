@@ -6,6 +6,8 @@ import * as Collapsible from "@radix-ui/react-collapsible";
 import PerformerButton, { Authorization } from "./performer";
 import { AlertBox, AlertType } from "../alert";
 import { Link } from "react-router";
+import Icon from "@mdi/react";
+import { mdiInformationOutline } from "@mdi/js";
 
 export default function OrderView(props: { item: Order, open?: boolean, flash?: boolean, readOnly?: boolean }) {
   const item = props.item;
@@ -100,6 +102,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
               <Badge variant="soft" color={item.active ? (item.side == OrderSide.Buy ? 'jade' : 'red') : 'gray'} size="2">{ side } — { condition }</Badge>
             </Flex>
             <Badge size="2" variant="soft" color={item.active ? (progress > 0 ? (progress >= 100 ? 'jade' : 'orange') : 'gray') : 'gray'} mt="1">
+              <Icon path={mdiInformationOutline} size={0.65}></Icon>
               <Text size="1">{ progress.toFixed(1) }% fill</Text>
             </Badge>
           </Flex>

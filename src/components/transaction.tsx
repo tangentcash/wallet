@@ -4,8 +4,10 @@ import { AlertBox, AlertType } from "./alert";
 import { Link } from "react-router";
 import { AppData } from "../core/app";
 import { useState } from "react";
+import { mdiInformationOutline } from "@mdi/js";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
+import Icon from "@mdi/react";
 
 function InputFields(props: { orientation: 'horizontal' | 'vertical', transaction: any }) {
   const transaction = props.transaction;
@@ -1020,7 +1022,8 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
             <Flex justify="between" align="center" mb="1">
               <Text as="div" size="2" weight="bold">{ transaction.type == 'call' && transaction.function != null ? Readability.toFunctionName(transaction.function) : Readability.toTransactionType(transaction.type) }</Text>       
               <Badge size="1" variant="soft" color={props.preview ? 'yellow' : 'gray'}>
-                <Box px="1">
+                <Icon path={mdiInformationOutline} size={0.65}></Icon>
+                <Box px="1" ml="-1">
                   { !props.preview && receipt && <Text as="div" size="1" weight="light" color="gray">{ receipt.block_time ? new Date(receipt.block_time.toNumber()).toLocaleTimeString() : 'NULL' }</Text> }
                   { !props.preview && !receipt && <Spinner /> }
                   { props.preview && <Text as="div" size="1" weight="light" color="yellow">Preview!</Text> }

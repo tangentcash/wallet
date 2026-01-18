@@ -5,8 +5,8 @@ import { AlertBox, AlertType } from "./../alert";
 import { mdiSetRight } from "@mdi/js";
 import { AuthEntity, ByteUtil, Hashing } from "tangentsdk";
 import { useNavigate } from "react-router";
-import Icon from "@mdi/react";
 import { randomBytes } from "@noble/hashes/utils";
+import Icon from "@mdi/react";
 
 export enum Authorization {
   Account = 'authorize/account',
@@ -45,7 +45,7 @@ export default function PerformerButton(props: { title: string, description: str
       if (!entity || !entity.sign || !entity.sign.message)
         throw new Error(typeof maybeError.error == 'string' ? maybeError.error : 'Entity was not built');
 
-      navigate(`/interaction?type=approve&transaction=${entity.sign.message}${entity.sign.asset != null ? '&asset=' + entity.sign.asset : ''}`);
+      navigate(`/interaction?type=approve&transaction=${entity.sign.message}${entity.sign.asset != null ? '&asset=' + entity.sign.asset : ''}&back=${encodeURIComponent(location.pathname + location.search)}`);
     } catch (exception: any) {
       AlertBox.open(AlertType.Error, 'Build failed: ' + exception.message);
     }

@@ -94,7 +94,8 @@ export default function InteractionPage() {
     type: query.get('type'),
     asset: query.get('asset'),
     manager: query.get('manager'),
-    transaction: query.get('transaction')
+    transaction: query.get('transaction'),
+    back: query.get('back')
   };
   const [assets, setAssets] = useState<any[]>([]);
   const [asset, setAsset] = useState(-1);
@@ -634,7 +635,7 @@ export default function InteractionPage() {
         setGasPrice('');
         setGasLimit('');
         setTransactionData(null);
-        navigate(-1);
+        navigate(params.back ? params.back : '/');
       } else {
         AlertBox.open(AlertType.Error, 'Failed to send transaction!');
       }  
@@ -645,6 +646,7 @@ export default function InteractionPage() {
     return true;
   }, [loadingTransaction, transactionReady, loadingTransaction, nonce, assets, asset, program, buildTransaction]);
   const decodeApprovableTransaction = useCallback(async (data: string, applyOnlyIfSuccessful: boolean): Promise<void> => {
+    //const data = ByteUtil.uint8ArrayToHexString(ByteUtil.byteStringToUint8Array(atob(message)));
     const result = new ApproveTransaction();
     result.hexMessage = data;
     try {
@@ -774,20 +776,20 @@ export default function InteractionPage() {
             </DropdownMenu.Trigger>
             <DropdownMenu.Content side="left">
               <Tooltip content="Transfer/pay asset to one or more accounts">
-                <DropdownMenu.Item onClick={() => navigate('/interaction?type=transfer')}>Transfer</DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => navigate(`/interaction?type=transfer${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Transfer</DropdownMenu.Item>
               </Tooltip>
               <Tooltip content="Approve and submit transaction from unverified source">
-                <DropdownMenu.Item onClick={() => navigate('/interaction?type=approve')}>Approve</DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => navigate(`/interaction?type=approve${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Approve</DropdownMenu.Item>
               </Tooltip>
               <Tooltip content="Protest a withdrawal broadcast transaction to get a refund">
-                <DropdownMenu.Item onClick={() => navigate('/interaction?type=protest')}>Protest</DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => navigate(`/interaction?type=protest${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Protest</DropdownMenu.Item>
               </Tooltip>
               <DropdownMenu.Separator />
               <Tooltip content="For validator: change block production and/or participation/attestation stake(s)">
-                <DropdownMenu.Item onClick={() => navigate('/interaction?type=configure')}>Setup</DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => navigate(`/interaction?type=configure${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Setup</DropdownMenu.Item>
               </Tooltip>
               <Tooltip content="For validator: migrate bridge manager to another manager along with custodial funds (for attestation unstaking)">
-                <DropdownMenu.Item onClick={() => navigate('/interaction?type=migrate')}>Migrate</DropdownMenu.Item>
+                <DropdownMenu.Item onClick={() => navigate(`/interaction?type=migrate${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Migrate</DropdownMenu.Item>
               </Tooltip>
             </DropdownMenu.Content>
           </DropdownMenu.Root>

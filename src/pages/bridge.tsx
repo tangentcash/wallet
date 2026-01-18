@@ -578,11 +578,11 @@ export default function BridgePage() {
                             <DropdownMenu.Content>
                               <DropdownMenu.Item shortcut="↙" onClick={() => {
                                 if (item.attestation.accepts_account_requests)
-                                  navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=register&manager=${item.attestation.owner}`)
+                                  navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=register&manager=${item.attestation.owner}&back=${encodeURIComponent(location.pathname + location.search)}`)
                               }} disabled={!item.attestation.accepts_account_requests}>Deposit into account</DropdownMenu.Item>
                               <DropdownMenu.Item shortcut="↗" onClick={() => {
                                 if (item.attestation.accepts_withdrawal_requests)
-                                  navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=withdraw&manager=${item.attestation.owner}`)
+                                  navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=withdraw&manager=${item.attestation.owner}&back=${encodeURIComponent(location.pathname + location.search)}`)
                               }} disabled={!item.attestation.accepts_withdrawal_requests}>Withdraw from account</DropdownMenu.Item>
                             </DropdownMenu.Content>
                           </DropdownMenu.Root>

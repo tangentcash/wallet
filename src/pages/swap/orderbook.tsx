@@ -412,15 +412,11 @@ export default function OrderbookPage() {
         const balancesResult = Swap.accountBalances({ address: account });
         try {
           setOrders(await ordersResult || []);
-        } catch (exception: any) {
-          AlertBox.open(AlertType.Error, 'Failed to fetch account orders: ' + (exception.message || 'unknown error'));
-        }
+        } catch {  }
 
         try {
           setTiers(await tiersResult);
-        } catch (exception: any) {
-          AlertBox.open(AlertType.Error, 'Failed to fetch account tiers: ' + (exception.message || 'unknown error'));
-        }
+        } catch { }
 
         try {
           const accountBalances = await balancesResult;
@@ -431,9 +427,7 @@ export default function OrderbookPage() {
             });
             return poly;
           });
-        } catch (exception: any) {
-          AlertBox.open(AlertType.Error, 'Failed to fetch account balances: ' + (exception.message || 'unknown error'));
-        }
+        } catch { }
       };
       const marketResult = Swap.market(orderbook.marketId);
       const levelsResult = Swap.marketPriceLevels(orderbook.marketId, result.id);
