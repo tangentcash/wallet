@@ -131,14 +131,14 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           <Card mt="2">
             {
               transaction.transactions.map((item: any, index: number) =>
-                <Flex align="center" gap="2" key={'IF1' + item.hash + index} mb={index == transaction.transactions.length - 1 ? '0' : '4'}>
-                  <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
-                  <Badge size="2" variant="soft">{ Readability.toTransactionType(item.type) }</Badge>
+                <Flex align="center" gap="2" key={'IF1' + item.action.hash + index} mb={index == transaction.transactions.length - 1 ? '0' : '4'}>
+                  <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(item.action.asset)} src={Readability.toAssetImage(item.action.asset)} />
+                  <Badge size="2" variant="soft">{ Readability.toTransactionType(item.action.type) }</Badge>
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                    navigator.clipboard.writeText(item.hash);
+                    navigator.clipboard.writeText(item.action.hash);
                     AlertBox.open(AlertType.Info, 'Internal transaction hash copied!')
-                  }}>{ Readability.toHash(item.hash) }</Button>
-                  <Link className="router-link" to={'/transaction/' + item.hash}>▒▒</Link>
+                  }}>{ Readability.toHash(item.action.hash) }</Button>
+                  <Link className="router-link" to={'/transaction/' + item.action.hash}>▒▒</Link>
                 </Flex>
               )
             }
