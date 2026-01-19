@@ -104,9 +104,9 @@ export default function Maker(props: {
   }, [state.value, valueBalance]);
   const policy = useMemo((): OrderPolicy => {
     if (isImmediate) {
-      return state.fillOrKill ? OrderPolicy.DeferredAll : OrderPolicy.Deferred;
-    } else {
       return state.fillOrKill ? OrderPolicy.ImmediateAll : OrderPolicy.Immediate;
+    } else {
+      return state.fillOrKill ? OrderPolicy.DeferredAll : OrderPolicy.Deferred;
     }
   }, [state.fillOrKill, isImmediate]);
   const orderPayload = useMemo((): {
