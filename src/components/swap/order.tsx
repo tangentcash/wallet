@@ -72,7 +72,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
   }, [props]);
   const status = useMemo((): string => {
     if (!item.active)
-      return (progress > 0 ? (progress >= 100 ? 'Filled' : 'Partially filled (cancelled)') : 'Cancelled');
+      return (progress > 0 ? (progress >= 100 ? 'Filled' : 'Partially filled (leftover cancelled)') : 'Cancelled');
 
     return (progress > 0 ? (progress >= 100 ? 'Filled' : 'Partially filled') : 'No match yet');
   }, [progress]);
@@ -133,7 +133,12 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Reference:</DataList.Label>
-            <DataList.Value>0x{ item.orderId.toString(16) }</DataList.Value>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(item.orderId.toString(16));
+                AlertBox.open(AlertType.Info, 'Reference copied!')
+              }}>0x{ item.orderId.toString(16).length > 8 ? Readability.toHash(item.orderId.toString(16), 6) : item.orderId.toString(16) }</Button>
+            </DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Status:</DataList.Label>
@@ -263,7 +268,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
             </Button>
           </Dialog.Trigger>
           <Dialog.Content maxWidth="450px">
-            <Dialog.Title>Order #{item.orderId.toString()}</Dialog.Title>
+            <Dialog.Title>Order #{item.orderId.toString().length > 8 ? Readability.toHash(item.orderId.toString(), 4) : item.orderId.toString()}</Dialog.Title>
             <FullOrderView open={true}></FullOrderView>
           </Dialog.Content>
         </Dialog.Root>

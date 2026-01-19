@@ -96,7 +96,12 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Reference:</DataList.Label>
-            <DataList.Value>0x{ item.poolId.toString(16) }</DataList.Value>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(item.poolId.toString(16));
+                AlertBox.open(AlertType.Info, 'Reference copied!')
+              }}>0x{ item.poolId.toString(16).length > 8 ? Readability.toHash(item.poolId.toString(16), 6) : item.poolId.toString(16) }</Button>
+            </DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Status:</DataList.Label>
@@ -175,7 +180,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
             </Button>
           </Dialog.Trigger>
           <Dialog.Content maxWidth="450px">
-            <Dialog.Title>Pool #{item.poolId.toString()}</Dialog.Title>
+            <Dialog.Title>Pool #{item.poolId.toString().length > 8 ? Readability.toHash(item.poolId.toString(), 4) : item.poolId.toString()}</Dialog.Title>
             <FullPoolView open={true}></FullPoolView>
           </Dialog.Content>
         </Dialog.Root>
