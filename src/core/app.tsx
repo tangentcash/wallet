@@ -712,7 +712,7 @@ export class AppData {
   }
   static defaultNetwork(): NetworkType {
     // @ts-ignore
-    return import.meta.env.DEV ? NetworkType.Regtest : NetworkType.Regtest;
+    return import.meta.env.DEV ? NetworkType.Regtest : NetworkType.Testnet;
   }
 }
 
