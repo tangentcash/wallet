@@ -63,7 +63,7 @@ export default function Maker(props: {
     return { primary: primaryBalance, secondary: secondaryBalance };
   }, [props.balances]);
   const isImmediate = useMemo((): boolean => {
-    return state.condition == OrderCondition.Market || state.condition == OrderCondition.Stop || state.condition == OrderCondition.TrailingStop;
+    return state.condition == OrderCondition.Market;
   }, [state.condition]);
   const isTrailing = useMemo((): boolean => {
     return state.condition == OrderCondition.TrailingStop || state.condition == OrderCondition.TrailingStopLimit;
