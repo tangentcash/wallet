@@ -24,6 +24,11 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
       return item.startingValue;
     return price ? item.startingValue.dividedBy(price) : null;
   }, [price]);
+  const leftoverQuantity = useMemo((): BigNumber | null => {
+    if (item.side == OrderSide.Sell)
+      return item.value;
+    return price ? item.value.dividedBy(price) : null;
+  }, [price]);
   const paidAsset = useMemo((): AssetId => {
     return item.side == OrderSide.Buy ? item.secondaryAsset : item.primaryAsset;
   }, [props]);
@@ -262,7 +267,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
                 }
                 <Flex justify="between" wrap="wrap" gap="1">
                   <Text size="2" color="yellow">Left</Text>
-                  <Text size="2" color="yellow">{ Readability.toMoney(item.primaryAsset, quantity) }</Text>
+                  <Text size="2" color="yellow">{ Readability.toMoney(item.primaryAsset, leftoverQuantity) }</Text>
                 </Flex>
               </Flex>
             </Button>
