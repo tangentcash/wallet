@@ -141,12 +141,17 @@ export default function RestorePage() {
       return;
 
     setLoading(true);
-    let status = await AppData.restoreWallet(passphrase, networkType);
-    if (!status) {
-      AlertBox.open(AlertType.Error, 'Wallet password did not unlock the secure storage');
-      reportError();
-    } else {
-      return exitPrompt();
+    try {
+      let status = await AppData.restoreWallet(passphrase, networkType);
+      if (!status) {
+        AlertBox.open(AlertType.Error, 'Wallet password did not unlock the secure storage');
+        reportError();
+      } else {
+        return exitPrompt();
+      }
+    } catch (exception: any) {
+        AlertBox.open(AlertType.Error, exception.message);
+        reportError();
     }
     setLoading(false);
   }, [passphrase, networkType, loading, error]);
@@ -446,7 +451,7 @@ export default function RestorePage() {
             <Flex px="2" justify="center">
               <Select.Root value={networkType} onValueChange={(value) => setNetworkType(value as NetworkType)}>
                 <Select.Trigger mt="6" variant="soft" color="gray" />
-                <Select.Content>
+                <Select.Content color="gray">
                   <Select.Group>
                     <Select.Label>Tangent network</Select.Label>
                     <Select.Item value="mainnet">

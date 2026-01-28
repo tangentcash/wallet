@@ -69,6 +69,12 @@ export type AppProps = {
   appearance: 'dark' | 'light'
 }
 
+export enum AppPermission {
+  ReadOnly,
+  ReadWrite,
+  Reset
+}
+
 export class AppData {
   static root: Root | null = null;
   static server: ServerState = {
@@ -316,7 +322,7 @@ export class AppData {
   }
   static async restoreWallet(passphrase: string, network?: NetworkType): Promise<boolean> {
     this.props.account = null;
-    this.reconfigure(network);
+    this.reconfigure(network || null, AppPermission.ReadWrite);
     this.save();
 
     const status = await SafeStorage.restore(passphrase);
@@ -341,7 +347,7 @@ export class AppData {
   }
   static async resetWallet(secret: string | string[], type: WalletType, network?: NetworkType): Promise<boolean> {
     this.props.account = null;
-    this.reconfigure(network);
+    this.reconfigure(network || null, AppPermission.Reset);
     this.save();
     await SafeStorage.set(StorageField.Mnemonic);
     await SafeStorage.set(StorageField.SecretKey);
@@ -554,7 +560,7 @@ export class AppData {
       onIpsetLoad: (): { servers: string[] } => Storage.get(StorageField.Discovery),
       onIpsetStore: (ipset: { servers: string[] }) => Storage.set(StorageField.Discovery, ipset)
     });
-    this.reconfigure();
+    this.reconfigure(null, AppPermission.ReadOnly);
     
     const splashscreen = document.getElementById('splashscreen-content');
     if (splashscreen != null) {
@@ -568,10 +574,16 @@ export class AppData {
     if (this.isApp())
       await listen('authorizer', (event) => this.authorizerEvent(event));
   }
-  static reconfigure(network?: NetworkType): void {
-    if (!network)
-      network = Storage.get(StorageField.Network) || this.defaultNetwork();
+  static reconfigure(network: NetworkType | null, type: AppPermission): void {
+    const prevNetwork = Storage.get(StorageField.Network) || this.defaultNetwork();
+    network = network ? network : prevNetwork;
+
+    let resetNetwork = type == AppPermission.Reset;
     if (network != null) {
+      resetNetwork = resetNetwork || prevNetwork != network;
+      if (type == AppPermission.ReadWrite && resetNetwork) {
+        throw new Error('Must perform reset to change the network');
+      }
       Chain.props = Chain[network];
       Storage.set(StorageField.Network, network);
     } 
@@ -591,15 +603,18 @@ export class AppData {
     this.defs.prefix = config.cachePrefix;
     this.defs.swapper = config.swapUrl;
     this.defs.authorizer = config.authorizer;
-    if (!this.props.resolver)
+    if (resetNetwork || !this.props.resolver)
       this.props.resolver = config.resolverUrl;
-    if ((!this.props.resolver && !this.props.server) || !Storage.get(StorageField.App))
+    if (resetNetwork || (!this.props.resolver && !this.props.server) || !Storage.get(StorageField.App))
       this.props.server = config.serverUrl;
     
     const address = this.getWalletAddress();
     RPC.applyAddresses(address ? [address] : []);
     RPC.applyResolver(this.props.resolver);
     RPC.applyServer(this.props.server);
+    if (resetNetwork) {
+      Storage.set(StorageField.Discovery);
+    }
   }
   static openDevTools(): void {
     if (this.isApp())

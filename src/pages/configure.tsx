@@ -3,7 +3,7 @@ import { Badge, Box, Button, Card, DataList, Flex, Heading, Table, Text, TextFie
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { SafeStorage, StorageField } from "../core/storage";
-import { AppData } from "../core/app";
+import { AppData, AppPermission } from "../core/app";
 import { ByteUtil, RPC, Signing, Readability } from "tangentsdk";
 import Icon from "@mdi/react";
 
@@ -99,7 +99,7 @@ export default function ConfigurePage() {
       AppData.setServer(target);
       if (target != null) {
         await RPC.disconnectSocket();
-        AppData.reconfigure();
+        AppData.reconfigure(null, AppPermission.ReadOnly);
         if (await AppData.sync()) {
           AlertBox.open(AlertType.Info, 'Using ' + target + ' as overriding server');
         } else {
@@ -112,6 +112,21 @@ export default function ConfigurePage() {
       AlertBox.open(AlertType.Error, 'Server must be in a hostname:port format');
     }
 
+    setLoadingProps(false);
+    return true;
+  }, [loadingProps]);
+  const resetNetwork = useCallback(async () => {
+    if (loadingProps)
+      return false;
+
+    setLoadingProps(true);
+    await RPC.disconnectSocket();
+    AppData.reconfigure(null, AppPermission.Reset);
+    if (await AppData.sync()) {
+      AlertBox.open(AlertType.Info, 'Network reset: connection re-acquired');
+    } else {
+      AlertBox.open(AlertType.Warning, 'Server connection failed');
+    }
     setLoadingProps(false);
     return true;
   }, [loadingProps]);
@@ -211,6 +226,12 @@ export default function ConfigurePage() {
             </Tooltip>
             <Button size="2" variant="soft" color="orange" onClick={() => setOverriderServer(serverAddress)}>
               <Icon path={mdiRefresh} size={0.85} />
+            </Button>
+          </Flex>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" ml="1" color="gray">Reset network</Text>
+            <Button size="2" variant="soft" color="yellow" onClick={() => resetNetwork()}>
+              <Icon path={mdiReloadAlert} size={0.85} />
             </Button>
           </Flex>
         </Box>
