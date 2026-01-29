@@ -181,7 +181,7 @@ export default function ExplorerPage() {
                         </Flex>
                         { item.whitelisted && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.7}></Icon> }
                       </Flex>
-                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(item.pair.secondaryAsset, item.pair.price.close && item.pair.secondaryBase != null ? item.pair.price.close.dp(2) : item.pair.price.close) }</Text>
+                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(item.pair.secondaryAsset, item.pair.price.close) }</Text>
                     </Flex>
                     <Flex justify="between" align="center">
                       <Flex align="center">

@@ -178,7 +178,7 @@ export type BlockchainInfo = AssetId & {
     bulkTransfer: boolean
 }
 
-export type Descriptors = Record<string, { asset: AssetId, price: { open: BigNumber | null, close: BigNumber | null } }>;
+export type PriceDescriptors = Record<string, { whitelist: boolean, base: string | null, price: { open: BigNumber | null, close: BigNumber | null } }>;
 export type PromiseCallback = (data: any) => void;
 
 export enum SwapField {
@@ -189,7 +189,7 @@ export class Swap {
   static location: string = '';
   static subroute: string = '/swap';
   static whitelist: Set<string> = new Set<string>();
-  static prices: Descriptors = { };
+  static prices: PriceDescriptors = { };
   static contracts: Market[] = [];
   static descriptors: BlockchainInfo[] = [];
   static equityAsset: AssetId = AssetId.fromHandle('USD');
@@ -289,8 +289,11 @@ export class Swap {
         const asset = new AssetId(notification.data.primaryAsset.id);
         const price = new BigNumber(notification.data.price);
         const symbol = asset.token || asset.chain || '';
+        const whitelist = this.whitelistOf(asset);
         const prev = this.prices[symbol];
-        this.prices[symbol] = { asset: asset, price: { open: prev?.price?.open || price, close: price } };
+        if (!prev || prev.whitelist == whitelist || (!prev.whitelist && whitelist)) {
+          this.prices[symbol] = { whitelist: whitelist, base: prev?.base || this.equityAsset.chain, price: { open: prev?.price?.open || price, close: price } };
+        }
       } catch { }
     }
     window.dispatchEvent(new CustomEvent(type, {
@@ -320,7 +323,9 @@ export class Swap {
         this.prices = portfolio?.prices || { };
         this.contracts = portfolio?.markets || [];
         this.descriptors = (portfolio?.descriptors || []).sort((a, b) => Readability.toAssetSymbol(a).localeCompare(Readability.toAssetSymbol(b)));
-        this.equityAsset = this.prices['__BASE__']?.asset || this.equityAsset;
+        
+        const base = this.prices['__BASE__']?.base || null;
+        this.equityAsset = base ? AssetId.fromHandle(base) : this.equityAsset;
       } catch { }
 
       try {
@@ -478,29 +483,19 @@ export class Swap {
 
     return true;
   }
-  static async assetsPortfolio(): Promise<{ prices: Descriptors, descriptors: BlockchainInfo[], markets: Market[] } | null> {
+  static async assetsPortfolio(): Promise<{ prices: PriceDescriptors, descriptors: BlockchainInfo[], markets: Market[] } | null> {
     const result = await this.fetch('GET', `assets/portfolio`, { }, false);
     if (!result)
       return null;
 
-    if (result.prices != null) {
-      for (let key in result.prices) {
-        const item = result.prices[key];
-        item.asset = new AssetId(item.asset.id);
-      }
-    }
     return result;
   }
   static async assetQuery(query: string): Promise<AssetId[]> {
     const result = await this.fetch('GET', `asset/query`, { query: query.trim() });
     return result.map((item: any) => new AssetId(item.id));
   }
-  static async assetPrices(): Promise<Descriptors> {
+  static async assetPrices(): Promise<PriceDescriptors> {
     const result = await this.fetch('GET', `asset/prices`, { });
-    for (let key in result) {
-      const item = result[key];
-      item.asset = new AssetId(item.asset.id);
-    }
     return result;
   }
   static async assetDescriptors(): Promise<BlockchainInfo[]> {
