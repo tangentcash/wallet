@@ -609,7 +609,7 @@ export class AppData {
       this.props.server = config.serverUrl;
     
     const address = this.getWalletAddress();
-    RPC.applyAddresses(address ? [address] : []);
+    RPC.applyTopics(address ? [address] : []);
     RPC.applyResolver(this.props.resolver);
     RPC.applyServer(this.props.server);
     if (resetNetwork) {
