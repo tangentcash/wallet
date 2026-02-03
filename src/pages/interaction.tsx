@@ -588,12 +588,14 @@ export default function InteractionPage() {
         let receipt = await RPC.simulateTransaction(output.data);
         presetGasLimit = receipt ? typeof receipt.relative_gas_use == 'string' ? new BigNumber(receipt.relative_gas_use, 16) : (BigNumber.isBigNumber(receipt.relative_gas_use) ? receipt.relative_gas_use : new BigNumber(-1)) : new BigNumber(-1);
         if (presetGasLimit.lt(0)) {
-          AlertBox.open(AlertType.Error, 'Cannot fetch transaction gas limit');
+          AlertBox.open(AlertType.Error, 'Failed to fetch transaction gas limit');
         } else if (receipt != null && receipt.events != null) {
           setSimulation({ receipt: receipt, state: EventResolver.calculateSummaryState(receipt.events) })
         }
       } catch (exception) {
-        AlertBox.open(AlertType.Error, 'Cannot fetch transaction gas limit: ' + (exception as Error).message);
+        const message = (exception as Error).message;
+        const stacktrace = message.match(/\n  #\d+ at \S+:\d+:\d+ in /);
+        AlertBox.open(AlertType.Error, 'Simulation failed: ' + (typeof stacktrace?.index == 'number' && stacktrace.index > 0 ? message.substring(0, stacktrace.index) : message));
       }
     }
     
