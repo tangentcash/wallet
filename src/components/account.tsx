@@ -46,17 +46,15 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
     if (!address || !address.purpose)
       return <>Tangent wallet with cross-chain capabilities.</>;
 
-    const ownerType = address.owner == ownerAddress ? ' (this account)' : '';
-    const managerType = address.manager == ownerAddress ? ' (this account)' : ' (validator)';
-    if (address.purpose == 'witness' && address.manager == address.owner)
+    if (address.purpose == 'witness')
       return <>Witness wallet → dismissed.</>;
-    else if (address.purpose == 'routing' && address.manager == null)
+    else if (address.purpose == 'routing')
       return <>Routing wallet → receive/pay to bridge wallets.</>;
-    else if (address.purpose == 'bridge' && address.manager != null)
+    else if (address.purpose == 'bridge')
       return <>Bridge wallet → receive/pay to routing wallets.</>;
-    else if (address.manager != null)
-      return <>Unknown wallet. Linked to <Link href="#">{address.owner}</Link>{ ownerType }, managed by <Link href="#">{address.manager}</Link>{ managerType }</>;
-    return <>Unknown wallet. Linked to <Link href="#">{address.owner}</Link>{ ownerType }</>;
+    else if (address.bridge_hash != null)
+      return <>Unknown wallet. Linked to <Link href="#">{address.owner}</Link> and bridge <Link href="#">{Readability.toHash(address.bridge_hash)}</Link></>;
+    return <>Unknown wallet. Linked to <Link href="#">{address.owner}</Link></>;
   }, [ownerAddress]);
   const findTransactions = useCallback(async (refresh?: boolean) => {
     try {
