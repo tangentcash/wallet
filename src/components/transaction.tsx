@@ -4,7 +4,7 @@ import { AlertBox, AlertType } from "./alert";
 import { Link } from "react-router";
 import { AppData } from "../core/app";
 import { useState } from "react";
-import { mdiInformationOutline, mdiLockOpenVariantOutline, mdiLockOutline } from "@mdi/js";
+import { mdiAlert, mdiBridge, mdiCheck, mdiInformationOutline, mdiKeyChange, mdiLockOpenVariantOutline, mdiLockOutline, mdiReceiptTextCheck, mdiStateMachine, mdiVectorCurve, mdiVectorLink, mdiVectorSquareEdit } from "@mdi/js";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
@@ -40,9 +40,9 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
-            <DataList.Label>Using:</DataList.Label>
+            <DataList.Label>Strategy:</DataList.Label>
             <DataList.Value>
-              <Badge color="red">{ transaction.from[0] + transaction.from.substring(1) }</Badge>
+              <Badge color="yellow">Deploy from { transaction.from }</Badge>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -58,7 +58,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Bundle:</DataList.Label>
+            <DataList.Label>Source:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.data);
@@ -67,7 +67,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Arguments:</DataList.Label>
+            <DataList.Label>Calldata:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 const data: any = JSON.stringify(transaction.args, null, 2);
@@ -97,7 +97,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Function:</DataList.Label>
+            <DataList.Label>Callable:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="jade" onClick={() => {
                 navigator.clipboard.writeText(method);
@@ -106,7 +106,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Arguments:</DataList.Label>
+            <DataList.Label>Calldata:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(JSON.stringify(transaction.args, null, 2));
@@ -1013,11 +1013,11 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               <Flex gap="2" wrap="wrap">
                 {
                   !transaction.error && EventResolver.isSummaryStateEmpty(state, ownerAddress) &&
-                  <Badge size="1" color={receipt.successful ? 'jade' : 'red'}>{ receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Rollback' }</Badge>
+                  <Badge size="1" color={receipt.successful ? 'jade' : 'red'}>{ receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Rollback' }<Icon path={receipt.successful ? mdiCheck : mdiAlert} size={0.55}></Icon></Badge>
                 }
                 {
                   transaction.error != null &&
-                  <Badge size="1" color="red">Refund</Badge>
+                  <Badge size="1" color="red">Refund<Icon path={mdiAlert} size={0.55}></Icon></Badge>
                 }
                 {
                   state.errors.length > 0 &&
@@ -1033,7 +1033,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                         {
                           !value.reserve.eq(0) &&
                           <Badge size="1" color="gold">
-                            <Icon path={value.reserve.lt(0) ? mdiLockOpenVariantOutline : mdiLockOutline} size={0.5}></Icon> { Readability.toMoney(value.asset, value.reserve.lt(0) ? value.reserve.negated() : value.reserve) }
+                            <Icon path={value.reserve.lt(0) ? mdiLockOpenVariantOutline : mdiLockOutline} size={0.55}></Icon> { Readability.toMoney(value.asset, value.reserve.lt(0) ? value.reserve.negated() : value.reserve) }
                           </Badge>
                         }
                       </Flex>
@@ -1057,36 +1057,50 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 }
                 {
                   Object.keys(state.bridge.migrations).length > 0 &&
-                  <Badge size="1" color="yellow">Migrate { Readability.toCount('participant', Object.keys(state.bridge.migrations).length) }</Badge>
+                  <Badge size="1" color="cyan">
+                    { Readability.toValue(null, Object.keys(state.bridge.migrations).length, true, false) }<Icon path={mdiKeyChange} size={0.55}></Icon>
+                  </Badge>
                 }
                 {
                   Object.keys(state.bridge.policies).length > 0 &&
-                  <Badge size="1" color="yellow">{ Readability.toCount('new bridge', Object.keys(state.bridge.policies).length) }</Badge>
+                  <Badge size="1" color="blue">
+                    { Readability.toValue(null, Object.keys(state.bridge.policies).length, true, false) }<Icon path={mdiBridge} size={0.55}></Icon>
+                  </Badge>
                 }
                 {
-                  Object.keys(state.bridge.transactions).length > 0 && !Object.keys(state.witness.transactions).length &&
-                  <Badge size="1" color="brown">{ Readability.toCount('transaction', Object.keys(state.bridge.transactions).length, true) }</Badge>
+                  Object.keys(state.bridge.transactions).length > 0 &&
+                  <Badge size="1" color="blue">
+                    { Readability.toValue(null, Object.keys(state.bridge.transactions).length, true, false) }<Icon path={mdiVectorLink} size={0.55}></Icon>
+                  </Badge>
                 }
                 {
-                  Object.keys(state.bridge.accounts).length > 0 && !Object.keys(state.witness.accounts).length &&
-                  <Badge size="1" color="brown">{ Readability.toCount('account', Object.keys(state.bridge.accounts).length, true) }</Badge>
+                  Object.keys(state.bridge.accounts).length > 0 &&
+                  <Badge size="1" color="blue">
+                    { Readability.toValue(null, Object.keys(state.bridge.accounts).length, true, false) }<Icon path={mdiVectorCurve} size={0.55}></Icon>
+                  </Badge>
                 }
                 {
                   state.bridge.attesters.size > 0 &&
-                  <Badge size="1" color="brown">{ Readability.toCount('attester', state.bridge.attesters.size) }</Badge>
+                  <Badge size="1" color="brown">
+                    { Readability.toValue(null, state.bridge.attesters.size, false, false) }<Icon path={mdiStateMachine} size={0.55}></Icon>
+                  </Badge>
                 }
                 {
                   state.bridge.participants.size > 0 &&
-                  <Badge size="1" color="brown">{ Readability.toCount('participant', state.bridge.participants.size) }</Badge>
+                  <Badge size="1" color="brown">
+                    { Readability.toValue(null, state.bridge.participants.size, true, false) }<Icon path={mdiVectorSquareEdit} size={0.55}></Icon>
+                  </Badge>
                 }
                 {
                   Object.keys(state.receipts).length > 0 &&
-                  <Badge size="1" color="brown">{ Readability.toCount('receipt', Object.keys(state.receipts).length) }</Badge>
+                  <Badge size="1" color="brown">
+                    { Readability.toValue(null, Object.keys(state.receipts).length, true, false) }<Icon path={mdiReceiptTextCheck} size={0.55}></Icon>
+                  </Badge>
                 }
                 {
                   Object.keys(state.witness.transactions).map((asset) => {
                     const event = state.witness.transactions[asset];
-                    return event.stateHashes.map((stateHash) => <Badge key={'X4' + event.asset.toHex() + stateHash} size="1" color="brown">{ Readability.toAddress(stateHash, 4) }</Badge>)
+                    return event.stateHashes.map((stateHash) => <Badge key={'X4' + event.asset.toHex() + stateHash} size="1" color="gray">{ Readability.toAddress(stateHash, 4) }</Badge>)
                   })
                 }
               </Flex>
