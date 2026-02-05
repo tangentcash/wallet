@@ -503,6 +503,31 @@ export default function BridgePage() {
                           }}>{ Readability.toAddress(item.instance.bridge_hash) }</Button>
                         </DataList.Value>
                       </DataList.Item>
+                      <Tooltip content="Amount of accounts linked to this bridge">
+                        <DataList.Item>
+                          <DataList.Label>Bridge accounts:</DataList.Label>
+                          {
+                            (asset.routing_policy == 'account') &&
+                            <DataList.Value>
+                              <Badge size="1" color="orange">Master account only</Badge>
+                            </DataList.Value>
+                          }
+                          {
+                            (asset.routing_policy != 'account') &&
+                            <DataList.Value>
+                              <Badge size="1" color="blue">{ Readability.toCount('account', item.instance.account_nonce) }</Badge>
+                            </DataList.Value>
+                          }
+                        </DataList.Item>
+                      </Tooltip>
+                      <Tooltip content="Amount of transactions made from this bridge">
+                        <DataList.Item>
+                          <DataList.Label>Bridge transactions:</DataList.Label>
+                          <DataList.Value>
+                            <Badge size="1" color="blue">{ Readability.toCount('transaction', item.instance.transaction_nonce) }</Badge>
+                          </DataList.Value>
+                        </DataList.Item>
+                      </Tooltip>
                       <Tooltip content="Unspent balance of a bridge usable as withdrawal liquidity">
                         <DataList.Item>
                           <DataList.Label>Total value locked:</DataList.Label>
@@ -510,7 +535,7 @@ export default function BridgePage() {
                             <Flex wrap="wrap" gap="1">
                               {
                                 item.balances && item.balances.map((next: any) =>
-                                  <Badge key={item.instance.hash + index + next.asset.id} size="1" color="yellow">{ Readability.toMoney(next.asset, next.supply) }</Badge>)
+                                  <Badge key={item.instance.hash + index + next.asset.id} size="1" color="jade">{ Readability.toMoney(next.asset, next.supply) }</Badge>)
                               }
                               {
                                 (!item.balances || !item.balances.length) &&
