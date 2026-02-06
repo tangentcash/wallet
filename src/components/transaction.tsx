@@ -4,7 +4,7 @@ import { AlertBox, AlertType } from "./alert";
 import { Link } from "react-router";
 import { AppData } from "../core/app";
 import { useState } from "react";
-import { mdiAlert, mdiBridge, mdiCheck, mdiInformationOutline, mdiKeyChange, mdiLockOpenVariantOutline, mdiLockOutline, mdiReceiptTextCheck, mdiStateMachine, mdiVectorCurve, mdiVectorLink, mdiVectorSquareEdit } from "@mdi/js";
+import { mdiAlert, mdiBridge, mdiCheck, mdiInformationOutline, mdiKeyChange, mdiListBox, mdiLockOpenVariantOutline, mdiLockOutline, mdiReceiptTextCheck, mdiStateMachine, mdiVectorCurve, mdiVectorLink, mdiVectorSquareEdit } from "@mdi/js";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
@@ -773,6 +773,35 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                 </Card>
               )
             }
+            case EventType.BridgeQueue: {
+              return (
+                <Card key={'OF4113' + event.type.toString() + index} mt="3">
+                  <DataList.Root orientation={props.orientation}>
+                    <DataList.Item>
+                      <DataList.Label>Event:</DataList.Label>
+                      <DataList.Value>
+                        <Badge color="amber">Bridge queue</Badge>
+                      </DataList.Value>
+                    </DataList.Item>
+                    <DataList.Item>
+                      <DataList.Label>Bridge hash:</DataList.Label>
+                      <DataList.Value>
+                        <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                          navigator.clipboard.writeText(event.bridgeHash);
+                          AlertBox.open(AlertType.Info, 'Bridge hash copied!')
+                        }}>{ Readability.toHash(event.bridgeHash) }</Button>
+                      </DataList.Value>
+                    </DataList.Item>
+                    <DataList.Item>
+                      <DataList.Label>Position:</DataList.Label>
+                      <DataList.Value>
+                        <Badge color={event.size.gt(1) ? 'yellow' : 'jade'}>{ event.size.gt(1) ? 'Executes after ' + Readability.toCount('transaction', event.size) : 'Executes immediately' }</Badge>
+                      </DataList.Value>
+                    </DataList.Item>
+                  </DataList.Root>
+                </Card>
+              )
+            }
             case EventType.BridgeTransfer: {
               return (
                 <Card key={'OF4' + event.type.toString() + index} mt="3">
@@ -1041,21 +1070,6 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   })
                 }
                 {
-                  state.bridge.balances[ownerAddress] && Object.keys(state.bridge.balances[ownerAddress]).map((asset) => {
-                    const value = state.bridge.balances[ownerAddress][asset];
-                    return (
-                      <Badge key={'X1' + transaction.hash + asset} size="1" color={value.supply.eq(0) ? 'gray' : 'brown'}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge>
-                    )
-                  })
-                }
-                {
-                  Object.keys(state.witness.accounts).map((asset) => {
-                    const aliases = state.witness.accounts[asset].aliases;
-                    const bridge = state.witness.accounts[asset].purpose == 'bridge';
-                    return aliases.map((alias) => <Badge key={'X3' + alias} size="1" color={bridge ? 'blue' : 'jade'}>{ Readability.toAddress(alias) }</Badge>)
-                  })
-                }
-                {
                   Object.keys(state.bridge.migrations).length > 0 &&
                   <Badge size="1" color="cyan">
                     { Readability.toValue(null, Object.keys(state.bridge.migrations).length, true, false) }<Icon path={mdiKeyChange} size={0.55}></Icon>
@@ -1096,6 +1110,23 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   <Badge size="1" color="brown">
                     { Readability.toValue(null, Object.keys(state.receipts).length, true, false) }<Icon path={mdiReceiptTextCheck} size={0.55}></Icon>
                   </Badge>
+                }
+                {
+                  Object.keys(state.bridge.queues).length > 0 && Object.keys(state.bridge.queues[Object.keys(state.bridge.queues)[0]]).map((asset) => {
+                    const queue = state.bridge.queues[Object.keys(state.bridge.queues)[0]][asset];
+                    return (
+                      <Badge key={'X148' + transaction.hash + asset} size="1" color={queue.size.gt(1) ? 'yellow' : 'jade'}>
+                        { Readability.toValue(null, queue.size, false, false) }<Icon path={mdiListBox} size={0.55}></Icon>
+                      </Badge>
+                    )
+                  })
+                }
+                {
+                  Object.keys(state.witness.accounts).map((asset) => {
+                    const aliases = state.witness.accounts[asset].aliases;
+                    const bridge = state.witness.accounts[asset].purpose == 'bridge';
+                    return aliases.map((alias) => <Badge key={'X3' + alias} size="1" color={bridge ? 'blue' : 'jade'}>{ Readability.toAddress(alias, 6) }</Badge>)
+                  })
                 }
                 {
                   Object.keys(state.witness.transactions).map((asset) => {

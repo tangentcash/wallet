@@ -1867,7 +1867,7 @@ source-map-js@^1.2.1:
 
 "tangentsdk@https://github.com/tangentcash/sdk.git":
   version "1.0.0"
-  resolved "https://github.com/tangentcash/sdk.git#8fc67c4e67f4071525c7b5ddeaa7ee316d858bca"
+  resolved "https://github.com/tangentcash/sdk.git#a05cee74e8276fb0ec90cb2c2cb1211025eb3109"
   dependencies:
     "@ethersproject/random" "5.8.0"
     "@noble/hashes" "1.8.0"
