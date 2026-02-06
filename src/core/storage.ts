@@ -68,8 +68,7 @@ export class SafeStorage {
       const data = await crypto.subtle.encrypt({ name: 'AES-CBC', length: 256, iv: iv as any }, key, payload);
       localStorage.setItem(StorageField.Passphrase, ByteUtil.uint8ArrayToHexString(Uint8Array.from([...iv, ...new Uint8Array(data)])));
       return true;
-    } catch (ex) {
-      console.log(ex);
+    } catch {
       return false;
     }
   }
