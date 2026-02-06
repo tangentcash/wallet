@@ -1,7 +1,7 @@
 {
   "resolverUrl": "https://p2p.tangent.cash:18420",
   "serverUrl": "p2p.tangent.cash:18419",
-  "swapUrl": "http://localhost:19420",
+  "swapUrl": "https://p2p.tangent.cash:19420",
   "cachePrefix": "VMN",
   "authorizer": true
 }
