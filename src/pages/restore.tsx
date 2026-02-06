@@ -192,11 +192,11 @@ export default function RestorePage() {
 
     setLoading(true);
     let mnemonic: string = '';
-    for (let i = 0; i < 64; i++) {
+    for (let i = 0; i < 32; i++) {
       mnemonic = Signing.mnemonicgen();
       setSeed(cyrb128(mnemonic)[0]);
       setMnemonic(mnemonic.split(' '));
-      await new Promise((resolve) => setTimeout(resolve, 50));
+      await new Promise((resolve) => setTimeout(resolve, 80));
     }
 
     let status = await AppData.resetWallet(mnemonic.split(' '), WalletType.Mnemonic, networkType);
@@ -428,7 +428,7 @@ export default function RestorePage() {
               status == 'mnemonic' &&
               <Card className="bp-mobile-ghost800" size="4" variant="surface" mx="auto" style={{ width: '100%', borderRadius: '36px' }}>
                 <Heading as="h3" size={mobile ? '4' : '7'} align="center" mb="3">Remember your recovery phrase</Heading>
-                <Callout.Root mb="5" size="1" variant="surface">
+                <Callout.Root mb="5" size="1" color="red" variant="surface">
                   <Callout.Icon>
                     <Icon path={mdiAlertCircleOutline} size={1} />
                   </Callout.Icon>

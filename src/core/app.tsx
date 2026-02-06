@@ -343,6 +343,8 @@ export class AppData {
       }
     }
 
+    const address = this.getWalletAddress();
+    RPC.applyTopics(address ? [address] : []);
     return true;
   }
   static async resetWallet(secret: string | string[], type: WalletType, network?: NetworkType): Promise<boolean> {
