@@ -607,6 +607,8 @@ export class AppData {
       this.props.resolver = config.resolverUrl;
     if (resetNetwork || (!this.props.resolver && !this.props.server) || !Storage.get(StorageField.App))
       this.props.server = config.serverUrl;
+    if (resetNetwork)
+      RPC.clearCache();
     
     const address = this.getWalletAddress();
     RPC.applyTopics(address ? [address] : []);
