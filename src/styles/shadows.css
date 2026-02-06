@@ -32,6 +32,15 @@
   opacity: 1.0;
 }
 
+.shadow-rainbow-progress {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  transition: right 500ms linear;
+  box-shadow: 0px 0px 4px 2.2px var(--gray-a6);
+}
+
 @keyframes shadow-rainbow-animation-clip {
   25% { box-shadow: -15px 0 30px -10px var(--iris-a7), 0 0 30px -10px var(--blue-a7), 15px 0 30px -10px var(--iris-a4), 0 0 0 1px var(--yellow-a7); opacity: 0.5; }
   50% { box-shadow: -15px 0 30px -10px var(--blue-a7), 0 0 30px -10px var(--iris-a4), 15px 0 30px -10px var(--yellow-a7), 0 0 0 1px var(--iris-a7); opacity: 1.0; }

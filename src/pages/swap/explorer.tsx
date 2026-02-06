@@ -113,7 +113,7 @@ export default function ExplorerPage() {
       </Box>
       <Flex gap="1">
         <AssetSelector title="token 1 to launch" value={marketLauncher.primary} onChange={(value) => setMarketLauncher(prev => ({ primary: value, secondary: prev?.secondary || null }))}>
-          <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--jade-2)', position: 'relative' }} color="red">
+          <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--gray-2)', position: 'relative' }} color="red">
             <Flex justify="center" align="center">
               {
                 marketLauncher.primary != null &&
@@ -124,18 +124,18 @@ export default function ExplorerPage() {
               }
               {
                 marketLauncher.primary == null &&
-                <Icon path={mdiCurrencyBtc} size={1.2}></Icon>
+                <Icon path={mdiCurrencyBtc} size={1.2} color="var(--gray-11)"></Icon>
               }
             </Flex>
-            <Box style={{ zIndex: '1', borderRadius: '16px', backgroundColor: 'var(--gray-1)', padding: '4px', position: 'absolute', bottom: '50%', right: '-25px', transform: 'translateY(50%)' }}>
-              <Flex justify="center" align="center" style={{ borderRadius: '12px', backgroundColor: 'var(--jade-4)', width: '40px', height: '40px' }}>
-                <Icon path={mdiArrowLeftRight} size={1.2}></Icon>
+            <Box style={{ zIndex: '1', borderRadius: '16px', backgroundColor: 'var(--gray-2)', padding: '4px', position: 'absolute', bottom: '50%', right: '-25px', transform: 'translateY(50%)' }}>
+              <Flex justify="center" align="center" style={{ borderRadius: '12px', backgroundColor: 'var(--gray-4)', width: '40px', height: '40px' }}>
+                <Icon path={mdiArrowLeftRight} size={1.2} color="var(--gray-11)"></Icon>
               </Flex>
             </Box>
           </Button>
         </AssetSelector>
         <AssetSelector title="token 2 to launch" value={marketLauncher.secondary} onChange={(value) => setMarketLauncher(prev => ({ primary: prev?.primary || null, secondary: value }))}>
-          <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--jade-3)' }} color="red">
+          <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--gray-2)' }} color="red">
             <Flex justify="center" align="center">
               {
                 marketLauncher.secondary != null &&
@@ -146,7 +146,7 @@ export default function ExplorerPage() {
               }
               {
                 marketLauncher.secondary == null &&
-                <Icon path={mdiCurrencyUsd} size={1.2}></Icon>
+                <Icon path={mdiCurrencyUsd} size={1.2} color="var(--gray-11)"></Icon>
               }
             </Flex>
           </Button>

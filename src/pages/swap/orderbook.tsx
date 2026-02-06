@@ -6,15 +6,16 @@ import { Swap, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Ma
 import { useEffectAsync } from "../../core/react";
 import { SeriesApiRef } from "lightweight-charts-react-components";
 import { BarPrice, ChartOptions, CrosshairMode, DeepPartial, IChartApi, LogicalRange, MouseEventParams, PriceScaleMode, Time } from "lightweight-charts";
-import { mdiAlert, mdiArrowRightThin, mdiCheckDecagram, mdiCog, mdiCurrencyUsd } from "@mdi/js";
+import { mdiAlert, mdiArrowRightThin, mdiCheckDecagram, mdiCog, mdiCubeOutline, mdiCurrencyUsd, mdiTimelapse } from "@mdi/js";
 import { GenericBar, PriceBar, VolumeBar, ChartViewType, ChartView } from "../../components/swap/chart";
 import { AlertBox, AlertType } from "../../components/alert";
 import { AssetId, Readability } from "tangentsdk";
+import { Storage } from "../../core/storage";
 import BigNumber from "bignumber.js";
 import Maker from "../../components/swap/maker";
 import OrderView from "../../components/swap/order";
 import Icon from "@mdi/react";
-import { Storage } from "../../core/storage";
+import Clock from "../../components/swap/clock";
 
 enum PriceScope {
   Bid,
@@ -127,7 +128,8 @@ export default function OrderbookPage() {
   const seriesRef = useRef<IChartApi>(null);
   const priceSeriesRef = useRef<SeriesApiRef<'Candlestick' | 'Bar' | 'Area' | 'Line'>>(null);
   const volumeSeriesRef = useRef<SeriesApiRef<'Histogram'>>(null);
-  const [whitelisted, setWhitelisted] = useState<boolean>(false);
+  const [blockNumber, setBlockNumber] = useState<number>(AppData.tip?.toNumber() || 0)
+  const [whitelisted, setWhitelisted] = useState<boolean | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [preset, setPreset] = useState<{ id: number, condition: OrderCondition, side: OrderSide, price: string } | null>(null);
   const [tab, setTab] = useState<'info' | 'order' | 'book' | 'trades'>(mobile ? 'info' : 'order');
@@ -232,7 +234,7 @@ export default function OrderbookPage() {
   const seriesInterval = useMemo((): string => {
     const target = seriesOptions.intervals.find((item) => item[0] == seriesOptions.interval);
     return target ? target[1].toString() : '?';
-  }, [seriesOptions.intervals]);
+  }, [seriesOptions.intervals, seriesOptions.interval]);
   const seriesChartOptions = useMemo((): DeepPartial<ChartOptions> => {
     return {
       crosshair: {
@@ -534,13 +536,13 @@ export default function OrderbookPage() {
         return prev;
       
       const priceSeries = [...prev.price], volumeSeries = [...prev.volume];
-      const time = upperTimeSlot(seriesOptions.interval, Math.floor(new Date().getTime() / 1000)); 
+      const time = lowerTimeSlot(seriesOptions.interval, Math.floor(new Date().getTime() / 1000)); 
       const prevPrice: PriceBar | null = priceSeries.length > 0 ? priceSeries[priceSeries.length - 1] : null;
       const prevVolume: VolumeBar | null = volumeSeries.length > 0 ? volumeSeries[volumeSeries.length - 1] : null;
-      const mergePrice = prevPrice && prevPrice.time == time;
-      const mergeVolume = prevVolume && prevVolume.time == time;
+      const mergePrice = prevPrice && (prevPrice.time as number) >= time;
+      const mergeVolume = prevVolume && (prevVolume.time as number) >= time;
       const nextPrice: PriceBar = {
-          time: time as Time,
+          time: mergePrice ? prevPrice.time : time as Time,
           open: mergePrice ? prevPrice.open : price.toNumber(),
           low: mergePrice ? Math.min(prevPrice.low, price.toNumber()) : price.toNumber(),
           high: mergePrice ? Math.max(prevPrice.high, price.toNumber()) : price.toNumber(),
@@ -548,7 +550,7 @@ export default function OrderbookPage() {
           value: price.toNumber()
       };
       const nextVolume: VolumeBar = {
-        time: time as Time,
+        time: mergeVolume ? prevVolume.time : time as Time,
         value: mergeVolume ? prevVolume.value + quantity.toNumber() : quantity.toNumber(),
         color: mergeVolume && prevVolume.value * 0.5 >= quantity.toNumber() ? prevVolume.color : (sentiment >= 0 ? UP_COLOR : DOWN_COLOR)
       };
@@ -611,13 +613,16 @@ export default function OrderbookPage() {
     return () => window.removeEventListener('resize', resize);
   }, [seriesOptions.volume]);
   useEffect(() => {
+    const updateChain = (event: any) => setBlockNumber(event.detail.tip);
     const updateTrades = (event: any) => setIncomingTrades(prev => ([...prev, event]));
     const updateLevels = (event: any) => setIncomingLevels(prev => ([...prev, event]));
+    window.addEventListener('update:chain', updateChain);
     window.addEventListener('update:trade', updateTrades);
     window.addEventListener('update:level', updateLevels);
     return () => {
-      window.removeEventListener('update:level', updateLevels)
+      window.removeEventListener('update:level', updateLevels);
       window.removeEventListener('update:trade', updateTrades);
+      window.removeEventListener('update:chain', updateChain);
     };
   }, []);
 
@@ -630,10 +635,10 @@ export default function OrderbookPage() {
         </Box>
         <Flex direction="column" width="100%">
           <Flex justify="between">
-            <Tooltip content={whitelisted ? 'Well-known trading pair — current price is possibly within reasonable market ranges' : 'One or both of assets in trading pair are unknown and are possibly malicious — current price is likely not representative of actual market conditions'}>
+            <Tooltip content={whitelisted === true ? 'Well-known trading pair — current price is possibly within reasonable market ranges' : (whitelisted === false ? 'One or both of assets in trading pair are unknown and are possibly malicious — current price is likely not representative of actual market conditions' : 'Loading...')}>
               <Flex gap="1">
                 <Text size={mobile ? '3' : '4'} style={{ height: '18px', color: 'var(--gray-12)' }}>{ orderbook?.primaryAsset ? Readability.toAssetName(orderbook.primaryAsset) : '?' }</Text>
-                { <Icon path={whitelisted ? mdiCheckDecagram : mdiAlert} color={whitelisted ? 'var(--sky-9)' : 'var(--yellow-9)'} size={0.75} style={{ transform: 'translateY(3px)' }}></Icon> }
+                { <Icon path={whitelisted === true ? mdiCheckDecagram : (whitelisted === false ? mdiAlert : mdiTimelapse)} color={whitelisted === true ? 'var(--sky-9)' : (whitelisted === false ? 'var(--yellow-9)' : 'var(--gray-9)')} size={0.75} style={{ transform: 'translateY(3px)' }}></Icon> }
               </Flex>
             </Tooltip>
             <Text size={mobile ? '3' : '4'} style={{ height: '18px' }}>{ Readability.toValue(null, pair?.price.close || null, false, true) }</Text>
@@ -676,26 +681,17 @@ export default function OrderbookPage() {
           }
         </Box>
       </AspectRatio>
-      <Flex mt="2" px="3" pb="3" gap="1" justify={mobile ? 'between' : 'start'}>
-        {
-          !mobile &&
-          <SegmentedControl.Root size="2" style={{ width: '100%' }} value={seriesOptions.interval.toString()} onValueChange={(e) => {
+      <Flex mt="2" px="3" pb="3" gap="2" justify="between" align="center">
+        <Badge size="3" color="gray" style={{ fontSize: '1.05rem', padding: '10px 15px' }}>
+          <Icon path={mdiCubeOutline} size={0.8}></Icon>
+          { blockNumber > 0 && Readability.toValue(null, blockNumber, false, false) }
+        </Badge>
+        <Flex gap="2">
+          <Select.Root size="3" value={seriesOptions.interval.toString()} onValueChange={(e) => {
             updateSeriesOptions(prev => ({ ...prev, interval: parseInt(e) }));
             setSeriesState(prev => ({ ...prev, ready: false }));
           }}>
-            {
-              seriesOptions.intervals.map((item) =>
-                <SegmentedControl.Item key={item[0]} value={item[0].toString()}>{ item[1] }</SegmentedControl.Item>)
-            }
-          </SegmentedControl.Root>
-        }
-        {
-          mobile &&
-          <Select.Root value={seriesOptions.interval.toString()} onValueChange={(e) => {
-            updateSeriesOptions(prev => ({ ...prev, interval: parseInt(e) }));
-            setSeriesState(prev => ({ ...prev, ready: false }));
-          }}>
-            <Select.Trigger />
+            <Select.Trigger variant="soft" color="gray" />
             <Select.Content>
               <Select.Group>
                 <Select.Label>Interval</Select.Label>
@@ -706,78 +702,78 @@ export default function OrderbookPage() {
               </Select.Group>
             </Select.Content>
           </Select.Root>
-        }
-        <Dialog.Root>
-          <Dialog.Trigger>
-            <IconButton size="2" variant="surface" color="gray" loading={seriesState.loading}>
-              <Icon path={mdiCog} size={0.8}></Icon>
-            </IconButton>
-          </Dialog.Trigger>
-          <Dialog.Content maxWidth="450px">
-            <Dialog.Title>Configure chart</Dialog.Title>
-            <Flex direction="column" gap="2">
-              <Select.Root value={seriesOptions.view.toString()} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, view: parseInt(e) }))}>
-                <Select.Trigger />
-                <Select.Content>
-                  <Select.Group>
-                    <Select.Label>Chart view</Select.Label>
-                    <Select.Item value={ChartViewType.Candles.toString()}>Candles view</Select.Item>
-                    <Select.Item value={ChartViewType.Bars.toString()}>Bars view</Select.Item>
-                    <Select.Item value={ChartViewType.Mountain.toString()}>Mountain view</Select.Item>
-                    <Select.Item value={ChartViewType.Line.toString()}>Line view</Select.Item>
-                  </Select.Group>
-                </Select.Content>
-              </Select.Root>
-              <Select.Root value={seriesOptions.inverted ? '1' : '0'} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, inverted: parseInt(e) > 0 }))}>
-                <Select.Trigger />
-                <Select.Content>
-                  <Select.Group>
-                    <Select.Label>Price view</Select.Label>
-                    <Select.Item value="0">Normal price</Select.Item>
-                    <Select.Item value="1">Inverted price</Select.Item>
-                  </Select.Group>
-                </Select.Content>
-              </Select.Root>
-              <Select.Root value={seriesOptions.price.toString()} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, price: parseInt(e) }))}>
-                <Select.Trigger />
-                <Select.Content>
-                  <Select.Group>
-                    <Select.Label>Price scale</Select.Label>
-                    <Select.Item value={PriceScaleMode.Normal.toString()}>Normal scale</Select.Item>
-                    <Select.Item value={PriceScaleMode.Logarithmic.toString()}>Logarithmic scale</Select.Item>
-                    <Select.Item value={PriceScaleMode.Percentage.toString()}>Percentage scale</Select.Item>
-                    <Select.Item value={PriceScaleMode.IndexedTo100.toString()}>Index scale</Select.Item>
-                  </Select.Group>
-                </Select.Content>
-              </Select.Root>
-              <Select.Root value={seriesOptions.volume ? '1' : '0'} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, volume: parseInt(e) > 0 }))}>
-                <Select.Trigger />
-                <Select.Content>
-                  <Select.Group>
-                    <Select.Label>Volume data</Select.Label>
-                    <Select.Item value="0">Volume hidden</Select.Item>
-                    <Select.Item value="1">Volume shown</Select.Item>
-                  </Select.Group>
-                </Select.Content>
-              </Select.Root>
-              {
-                !mobile &&
-                <Select.Root value={seriesOptions.crosshair.toString()} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, crosshair: parseInt(e) }))}>
+          <Dialog.Root>
+            <Dialog.Trigger>
+              <IconButton size="3" variant="surface" color="gray" loading={seriesState.loading}>
+                <Icon path={mdiCog} size={0.95}></Icon>
+              </IconButton>
+            </Dialog.Trigger>
+            <Dialog.Content maxWidth="450px">
+              <Dialog.Title>Configure chart</Dialog.Title>
+              <Flex direction="column" gap="2">
+                <Select.Root value={seriesOptions.view.toString()} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, view: parseInt(e) }))}>
                   <Select.Trigger />
                   <Select.Content>
                     <Select.Group>
-                      <Select.Label>Crosshair mode</Select.Label>
-                      <Select.Item value={CrosshairMode.Normal.toString()}>Normal crosshair</Select.Item>
-                      <Select.Item value={CrosshairMode.Magnet.toString()}>Magnet crosshair</Select.Item>
-                      <Select.Item value={CrosshairMode.Hidden.toString()}>Hidden crosshair</Select.Item>
-                      <Select.Item value={CrosshairMode.MagnetOHLC.toString()}>Magent OHLC crosshair</Select.Item>
+                      <Select.Label>Chart view</Select.Label>
+                      <Select.Item value={ChartViewType.Candles.toString()}>Candles view</Select.Item>
+                      <Select.Item value={ChartViewType.Bars.toString()}>Bars view</Select.Item>
+                      <Select.Item value={ChartViewType.Mountain.toString()}>Mountain view</Select.Item>
+                      <Select.Item value={ChartViewType.Line.toString()}>Line view</Select.Item>
                     </Select.Group>
                   </Select.Content>
                 </Select.Root>
-              }
-            </Flex>
-          </Dialog.Content>
-        </Dialog.Root>
+                <Select.Root value={seriesOptions.inverted ? '1' : '0'} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, inverted: parseInt(e) > 0 }))}>
+                  <Select.Trigger />
+                  <Select.Content>
+                    <Select.Group>
+                      <Select.Label>Price view</Select.Label>
+                      <Select.Item value="0">Normal price</Select.Item>
+                      <Select.Item value="1">Inverted price</Select.Item>
+                    </Select.Group>
+                  </Select.Content>
+                </Select.Root>
+                <Select.Root value={seriesOptions.price.toString()} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, price: parseInt(e) }))}>
+                  <Select.Trigger />
+                  <Select.Content>
+                    <Select.Group>
+                      <Select.Label>Price scale</Select.Label>
+                      <Select.Item value={PriceScaleMode.Normal.toString()}>Normal scale</Select.Item>
+                      <Select.Item value={PriceScaleMode.Logarithmic.toString()}>Logarithmic scale</Select.Item>
+                      <Select.Item value={PriceScaleMode.Percentage.toString()}>Percentage scale</Select.Item>
+                      <Select.Item value={PriceScaleMode.IndexedTo100.toString()}>Index scale</Select.Item>
+                    </Select.Group>
+                  </Select.Content>
+                </Select.Root>
+                <Select.Root value={seriesOptions.volume ? '1' : '0'} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, volume: parseInt(e) > 0 }))}>
+                  <Select.Trigger />
+                  <Select.Content>
+                    <Select.Group>
+                      <Select.Label>Volume data</Select.Label>
+                      <Select.Item value="0">Volume hidden</Select.Item>
+                      <Select.Item value="1">Volume shown</Select.Item>
+                    </Select.Group>
+                  </Select.Content>
+                </Select.Root>
+                {
+                  !mobile &&
+                  <Select.Root value={seriesOptions.crosshair.toString()} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, crosshair: parseInt(e) }))}>
+                    <Select.Trigger />
+                    <Select.Content>
+                      <Select.Group>
+                        <Select.Label>Crosshair mode</Select.Label>
+                        <Select.Item value={CrosshairMode.Normal.toString()}>Normal crosshair</Select.Item>
+                        <Select.Item value={CrosshairMode.Magnet.toString()}>Magnet crosshair</Select.Item>
+                        <Select.Item value={CrosshairMode.Hidden.toString()}>Hidden crosshair</Select.Item>
+                        <Select.Item value={CrosshairMode.MagnetOHLC.toString()}>Magent OHLC crosshair</Select.Item>
+                      </Select.Group>
+                    </Select.Content>
+                  </Select.Root>
+                }
+              </Flex>
+            </Dialog.Content>
+          </Dialog.Root>
+        </Flex>
       </Flex>
     </Box>
   );
@@ -792,21 +788,22 @@ export default function OrderbookPage() {
               if (e != 'order')
                 setPreset(null);
             }}>
-              <Tabs.List size="2" justify="center" color="amber" style={mobile ? { backgroundColor: 'var(--color-panel)', paddingTop: '20px' } : { }}>
+              <Tabs.List size="2" justify="center" color="bronze" style={mobile ? { paddingTop: '20px' } : { }}>
                 <Tabs.Trigger value="info" className="tab-padding-erase">
-                  <Badge size="3" radius="large">Market</Badge>
+                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.1rem' } : undefined}>Market</Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="order" className="tab-padding-erase">
-                  <Badge size="3" radius="large">Trade</Badge>
+                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.1rem' } : undefined}>Trade</Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="book" className="tab-padding-erase">
-                  <Badge size="3" radius="large">Book</Badge>
+                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.1rem' } : undefined}>Book</Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="trades" className="tab-padding-erase">
-                  <Badge size="3" radius="large">History</Badge>
+                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.1rem' } : undefined}>History</Badge>
                 </Tabs.Trigger>
               </Tabs.List>
-              <Box pt={mobile ? undefined : '3'}>
+              <Clock></Clock>
+              <Box pt={mobile ? '1' : '3'}>
                 <Tabs.Content value="info">
                   { mobile && ChartWidget() }
                   {
@@ -899,9 +896,9 @@ export default function OrderbookPage() {
                           </Flex>
                           <Flex justify="between" wrap="wrap" gap="1">
                             <Text size="2" color="gray">Risk</Text>
-                            <Text size="2" style={{ color: whitelisted ? 'var(--jade-11)' : 'var(--red-11)' }}>
-                              { !whitelisted && <Icon path={mdiAlert} color="var(--yellow-9)" size={0.7} style={{ transform: 'translateY(3px)', marginRight: '5px' }}></Icon> }
-                              { whitelisted ? 'Low' : 'High' } risk pair
+                            <Text size="2" style={{ color: whitelisted === true ? 'var(--jade-11)' : (whitelisted === false ? 'var(--red-11)' : 'var(--gray-11)') }}>
+                              { whitelisted === false && <Icon path={mdiAlert} color="var(--yellow-9)" size={0.7} style={{ transform: 'translateY(3px)', marginRight: '5px' }}></Icon> }
+                              { whitelisted === true ? 'Low risk pair' : (whitelisted === false ? 'High risk pair' : 'Loading...') }
                             </Text>
                           </Flex>
                           <Flex justify="between" wrap="wrap" gap="1">
