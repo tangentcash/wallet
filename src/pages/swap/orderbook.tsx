@@ -6,7 +6,7 @@ import { Swap, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Ma
 import { useEffectAsync } from "../../core/react";
 import { SeriesApiRef } from "lightweight-charts-react-components";
 import { BarPrice, ChartOptions, CrosshairMode, DeepPartial, IChartApi, LogicalRange, MouseEventParams, PriceScaleMode, Time } from "lightweight-charts";
-import { mdiAlert, mdiArrowRightThin, mdiCheckDecagram, mdiCog, mdiCubeOutline, mdiCurrencyUsd, mdiTimelapse } from "@mdi/js";
+import { mdiAlert, mdiArrowRightThin, mdiCheck, mdiCheckDecagram, mdiCog, mdiCubeOutline, mdiCurrencyUsd, mdiTimelapse } from "@mdi/js";
 import { GenericBar, PriceBar, VolumeBar, ChartViewType, ChartView } from "../../components/swap/chart";
 import { AlertBox, AlertType } from "../../components/alert";
 import { AssetId, Readability } from "tangentsdk";
@@ -808,77 +808,40 @@ export default function OrderbookPage() {
                   { mobile && ChartWidget() }
                   {
                     orderbook?.primaryAsset && orderbook.secondaryAsset && 
-                    <Box px={mobile ? '3' : undefined}>
-                      {
-                        valuation != null && (balances.primary.value.gt(0) || balances.secondary.value.gt(0)) &&
-                        <Card mb={mobile ? '6' : '3'} variant="surface" style={{ borderRadius: '22px' }}>
-                          <Flex align="center" justify="between" mb="3">
-                            <Heading size="5">P&L</Heading>
-                            <SegmentedControl.Root size="1" value={seriesOptions.showPrimary ? '1' : '0'} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, showPrimary: parseInt(e) > 0 }))}>
-                              <SegmentedControl.Item value="1">
-                                <Flex align="center">
-                                  <Avatar size="1" fallback={Readability.toAssetFallback(orderbook.primaryAsset)} src={Readability.toAssetImage(orderbook.primaryAsset)} style={{ width: '16px', height: '16px' }} />
-                                </Flex>
-                              </SegmentedControl.Item>
-                              <SegmentedControl.Item value="0">
-                                <Flex align="center">
-                                  <Avatar size="1" fallback={Readability.toAssetFallback(orderbook.secondaryAsset)} src={Readability.toAssetImage(orderbook.secondaryAsset)} style={{ width: '16px', height: '16px' }} />
-                                </Flex>
-                              </SegmentedControl.Item>
-                            </SegmentedControl.Root>
-                          </Flex>
-                          <Flex direction="column">
-                            <Text size="2" color="gray">{ Readability.toAssetSymbol(valuation.primary) } balance of wallet</Text>
-                            <Text size="4">{ Readability.toMoney(valuation.primary, valuation.quantity) }</Text>
-                          </Flex>
-                          <Flex gap="1" align="center">
-                            <Text size="2" color="gray">{ Readability.toValue(null, valuation.basePrice, false, true) }</Text>
-                            <Icon path={mdiArrowRightThin} size={0.8}></Icon>
-                            <Text size="2" color="gray">{ Readability.toValue(null, valuation.currentPrice, false, true) }</Text>
-                          </Flex>
-                          <Flex direction="column" mt="4">
-                            <Text size="2" color="gray">{ Readability.toAssetSymbol(valuation.secondary) } cost of { Readability.toAssetSymbol(valuation.primary) }</Text>
-                            <Text size="4">{ Readability.toMoney(valuation.secondary, valuation.worth) }</Text>
-                            <Text size="2" color={valuation.relativePL.gt(0) ? 'jade' : (valuation.relativePL.lt(0) ? 'red' : 'gray')}>{ Readability.toValue(null, valuation.absolutePL, true, true) } ({ valuation.relativePL.gt(0) ? '+' : '' }{ valuation.relativePL.multipliedBy(100).toFixed(2) }%)</Text>
-                          </Flex>
-                        </Card>
-                      }
-                      <Card mb="3" variant="surface" style={{ borderRadius: '22px' }}>
-                        <Heading mb="3" size="5">Performance 24h</Heading>
-                        <Flex direction="column" gap="2">
-                          <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">LPs revenue</Text>
-                            <Text size="2" color="orange">{ (pair?.price.poolLiquidity || new BigNumber(0)).gt(0) ?(pair?.price.poolVolume || new BigNumber(0)).multipliedBy(market?.maxPoolFeeRate || new BigNumber(0)).dividedBy(pair?.price.poolLiquidity || new BigNumber(0)).multipliedBy(365 * 100).toFixed(2) : '0.00' }% APY</Text>
-                          </Flex>
-                          <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Change</Text>
-                            <Text size="2" color={ (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'red' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'jade') }>{ Readability.toMoney(orderbook.secondaryAsset, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true) }</Text>
-                          </Flex>
-                          <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Open</Text>
-                            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.open || null) }</Text>
-                          </Flex>
-                          <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Close</Text>
-                            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.close || null) }</Text>
-                          </Flex>
-                          <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Volume</Text>
-                            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.totalVolume || new BigNumber(0)) }</Text>
-                          </Flex>
-                          <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Liquidity</Text>
-                            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.totalLiquidity || new BigNumber(0)) }</Text>
-                          </Flex>
-                          <Flex justify="between" wrap="wrap" gap="1" mt="1">
-                            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toValue(null, pair?.price.low || null, false, true) }</Text>
-                            <Text size="2" color="gray">—</Text>
-                            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toValue(null, pair?.price.high || null, false, true) }</Text>
-                          </Flex>
+                    <Box px={mobile ? '3' : undefined} pt={mobile ? '2' : undefined}>
+                      <Card mb={mobile ? '5' : '3'} variant="surface" style={{ borderRadius: '22px' }}>
+                        <Flex align="center" justify="between" mb="3">
+                          <Heading size="5">Wallet P&L</Heading>
+                          <SegmentedControl.Root size="1" value={seriesOptions.showPrimary ? '1' : '0'} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, showPrimary: parseInt(e) > 0 }))}>
+                            <SegmentedControl.Item value="1">
+                              <Flex align="center">
+                                <Avatar size="1" fallback={Readability.toAssetFallback(orderbook.primaryAsset)} src={Readability.toAssetImage(orderbook.primaryAsset)} style={{ width: '16px', height: '16px' }} />
+                              </Flex>
+                            </SegmentedControl.Item>
+                            <SegmentedControl.Item value="0">
+                              <Flex align="center">
+                                <Avatar size="1" fallback={Readability.toAssetFallback(orderbook.secondaryAsset)} src={Readability.toAssetImage(orderbook.secondaryAsset)} style={{ width: '16px', height: '16px' }} />
+                              </Flex>
+                            </SegmentedControl.Item>
+                          </SegmentedControl.Root>
+                        </Flex>
+                        <Flex direction="column">
+                          <Text size="2" color="gray">{ Readability.toAssetSymbol(valuation.primary) } balance of wallet</Text>
+                          <Text size="4">{ Readability.toMoney(valuation.primary, valuation.quantity) }</Text>
+                        </Flex>
+                        <Flex gap="1" align="center">
+                          <Text size="2" color="gray">{ Readability.toValue(null, valuation.basePrice, false, true) }</Text>
+                          <Icon path={mdiArrowRightThin} size={0.8}></Icon>
+                          <Text size="2" color="gray">{ Readability.toValue(null, valuation.currentPrice, false, true) }</Text>
+                        </Flex>
+                        <Flex direction="column" mt="4">
+                          <Text size="2" color="gray">{ Readability.toAssetSymbol(valuation.secondary) } cost of { Readability.toAssetSymbol(valuation.primary) }</Text>
+                          <Text size="4">{ Readability.toMoney(valuation.secondary, valuation.worth) }</Text>
+                          <Text size="2" color={valuation.relativePL.gt(0) ? 'jade' : (valuation.relativePL.lt(0) ? 'red' : 'gray')}>{ Readability.toValue(null, valuation.absolutePL, true, true) } ({ valuation.relativePL.gt(0) ? '+' : '' }{ valuation.relativePL.multipliedBy(100).toFixed(2) }%)</Text>
                         </Flex>
                       </Card>
                       <Card mb="3" variant="surface" style={{ borderRadius: '22px' }}>
-                        <Heading mb="3" size="5">Contract</Heading>
+                        <Heading mb="3" size="5">Market P&L</Heading>
                         <Flex direction="column" gap="2">
                           <Flex justify="between" wrap="wrap" gap="1">
                             <Text size="2" color="gray">Pair</Text>
@@ -894,58 +857,90 @@ export default function OrderbookPage() {
                               </Flex>
                             </Flex>
                           </Flex>
-                          <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Risk</Text>
-                            <Text size="2" style={{ color: whitelisted === true ? 'var(--jade-11)' : (whitelisted === false ? 'var(--red-11)' : 'var(--gray-11)') }}>
-                              { whitelisted === false && <Icon path={mdiAlert} color="var(--yellow-9)" size={0.7} style={{ transform: 'translateY(3px)', marginRight: '5px' }}></Icon> }
-                              { whitelisted === true ? 'Low risk pair' : (whitelisted === false ? 'High risk pair' : 'Loading...') }
-                            </Text>
-                          </Flex>
-                          <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Type</Text>
-                            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ policyOf(market) } contract</Text>
-                          </Flex>
-                          <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Program</Text>
-                            <Flex>
-                              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                navigator.clipboard.writeText(market?.account || 'NULL');
-                                AlertBox.open(AlertType.Info, 'Program account address copied!')
-                              }}>{ Readability.toAddress(market?.account || 'NULL', 5) }</Button>
-                              <Box ml="2">
-                                <Link className="router-link" to={'/swap/' + market?.account}>▒▒</Link>
-                              </Box>
+                          <Tooltip content="Risk metric based on asset pair combination">
+                            <Flex justify="between" wrap="wrap" gap="1">
+                              <Text size="2" color="gray">Risk</Text>
+                              <Text size="2" style={{ color: whitelisted === true ? 'var(--jade-11)' : (whitelisted === false ? 'var(--red-11)' : 'var(--gray-11)') }}>
+                                { typeof whitelisted == 'boolean' && <Icon path={whitelisted === true ? mdiCheck : mdiAlert} color={whitelisted === true ? 'var(--jade-10)' : 'var(--yellow-9)'} size={0.7} style={{ transform: 'translateY(3px)', marginRight: '5px' }}></Icon> }
+                                { whitelisted === true ? 'Low risk pair' : (whitelisted === false ? 'High risk pair' : 'Loading...') }
+                              </Text>
                             </Flex>
-                          </Flex>
-                          <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Deployer</Text>
-                            <Flex>
-                              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                navigator.clipboard.writeText(market?.deployerAccount || 'NULL');
-                                AlertBox.open(AlertType.Info, 'Deployer account address copied!')
-                              }}>{ Readability.toAddress(market?.deployerAccount || 'NULL', 5) }</Button>
-                              <Box ml="2">
-                                <Link className="router-link" to={'/swap/' + market?.deployerAccount}>▒▒</Link>
-                              </Box>
+                          </Tooltip>
+                          <Tooltip content="Smart contract address that facilitates the trading">
+                            <Flex justify="between" wrap="wrap" gap="1">
+                              <Text size="2" color="gray">{ policyOf(market) }</Text>
+                              <Flex>
+                                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                                  navigator.clipboard.writeText(market?.account || 'NULL');
+                                  AlertBox.open(AlertType.Info, 'Program account address copied!')
+                                }}>{ Readability.toAddress(market?.account || 'NULL', 5) }</Button>
+                                <Box ml="2">
+                                  <Link className="router-link" to={'/swap/' + market?.account}>▒▒</Link>
+                                </Box>
+                              </Flex>
                             </Flex>
-                          </Flex>
-                        </Flex>
-                      </Card>
-                      <Card mb="3" variant="surface" style={{ borderRadius: '22px' }}>
-                        <Heading mb="3" size="5">Rules</Heading>
-                        <Flex direction="column" gap="2">
-                          <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Maker fee</Text>
-                            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.minMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% — { (market?.maxMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
-                          </Flex>
-                          <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Taker fee</Text>
-                            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.minTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% — { (market?.maxTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
-                          </Flex>
-                          <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Pool fee</Text>
-                            <Text size="2" style={{ color: 'var(--gray-12)' }}>0.00% — { (market?.maxPoolFeeRate || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
-                          </Flex>
+                          </Tooltip>
+                          <Tooltip content="Price at the start of the day">
+                            <Flex justify="between" wrap="wrap" gap="1">
+                              <Text size="2" color="gray">Open</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.open || null) }</Text>
+                            </Flex>
+                          </Tooltip>
+                          <Tooltip content="Price at current time">
+                            <Flex justify="between" wrap="wrap" gap="1">
+                              <Text size="2" color="gray">Close</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.close || null) }</Text>
+                            </Flex>
+                          </Tooltip>
+                          <Tooltip content="Absolute difference between price open and price close">
+                            <Flex justify="between" wrap="wrap" gap="1">
+                              <Text size="2" color="gray">Delta</Text>
+                              <Text size="2" color={ (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'red' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'jade') }>{ Readability.toMoney(orderbook.secondaryAsset, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true) }</Text>
+                            </Flex>
+                          </Tooltip>
+                          <Tooltip content="Actual amount traded within last 24 hours">
+                            <Flex justify="between" wrap="wrap" gap="1">
+                              <Text size="2" color="gray">Volume</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.totalVolume || new BigNumber(0)) }</Text>
+                            </Flex>
+                          </Tooltip>
+                          <Tooltip content="Total amount being currently open for trading including LP positions">
+                            <Flex justify="between" wrap="wrap" gap="1">
+                              <Text size="2" color="gray">Liquidity</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.totalLiquidity || new BigNumber(0)) }</Text>
+                            </Flex>
+                          </Tooltip>
+                          <Tooltip content="Average revenue of LP position">
+                            <Flex justify="between" wrap="wrap" gap="1">
+                              <Text size="2" color="gray">Revenue</Text>
+                              <Text size="2" color="orange">{ (pair?.price.poolLiquidity || new BigNumber(0)).gt(0) ?(pair?.price.poolVolume || new BigNumber(0)).multipliedBy(market?.maxPoolFeeRate || new BigNumber(0)).dividedBy(pair?.price.poolLiquidity || new BigNumber(0)).multipliedBy(365 * 100).toFixed(2) : '0.00' }% APY</Text>
+                            </Flex>
+                          </Tooltip>
+                          <Tooltip content="Minimal to maximal price range observed during the day">
+                            <Flex justify="between" wrap="wrap" gap="1" mt="2" mb="1">
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toValue(null, pair?.price.low || null, false, true) }</Text>
+                              <Text size="2" color="gray">—</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toValue(null, pair?.price.high || null, false, true) }</Text>
+                            </Flex>
+                          </Tooltip>
+                          <Tooltip content="Fee rate range taken from order makers">
+                            <Flex justify="between" wrap="wrap" gap="1">
+                              <Text size="2" color="gray">Maker fee</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.minMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% — { (market?.maxMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
+                            </Flex>
+                          </Tooltip>
+                          <Tooltip content="Fee rate range taken from order takers">
+                            <Flex justify="between" wrap="wrap" gap="1">
+                              <Text size="2" color="gray">Taker fee</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.minTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% — { (market?.maxTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
+                            </Flex>
+                          </Tooltip>
+                          <Tooltip content="Fee rate range for LP positions">
+                            <Flex justify="between" wrap="wrap" gap="1">
+                              <Text size="2" color="gray">Pool fee</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>0.00% — { (market?.maxPoolFeeRate || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
+                            </Flex>
+                          </Tooltip>
                           <Tooltip content={`Exit fee is based on fee revenue of a pool and will be charged on pool withdrawal. Any change to exit fee only affects new pools, existing pools are not affected.`}>
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Pool exit fee</Text>
