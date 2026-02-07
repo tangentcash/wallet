@@ -166,7 +166,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
               <DataList.Item>
                 <DataList.Label>Block production:</DataList.Label>
                 <DataList.Value>
-                  <Badge color={ transaction.block_production != null ? 'jade' : 'red' }>{ transaction.block_production != null ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.block_production) + ' locked' : 'Offline' }</Badge>
+                  <Badge color={ typeof transaction.block_production == 'object' ? 'jade' : 'red' }>{ typeof transaction.block_production == 'object' ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.block_production) + ' locked' : 'Offline' }</Badge>
                 </DataList.Value>
               </DataList.Item>
             }
@@ -175,7 +175,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
               <DataList.Item>
                 <DataList.Label>Bridge participation:</DataList.Label>
                 <DataList.Value>
-                  <Badge color={ transaction.bridge_participation != null ? 'jade' : 'red' }>{ transaction.bridge_participation != null ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.bridge_participation) + ' locked' : 'Offline' }</Badge>
+                  <Badge color={ typeof transaction.bridge_participation == 'object' ? 'jade' : 'red' }>{ typeof transaction.bridge_participation == 'object' ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.bridge_participation) + ' locked' : 'Offline' }</Badge>
                 </DataList.Value>
               </DataList.Item>
             }

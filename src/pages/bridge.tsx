@@ -180,7 +180,11 @@ export default function BridgePage() {
       }
 
       const result = refresh ? data : data.concat(candidateBridges);
-      setCandidateBridges(result);
+      setCandidateBridges(result.map((x) => {
+        const balance: BigNumber | null = x.balances.find((v: any) => v.asset.id == asset.id)?.supply || null;
+        x.withdrawable = balance ? balance.gte(x.instance.fee_rate) : false;
+        return x;
+      }));
       setMoreBridges(data.length >= BRIDGE_COUNT);
       return result;
     } catch {
@@ -475,7 +479,12 @@ export default function BridgePage() {
                           </DropdownMenu.Trigger>
                           <DropdownMenu.Content side="left">
                             <DropdownMenu.Item shortcut="↙" onClick={() => navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=register&bridge=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`)}>Deposit into account</DropdownMenu.Item>
-                            <DropdownMenu.Item shortcut="↗" onClick={() => navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=withdraw&bridge=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`)}>Withdraw from account</DropdownMenu.Item>
+                            <Tooltip content={(item.withdrawable ? 'Enough ' : 'Not enough ') + Readability.toAssetSymbol(asset) + ' for a withdrawal'}>
+                              <DropdownMenu.Item shortcut="↗" disabled={!item.withdrawable} onClick={() => {
+                                if (item.withdrawable)
+                                  navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=withdraw&bridge=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`)
+                              }}>Withdraw from account</DropdownMenu.Item>
+                            </Tooltip>
                           </DropdownMenu.Content>
                         </DropdownMenu.Root>
                     </Flex>

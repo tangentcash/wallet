@@ -369,7 +369,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                   <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                     <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(new AssetId())} src={Readability.toAssetImage(new AssetId())} />
                     <Box width="100%" style={{ marginLeft: '2px' }}>
-                      <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " fees received by block producer, when unlocked block producer will lose half of their gas production"}>
+                      <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " rewards received by block producer"}>
                         <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), production.stake) }</Text>
                       </Tooltip>
                     </Box>
@@ -381,7 +381,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                       <Flex key={item.asset.id + '_production'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                         <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                         <Box width="100%" style={{ marginLeft: '2px' }}>
-                          <Tooltip content={Readability.toAssetSymbol(item.asset) + " fees received by block producer, when unlocked block producer will lose half of their gas production"}>
+                          <Tooltip content={Readability.toAssetSymbol(item.asset) + " fees received by block producer"}>
                             <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
                           </Tooltip>
                         </Box>
@@ -409,7 +409,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                     <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                       <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(new AssetId())} src={Readability.toAssetImage(new AssetId())} />
                       <Box width="100%" style={{ marginLeft: '2px' }}>
-                        <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake and fees received by bridge participation as a signer of withdrawal transactions"}>
+                        <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by bridge participation as a signer of withdrawal transactions"}>
                           <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), participation.stake) }</Text>
                         </Tooltip>
                       </Box>
@@ -421,7 +421,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                         <Flex key={item.asset.id + '_participation'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                           <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                           <Box width="100%" style={{ marginLeft: '2px' }}>
-                            <Tooltip content={Readability.toAssetSymbol(item.asset) + ' stake and fees received by bridge participation as a signer of withdrawal transactions'}>
+                            <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by bridge participation as a signer of withdrawal transactions'}>
                               <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
                             </Tooltip>
                           </Box>
@@ -450,7 +450,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                       <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                         <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(new AssetId())} src={Readability.toAssetImage(new AssetId())} />
                         <Box width="100%" style={{ marginLeft: '2px' }}>
-                          <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake and fees received by bridge attestation as a deposit/withdrawal transaction notifications and participant coordination"}>
+                          <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by bridge attestation as a deposit/withdrawal transaction notifications and participant coordination"}>
                             <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), attestation.stake) }</Text>
                           </Tooltip>
                         </Box>
@@ -462,7 +462,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                           <Flex key={item.asset.id + '_attestation'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                             <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
                             <Box width="100%" style={{ marginLeft: '2px' }}>
-                              <Tooltip content={Readability.toAssetSymbol(item.asset) + ' stake and fees received by bridge attestation as a deposit/withdrawal transaction notifications and participant coordination'}>
+                              <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by bridge attestation as a deposit/withdrawal transaction notifications and participant coordination'}>
                                 <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
                               </Tooltip>
                             </Box>
