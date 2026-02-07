@@ -34,7 +34,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   const [assets, setAssets] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [attestations, setAttestations] = useState<any[]>([]);
-  const [participation, setParticipation] = useState<any>([]);
+  const [participation, setParticipation] = useState<any>(null);
   const [production, setProduction] = useState<any>(null);
   const [selectedAddress, setSelectedAddress] = useState<number>(-1);
   const [selectedAddressVersion, setSelectedAddressVersion] = useState<number>(0);
@@ -105,7 +105,8 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
             setAssets([]);
           }
         } catch (exception) {
-          AlertBox.open(AlertType.Error, 'Failed to fetch account balances: ' + (exception as Error).message)
+          AlertBox.open(AlertType.Error, 'Failed to fetch account balances: ' + (exception as Error).message);
+          setAssets([]);
         }
       })(),
       (async () => {
@@ -120,7 +121,9 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
             setSelectedAddress(0);
           }
         } catch (exception) {
-          AlertBox.open(AlertType.Error, 'Failed to fetch account addresses: ' + (exception as Error).message)
+          AlertBox.open(AlertType.Error, 'Failed to fetch account addresses: ' + (exception as Error).message);
+          setAddresses([defaultAddress]);
+          setSelectedAddress(0);
         }
       })(),
       (async () => {
@@ -128,7 +131,8 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
           const attestationData = await RPC.getValidatorAttestationsWithRewards(ownerAddress);
           setAttestations(Array.isArray(attestationData) ? attestationData : []);
         } catch (exception) {
-          AlertBox.open(AlertType.Error, 'Failed to fetch account attestations: ' + (exception as Error).message)
+          AlertBox.open(AlertType.Error, 'Failed to fetch account attestations: ' + (exception as Error).message);
+          setAttestations([]);
         }
       })(),
       (async () => {
@@ -137,13 +141,16 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
           setParticipation(participationData || null);
         } catch (exception) {
           AlertBox.open(AlertType.Error, 'Failed to fetch account participations: ' + (exception as Error).message)
+          setParticipation(null);
         }
       })(),
       (async () => {
         try {
           const productionData = await RPC.getValidatorProductionWithRewards(ownerAddress);
           setProduction(productionData || null);
-        } catch { }
+        } catch {
+          setProduction(null);
+        }
       })(),
       findMempoolTransactions(),
       findTransactions(true)

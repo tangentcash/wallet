@@ -788,7 +788,7 @@ export default function OrderbookPage() {
               if (e != 'order')
                 setPreset(null);
             }}>
-              <Tabs.List size="2" justify="center" color="bronze" style={mobile ? { paddingTop: '20px' } : { }}>
+              <Tabs.List size="2" justify="center" color="orange" style={mobile ? { paddingTop: '20px' } : { }}>
                 <Tabs.Trigger value="info" className="tab-padding-erase">
                   <Badge size="3" radius="large" style={mobile ? { fontSize: '1.1rem' } : undefined}>Market</Badge>
                 </Tabs.Trigger>
