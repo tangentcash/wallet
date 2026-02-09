@@ -143,7 +143,7 @@ export default function BridgePage() {
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [query] = useSearchParams();
   const [preference, setPreference] = useState<'security' | 'balance'>('balance');
-  const [assets, setAssets] = useState<any[]>([]);
+  const [blockchains, setBlockchains] = useState<any[]>([]);
   const [walletAddresses, setWalletAddresses] = useState<any[]>([]);
   const [cachedAddresses, setCachedAddresses] = useState<any[] | null>(null);
   const [acquiredBridges, setAcquiredBridges] = useState<{ [key: string]: any }>({ });
@@ -152,8 +152,8 @@ export default function BridgePage() {
   const navigate = useNavigate();
   const asset = useMemo(() => {
     const target = new AssetId(query.get('asset') || '');
-    return target ? assets.find((v) => v.chain == target.chain) || null : null;
-  }, [query, assets]);
+    return target ? blockchains.find((v) => v.chain == target.chain) || null : null;
+  }, [query, blockchains]);
   const findBridges = useCallback(async (refresh?: boolean) => {
     try {
       if (!asset)
@@ -200,16 +200,16 @@ export default function BridgePage() {
   }, [query]);
   useEffectAsync(async () => {
     try {
-      if (!assets.length) {
-        const assetData = await RPC.getBlockchains();
-        if (Array.isArray(assetData)) {
-          for (let i = 0; i < assetData.length; i++) {
-            const target = assetData[i];
+      if (!blockchains.length) {
+        const blockchainData = await RPC.getBlockchains();
+        if (Array.isArray(blockchainData)) {
+          for (let i = 0; i < blockchainData.length; i++) {
+            const target = blockchainData[i];
             const info = ASSET_INFORMATION[target.chain];
             if (info != null)
                 target.info = info;
           }
-          setAssets(assetData.sort((a, b) => new AssetId(a.id).handle.localeCompare(new AssetId(b.id).handle)));
+          setBlockchains(blockchainData.sort((a, b) => new AssetId(a.id).handle.localeCompare(new AssetId(b.id).handle)));
         }
       }
     } catch { }
@@ -264,7 +264,7 @@ export default function BridgePage() {
         <Box mt="4" maxWidth="480px" mx="auto">
           <Heading align="center" mb="4" size="8">Bridge network</Heading>
           {
-            assets.map((item, index) =>
+            blockchains.map((item, index) =>
               <Button variant="surface" color="gray" mb="4" radius="large" style={{ display: 'block', color: 'initial', width: '100%', height: 'auto', borderRadius: '20px' }} key={item.chain + index} onClick={() => navigate(`/bridge?asset=${item.id}`)}>
                 <Flex px="1" py="3" justify="start" align="center" gap="3">
                   <Avatar size="4" fallback={Readability.toAssetFallback(item)} src={Readability.toAssetImage(item)} />
@@ -310,7 +310,7 @@ export default function BridgePage() {
               <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
             </Box>
             <Card mb="4">
-              <Collapsible.Root>
+              <Collapsible.Root open={query.get('bindings') != null || undefined}>
                 <Collapsible.Trigger asChild={true}>
                   <Flex justify="between" align="center" mb="2">
                     <Heading size="4">Deposit addresses</Heading>
