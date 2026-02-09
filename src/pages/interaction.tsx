@@ -708,7 +708,7 @@ export default function InteractionPage() {
       if (target && assetIndex == -1) {
         assetData = [...assetData, target];
         assetIndex = assetData.length - 1;
-      } else {
+      } else if (!target && assetIndex == -1) {
         assetIndex = assetData.findIndex((item) => item.asset.chain == initial.asset.chain);
       }
       setAssets(assetData);

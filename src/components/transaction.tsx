@@ -407,7 +407,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             <DataList.Item>
               <DataList.Label>Off-chain relay:</DataList.Label>
               <DataList.Value>
-                <Code color="tomato" wrap="balance" size="1" variant="soft" style={{ whiteSpace: 'pre', maxWidth: '340px' }}>
+                <Code color="tomato" wrap="balance" size="1" variant="soft" style={{ whiteSpace: 'pre-wrap', maxWidth: '340px' }}>
                   <Box px="1" py="1">FAULT { transaction.error }</Box>
                 </Code>
               </DataList.Value>
