@@ -481,8 +481,9 @@ export default function BridgePage() {
                             <DropdownMenu.Item shortcut="↙" onClick={() => navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=register&bridge=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`)}>Deposit into account</DropdownMenu.Item>
                             <Tooltip content={(item.withdrawable ? 'Enough ' : 'Not enough ') + Readability.toAssetSymbol(asset) + ' for a withdrawal'}>
                               <DropdownMenu.Item shortcut="↗" disabled={!item.withdrawable} onClick={() => {
-                                if (item.withdrawable)
-                                  navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=withdraw&bridge=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`)
+                                if (item.withdrawable) {
+                                  navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=withdraw&bridge=${item.instance.bridge_hash}&fee=${item.instance.fee_rate.toString()}&back=${encodeURIComponent(location.pathname + location.search)}`);
+                                }
                               }}>Withdraw from account</DropdownMenu.Item>
                             </Tooltip>
                           </DropdownMenu.Content>

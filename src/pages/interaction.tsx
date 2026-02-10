@@ -47,6 +47,7 @@ export class ProgramWithdraw {
   routing: { chain: string, policy: string }[] = [];
   address: string = '';
   value: string = '';
+  fee: BigNumber | null = null;
 }
 
 export class ProgramAnticast {
@@ -89,6 +90,7 @@ export default function InteractionPage() {
     type: query.get('type'),
     asset: query.get('asset'),
     bridge: query.get('bridge'),
+    fee: query.get('fee'),
     transaction: query.get('transaction'),
     back: query.get('back')
   };
@@ -167,15 +169,16 @@ export default function InteractionPage() {
         }
       }, new BigNumber(0));
     } else if (program instanceof ProgramWithdraw) {
+      const fee = (asset != -1 && !assets[asset].asset.token ? BigNumber.max(0, program.fee || new BigNumber(0)) : new BigNumber(0));
       try {
         const numeric = new BigNumber(program.value.trim());
-        return numeric.isPositive() ? numeric : new BigNumber(0);
+        return numeric.isPositive() ? numeric.plus(fee) : fee;
       } catch {
-        return new BigNumber(0);
+        return fee;
       }
     }
     return new BigNumber(0);
-  }, [assets, program]);
+  }, [assets, asset, program]);
   const programReady = useMemo((): boolean => {
     if (asset == -1)
       return false;
@@ -317,6 +320,14 @@ export default function InteractionPage() {
       if (params.bridge == null)
         return false;
   
+      const child = assets[asset];
+      if (child.asset.token != null && program.fee != null) {
+        const parent = assets.find(x => x.asset.chain == child.asset.chain && x.asset.token == null);
+        if (!parent || parent.balance.lt(BigNumber.max(0, program.fee))) {
+          return false;
+        }
+      }
+
       return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
     } else if (program instanceof ProgramAnticast) {
       try {
@@ -668,6 +679,7 @@ export default function InteractionPage() {
       }
       case 'withdraw': {
         const result = new ProgramWithdraw();
+        try { result.fee = params.fee ? new BigNumber(params.fee) : null; } catch { result.fee = null; }
         try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
         setProgram(result);
         break;
