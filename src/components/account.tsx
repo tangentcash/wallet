@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, Flex, Heading, IconButton, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { RPC, EventResolver, SummaryState, AssetId, Readability, Chain } from 'tangentsdk';
+import { RPC, EventResolver, SummaryState, AssetId, Readability, Chain, Whitelist } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiClose, mdiCoffin, mdiInformationOutline, mdiKeyOutline, mdiOpenInNew, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTagOutline, mdiTransitConnectionVariant } from "@mdi/js";
+import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiCheckDecagram, mdiClose, mdiCoffin, mdiInformationOutline, mdiKeyOutline, mdiOpenInNew, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTagOutline, mdiTransitConnectionVariant } from "@mdi/js";
 import { AppData } from "../core/app";
 import { useNavigate } from "react-router";
 import { Swap } from "../core/swap";
@@ -140,7 +140,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
             if (Array.isArray(assetData)) {
               assetData = assetData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
               assetData = assetData.filter((item) => item.balance?.gt(0) || item.reserve?.gt(0) || item.supply?.gt(0));
-              setAssets(assetData);
+              setAssets(assetData.map(x => ({ ...x, contractAddress: Whitelist.contractAddressOf(x.asset) })));
             } else {
               setAssets([]);
             }
@@ -405,10 +405,14 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                   <Box width="100%">
                     <Flex justify="between" align="center">
                       <Tooltip content={ Readability.toAssetName(item.asset, true) + ' blockchain' }>
-                        <Text as="div" size="3" weight="light">{Readability.toAssetName(item.asset)}</Text>
+                        <Flex align="center" gap="1">
+                          <Text as="div" size="3" weight="light">{Readability.toAssetName(item.asset)}</Text>
+                          { item.contractAddress && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.7} style={{ transform: 'translateY(-2px)' }}></Icon> }
+                        </Flex>
                       </Tooltip>
                       <Tooltip content={
                         <>
+                          { typeof item.contractAddress == 'string' && <Text style={{ display: 'block' }} mb="1">Contract address: { Readability.toAddress(item.contractAddress, 8) }</Text> }
                           <Text style={{ display: 'block' }}>Locked value: { new BigNumber(item.reserve).toString() } { Readability.toAssetSymbol(item.asset) }</Text>
                           <Text style={{ display: 'block' }}>Unlocked value: { new BigNumber(item.balance).toString() } { Readability.toAssetSymbol(item.asset) }</Text>
                           <Text style={{ display: 'block' }} mt="1">Total value: { new BigNumber(item.supply).toString() } { Readability.toAssetSymbol(item.asset) }</Text>
@@ -585,6 +589,12 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                       <Flex align="center" gap="1">
                         <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
                         <Text size="2" weight="light">{Readability.toAssetName(item.asset)}</Text>
+                        {
+                          item.contractAddress &&
+                          <Box>
+                            <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.7}></Icon>
+                          </Box>
+                        }
                       </Flex>
                     </Select.Item>
                   )

@@ -1,10 +1,10 @@
-import { mdiCodeJson, mdiMinus, mdiPlus } from "@mdi/js";
+import { mdiCheckDecagram, mdiCodeJson, mdiMinus, mdiPlus } from "@mdi/js";
 import { Avatar, Badge, Box, Button, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
-import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, TextUtil, TransactionOutput, Transactions, Uint256, Readability, Hashsig, Pubkeyhash, Pubkey, Seckey, SummaryState, EventResolver } from "tangentsdk";
+import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, TextUtil, TransactionOutput, Transactions, Uint256, Readability, Hashsig, Pubkeyhash, Pubkey, Seckey, SummaryState, EventResolver, Whitelist } from "tangentsdk";
 import { AppData } from "../core/app";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
@@ -723,7 +723,7 @@ export default function InteractionPage() {
       } else if (!target && assetIndex == -1) {
         assetIndex = assetData.findIndex((item) => item.asset.chain == initial.asset.chain);
       }
-      setAssets(assetData);
+      setAssets(assetData.map(x => ({ ...x, contractAddress: Whitelist.contractAddressOf(x.asset) })));
       setAsset(assetIndex);
     } catch { }
   }, [query]);
@@ -780,6 +780,12 @@ export default function InteractionPage() {
                     <Flex align="center" gap="1">
                       <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
                       <Text size="4">{ Readability.toMoney(item.asset, item.balance) }{ item.asset.token ? ' on ' + item.asset.chain : '' }</Text>
+                      {
+                        item.contractAddress &&
+                        <Box ml="1" style={{ transform: 'translateY(2px)' }}>
+                          <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.8}></Icon>
+                        </Box>
+                      }
                     </Flex>
                   </Select.Item>
                 )
@@ -787,6 +793,14 @@ export default function InteractionPage() {
             </Select.Group>
           </Select.Content>
         </Select.Root>
+        {
+          asset != -1 && typeof assets[asset].contractAddress == 'string' &&
+          <Box width="100%" mt="3">
+            <Tooltip content="Contract address of a token that was matched against public whitelist">
+              <TextField.Root size="3" type="text" color="red" value={Readability.toAddress(assets[asset].contractAddress, 16)} readOnly={true} />
+            </Tooltip>
+          </Box>
+        }
         {
           asset != -1 && params.bridge != null &&
           <Box width="100%" mt="3">

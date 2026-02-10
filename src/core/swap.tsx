@@ -1,4 +1,4 @@
-import { AssetId, ByteUtil, Chain, Hashing, Readability, Stream, Viewable } from "tangentsdk"
+import { AssetId, ByteUtil, Chain, Hashing, Readability, Stream, Viewable, Whitelist } from "tangentsdk"
 import { AlertBox, AlertType } from "../components/alert"
 import { Storage } from "./storage"
 import { AppData } from "./app"
@@ -188,7 +188,6 @@ export enum SwapField {
 export class Swap {
   static location: string = '';
   static subroute: string = '/swap';
-  static whitelist: Set<string> = new Set<string>();
   static prices: PriceDescriptors = { };
   static contracts: Market[] = [];
   static descriptors: BlockchainInfo[] = [];
@@ -327,16 +326,6 @@ export class Swap {
         const base = this.prices['__BASE__']?.base || null;
         this.equityAsset = base ? AssetId.fromHandle(base) : this.equityAsset;
       } catch { }
-
-      try {
-        const whitelist = (await (await fetch(`${this.location}/asset/whitelist`)).json()).result;
-        if (!Array.isArray(whitelist))
-          throw false;
-
-        this.whitelist = new Set<string>(whitelist as string[]);
-      } catch {
-        this.whitelist = new Set<string>();
-      }
 
       this.orderbook = Storage.get(SwapField.Orderbook);
       this.dispatchEvent('swap:ready', { data: { } });
@@ -707,18 +696,25 @@ export class Swap {
     }
   }
   static whitelistOf(asset: AssetId): boolean {
-    if (!asset.token || !asset.checksum) {
-      return true;
-    } else if (asset.chain != Chain.policy.TOKEN_NAME) {
-      return this.whitelist.has(asset.id);
+    if (asset.chain == Chain.policy.TOKEN_NAME && asset.checksum != null) {
+      for (let i = 0; i < this.contracts.length; i++) {
+        const contract = this.contracts[i];
+        if (asset.checksum == Hashing.atca160ascii(contract.account).substring(0, asset.checksum.length)) {
+          return true;
+        }
+      }
     }
-
-    for (let i = 0; i < this.contracts.length; i++) {
-      const contract = this.contracts[i];
-      if (asset.checksum == Hashing.atca160ascii(contract.account).substring(0, asset.checksum.length))
-        return true;
+    return Whitelist.has(asset);
+  }
+  static whitelistContractOf(asset: AssetId): boolean | string {
+    if (asset.chain == Chain.policy.TOKEN_NAME && asset.checksum != null) {
+      for (let i = 0; i < this.contracts.length; i++) {
+        const contract = this.contracts[i];
+        if (asset.checksum == Hashing.atca160ascii(contract.account).substring(0, asset.checksum.length)) {
+          return contract.account;
+        }
+      }
     }
-
-    return false;
+    return Whitelist.contractAddressOf(asset);
   }
 }

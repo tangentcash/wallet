@@ -10,15 +10,17 @@ import OrderView from "../../components/swap/order";
 import PoolView from "../../components/swap/pool";
 import Icon from "@mdi/react";
 import { mdiMagnify, mdiMagnifyScan, mdiRefresh } from "@mdi/js";
-import { useNavigate, useParams } from "react-router";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 
 export default function PortfolioPage() {
   const params = useParams();
+  const [search, setSearch] = useSearchParams();
   const ownerAddress = AppData.getWalletAddress() || '';
   const baseAddress = params.account || ownerAddress;
   const readOnly = baseAddress != ownerAddress;
   const searchInput = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
+  const [viewer, setViewer] = useState<'balances' | 'orders' | 'pools'>('balances');
   const [assetUpdates, setAssetUpdates] = useState(0);
   const [dashboardUpdates, setDashboardUpdates] = useState(0);
   const [todayProfits, setTodayProfits] = useState(true);
@@ -69,7 +71,12 @@ export default function PortfolioPage() {
       setPools([]);
     }
     setLoading(false);
-  }, [params, dashboardUpdates]);
+  }, [params.account, dashboardUpdates]);
+  useEffect(() => {
+    const view = search.get('view');
+    if (view != null && ['balances', 'orders', 'pools'].includes(view))
+      setViewer(view as any);
+  }, [search]);
   useEffect(() => {
     const updateAssets = () => setAssetUpdates(new Date().getTime());
     const updateDashboard = async () => setDashboardUpdates(new Date().getTime());
@@ -146,7 +153,7 @@ export default function PortfolioPage() {
           </Box>
         }
       </Card>
-      <Tabs.Root defaultValue="balances" mt="4">
+      <Tabs.Root value={viewer} onValueChange={(x) => setSearch({ view: x })} mt="4">
         <Tabs.List>
           <Tabs.Trigger value="balances">Balances</Tabs.Trigger>
           <Tabs.Trigger value="orders">Orders</Tabs.Trigger>

@@ -1,7 +1,7 @@
 import { Avatar, Badge, Box, Button, Card, Flex, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { Swap, Balance, Market } from "../../core/swap";
 import { AssetId, Readability, TextUtil } from "tangentsdk";
-import { mdiCurrencyUsd, mdiLockOutline, mdiSetRight } from "@mdi/js";
+import { mdiCheckDecagram, mdiCurrencyUsd, mdiLockOutline, mdiSetRight } from "@mdi/js";
 import { useMemo, useState } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
@@ -112,7 +112,10 @@ function DefaultBalanceView(props: { item: Balance & { equity: { current: BigNum
         <Avatar size="4" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
         <Box width="100%">
           <Flex justify="between">
-            <Text size="2">{ item.asset.token != null ? item.asset.chain + ' ' + Readability.toAssetSymbol(item.asset) : Readability.toAssetName(item.asset) }</Text>
+            <Flex gap="1">
+              <Text size="2">{ item.asset.token != null ? item.asset.chain + ' ' + Readability.toAssetSymbol(item.asset) : Readability.toAssetName(item.asset) }</Text>
+              { Swap.whitelistOf(item.asset) && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.7}></Icon> }
+            </Flex>
             <Text size="2">{ Readability.toMoney(Swap.equityAsset, item.equity.current) }</Text>
           </Flex>
           <Flex justify="between" align="center">

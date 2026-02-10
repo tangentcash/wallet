@@ -1233,6 +1233,10 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               <DataList.Value>0x{ transaction.nonce.toString(16) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
+              <DataList.Label>Gas network:</DataList.Label>
+              <DataList.Value>{ Readability.toAssetName(transaction.asset, true) }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
               <DataList.Label>Gas price:</DataList.Label>
               <DataList.Value>{ transaction.gas_price != null ? Readability.toMoney(AssetId.fromHandle(transaction.asset.chain), transaction.gas_price) : <Badge color="yellow">Consensus override</Badge> }</DataList.Value>
             </DataList.Item>

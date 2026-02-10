@@ -1,5 +1,5 @@
 import { mdiAlphabeticalVariant, mdiCancel, mdiCheckDecagram, mdiConsole, mdiMagnify, mdiPlus } from "@mdi/js";
-import { Avatar, Box, Button, Dialog, Flex, IconButton, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Avatar, Badge, Box, Button, Dialog, Flex, IconButton, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { AssetId, Readability } from "tangentsdk";
 import { Swap, BlockchainInfo } from "../../core/swap";
@@ -12,7 +12,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
   const [symbol, setSymbol] = useState('');
   const [address, setAddress] = useState('');
   const [query, setQuery] = useState('');
-  const [assets, setAssets] = useState<{ asset: AssetId, whitelisted: boolean }[]>([]);
+  const [assets, setAssets] = useState<{ asset: AssetId, contractAddress: boolean | string }[]>([]);
   const policy = useMemo((): BlockchainInfo | null => policyIndex != null ? Swap.descriptors[policyIndex] : null, [policyIndex]);
   const customToken = useMemo((): AssetId | null => {
     const targetSymbol = symbol.trim(), targetAddress = address.trim();
@@ -28,7 +28,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
       setLoading(setTimeout(async () => {
         try {
           const result = await Swap.assetQuery(value);
-          setAssets(result.map((x) => ({ asset: x, whitelisted: Swap.whitelistOf(x) })));
+          setAssets(result.map((x) => ({ asset: x, contractAddress: Swap.whitelistContractOf(x) })));
         } catch { }
         setLoading(null);
       }, 300) as any);
@@ -51,7 +51,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
       setQuery(props.value.handle);
       setPolicyIndex(policyId != -1 ? policyId : null);
       setSymbol(props.value?.token || '');
-      setAssets([{ asset: asset, whitelisted: Swap.whitelistOf(asset) }]);
+      setAssets([{ asset: asset, contractAddress: Swap.whitelistContractOf(asset) }]);
     } else {
       setQuery('');
       setPolicyIndex(null);
@@ -92,9 +92,12 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
                     <Flex align="start" direction="column">
                       <Flex align="center" gap="1">
                         <Text size="3" style={{ color: 'var(--gray-12)' }}>{ Readability.toAssetName(item.asset) }</Text>
-                        { item.whitelisted && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.7}></Icon> }
+                        { item.contractAddress && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.7}></Icon> }
                       </Flex>
-                      <Text size="2">{ Readability.toAssetSymbol(item.asset) }</Text>
+                      <Flex gap="2" align="center" wrap="wrap">
+                        <Text size="2">{ Readability.toAssetSymbol(item.asset) }</Text>
+                        { typeof item.contractAddress == 'string' && <Badge color="amber" size="1" radius="full">{ Readability.toAddress(item.contractAddress, 8) }</Badge> }
+                      </Flex>
                     </Flex>
                   </Flex>
                 </Button>
