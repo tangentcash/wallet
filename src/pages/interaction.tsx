@@ -1332,6 +1332,10 @@ export default function InteractionPage() {
                       <Text as="div" weight="light" size="4" mb="1">— Withdraw through <Badge variant="surface" size="2">{ 
                           (params.bridge || 'NULL').substring((params.bridge || 'NULL').length - 6)
                       }</Badge> bridge</Text>
+                      {
+                        program.fee != null &&
+                        <Text as="div" weight="light" size="4" mb="1">— Pay <Text color="orange">{ Readability.toMoney(gasAsset, program.fee) }</Text> to <Text color="sky">bridging as fee</Text></Text>
+                      }
                     </>
                   }
                   {
