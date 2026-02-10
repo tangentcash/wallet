@@ -715,7 +715,7 @@ export class Swap {
 
     for (let i = 0; i < this.contracts.length; i++) {
       const contract = this.contracts[i];
-      if (asset.checksum == AssetId.checksumOf(contract.account).substring(0, asset.checksum.length))
+      if (asset.checksum == Hashing.atca160ascii(contract.account).substring(0, asset.checksum.length))
         return true;
     }
 
