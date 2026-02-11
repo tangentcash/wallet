@@ -1,4 +1,4 @@
-import { Avatar, Badge, Box, Button, Card, DataList, Dialog, Flex, Text } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, DataList, Dialog, Flex, Text } from "@radix-ui/themes";
 import { Readability } from "tangentsdk";
 import { Pool, Swap } from "../../core/swap";
 import { useMemo, useState } from "react";
@@ -8,6 +8,7 @@ import { Link } from "react-router";
 import { AlertBox, AlertType } from "../alert";
 import Icon from "@mdi/react";
 import { mdiInformationOutline } from "@mdi/js";
+import { AssetImage } from "../asset";
 
 export default function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, readOnly?: boolean }) {
   const item = props.item;
@@ -30,8 +31,8 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
     <Collapsible.Root open={subprops.open || expanded}>
       <Flex justify="start" align="center" gap="3" className={subprops.open ? undefined : 'card-expander'} onClick={() => subprops.open ? undefined : setExpanded(!expanded)}>
         <Box style={{ position: 'relative' }}>
-          <Avatar size="2" fallback={Readability.toAssetFallback(item.secondaryAsset)} src={Readability.toAssetImage(item.secondaryAsset)} style={{ position: 'absolute', top: '24px', left: '-6px' }} />
-          <Avatar size="4" fallback={Readability.toAssetFallback(item.primaryAsset)} src={Readability.toAssetImage(item.primaryAsset)} />
+          <AssetImage asset={item.secondaryAsset} size="2" style={{ position: 'absolute', top: '24px', left: '-6px' }}></AssetImage>
+          <AssetImage asset={item.primaryAsset} size="4"></AssetImage>
         </Box>
         <Box width="100%">
           <Flex justify="between" align="center">

@@ -1,4 +1,4 @@
-import { AssetId, ByteUtil, Chain, Hashing, Readability, Stream, Viewable, Whitelist } from "tangentsdk"
+import { AssetId, ByteUtil, Hashing, Readability, Stream, Viewable, Whitelist } from "tangentsdk"
 import { AlertBox, AlertType } from "../components/alert"
 import { Storage } from "./storage"
 import { AppData } from "./app"
@@ -252,10 +252,10 @@ export class Swap {
   }
   static priceOf(primaryAsset: AssetId, secondaryAsset?: AssetId): { open: BigNumber | null, close: BigNumber | null } {
     const primarySymbol = primaryAsset.token || primaryAsset.chain || null;
-    const primaryTarget = primarySymbol ? this.prices[primarySymbol] : null;
+    const primaryTarget = primarySymbol && !Whitelist.fake(primaryAsset) ? this.prices[primarySymbol] : null;
     if (secondaryAsset != null) {
       const secondarySymbol = secondaryAsset.token || secondaryAsset.chain || null;
-      const secondaryTarget = secondarySymbol ? this.prices[secondarySymbol] : null;
+      const secondaryTarget = secondarySymbol && !Whitelist.fake(secondaryAsset) ? this.prices[secondarySymbol] : null;
       return {
         open: primaryTarget && primaryTarget.price.open && secondaryTarget && secondaryTarget.price.open ? primaryTarget.price.open.dividedBy(secondaryTarget.price.open) : null,
         close: primaryTarget && primaryTarget.price.close && secondaryTarget && secondaryTarget.price.close ? primaryTarget.price.close.dividedBy(secondaryTarget.price.close) : null
@@ -288,7 +288,7 @@ export class Swap {
         const asset = new AssetId(notification.data.primaryAsset.id);
         const price = new BigNumber(notification.data.price);
         const symbol = asset.token || asset.chain || '';
-        const whitelist = this.whitelistOf(asset);
+        const whitelist = !!Whitelist.contractAddressOf(asset);
         const prev = this.prices[symbol];
         if (!prev || prev.whitelist == whitelist || (!prev.whitelist && whitelist)) {
           this.prices[symbol] = { whitelist: whitelist, base: prev?.base || this.equityAsset.chain, price: { open: prev?.price?.open || price, close: price } };
@@ -694,27 +694,5 @@ export class Swap {
       default:
         return 'Unknown';
     }
-  }
-  static whitelistOf(asset: AssetId): boolean {
-    if (asset.chain == Chain.policy.TOKEN_NAME && asset.checksum != null) {
-      for (let i = 0; i < this.contracts.length; i++) {
-        const contract = this.contracts[i];
-        if (asset.checksum == Hashing.atca160ascii(contract.account).substring(0, asset.checksum.length)) {
-          return true;
-        }
-      }
-    }
-    return Whitelist.has(asset);
-  }
-  static whitelistContractOf(asset: AssetId): boolean | string {
-    if (asset.chain == Chain.policy.TOKEN_NAME && asset.checksum != null) {
-      for (let i = 0; i < this.contracts.length; i++) {
-        const contract = this.contracts[i];
-        if (asset.checksum == Hashing.atca160ascii(contract.account).substring(0, asset.checksum.length)) {
-          return contract.account;
-        }
-      }
-    }
-    return Whitelist.contractAddressOf(asset);
   }
 }

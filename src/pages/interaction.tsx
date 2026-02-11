@@ -1,11 +1,12 @@
 import { mdiCheckDecagram, mdiCodeJson, mdiMinus, mdiPlus } from "@mdi/js";
-import { Avatar, Badge, Box, Button, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
 import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, TextUtil, TransactionOutput, Transactions, Uint256, Readability, Hashsig, Pubkeyhash, Pubkey, Seckey, SummaryState, EventResolver, Whitelist } from "tangentsdk";
 import { AppData } from "../core/app";
+import { AssetImage } from "../components/asset";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
 import Transaction from "../components/transaction";
@@ -778,8 +779,8 @@ export default function InteractionPage() {
                 assets.map((item, index) =>
                   <Select.Item key={item.asset.id + '_select'} value={index.toString()}>
                     <Flex align="center" gap="1">
-                      <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
-                      <Text size="4">{ Readability.toMoney(item.asset, item.balance) }{ item.asset.token ? ' on ' + item.asset.chain : '' }</Text>
+                      <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
+                      <Text ml="1" size="4">{ Readability.toMoney(item.asset, item.balance) }{ item.asset.token ? ' (' + item.asset.chain + ')' : '' }</Text>
                       {
                         item.contractAddress &&
                         <Box ml="1" style={{ transform: 'translateY(2px)' }}>
@@ -956,9 +957,9 @@ export default function InteractionPage() {
               <Box mt="4" key={index}>
                 <Card>
                   <Heading size="4" mb="2">
-                    <Flex align="center">
-                      <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
-                      { item.asset.chain || '' } attestation
+                    <Flex align="center" gap="3">
+                      <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
+                      <Text>{ item.asset.chain || '' } attestation</Text>
                     </Flex>
                   </Heading>
                   <Box width="100%">
@@ -1030,8 +1031,8 @@ export default function InteractionPage() {
                   {
                     program.assets.map((item) =>
                       <Select.Item key={item.asset.chain + '_select'} value={item.asset.chain || ''} disabled={program.attestationReservations.has(item.asset.chain || '')}>
-                        <Flex align="center" gap="1">
-                          <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
+                        <Flex align="center" gap="3">
+                          <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
                           <Text size="4">{ item.asset.chain || '' } attestation change</Text>
                         </Flex>
                       </Select.Item>
@@ -1046,9 +1047,9 @@ export default function InteractionPage() {
               <Box mt="4" key={index}>
                 <Card>
                   <Heading size="4" mb="2">
-                    <Flex align="center">
-                      <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
-                      { item.asset.chain || '' } bridge
+                    <Flex align="center" gap="3">
+                      <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
+                      <Text>{ item.asset.chain || '' } bridge</Text>
                     </Flex>
                   </Heading>
                   <Box width="100%" mt="3">
@@ -1106,8 +1107,8 @@ export default function InteractionPage() {
                   {
                     program.assets.map((item) =>
                       <Select.Item key={item.asset.chain + '_select'} value={item.asset.chain || ''} disabled={program.bridgeReservations.has(item.asset.chain || '')}>
-                        <Flex align="center" gap="1">
-                          <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
+                        <Flex align="center" gap="3">
+                          <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
                           <Text size="4">{ item.asset.chain || '' } bridge allocation</Text>
                         </Flex>
                       </Select.Item>

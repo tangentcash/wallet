@@ -1,5 +1,5 @@
 import { mdiBackburger, mdiOpenInNew } from "@mdi/js";
-import { Avatar, Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Heading, Select, Text, Tooltip } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Heading, Select, Text, Tooltip } from "@radix-ui/themes";
 import { useNavigate, useSearchParams } from "react-router";
 import { useCallback, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
@@ -9,6 +9,7 @@ import { AppData } from "../core/app";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
+import { AssetImage, AssetName } from "../components/asset";
 
 const BRIDGE_COUNT = 48;
 const ASSET_INFORMATION: Record<string, { depositTime: number, tokenStandard: string | null }> = {
@@ -267,10 +268,10 @@ export default function BridgePage() {
             blockchains.map((item, index) =>
               <Button variant="surface" color="gray" mb="4" radius="large" style={{ display: 'block', color: 'initial', width: '100%', height: 'auto', borderRadius: '20px' }} key={item.chain + index} onClick={() => navigate(`/bridge?asset=${item.id}`)}>
                 <Flex px="1" py="3" justify="start" align="center" gap="3">
-                  <Avatar size="4" fallback={Readability.toAssetFallback(item)} src={Readability.toAssetImage(item)} />
+                  <AssetImage asset={item} size="4"></AssetImage>
                   <Box width="100%">
                     <Flex justify="start" align="start" direction="column">
-                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toAssetName(item) }</Text>
+                      <AssetName asset={item} size="2"></AssetName>
                       <Flex gap="1">
                         <Badge size="1" color="jade">{ Readability.toAssetSymbol(item) }</Badge>
                         {
@@ -302,8 +303,8 @@ export default function BridgePage() {
                 <Button variant="surface" color="gray" onClick={() => navigate('/bridge')}>
                   <Icon path={mdiBackburger} size={0.7} />
                   <Flex align="center" gap="1">
-                    <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(asset)} src={Readability.toAssetImage(asset)} style={{ width: '24px', height: '24px' }} />
-                    <Text size="2" style={{ color: 'var(--gray-12)' }} weight="light">{Readability.toAssetName(asset)}</Text>
+                    <AssetImage asset={asset} size="1" iconSize="24px"></AssetImage>
+                    <AssetName asset={asset} size="2"></AssetName>
                   </Flex>
                 </Button>
               </Flex>

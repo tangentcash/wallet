@@ -1,11 +1,12 @@
-import { Avatar, Box, Button, Card, Flex, SegmentedControl, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Box, Button, Card, Flex, SegmentedControl, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { AccountTier, Balance, OrderCondition, OrderPolicy, OrderSide, Swap } from "../../core/swap";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mdiCurrencyUsd } from "@mdi/js";
 import { AssetId, Readability, TextUtil } from "tangentsdk";
+import { AssetImage, AssetName } from "../asset";
+import { Storage } from "../../core/storage";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
-import { Storage } from "../../core/storage";
 import PerformerButton, { Authorization } from "./performer";
 
 class ConcentratedPool {
@@ -472,9 +473,9 @@ export default function Maker(props: {
             updateState(prev => ({ ...prev, value: valueBalance.toString() }));
         }}>
           <Flex align="center" gap="2" px="2" py="3">
-            <Avatar size="2" fallback={Readability.toAssetFallback(valueAsset)} src={Readability.toAssetImage(valueAsset)} style={{ width: '40px', height: '40px' }} />
+            <AssetImage asset={valueAsset} size="2" iconSize="40px"></AssetImage>
             <Box>
-              <Text align="left" style={{ display: 'block' }}>{ Readability.toAssetName(valueAsset) }</Text>
+              <AssetName asset={valueAsset}></AssetName>
               {
                 valueBalance && 
                 <Text align="left" weight="bold" size="3" style={{ display: 'block' }}>{ Readability.toMoney(valueAsset, valueBalance) }</Text>
@@ -620,8 +621,8 @@ export default function Maker(props: {
         <Button variant="soft" color="orange" style={{ display: 'block', height: 'auto', width: '100%', borderRadius: '24px' }}>
           <Flex align="center" gap="2" px="2" py="3">
             <Box style={{ position: 'relative' }}>
-              <Avatar size="2" fallback={Readability.toAssetFallback(props.secondaryAsset)} src={Readability.toAssetImage(props.secondaryAsset)} style={{ position: 'absolute', top: '20px', left: '-6px', width: '26px', height: '26px' }} />
-              <Avatar size="2" fallback={Readability.toAssetFallback(props.primaryAsset)} src={Readability.toAssetImage(props.primaryAsset)} style={{ width: '40px', height: '40px' }} />
+              <AssetImage asset={props.secondaryAsset} size="2" iconSize="26px" style={{ position: 'absolute', top: '20px', left: '-6px' }}></AssetImage>
+              <AssetImage asset={props.primaryAsset} size="2" iconSize="40px"></AssetImage>
             </Box>
             {
               balances &&

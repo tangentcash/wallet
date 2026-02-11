@@ -1,4 +1,4 @@
-import { AspectRatio, Avatar, Badge, Box, Button, Card, Dialog, Flex, Heading, IconButton, SegmentedControl, Select, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { AspectRatio, Badge, Box, Button, Card, Dialog, Flex, Heading, IconButton, SegmentedControl, Select, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { Link, useNavigate, useParams } from "react-router";
 import { AppData } from "../../core/app";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -9,13 +9,14 @@ import { BarPrice, ChartOptions, CrosshairMode, DeepPartial, IChartApi, LogicalR
 import { mdiAlert, mdiArrowRightThin, mdiCheck, mdiCheckDecagram, mdiCog, mdiCubeOutline, mdiCurrencyUsd, mdiTimelapse } from "@mdi/js";
 import { GenericBar, PriceBar, VolumeBar, ChartViewType, ChartView } from "../../components/swap/chart";
 import { AlertBox, AlertType } from "../../components/alert";
-import { AssetId, Readability } from "tangentsdk";
+import { AssetId, Readability, Whitelist } from "tangentsdk";
 import { Storage } from "../../core/storage";
 import BigNumber from "bignumber.js";
 import Maker from "../../components/swap/maker";
 import OrderView from "../../components/swap/order";
 import Icon from "@mdi/react";
 import Clock from "../../components/swap/clock";
+import { AssetImage } from "../../components/asset";
 
 enum PriceScope {
   Bid,
@@ -466,7 +467,7 @@ export default function OrderbookPage() {
       }
 
       await updateAccount();
-      setWhitelisted(Swap.whitelistOf(result.primaryAsset) && Swap.whitelistOf(result.secondaryAsset));
+      setWhitelisted(!!Whitelist.contractAddressOf(result.primaryAsset) && !!Whitelist.contractAddressOf(result.secondaryAsset));
       setLoading(false);
       window.addEventListener('update:order', updateAccount);
       return () => window.removeEventListener('update:order', updateAccount);
@@ -630,8 +631,8 @@ export default function OrderbookPage() {
     <Box width="100%" mb={mobile ? undefined : '3'} style={mobile ? { } : { backgroundColor: 'var(--color-panel)', borderRadius: '22px', overflow: 'hidden' }}>
       <Flex align="center" pt={mobile ? '4' : '3'} pb={mobile ? '4' : '3'} px="3">
         <Box style={{ position: 'relative' }} mr="2">
-          <Avatar size="2" fallback={orderbook?.secondaryAsset ? Readability.toAssetFallback(orderbook.secondaryAsset) : '?'} src={orderbook?.secondaryAsset ? Readability.toAssetImage(orderbook.secondaryAsset) : undefined} style={{ position: 'absolute', top: mobile ? '18px' : '24px', left: '-6px' }} />
-          <Avatar size={mobile ? '3' : '4'} fallback={orderbook?.primaryAsset ? Readability.toAssetFallback(orderbook.primaryAsset) : '?'} src={orderbook?.primaryAsset ? Readability.toAssetImage(orderbook.primaryAsset) : undefined} />
+          <AssetImage asset={orderbook?.secondaryAsset || undefined} size="2" style={{ position: 'absolute', top: mobile ? '18px' : '24px', left: '-6px' }}></AssetImage>
+          <AssetImage asset={orderbook?.primaryAsset || undefined} size={mobile ? '3' : '4'}></AssetImage>
         </Box>
         <Flex direction="column" width="100%">
           <Flex justify="between">
@@ -815,12 +816,12 @@ export default function OrderbookPage() {
                           <SegmentedControl.Root size="1" value={seriesOptions.showPrimary ? '1' : '0'} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, showPrimary: parseInt(e) > 0 }))}>
                             <SegmentedControl.Item value="1">
                               <Flex align="center">
-                                <Avatar size="1" fallback={Readability.toAssetFallback(orderbook.primaryAsset)} src={Readability.toAssetImage(orderbook.primaryAsset)} style={{ width: '16px', height: '16px' }} />
+                                <AssetImage asset={orderbook.primaryAsset} size="1" iconSize="16px"></AssetImage>
                               </Flex>
                             </SegmentedControl.Item>
                             <SegmentedControl.Item value="0">
                               <Flex align="center">
-                                <Avatar size="1" fallback={Readability.toAssetFallback(orderbook.secondaryAsset)} src={Readability.toAssetImage(orderbook.secondaryAsset)} style={{ width: '16px', height: '16px' }} />
+                                <AssetImage asset={orderbook.secondaryAsset} size="1" iconSize="16px"></AssetImage>
                               </Flex>
                             </SegmentedControl.Item>
                           </SegmentedControl.Root>
@@ -847,12 +848,12 @@ export default function OrderbookPage() {
                             <Text size="2" color="gray">Pair</Text>
                             <Flex gap="1">
                               <Flex gap="2" align="center">
-                                <Avatar size="1" fallback={Readability.toAssetFallback(orderbook.primaryAsset)} src={Readability.toAssetImage(orderbook.primaryAsset)} style={{ width: '16px', height: '16px' }} />
+                                <AssetImage asset={orderbook.primaryAsset} size="1" iconSize="16px"></AssetImage>
                                 <Text>{ Readability.toAssetSymbol(orderbook.primaryAsset) }</Text>
                               </Flex>
                               <Text>/</Text>
                               <Flex gap="2" align="center">
-                                <Avatar size="1" fallback={Readability.toAssetFallback(orderbook.secondaryAsset)} src={Readability.toAssetImage(orderbook.secondaryAsset)} style={{ width: '16px', height: '16px' }} />
+                                <AssetImage asset={orderbook.secondaryAsset} size="1" iconSize="16px"></AssetImage>
                                 <Text>{ Readability.toAssetSymbol(orderbook.secondaryAsset) }</Text>
                               </Flex>
                             </Flex>

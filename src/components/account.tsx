@@ -3,7 +3,7 @@ import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, Flex, Heading, 
 import { RPC, EventResolver, SummaryState, AssetId, Readability, Chain, Whitelist } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiCheckDecagram, mdiClose, mdiCoffin, mdiInformationOutline, mdiKeyOutline, mdiOpenInNew, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTagOutline, mdiTransitConnectionVariant } from "@mdi/js";
+import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiClose, mdiCoffin, mdiInformationOutline, mdiKeyOutline, mdiOpenInNew, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTagOutline, mdiTransitConnectionVariant } from "@mdi/js";
 import { AppData } from "../core/app";
 import { useNavigate } from "react-router";
 import { Swap } from "../core/swap";
@@ -12,6 +12,7 @@ import InfiniteScroll from 'react-infinite-scroll-component';
 import QRCode from "react-qr-code";
 import Icon from "@mdi/react";
 import Transaction from "../components/transaction";
+import { AssetImage, AssetName } from "./asset";
 
 function toAddressType(type: string): string {
   switch (type) {
@@ -327,10 +328,10 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                         }
                       }}>
                         <Flex gap="3" align="center" py="3">
-                          <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '40px', height: '40px' }} />
+                          <AssetImage asset={item.asset} size="2" iconSize="40px"></AssetImage>
                           <Flex justify="between" align="center" width="100%">
                             <Flex direction="column" align="start">
-                              <Text size="3" style={{ color: 'var(--gray-12)' }}>{ Readability.toAssetName(item.asset) }</Text>
+                              <AssetName asset={item.asset}></AssetName>
                               {
                                 item.addresses != null &&
                                 <Text size="1" color="gray">{ Readability.toAddress(item.addresses[0].address, 6) }{ item.addresses.length > 1 ? ' + ' + Readability.toCount('variant', item.addresses.length) : '' }</Text>
@@ -401,15 +402,10 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
             { 
               !loading && assets.map((item) =>
                 <Flex key={item.asset.id + '_balance'} px="2" py="3" gap="3" align="center">
-                  <Avatar size="3" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
+                  <AssetImage asset={item.asset}></AssetImage>
                   <Box width="100%">
                     <Flex justify="between" align="center">
-                      <Tooltip content={ Readability.toAssetName(item.asset, true) + ' blockchain' }>
-                        <Flex align="center" gap="1">
-                          <Text as="div" size="3" weight="light">{Readability.toAssetName(item.asset)}</Text>
-                          { item.contractAddress && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.7} style={{ transform: 'translateY(-2px)' }}></Icon> }
-                        </Flex>
-                      </Tooltip>
+                      <AssetName asset={item.asset}></AssetName>
                       <Tooltip content={
                         <>
                           { typeof item.contractAddress == 'string' && <Text style={{ display: 'block' }} mb="1">Contract address: { Readability.toAddress(item.contractAddress, 8) }</Text> }
@@ -452,7 +448,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                 {
                   production.stake != null && production.stake.gte(0) &&
                   <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
-                    <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(new AssetId())} src={Readability.toAssetImage(new AssetId())} />
+                    <AssetImage asset={new AssetId()} size="2"></AssetImage>
                     <Box width="100%" style={{ marginLeft: '2px' }}>
                       <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " rewards received by block producer"}>
                         <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), production.stake) }</Text>
@@ -464,7 +460,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                   production.rewards.map((item: any) => {
                     return (
                       <Flex key={item.asset.id + '_production'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
-                        <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
+                        <AssetImage asset={item.asset} size="2"></AssetImage>
                         <Box width="100%" style={{ marginLeft: '2px' }}>
                           <Tooltip content={Readability.toAssetSymbol(item.asset) + " fees received by block producer"}>
                             <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
@@ -492,7 +488,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                   {
                     participation.stake != null && participation.stake.gte(0) &&
                     <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
-                      <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(new AssetId())} src={Readability.toAssetImage(new AssetId())} />
+                      <AssetImage asset={new AssetId()} size="2"></AssetImage>
                       <Box width="100%" style={{ marginLeft: '2px' }}>
                         <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by bridge participation as a signer of withdrawal transactions"}>
                           <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), participation.stake) }</Text>
@@ -504,7 +500,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                     participation.rewards.map((item: any) => {
                       return (
                         <Flex key={item.asset.id + '_participation'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
-                          <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
+                          <AssetImage asset={item.asset} size="2"></AssetImage>
                           <Box width="100%" style={{ marginLeft: '2px' }}>
                             <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by bridge participation as a signer of withdrawal transactions'}>
                               <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
@@ -533,7 +529,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                     {
                       attestation.stake != null && attestation.stake.gte(0) &&
                       <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
-                        <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(new AssetId())} src={Readability.toAssetImage(new AssetId())} />
+                        <AssetImage asset={new AssetId()} size="2"></AssetImage>
                         <Box width="100%" style={{ marginLeft: '2px' }}>
                           <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by bridge attestation as a deposit/withdrawal transaction notifications and participant coordination"}>
                             <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), attestation.stake) }</Text>
@@ -545,7 +541,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                       attestation.rewards.map((item: any) => {
                         return (
                           <Flex key={item.asset.id + '_attestation'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
-                            <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
+                            <AssetImage asset={item.asset} size="2"></AssetImage>
                             <Box width="100%" style={{ marginLeft: '2px' }}>
                               <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by bridge attestation as a deposit/withdrawal transaction notifications and participant coordination'}>
                                 <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
@@ -587,14 +583,8 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                   assets.filter((v) => v.asset.chain != new AssetId().chain).map((item, index) =>
                     <Select.Item key={item.asset.id + '_select'} value={index.toString()} disabled={item.asset.chain == new AssetId().chain}>
                       <Flex align="center" gap="1">
-                        <Avatar mr="1" size="1" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '24px', height: '24px' }} />
-                        <Text size="2" weight="light">{Readability.toAssetName(item.asset)}</Text>
-                        {
-                          item.contractAddress &&
-                          <Box>
-                            <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.7}></Icon>
-                          </Box>
-                        }
+                        <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
+                        <AssetName asset={item.asset} size="2"></AssetName>
                       </Flex>
                     </Select.Item>
                   )

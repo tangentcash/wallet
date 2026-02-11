@@ -1,14 +1,16 @@
-import { Avatar, Badge, Box, Button, Flex, Heading, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Badge, Box, Button, Flex, Heading, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useEffect, useMemo, useState } from "react";
 import { AggregatedPair, Swap, Market } from "../../core/swap";
 import { AlertBox, AlertType } from "../../components/alert";
 import { useEffectAsync } from "../../core/react";
 import { mdiArrowLeftRight, mdiCheckDecagram, mdiCurrencyBtc, mdiCurrencyUsd, mdiMagnify } from "@mdi/js";
-import { AssetId, Readability } from "tangentsdk";
+import { AssetId, Readability, RPC, Whitelist } from "tangentsdk";
 import { useNavigate } from "react-router";
+import { AssetImage } from "../../components/asset";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 import AssetSelector from "../../components/swap/selector";
+import { Storage } from "../../core/storage";
 
 function toAssetSymbol(asset: AssetId): string {
   return asset.chain == 'TAN' && asset.token ? (asset.token || '') : ((asset.token || '') + (asset.chain || ''));
@@ -34,7 +36,7 @@ export default function ExplorerPage() {
       return primaryMatches && secondaryMatches;
     });
     if (launchablePair != null) {
-      result = [{ pair: launchablePair, whitelisted: Swap.whitelistOf(launchablePair.primaryAsset) && Swap.whitelistOf(launchablePair.secondaryAsset) }, ...result];
+      result = [{ pair: launchablePair, whitelisted: !!Whitelist.contractAddressOf(launchablePair.primaryAsset) && !!Whitelist.contractAddressOf(launchablePair.secondaryAsset) }, ...result];
     }
     return result;
   }, [pairs, assetQuery, launchablePair]);
@@ -49,7 +51,9 @@ export default function ExplorerPage() {
       if (market != null) {
         const results = await Swap.marketPairs(market.id);
         if (Array.isArray(results)) {
-          setPairs(results.map((x) => ({ pair: x, whitelisted: Swap.whitelistOf(x.primaryAsset) && Swap.whitelistOf(x.secondaryAsset) })));
+          const data = results.map((x) => ({ pair: x, whitelisted: !!Whitelist.contractAddressOf(x.primaryAsset) && !!Whitelist.contractAddressOf(x.secondaryAsset) }));
+          Storage.set('__explorer__', data);
+          setPairs(data);
         }
       } else {
         setPairs([]);
@@ -84,6 +88,7 @@ export default function ExplorerPage() {
         return copy;
       });
     };
+    setPairs(RPC.fetchObject(Storage.get('__explorer__')) || []);
     window.addEventListener('update:trade', update);
     return () => window.removeEventListener('update:trade', update);
   }, []);
@@ -117,8 +122,8 @@ export default function ExplorerPage() {
             <Flex justify="center" align="center">
               {
                 marketLauncher.primary != null &&
-                <Flex align="center" gap="1">
-                  <Avatar mr="1" size="2" radius="full" fallback={Readability.toAssetFallback(marketLauncher.primary)} src={Readability.toAssetImage(marketLauncher.primary)} style={{ width: '32px', height: '32px' }} />
+                <Flex align="center" gap="2">
+                  <AssetImage asset={marketLauncher.primary} size="2" iconSize="32px"></AssetImage>
                   <Text size="4">{ Readability.toAssetSymbol(marketLauncher.primary) }</Text>
                 </Flex>
               }
@@ -139,9 +144,9 @@ export default function ExplorerPage() {
             <Flex justify="center" align="center">
               {
                 marketLauncher.secondary != null &&
-                <Flex align="center" gap="1">
-                  <Avatar mr="1" size="2" radius="full" fallback={Readability.toAssetFallback(marketLauncher.secondary)} src={Readability.toAssetImage(marketLauncher.secondary)} style={{ width: '32px', height: '32px' }} />
-                  <Text size="3">{ Readability.toAssetSymbol(marketLauncher.secondary) }</Text>
+                <Flex align="center" gap="2">
+                  <AssetImage asset={marketLauncher.secondary} size="2" iconSize="32px"></AssetImage>
+                  <Text size="4">{ Readability.toAssetSymbol(marketLauncher.secondary) }</Text>
                 </Flex>
               }
               {
@@ -159,8 +164,8 @@ export default function ExplorerPage() {
               <Box px="2" py="2">
                 <Flex justify="start" align="center" gap="3">
                   <Box style={{ position: 'relative' }}>
-                    <Avatar size="2" fallback={Readability.toAssetFallback(item.pair.secondaryAsset)} src={Readability.toAssetImage(item.pair.secondaryAsset)} style={{ position: 'absolute', top: '24px', left: '-6px' }} />
-                    <Avatar size="4" fallback={Readability.toAssetFallback(item.pair.primaryAsset)} src={Readability.toAssetImage(item.pair.primaryAsset)} />
+                    <AssetImage asset={item.pair.secondaryAsset} size="2" style={{ position: 'absolute', top: '24px', left: '-6px' }}></AssetImage>
+                    <AssetImage asset={item.pair.primaryAsset} size="4"></AssetImage>
                   </Box>
                   <Box width="100%">
                     <Flex justify="between" align="center">

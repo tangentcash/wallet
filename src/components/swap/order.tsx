@@ -1,4 +1,4 @@
-import { Avatar, Badge, Box, Button, Card, DataList, Dialog, Flex, Text } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, DataList, Dialog, Flex, Text } from "@radix-ui/themes";
 import { Order, OrderCondition, OrderPolicy, OrderSide, Swap } from "../../core/swap";
 import { AssetId, Readability } from "tangentsdk";
 import { useMemo, useState } from "react";
@@ -8,6 +8,7 @@ import { AlertBox, AlertType } from "../alert";
 import { Link } from "react-router";
 import Icon from "@mdi/react";
 import { mdiInformationOutline } from "@mdi/js";
+import { AssetImage } from "../asset";
 
 export default function OrderView(props: { item: Order, open?: boolean, flash?: boolean, readOnly?: boolean }) {
   const item = props.item;
@@ -86,8 +87,8 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
     <Collapsible.Root open={subprops.open || expanded}>
       <Flex justify="start" align="center" gap="3" className={subprops.open ? undefined : 'card-expander'} onClick={() => subprops.open ? undefined : setExpanded(!expanded)}>
         <Box style={{ position: 'relative' }}>
-          <Avatar size="2" fallback={Readability.toAssetFallback(item.secondaryAsset)} src={Readability.toAssetImage(item.secondaryAsset)} style={{ position: 'absolute', top: '24px', left: '-6px' }} />
-          <Avatar size="4" fallback={Readability.toAssetFallback(item.primaryAsset)} src={Readability.toAssetImage(item.primaryAsset)} />
+          <AssetImage asset={item.secondaryAsset} size="2" style={{ position: 'absolute', top: '24px', left: '-6px' }}></AssetImage>
+          <AssetImage asset={item.primaryAsset} size="4"></AssetImage>
         </Box>
         <Box width="100%">
           <Flex justify="between" align="center">

@@ -1,13 +1,14 @@
-import { Avatar, Badge, Box, Button, Card, Flex, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, Flex, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { Swap, Balance, Market } from "../../core/swap";
 import { AssetId, Readability, TextUtil } from "tangentsdk";
-import { mdiCheckDecagram, mdiCurrencyUsd, mdiLockOutline, mdiSetRight } from "@mdi/js";
+import { mdiCurrencyUsd, mdiLockOutline, mdiSetRight } from "@mdi/js";
 import { useMemo, useState } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 import PerformerButton, { Authorization } from "./performer";
 import AssetSelector from "./selector";
+import { AssetImage, AssetName } from "../asset";
 
 function RepayableBalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } } }) {
   const item = props.item;
@@ -46,10 +47,10 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
     <Collapsible.Root open={expanded}>
       <Card mb="4" variant="surface" style={{ borderRadius: '24px', position: "relative", overflow: 'visible' }}>
         <Flex justify="start" align="center" gap="3" px="1" py="1" className="card-expander" onClick={() => setExpanded(!expanded)}>
-          <Avatar size="4" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
+          <AssetImage asset={item.asset} size="4"></AssetImage>
           <Box width="100%">
             <Flex justify="between">
-              <Text size="2">{ item.asset.token != null ? item.asset.chain + ' ' + Readability.toAssetSymbol(item.asset) : Readability.toAssetName(item.asset) }</Text>
+              <AssetName asset={item.asset} size="2"></AssetName>
               <Text size="2">{ Readability.toMoney(Swap.equityAsset, item.equity.current) }</Text>
             </Flex>
             <Flex justify="between" align="center">
@@ -109,13 +110,10 @@ function DefaultBalanceView(props: { item: Balance & { equity: { current: BigNum
   return (
     <Card mb="4" variant="surface" style={{ borderRadius: '24px', position: "relative", overflow: 'visible' }}>
       <Flex justify="start" align="center" gap="3" px="1" py="1">
-        <Avatar size="4" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} />
+        <AssetImage asset={item.asset} size="4"></AssetImage>
         <Box width="100%">
           <Flex justify="between">
-            <Flex gap="1">
-              <Text size="2">{ item.asset.token != null ? item.asset.chain + ' ' + Readability.toAssetSymbol(item.asset) : Readability.toAssetName(item.asset) }</Text>
-              { Swap.whitelistOf(item.asset) && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.7}></Icon> }
-            </Flex>
+            <AssetName asset={item.asset} size="2"></AssetName>
             <Text size="2">{ Readability.toMoney(Swap.equityAsset, item.equity.current) }</Text>
           </Flex>
           <Flex justify="between" align="center">

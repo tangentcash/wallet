@@ -1,9 +1,10 @@
-import { mdiAlphabeticalVariant, mdiCancel, mdiCheckDecagram, mdiConsole, mdiMagnify, mdiPlus } from "@mdi/js";
-import { Avatar, Badge, Box, Button, Dialog, Flex, IconButton, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { mdiAlphabeticalVariant, mdiCancel, mdiConsole, mdiMagnify, mdiPlus } from "@mdi/js";
+import { Badge, Box, Button, Dialog, Flex, IconButton, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { AssetId, Readability } from "tangentsdk";
+import { AssetId, Readability, Whitelist } from "tangentsdk";
 import { Swap, BlockchainInfo } from "../../core/swap";
 import Icon from "@mdi/react";
+import { AssetImage, AssetName } from "../asset";
 
 export default function AssetSelector(props: { children: ReactNode, title?: string, value?: AssetId | null, onChange?: (asset: AssetId | null) => void }) {
   const [launching, setLaunching] = useState(false);
@@ -14,9 +15,14 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
   const [query, setQuery] = useState('');
   const [assets, setAssets] = useState<{ asset: AssetId, contractAddress: boolean | string }[]>([]);
   const policy = useMemo((): BlockchainInfo | null => policyIndex != null ? Swap.descriptors[policyIndex] : null, [policyIndex]);
-  const customToken = useMemo((): AssetId | null => {
+  const customToken = useMemo((): (AssetId & { contractAddress: boolean | string }) | null => {
     const targetSymbol = symbol.trim(), targetAddress = address.trim();
-    return policy != null && targetSymbol.length > 0 && targetAddress.length >= 32 ? AssetId.fromHandle(policy.chain || policy.handle, targetSymbol, targetAddress) : null;
+    if (!policy || !targetSymbol.length || targetAddress.length < 32)
+      return null;
+
+    const result: any = AssetId.fromHandle(policy.chain || policy.handle, targetSymbol, targetAddress);
+    result.contractAddress = Whitelist.contractAddressOf(result);
+    return result;
   }, [policy, symbol, address]);
   const updateQuery = useCallback((value: string) => {
     setQuery(value);
@@ -28,7 +34,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
       setLoading(setTimeout(async () => {
         try {
           const result = await Swap.assetQuery(value);
-          setAssets(result.map((x) => ({ asset: x, contractAddress: Swap.whitelistContractOf(x) })));
+          setAssets(result.map((x) => ({ asset: x, contractAddress: Whitelist.contractAddressOf(x) })));
         } catch { }
         setLoading(null);
       }, 300) as any);
@@ -51,7 +57,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
       setQuery(props.value.handle);
       setPolicyIndex(policyId != -1 ? policyId : null);
       setSymbol(props.value?.token || '');
-      setAssets([{ asset: asset, contractAddress: Swap.whitelistContractOf(asset) }]);
+      setAssets([{ asset: asset, contractAddress: Whitelist.contractAddressOf(asset) }]);
     } else {
       setQuery('');
       setPolicyIndex(null);
@@ -88,12 +94,9 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
               <Dialog.Close key={item.asset.id}>
                 <Button variant="ghost" color="gray" size="4" radius="none" style={{ width: '100%', padding: '8px 8px', display: 'block', borderRadius: '24px' }} mt="4" onClick={() => useAsset(item.asset)}>
                   <Flex align="center" gap="2">
-                    <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(item.asset)} src={Readability.toAssetImage(item.asset)} style={{ width: '42px', height: '42px' }} />
+                    <AssetImage asset={item.asset} size="2" iconSize="48px"></AssetImage>
                     <Flex align="start" direction="column">
-                      <Flex align="center" gap="1">
-                        <Text size="3" style={{ color: 'var(--gray-12)' }}>{ Readability.toAssetName(item.asset) }</Text>
-                        { item.contractAddress && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.7}></Icon> }
-                      </Flex>
+                      <AssetName asset={item.asset}></AssetName>
                       <Flex gap="2" align="center" wrap="wrap">
                         <Text size="2">{ Readability.toAssetSymbol(item.asset) }</Text>
                         { typeof item.contractAddress == 'string' && <Badge color="amber" size="1" radius="full">{ Readability.toAddress(item.contractAddress, 8) }</Badge> }
@@ -128,8 +131,8 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
               {
                 policy != null &&
                 <Flex align="center" gap="1">
-                  <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(policy)} src={Readability.toAssetImage(policy)} style={{ width: '16px', height: '16px' }} />
-                  <Text size="2">{ Readability.toAssetName(policy) }</Text>
+                  <AssetImage asset={policy} size="1" iconSize="16px"></AssetImage>
+                  <AssetName asset={policy} size="2"></AssetName>
                 </Flex>
               }
               {
@@ -137,14 +140,14 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
                 <Text>Token's blockchain</Text>
               }
             </Select.Trigger>
-            <Select.Content position="popper" side="bottom">
+            <Select.Content position="popper" side="bottom" color="gray">
               <Select.Item value={"-1"} disabled={true}>Token's blockchain</Select.Item>
               {
                 Swap.descriptors.map((item, index) =>
                   <Select.Item key={item.id + 'select'} value={index.toString()}>
                     <Flex align="center" gap="1">
-                      <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(item)} src={Readability.toAssetImage(item)} style={{ width: '16px', height: '16px' }} />
-                      <Text size="2">{ Readability.toAssetName(item) }</Text>
+                      <AssetImage asset={item} size="1" iconSize="16px"></AssetImage>
+                      <AssetName asset={item} size="2"></AssetName>
                     </Flex>
                   </Select.Item>)
               }
@@ -180,10 +183,13 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
               <Dialog.Close>
                 <Button variant="ghost" color="gray" size="4" radius="none" style={{ width: '100%', padding: '4px 8px', display: 'block', borderRadius: '24px' }} mt="6" onClick={() => useAsset(customToken)}>
                   <Flex align="center" gap="2">
-                    <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(customToken)} src={Readability.toAssetImage(customToken)} style={{ width: '36px', height: '36px' }} />
+                    <AssetImage asset={customToken} size="2" iconSize="48px"></AssetImage>
                     <Flex align="start" direction="column">
-                      <Text size="3" style={{ color: 'var(--gray-12)' }}>{ Readability.toAssetName(customToken) }</Text>
-                      <Text size="2">{ Readability.toAssetSymbol(customToken) }</Text>
+                      <AssetName asset={customToken} size="2"></AssetName>
+                      <Flex gap="2" align="center" wrap="wrap">
+                        <Text size="2">{ Readability.toAssetSymbol(customToken) }</Text>
+                        { typeof customToken.contractAddress == 'string' && <Badge color="amber" size="1" radius="full">{ Readability.toAddress(customToken.contractAddress, 8) }</Badge> }
+                      </Flex>
                     </Flex>
                   </Flex>
                 </Button>
@@ -192,9 +198,9 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
             <Dialog.Close>
               <Button variant="ghost" color="gray" size="4" radius="none" style={{ width: '100%', padding: '4px 8px', display: 'block', borderRadius: '24px' }} mt="6" onClick={() => useAsset(policy)}>
                 <Flex align="center" gap="2">
-                  <Avatar size="2" radius="full" fallback={Readability.toAssetFallback(policy)} src={Readability.toAssetImage(policy)} style={{ width: '36px', height: '36px' }} />
+                  <AssetImage asset={policy} size="2" iconSize="48px"></AssetImage>
                   <Flex align="start" direction="column">
-                    <Text size="3" style={{ color: 'var(--gray-12)' }}>{ Readability.toAssetName(policy) }</Text>
+                    <AssetName asset={policy} size="2"></AssetName>
                     <Text size="2">{ Readability.toAssetSymbol(policy) }</Text>
                   </Flex>
                 </Flex>

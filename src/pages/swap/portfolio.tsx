@@ -1,5 +1,5 @@
 import { Box, Button, Card, Dialog, Flex, Heading, Spinner, Tabs, Text, TextField } from "@radix-ui/themes";
-import { AssetId, Readability, Signing } from "tangentsdk";
+import { AssetId, Readability, RPC, Signing } from "tangentsdk";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Swap, Balance, Order, Pool } from "../../core/swap";
 import { useEffectAsync } from "../../core/react";
@@ -11,6 +11,7 @@ import PoolView from "../../components/swap/pool";
 import Icon from "@mdi/react";
 import { mdiMagnify, mdiMagnifyScan, mdiRefresh } from "@mdi/js";
 import { useNavigate, useParams, useSearchParams } from "react-router";
+import { Storage } from "../../core/storage";
 
 export default function PortfolioPage() {
   const params = useParams();
@@ -62,6 +63,9 @@ export default function PortfolioPage() {
       if (!portfolio)
         throw false;
       
+      Storage.set('__assets__', portfolio.balances);
+      Storage.set('__orders__', portfolio.orders);
+      Storage.set('__pools__', portfolio.pools);
       setAssets(portfolio.balances);
       setOrders(portfolio.orders);
       setPools(portfolio.pools);
@@ -80,6 +84,9 @@ export default function PortfolioPage() {
   useEffect(() => {
     const updateAssets = () => setAssetUpdates(new Date().getTime());
     const updateDashboard = async () => setDashboardUpdates(new Date().getTime());
+    setAssets(RPC.fetchObject(Storage.get('__assets__')) || []);
+    setOrders(RPC.fetchObject(Storage.get('__orders__')) || []);
+    setPools(RPC.fetchObject(Storage.get('__pools__')) || []);
     window.addEventListener('update:order', updateDashboard);
     window.addEventListener('update:pool', updateDashboard);
     window.addEventListener('update:trade', updateAssets);

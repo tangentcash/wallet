@@ -1,4 +1,4 @@
-import { Avatar, Badge, Box, Button, Card, Code, DataList, Flex, Spinner, Text } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, Code, DataList, Flex, Spinner, Text } from "@radix-ui/themes";
 import { EventResolver, SummaryState, AssetId, Readability, EventType } from 'tangentsdk';
 import { AlertBox, AlertType } from "./alert";
 import { Link } from "react-router";
@@ -8,6 +8,7 @@ import { mdiAlert, mdiBridge, mdiCheck, mdiInformationOutline, mdiKeyChange, mdi
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
+import { AssetImage } from "./asset";
 
 function InputFields(props: { orientation: 'horizontal' | 'vertical', transaction: any }) {
   const transaction = props.transaction;
@@ -131,8 +132,8 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           <Card mt="2">
             {
               transaction.transactions.map((item: any, index: number) =>
-                <Flex align="center" gap="2" key={'IF1' + item.action.hash + index} mb={index == transaction.transactions.length - 1 ? '0' : '4'}>
-                  <Avatar size="1" radius="full" fallback={Readability.toAssetFallback(item.action.asset)} src={Readability.toAssetImage(item.action.asset)} />
+                <Flex align="center" gap="2" key={'IF1' + item.action.hash + index} mb={index == transaction.transactions.length - 1 ? '0' : '4'}>     
+                  <AssetImage asset={item.action.asset} size="1"></AssetImage>
                   <Badge size="2" variant="soft">{ Readability.toTransactionType(item.action.type) }</Badge>
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(item.action.hash);
@@ -1024,7 +1025,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
     <Collapsible.Root open={expanded}>
       <Card variant="surface" mt="4" style={{ borderRadius: '22px', position: 'relative' }}>
         <Flex gap="3" align="start" className="card-expander" onClick={() => props.open ? undefined : setExpanded(!expanded)}>
-          <Avatar size="3" mt="1" radius="full" fallback={Readability.toAssetFallback(transaction.asset)} src={Readability.toAssetImage(transaction.asset)} />
+          <AssetImage asset={transaction.asset}></AssetImage>
           <Box width="100%">
             <Flex justify="between" align="center" mb="1">
               <Text as="div" size="2" weight="bold">{ transaction.type == 'call' && transaction.function != null ? Readability.toFunctionName(transaction.function) : Readability.toTransactionType(transaction.type) }</Text>       
