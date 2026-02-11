@@ -54,18 +54,18 @@ export default function PortfolioPage() {
     }
   }, [equityAssets]);
   useEffectAsync(async () => {
-    setLoading(true);
     try {
-      if (!baseAddress)
+      const pullAddress = params.account || ownerAddress;
+      if (!pullAddress)
         throw false;
 
-      const portfolio = await Swap.accountPortfolio({ address: baseAddress, resync: dashboardUpdates == -1 });
+      const portfolio = await Swap.accountPortfolio({ address: pullAddress, resync: dashboardUpdates == -1 });
       if (!portfolio)
         throw false;
       
-      Storage.set(`__assets:${baseAddress}__`, portfolio.balances);
-      Storage.set(`__orders:${baseAddress}__`, portfolio.orders);
-      Storage.set(`__pools:${baseAddress}__`, portfolio.pools);
+      Storage.set(`__assets:${pullAddress}__`, portfolio.balances);
+      Storage.set(`__orders:${pullAddress}__`, portfolio.orders);
+      Storage.set(`__pools:${pullAddress}__`, portfolio.pools);
       setAssets(portfolio.balances);
       setOrders(portfolio.orders);
       setPools(portfolio.pools);
@@ -77,16 +77,15 @@ export default function PortfolioPage() {
     setLoading(false);
   }, [params.account, dashboardUpdates]);
   useEffect(() => {
-    const view = search.get('view');
-    if (view != null && ['balances', 'orders', 'pools'].includes(view))
-      setViewer(view as any);
-  }, [search]);
-  useEffect(() => {
+    const pullAddress = params.account || ownerAddress;
+    if (!pullAddress)
+      return;
+    
     const updateAssets = () => setAssetUpdates(new Date().getTime());
     const updateDashboard = async () => setDashboardUpdates(new Date().getTime());
-    setAssets(RPC.fetchObject(Storage.get(`__assets:${baseAddress}__`)) || []);
-    setOrders(RPC.fetchObject(Storage.get(`__orders:${baseAddress}__`)) || []);
-    setPools(RPC.fetchObject(Storage.get(`__pools:${baseAddress}__`)) || []);
+    setAssets(RPC.fetchObject(Storage.get(`__assets:${pullAddress}__`)) || []);
+    setOrders(RPC.fetchObject(Storage.get(`__orders:${pullAddress}__`)) || []);
+    setPools(RPC.fetchObject(Storage.get(`__pools:${pullAddress}__`)) || []);
     window.addEventListener('update:order', updateDashboard);
     window.addEventListener('update:pool', updateDashboard);
     window.addEventListener('update:trade', updateAssets);
@@ -97,7 +96,12 @@ export default function PortfolioPage() {
       window.removeEventListener('update:trade', updateAssets);
       window.removeEventListener('swap:ready', updateDashboard);
     };
-  }, []);
+  }, [params.account]); 
+  useEffect(() => {
+    const view = search.get('view');
+    if (view != null && ['balances', 'orders', 'pools'].includes(view))
+      setViewer(view as any);
+  }, [search]);
 
   return (
     <Box px="4" pt="4" minWidth="285px" maxWidth="680px" mx="auto">
