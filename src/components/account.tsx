@@ -32,7 +32,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   const ownerAddress = props.ownerAddress;
   const navigate = useNavigate();
   const prevState = useRef<{ control: any, ownerAddress: any, nonce: any }>({ control: undefined, ownerAddress: undefined, nonce: undefined });
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [blockchains, setBlockchains] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<any[]>([]);
@@ -211,21 +211,30 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
       <Card mt="3" variant="surface" style={{ borderRadius: '28px' }}>
         <Flex justify={mobile ? 'center' : 'start'} gap="2" py="1">
           <SegmentedControl.Root value={control} radius="full" size={mobile ? '2' : '3'} mb="2" onValueChange={(value) => setControl(value as any)}>
-            <SegmentedControl.Item value="address">Fund</SegmentedControl.Item>
-            <SegmentedControl.Item value="balance">Balance</SegmentedControl.Item>
-            <SegmentedControl.Item value="validator">Node</SegmentedControl.Item>
+            <SegmentedControl.Item value="address">
+              <Flex gap="2" align="center">
+                { loading && control == 'address' && <Spinner /> }
+                <Text>Fund</Text>
+              </Flex>
+            </SegmentedControl.Item>
+            <SegmentedControl.Item value="balance">
+              <Flex gap="2" align="center">
+                { loading && control == 'balance' && <Spinner /> }
+                <Text>Balance</Text>
+              </Flex>
+            </SegmentedControl.Item>
+            <SegmentedControl.Item value="validator">
+              <Flex gap="2" align="center">
+                { loading && control == 'validator' && <Spinner /> }
+                <Text>Node</Text>
+              </Flex>
+            </SegmentedControl.Item>
           </SegmentedControl.Root>
         </Flex>
         <Tabs.Root value={control}>
           <Tabs.Content value="address">
             {
-              loading &&
-              <Box style={{ padding: '22px 16px' }}>
-                <Spinner size="3" />
-              </Box>
-            }
-            {
-              !loading && selectedAddress >= 0 && selectedAddress < filteredAddresses.length &&
+              selectedAddress >= 0 && selectedAddress < filteredAddresses.length &&
               <Box px="2" py="2">
                 <Flex justify="center" mb="4">
                   <Callout.Root size="1">
@@ -304,7 +313,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               </Box>
             }
             {
-              !loading && (selectedAddress < 0 || selectedAddress >= filteredAddresses.length) &&
+              (selectedAddress < 0 || selectedAddress >= filteredAddresses.length) &&
               <Box px="2" py="2">
                 <Flex justify="between" align="center" mb="4">
                   <Heading size="4">Address listing</Heading>
@@ -379,13 +388,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
           </Tabs.Content>
           <Tabs.Content value="balance">
             {
-              loading &&
-              <Box style={{ padding: '22px 16px' }}>
-                <Spinner size="3" />
-              </Box>
-            }
-            {
-              !loading && !assets.length &&
+              !assets.length &&
               <Tooltip content="Account does not have any non-zero asset balances">
                 <Flex px="2" py="3" gap="3" align="center">
                   <Avatar size="3" radius="large" fallback="NA" color="gray" />
@@ -400,7 +403,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               </Tooltip>
             }
             { 
-              !loading && assets.map((item) =>
+              assets.map((item) =>
                 <Flex key={item.asset.id + '_balance'} px="2" py="3" gap="3" align="center">
                   <AssetImage asset={item.asset}></AssetImage>
                   <Box width="100%">
@@ -424,26 +427,17 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
             }
           </Tabs.Content>
           <Tabs.Content value="validator">
-            {
-              loading &&
-              <Box style={{ padding: '22px 16px' }}>
-                <Spinner size="3" />
+            <Flex px="2" py="2" gap="3">
+              <Icon path={mdiArrowRightBoldHexagonOutline} size={1.5} style={{ color: 'var(--red-10)' }} />
+              <Box width="100%">
+                <Flex justify="between" align="center">
+                  <Text as="div" size="2" weight="light">Block production</Text>
+                </Flex>
+                <Badge size="1" color={production ? (production.stake != null ? 'jade' : 'red') : 'orange'}>PRODUCER { production ? (production.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ production != null ? production.stake != null ? ' IN BLOCK ' + production.block_number.toNumber() : (' FROM BLOCK ' + production.block_number.toNumber()) : '' }</Badge>
               </Box>
-            }
+            </Flex>
             {
-              !loading &&
-              <Flex px="2" py="2" gap="3">
-                <Icon path={mdiArrowRightBoldHexagonOutline} size={1.5} style={{ color: 'var(--red-10)' }} />
-                <Box width="100%">
-                  <Flex justify="between" align="center">
-                    <Text as="div" size="2" weight="light">Block production</Text>
-                  </Flex>
-                  <Badge size="1" color={production ? (production.stake != null ? 'jade' : 'red') : 'orange'}>PRODUCER { production ? (production.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ production != null ? production.stake != null ? ' IN BLOCK ' + production.block_number.toNumber() : (' FROM BLOCK ' + production.block_number.toNumber()) : '' }</Badge>
-                </Box>
-              </Flex>
-            }
-            {
-              !loading && production && (production.stake.gte(0) || production.rewards.length > 0) &&
+              production && (production.stake.gte(0) || production.rewards.length > 0) &&
               <Box pl="5">
                 {
                   production.stake != null && production.stake.gte(0) &&
@@ -473,7 +467,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               </Box>
             }
             {
-              !loading && participation &&
+              participation &&
               <>
                 <Flex px="2" py="2" gap="3">
                   <Icon path={mdiCellphoneKey} size={1.5} style={{ color: 'var(--yellow-9)' }} />
@@ -514,7 +508,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               </>
             }
             { 
-              !loading && attestations.map((attestation) =>
+              attestations.map((attestation) =>
                 <Box key={attestation.asset.id + '_attestation'}>
                   <Flex px="2" py="2" gap="3">
                     <Icon path={mdiTransitConnectionVariant} size={1.5} style={{ color: 'var(--jade-10)' }} />

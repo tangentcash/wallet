@@ -1,17 +1,17 @@
-import { Box, Button, Card, Dialog, Flex, Heading, Spinner, Tabs, Text, TextField } from "@radix-ui/themes";
+import { Box, Button, Card, Dialog, Flex, Heading, Tabs, Text, TextField } from "@radix-ui/themes";
 import { AssetId, Readability, RPC, Signing } from "tangentsdk";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Swap, Balance, Order, Pool } from "../../core/swap";
 import { useEffectAsync } from "../../core/react";
 import { AppData } from "../..//core/app";
+import { mdiMagnify, mdiMagnifyScan, mdiRefresh } from "@mdi/js";
+import { useNavigate, useParams, useSearchParams } from "react-router";
+import { Storage } from "../../core/storage";
 import BigNumber from "bignumber.js";
 import BalanceView from "../../components/swap/balance";
 import OrderView from "../../components/swap/order";
 import PoolView from "../../components/swap/pool";
 import Icon from "@mdi/react";
-import { mdiMagnify, mdiMagnifyScan, mdiRefresh } from "@mdi/js";
-import { useNavigate, useParams, useSearchParams } from "react-router";
-import { Storage } from "../../core/storage";
 
 export default function PortfolioPage() {
   const params = useParams();
@@ -63,9 +63,9 @@ export default function PortfolioPage() {
       if (!portfolio)
         throw false;
       
-      Storage.set('__assets__', portfolio.balances);
-      Storage.set('__orders__', portfolio.orders);
-      Storage.set('__pools__', portfolio.pools);
+      Storage.set(`__assets:${baseAddress}__`, portfolio.balances);
+      Storage.set(`__orders:${baseAddress}__`, portfolio.orders);
+      Storage.set(`__pools:${baseAddress}__`, portfolio.pools);
       setAssets(portfolio.balances);
       setOrders(portfolio.orders);
       setPools(portfolio.pools);
@@ -84,9 +84,9 @@ export default function PortfolioPage() {
   useEffect(() => {
     const updateAssets = () => setAssetUpdates(new Date().getTime());
     const updateDashboard = async () => setDashboardUpdates(new Date().getTime());
-    setAssets(RPC.fetchObject(Storage.get('__assets__')) || []);
-    setOrders(RPC.fetchObject(Storage.get('__orders__')) || []);
-    setPools(RPC.fetchObject(Storage.get('__pools__')) || []);
+    setAssets(RPC.fetchObject(Storage.get(`__assets:${baseAddress}__`)) || []);
+    setOrders(RPC.fetchObject(Storage.get(`__orders:${baseAddress}__`)) || []);
+    setPools(RPC.fetchObject(Storage.get(`__pools:${baseAddress}__`)) || []);
     window.addEventListener('update:order', updateDashboard);
     window.addEventListener('update:pool', updateDashboard);
     window.addEventListener('update:trade', updateAssets);
@@ -130,35 +130,18 @@ export default function PortfolioPage() {
         </Flex>
       </Flex>
       <Card mt="3" variant="surface" style={{ borderRadius: '28px' }}>
-        {
-          loading &&
-          <Box px="2" py="1">
+        <Box px="2" py="1">
+          <Box mb="2">
             <Flex justify="between" align="center" mb="1">
               <Text size="3" color="gray">Net worth</Text>
-              <Button variant="soft" size="2" color="orange" disabled={true}>
-                <Icon path={mdiRefresh} size={0.8}></Icon> Syncing
+              <Button variant="soft" size="2" color="orange" loading={loading} onClick={() => setDashboardUpdates(-1)}>
+                <Icon path={mdiRefresh} size={0.8}></Icon> Re-sync
               </Button>
             </Flex>
-            <Box pt="5" pb="6">
-              <Spinner size="3"></Spinner>
-            </Box>
+            <Heading size="7">{ Readability.toMoney(Swap.equityAsset, equity.current) }</Heading>
           </Box>
-        }
-        {
-          !loading &&
-          <Box px="2" py="1">
-            <Box mb="2">
-              <Flex justify="between" align="center" mb="1">
-                <Text size="3" color="gray">Net worth</Text>
-                <Button variant="soft" size="2" color="orange" disabled={loading} onClick={() => setDashboardUpdates(-1)}>
-                  <Icon path={mdiRefresh} size={0.8}></Icon> Re-sync
-                </Button>
-              </Flex>
-              <Heading size="7">{ Readability.toMoney(Swap.equityAsset, equity.current) }</Heading>
-            </Box>
-            <Button variant="soft" size="2" color={ equity.previous.gt(equity.current) ? 'red' : (equity.previous.eq(equity.current) ? 'gray' : 'jade') } onClick={() => setTodayProfits(!todayProfits)}>{ Readability.toMoney(Swap.equityAsset, equity.current.minus(equity.previous), true) } ({ Readability.toPercentageDelta(equity.previous, equity.current) }) - { todayProfits ? 'Today' : 'Total' }</Button>
-          </Box>
-        }
+          <Button variant="soft" size="2" color={ equity.previous.gt(equity.current) ? 'red' : (equity.previous.eq(equity.current) ? 'gray' : 'jade') } onClick={() => setTodayProfits(!todayProfits)}>{ Readability.toMoney(Swap.equityAsset, equity.current.minus(equity.previous), true) } ({ Readability.toPercentageDelta(equity.previous, equity.current) }) - { todayProfits ? 'Today' : 'Total' }</Button>
+        </Box>
       </Card>
       <Tabs.Root value={viewer} onValueChange={(x) => setSearch({ view: x })} mt="4">
         <Tabs.List>
