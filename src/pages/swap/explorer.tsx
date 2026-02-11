@@ -88,7 +88,13 @@ export default function ExplorerPage() {
         return copy;
       });
     };
-    setPairs(RPC.fetchObject(Storage.get('__explorer__')) || []);
+    setPairs((RPC.fetchObject(Storage.get('__explorer__')) || []).map((x: any) => {
+      if (x.pair != null && x.pair.primaryAsset != null && x.pair.secondaryAsset != null) {
+        x.pair.primaryAsset = new AssetId(x.pair.primaryAsset.id);
+        x.pair.secondaryAsset = new AssetId(x.pair.secondaryAsset.id);
+      }
+      return x;
+    }));
     window.addEventListener('update:trade', update);
     return () => window.removeEventListener('update:trade', update);
   }, []);
