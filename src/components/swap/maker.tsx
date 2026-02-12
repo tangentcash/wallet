@@ -425,7 +425,7 @@ export default function Maker(props: {
             return updateState((prev) => ({ ...prev, primaryValue: primary.toString(), secondaryValue: secondaryValue }));
           }
         } else {
-          return updateState((prev) => ({ ...prev, primaryValue: price.dividedBy(secondary.value).toString(), secondaryValue: secondaryValue }));
+          return updateState((prev) => ({ ...prev, primaryValue: secondary.value.dividedBy(price).toString(), secondaryValue: secondaryValue }));
         }
       }
     }
