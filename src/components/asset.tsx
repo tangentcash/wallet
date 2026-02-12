@@ -9,7 +9,7 @@ export function AssetName(props: { asset?: AssetId, size?: string, badgeSize?: n
   if (!props.asset) {
     return (
       <Flex align="center" gap="1">
-        <Text as="div" size={size} weight="light">N/A</Text>
+        <Text as="div" size={size} weight="light" style={{ color: 'var(--gray-11)' }}>N/A</Text>
       </Flex>
     )
   }
