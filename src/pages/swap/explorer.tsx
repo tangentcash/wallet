@@ -187,7 +187,7 @@ export default function ExplorerPage() {
                           }
                           {
                             item.pair.secondaryBase != null &&
-                            <Text size="2" weight="bold" style={{ color: 'var(--gray-12)' }}>{ Readability.toAssetName(item.pair.primaryAsset) }</Text>
+                            <Text size="2" weight="bold" style={{ color: 'var(--gray-12)' }}>{ item.whitelisted ? Readability.toAssetName(item.pair.primaryAsset).replace(item.pair.primaryAsset.chain + ' ', '') : Readability.toAssetName(item.pair.primaryAsset) }</Text>
                           }
                         </Flex>
                         { item.whitelisted && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.7}></Icon> }

@@ -1,4 +1,4 @@
-import { mdiCheckDecagram, mdiCodeJson, mdiMinus, mdiPlus } from "@mdi/js";
+import { mdiCodeJson, mdiMinus, mdiPlus } from "@mdi/js";
 import { Badge, Box, Button, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
@@ -6,7 +6,7 @@ import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react
 import { AlertBox, AlertType } from "../components/alert";
 import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, TextUtil, TransactionOutput, Transactions, Uint256, Readability, Hashsig, Pubkeyhash, Pubkey, Seckey, SummaryState, EventResolver, Whitelist } from "tangentsdk";
 import { AppData } from "../core/app";
-import { AssetImage } from "../components/asset";
+import { AssetImage, AssetName } from "../components/asset";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
 import Transaction from "../components/transaction";
@@ -778,15 +778,12 @@ export default function InteractionPage() {
               {
                 assets.map((item, index) =>
                   <Select.Item key={item.asset.id + '_select'} value={index.toString()}>
-                    <Flex align="center" gap="1">
+                    <Flex align="center" gap="2">
                       <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
-                      <Text ml="1" size="4">{ Readability.toMoney(item.asset, item.balance) }{ item.asset.token ? ' (' + item.asset.chain + ')' : '' }</Text>
-                      {
-                        item.contractAddress &&
-                        <Box ml="1" style={{ transform: 'translateY(2px)' }}>
-                          <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.8}></Icon>
-                        </Box>
-                      }
+                      <Flex gap="2" align="center">
+                        <Text size="4">{ Readability.toMoney(null, item.balance) }</Text>
+                        <AssetName asset={item.asset} size="4" badgeSize={0.8} badgeOffset={-1} symbol={true}></AssetName>
+                      </Flex>
                     </Flex>
                   </Select.Item>
                 )

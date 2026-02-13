@@ -45,7 +45,7 @@ export default function PortfolioPage() {
         value: value,
         equity: { previous: previousEquity, current: currentEquity }
       };
-    });
+    }).sort((a, b) => (b.equity.current || new BigNumber(0)).minus(a.equity.current || 0).toNumber());
   }, [assets, todayProfits, assetUpdates]);
   const equity = useMemo((): { previous: BigNumber, current: BigNumber } => {
     return {
