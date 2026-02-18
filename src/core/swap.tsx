@@ -127,6 +127,7 @@ export type AggregatedPair = {
   secondaryAsset: AssetId,
   secondaryBase: string | null,
   launchTime: number,
+  poolFeeRate: BigNumber | null,
   price: {
       orderLiquidity: BigNumber | null,
       poolLiquidity: BigNumber | null,
@@ -694,5 +695,8 @@ export class Swap {
       default:
         return 'Unknown';
     }
+  }
+  static toAPY(feeRate: BigNumber, liquidity: BigNumber, volume: BigNumber): BigNumber {
+    return new BigNumber(1).plus(volume.multipliedBy(feeRate).dividedBy(liquidity)).pow(365).minus(1).multipliedBy(100);
   }
 }

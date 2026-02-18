@@ -121,6 +121,7 @@ function pathOfOrder(orderbook: string): string {
 
 const UP_COLOR = '#22ab94';
 const DOWN_COLOR = '#f7525f';
+let accountUpdateId: any = null;
 
 export default function OrderbookPage() {
   const params = useParams();
@@ -158,7 +159,7 @@ export default function OrderbookPage() {
       [300, "5m"],
       [60, "1m"]
     ],
-    interval: 1800,
+    interval: 3600,
     bars: 256,
     priceLevel: '',
     priceScope: PriceScope.All,
@@ -195,6 +196,12 @@ export default function OrderbookPage() {
       ask: levels.ask.reduce((a, b) => [a[0].plus(b.quantity), a[1].plus(b.price.multipliedBy(b.quantity))], [new BigNumber(0), new BigNumber(0)]),
       bid: levels.bid.reduce((a, b) => [a[0].plus(b.quantity), a[1].plus(b.price.multipliedBy(b.quantity))], [new BigNumber(0), new BigNumber(0)]),
     };
+  }, [levels]);
+  const spreads = useMemo((): { ask: BigNumber | null, bid: BigNumber | null } => {
+    return {
+      ask: levels.ask.length > 0 ? levels.ask[0].price : null,
+      bid: levels.bid.length > 0 ? levels.bid[0].price : null
+    }
   }, [levels]);
   const balances = useMemo((): { primary: { price: BigNumber | null, value: BigNumber }, secondary: { price: BigNumber | null, value: BigNumber } } => {
     const primaryBalance = polyBalances.primary.reduce((p, n) => ({ p: n.price ? (p.p.isNaN() ? n.price : p.p.plus(n.price).div(2)) : p.p, v: p.v.plus(n.available) }), { p: new BigNumber(NaN), v: new BigNumber(0) });
@@ -469,8 +476,14 @@ export default function OrderbookPage() {
       await updateAccount();
       setWhitelisted(!!Whitelist.contractAddressOf(result.primaryAsset) && !!Whitelist.contractAddressOf(result.secondaryAsset));
       setLoading(false);
-      window.addEventListener('update:order', updateAccount);
-      return () => window.removeEventListener('update:order', updateAccount);
+
+      const updateAccountReactive = () => {
+        if (accountUpdateId != null)
+          clearTimeout(accountUpdateId);
+        accountUpdateId = setTimeout(() => updateAccount(), 500);
+      };
+      window.addEventListener('update:order', updateAccountReactive);
+      return () => window.removeEventListener('update:order', updateAccountReactive);
     } catch (exception: any) {
       AlertBox.open(AlertType.Error, 'Failed to fetch market: ' + (exception.message || 'unknown error'));
       navigate('/explorer');
@@ -914,7 +927,7 @@ export default function OrderbookPage() {
                           <Tooltip content="Average revenue of LP position">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Revenue</Text>
-                              <Text size="2" color="orange">{ (pair?.price.poolLiquidity || new BigNumber(0)).gt(0) ?(pair?.price.poolVolume || new BigNumber(0)).multipliedBy(market?.maxPoolFeeRate || new BigNumber(0)).dividedBy(pair?.price.poolLiquidity || new BigNumber(0)).multipliedBy(365 * 100).toFixed(2) : '0.00' }% APY</Text>
+                              <Text size="2" color="orange">{ market && pair?.price.poolVolume?.gt(0) && pair?.price.poolLiquidity?.gt(0) ? Swap.toAPY(pair.poolFeeRate || market.maxPoolFeeRate, pair.price.poolLiquidity, pair.price.poolVolume).toFixed(2) : '0.00' }% APY</Text>
                             </Flex>
                           </Tooltip>
                           <Tooltip content="Minimal to maximal price range observed during the day">
@@ -974,6 +987,7 @@ export default function OrderbookPage() {
                       primaryAsset={orderbook?.primaryAsset || new AssetId()}
                       secondaryAsset={orderbook?.secondaryAsset || new AssetId()}
                       balances={loading ? undefined : polyBalances}
+                      prices={spreads}
                       tiers={tiers || undefined}
                       preset={preset}></Maker>
                     {
@@ -1005,14 +1019,14 @@ export default function OrderbookPage() {
                         {
                           seriesOptions.priceScope != PriceScope.Ask &&
                           <>
-                            <Box position="absolute" top="0" left="0" right={`${seriesOptions.priceScope == PriceScope.All ? liquidity.bid[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--jade-7)' }}></Box>
+                            <Box position="absolute" top="0" left="0" right={`${seriesOptions.priceScope == PriceScope.All ? liquidity.ask[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--jade-a5)' }}></Box>
                             <Text size="2" style={{ zIndex: 1, color: 'var(--jade-11)' }}>{ Readability.toMoney(orderbook?.primaryAsset || null, liquidity.bid[0]) }</Text>
                           </>
                         }
                         {
                           seriesOptions.priceScope != PriceScope.Bid &&
                           <>
-                            <Box position="absolute" top="0" left={`${seriesOptions.priceScope == PriceScope.All ? new BigNumber(100).minus(liquidity.ask[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100)) : 0}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--red-7)' }}></Box>
+                            <Box position="absolute" top="0" left={`${seriesOptions.priceScope == PriceScope.All ? liquidity.bid[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--red-a5)' }}></Box>
                             <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ Readability.toMoney(orderbook?.primaryAsset || null, liquidity.ask[0]) }</Text>
                           </>
                         }

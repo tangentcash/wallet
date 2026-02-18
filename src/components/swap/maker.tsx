@@ -1,5 +1,5 @@
 import { Box, Button, Card, Flex, SegmentedControl, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { AccountTier, Balance, OrderCondition, OrderPolicy, OrderSide, Swap } from "../../core/swap";
+import { AccountTier, Balance, OrderCondition, OrderPolicy, OrderSide } from "../../core/swap";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mdiCurrencyUsd } from "@mdi/js";
 import { AssetId, Readability, TextUtil } from "tangentsdk";
@@ -50,6 +50,7 @@ export default function Maker(props: {
   primaryAsset: AssetId,
   secondaryAsset: AssetId,
   balances?: { primary: Balance[], secondary: Balance[] },
+  prices?: { ask: BigNumber | null, bid: BigNumber | null }
   tiers?: AccountTier,
   preset?: ({ id: number } & Partial<typeof defaultState>) | null
 }) {
@@ -80,7 +81,7 @@ export default function Maker(props: {
   }, [state.condition]);
   const valueAsset = useMemo((): AssetId => {
     return state.side == OrderSide.Buy ? props.secondaryAsset : props.primaryAsset;
-  }, [props, state.side]);
+  }, [props.primaryAsset, props.secondaryAsset, state.side]);
   const valueBalance = useMemo((): BigNumber | null => {
     return state.side == OrderSide.Buy ? balances?.secondary || null : balances?.primary || null;
   }, [balances, state.side]);
@@ -90,8 +91,8 @@ export default function Maker(props: {
     else if (hasStopPrice)
       return new BigNumber(state.stopPrice);
 
-    return Swap.priceOf(props.primaryAsset, props.secondaryAsset).close || new BigNumber(0);
-  }, [props, state.price, state.stopPrice, hasPrice, hasStopPrice]);
+    return (state.side == OrderSide.Buy ? props.prices?.ask : props.prices?.bid) || new BigNumber(0);
+  }, [props.prices, state.side, state.price, state.stopPrice, hasPrice, hasStopPrice]);
   const payingValue = useMemo((): BigNumber => {
     const finalValueQuantity = TextUtil.toNumericValueOrPercent(state.value);
     if (!finalValueQuantity.value.gt(0))
@@ -370,7 +371,7 @@ export default function Maker(props: {
       min: min,
       max: (state.side == OrderSide.Buy ? props.tiers?.secondary?.takerFee : props.tiers?.primary?.takerFee) || new BigNumber(0),
     }
-  }, [props, state.side, state.slippage, hasSlippage]);
+  }, [props.tiers, state.side, state.slippage, hasSlippage]);
   const concentrated = useMemo(() => {
     const minPrice = TextUtil.toNumericValue(state.minPrice), maxPrice = TextUtil.toNumericValue(state.maxPrice);
     return minPrice.isGreaterThan(0) && maxPrice.isGreaterThan(0) && minPrice.isLessThan(maxPrice);
@@ -391,7 +392,7 @@ export default function Maker(props: {
       primary.value = balances ? (primary.relative ? primary.value.multipliedBy(balances.primary) : primary.value) : new BigNumber(0);
       if (primary.value.gt(0)) {
         if (concentrated) {
-          primary.value = primary.value.multipliedBy(1.0005);
+          primary.value = primary.value.multipliedBy(1.00005);
           if (primary.value.gt(0)) {
             const sqrtPrice = new BigNumber(Math.sqrt(price.toNumber()));
             const sqrtMinPrice = new BigNumber(Math.sqrt(TextUtil.toNumericValue(state.minPrice).toNumber()));
@@ -414,7 +415,7 @@ export default function Maker(props: {
       const secondary = TextUtil.toNumericValueOrPercent(secondaryValue);
       secondary.value = balances ? (secondary.relative ? secondary.value.multipliedBy(balances.secondary) : secondary.value) : new BigNumber(0);
       if (secondary.value.gt(0)) {
-        secondary.value = secondary.value.multipliedBy(1.0005);
+        secondary.value = secondary.value.dividedBy(1.00005);
         if (concentrated) {
           if (secondary.value.gt(0)) {
             const sqrtPrice = new BigNumber(Math.sqrt(price.toNumber()));
@@ -459,11 +460,6 @@ export default function Maker(props: {
       }
     }
   }, [props.path, presetId, updateState]);
-  useEffect(() => {
-    if (state.pool) {
-      updateState(prev => ({ ...prev, basePrice: Swap.priceOf(props.primaryAsset, props.secondaryAsset).close?.toString() || '' }));
-    }
-  }, [state.pool, updateState]);
 
   const makeOrder = () => (
     <Box>
@@ -595,15 +591,15 @@ export default function Maker(props: {
         props.tiers != null &&
         <Box mb="5" px="2">
           <Flex justify="between">
-            <Text size="1" color="gray">Account impact</Text>
+            <Text size="1" color="gray">Volume</Text>
             <Text size="1" color="gray">{ Readability.toMoney(state.side == OrderSide.Buy ? props.secondaryAsset : props.primaryAsset, state.side == OrderSide.Buy ? props.tiers.secondary.volume : props.tiers.primary.volume) }</Text>
           </Flex>
           <Flex justify="between">
-            <Text size="1" color="gray">Receive minimum</Text>
-            <Text size="1" color="gray">~{ state.side == OrderSide.Buy ? Readability.toMoney(props.primaryAsset, (bestPrice.gt(0) ? payingValue.dividedBy(bestPrice.multipliedBy(new BigNumber(1).plus(fee.relativePrice)).plus(fee.absolutePrice)).multipliedBy(new BigNumber(1).minus(fee.max)) : new BigNumber(0)).multipliedBy(new BigNumber(1).minus(fee.max))) : Readability.toMoney(props.secondaryAsset, bestPrice.multipliedBy(new BigNumber(1).minus(fee.relativePrice)).plus(fee.absolutePrice).multipliedBy(payingValue).multipliedBy(new BigNumber(1).minus(fee.max))) }</Text>
+            <Text size="1" color="gray">Amount</Text>
+            <Text size="1" color="gray">~{ state.side == OrderSide.Buy ? Readability.toMoney(props.primaryAsset, (bestPrice.gt(0) ? payingValue.dividedBy(bestPrice) : new BigNumber(0)).multipliedBy(new BigNumber(1).minus(fee.max))) : Readability.toMoney(props.secondaryAsset, bestPrice.multipliedBy(payingValue)) }</Text>
           </Flex>
           <Flex justify="between">
-            <Text size="1" color="gray">Exchange fee</Text>
+            <Text size="1" color="gray">Fee</Text>
             <Text size="1" color="gray">{ fee.min.multipliedBy(100).toFixed(2) }% — { fee.max.multipliedBy(100).toFixed(2) }%</Text>
           </Flex>
         </Box>
