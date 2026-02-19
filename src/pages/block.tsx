@@ -1,8 +1,8 @@
 import { Link, useNavigate, useParams } from "react-router";
 import { useEffectAsync } from "../core/react";
 import { useCallback, useState } from "react";
-import { Badge, Box, Button, Card, DataList, Flex, Heading, IconButton, Progress, Spinner, Table } from "@radix-ui/themes";
-import { mdiArrowLeftBoldCircleOutline, mdiArrowRightBoldCircleOutline } from "@mdi/js";
+import { Badge, Box, Button, Callout, Card, DataList, Flex, Heading, IconButton, Progress, Spinner, Table, Text } from "@radix-ui/themes";
+import { mdiArrowLeftBoldCircleOutline, mdiArrowRightBoldCircleOutline, mdiListStatus, mdiProgressQuestion } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
 import { AssetId, Chain, RPC, Readability, lerp } from "tangentsdk";
 import { AppData } from "../core/app";
@@ -42,9 +42,8 @@ export default function BlockPage() {
       } catch {
         setHasChildBlock(false);
       }
-    } catch (exception) {
-      setTimeout(() => AlertBox.open(AlertType.Error, 'Block not found: ' + (exception as Error).message), 200);
-      navigate('/');
+    } catch {
+      setBlock(null);
     }
     setLoading(false);
   }, [params]);
@@ -311,11 +310,32 @@ export default function BlockPage() {
         </Card>
       </Box>
     )
-  } else {
+  } else if (loading) {
     return (
       <Flex justify="center" pt="6">
         <Spinner size="3" />
       </Flex>
+    )
+  } else {
+    return (
+      <Box px="4" pt="6" maxWidth="800px" mx="auto">
+        <Flex align="center" mb="3" gap="2">
+          <Icon path={mdiProgressQuestion} size={1.1} />
+          <Heading>Block not found</Heading>
+        </Flex>
+        <Callout.Root color="yellow">
+          <Callout.Icon>
+            <Icon path={mdiListStatus} size={1} />
+          </Callout.Icon>
+          <Callout.Text>
+            <Flex direction="column" gap="2">
+              <Text>1. If a node have just submitted a block please wait for at least 30 seconds before refreshing this page.</Text>
+              <Text>2. When the network is busy it can take a while for a block to propagate through the network.</Text>
+              <Text>3. If it still does not show up after 10 minutes then this block either got dropped or was not created.</Text>
+            </Flex>
+          </Callout.Text>
+        </Callout.Root>
+      </Box>
     )
   }
 }
