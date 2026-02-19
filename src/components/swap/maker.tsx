@@ -637,7 +637,7 @@ export default function Maker(props: {
         </Button>
       </Box>
       <Box mb="2">
-        <Tooltip content={`Min pool price equal to ${state.minPrice.length > 0 ? Readability.toMoney(props.secondaryAsset, state.minPrice) : 'selected'} which will concentrate liquidity at prices above selected`}>
+        <Tooltip content={`Min pool price equal to ${state.minPrice.length > 0 ? Readability.toMoney(props.secondaryAsset, state.minPrice) : 'selected'} minus fee rate which will concentrate liquidity at prices above selected`}>
           <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' min price or none'} size="2" value={state.minPrice} onChange={(e) => updateState(prev => ({ ...prev, minPrice: TextUtil.toValue(prev.minPrice, e.target.value), primaryValue: '', secondaryValue: '' }))}>
             <TextField.Slot>
               <Icon path={mdiCurrencyUsd} size={0.8} />
@@ -655,7 +655,7 @@ export default function Maker(props: {
         </Tooltip>
       </Box>
       <Box mb="2">
-        <Tooltip content={`Max pool price equal to ${state.maxPrice.length > 0 ? Readability.toMoney(props.secondaryAsset, state.maxPrice) : 'selected'} which will concentrate liquidity at prices below selected`}>
+        <Tooltip content={`Max pool price equal to ${state.maxPrice.length > 0 ? Readability.toMoney(props.secondaryAsset, state.maxPrice) : 'selected'} plus fee rate which will concentrate liquidity at prices below selected`}>
           <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' max price or none'} size="2" value={state.maxPrice} onChange={(e) => updateState(prev => ({ ...prev, maxPrice: TextUtil.toValue(prev.maxPrice, e.target.value), primaryValue: '', secondaryValue: '' }))}>
             <TextField.Slot>
               <Icon path={mdiCurrencyUsd} size={0.8} />
