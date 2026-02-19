@@ -254,7 +254,7 @@ export default function BlockPage() {
             <DataList.Item>
               <DataList.Label>Slot activity:</DataList.Label>
               <DataList.Value>
-                <Badge color="yellow">{ Readability.toCount('block', block.slot.length) } in { Readability.toTimespan(block.slot.duration_total) }</Badge>
+                <Badge color="yellow">{ Readability.toCount('block', block.slot.length) } in { Readability.toTimespan(new BigNumber(block.slot.duration_total).plus(time)) }</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
