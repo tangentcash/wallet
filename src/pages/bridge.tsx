@@ -345,31 +345,33 @@ export default function BridgePage() {
                             <DataList.Item>
                               <DataList.Label>Deposit instruction:</DataList.Label>
                               <DataList.Value>
-                                {
-                                  asset.routing_policy == 'utxo' &&
-                                  <Badge color="jade">Any sender</Badge>
-                                }
-                                {
-                                  asset.routing_policy == 'memo' && bridge.addresses.map((walletAddress: string, walletAddressIndex: number) =>
-                                    <Flex gap="2" wrap="wrap" pb={walletAddressIndex < bridge.addresses.length - 1 ? '2' : '0'} key={walletAddress}>
-                                      <Badge color="red">Any sender with destination tag (memo): { Readability.toTaggedAddress(walletAddress).tag || '0' }</Badge>
-                                    </Flex>
-                                  )
-                                }
-                                {
-                                  asset.routing_policy == 'account' && walletAddresses.map((wallet, walletAddressIndex: number) => {
-                                    return wallet.addresses.map((walletAddress: string, addressIndex: number) =>
-                                      <Flex gap="1" pb={walletAddressIndex < walletAddresses.length - 1 ? '2' : '0'} key={walletAddress}>
-                                        <Text size="2">Send from</Text>
-                                        <Button size="1" variant="soft" color="yellow" onClick={() => {
-                                          navigator.clipboard.writeText(walletAddress);
-                                          AlertBox.open(AlertType.Info, 'Address copied!')
-                                        }}>{ Readability.toAddress(walletAddress) }</Button>
-                                        { addressIndex < wallet.addresses.length - 1 && <Text>OR</Text> }
+                                <Flex direction="column" gap="1">
+                                  {
+                                    asset.routing_policy == 'utxo' &&
+                                    <Badge color="jade">Any sender</Badge>
+                                  }
+                                  {
+                                    asset.routing_policy == 'memo' && bridge.addresses.map((walletAddress: string, walletAddressIndex: number) =>
+                                      <Flex gap="2" wrap="wrap" pb={walletAddressIndex < bridge.addresses.length - 1 ? '2' : '0'} key={walletAddress}>
+                                        <Badge color="red">Any sender with destination tag (memo): { Readability.toTaggedAddress(walletAddress).tag || '0' }</Badge>
                                       </Flex>
                                     )
-                                  })
-                                }
+                                  }
+                                  {
+                                    asset.routing_policy == 'account' && walletAddresses.map((wallet, walletAddressIndex: number) => {
+                                      return wallet.addresses.map((walletAddress: string, addressIndex: number) =>
+                                        <Flex gap="1" pb={walletAddressIndex < walletAddresses.length - 1 ? '2' : '0'} key={walletAddress}>
+                                          <Text size="2">Send from</Text>
+                                          <Button size="1" variant="soft" color="yellow" onClick={() => {
+                                            navigator.clipboard.writeText(walletAddress);
+                                            AlertBox.open(AlertType.Info, 'Address copied!')
+                                          }}>{ Readability.toAddress(walletAddress) }</Button>
+                                          { addressIndex < wallet.addresses.length - 1 && <Text>OR</Text> }
+                                        </Flex>
+                                      )
+                                    })
+                                  }
+                                </Flex>
                               </DataList.Value>
                             </DataList.Item>
                             {

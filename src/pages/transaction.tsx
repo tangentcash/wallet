@@ -48,7 +48,7 @@ export default function TransactionPage() {
   if (data != null) {
     const ownerAddress = AppData.getWalletAddress() || '';
     let rollupGasLimit = new BigNumber(0);
-    if (data.state.receipts) {
+    if (data.state != null && data.state.receipts) {
       for (let hash in data.state.receipts) {
         rollupGasLimit = rollupGasLimit.plus(data.state.receipts[hash].relativeGasUse);
       }
@@ -65,7 +65,7 @@ export default function TransactionPage() {
                 gas_price: new BigNumber(0),
                 gas_limit: rollupGasLimit.gt(0) ? rollupGasLimit : data.transaction.gas_limit
               }))()} receipt={(() => {
-                const receipt = data.state.receipts[subtransaction.hash];
+                const receipt = data.state ? data.state.receipts[subtransaction.hash] : null;
                 return {
                   ...data.receipt,
                   relative_gas_use: receipt ? receipt.relativeGasUse : data.receipt.relative_gas_use,
