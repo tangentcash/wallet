@@ -1051,7 +1051,7 @@ export default function InteractionPage() {
                   </Heading>
                   <Box width="100%" mt="3">
                     <Tooltip content="Determines how many participants must be present to sign transactions">
-                      <TextField.Root size="3" placeholder="Security level (5-23)" type="text" value={item.securityLevel} onChange={(e) => {
+                      <TextField.Root size="3" placeholder={`Security level (${Chain.policy.PARTICIPATION_COMMITTEE[0]}-${Chain.policy.PARTICIPATION_COMMITTEE[1]})`} type="text" value={item.securityLevel} onChange={(e) => {
                         const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                         copy.bridges[index].securityLevel = e.target.value;
                         setProgram(copy);

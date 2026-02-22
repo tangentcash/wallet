@@ -558,7 +558,7 @@ export default function BridgePage() {
                           </DataList.Value>
                         </DataList.Item>
                       </Tooltip>
-                      <Tooltip content={'Defines how many randomly chosen participants to involve in each created account but no more than ' + Chain.policy.PARTICIPATION_COMMITTEE[1] + ' per account'}>
+                      <Tooltip content={'Defines how many randomly chosen participants to involve in each created account but no less than ' + Chain.policy.PARTICIPATION_COMMITTEE[0] + ' and no more than ' + Chain.policy.PARTICIPATION_COMMITTEE[1] + ' per account'}>
                         <DataList.Item>
                           <DataList.Label>Participation size:</DataList.Label>
                           <DataList.Value>
