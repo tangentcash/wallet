@@ -4,7 +4,7 @@ import { AssetId, Readability, Whitelist } from "tangentsdk";
 import { CSSProperties } from "react";
 import Icon from "@mdi/react";
 
-export function AssetName(props: { asset?: AssetId, size?: string, badgeSize?: number, badgeOffset?: number, symbol?: boolean }) {
+export function AssetName(props: { asset?: AssetId, size?: string, badgeSize?: number, badgeOffset?: number, symbol?: boolean, style?: CSSProperties }) {
   const size = (props.size || '3') as any;
   if (!props.asset) {
     return (
@@ -18,7 +18,7 @@ export function AssetName(props: { asset?: AssetId, size?: string, badgeSize?: n
   const fake = Whitelist.fake(props.asset, contractAddress);
   return (
     <Tooltip content={ Readability.toAssetName(props.asset, true) + ' blockchain' }>
-      <Flex align="center" gap="1">
+      <Flex align="center" gap="1" style={props.style}>
         {
           fake &&
           <>

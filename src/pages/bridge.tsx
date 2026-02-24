@@ -271,7 +271,7 @@ export default function BridgePage() {
                   <AssetImage asset={item} size="4"></AssetImage>
                   <Box width="100%">
                     <Flex justify="start" align="start" direction="column">
-                      <AssetName asset={item} size="2"></AssetName>
+                      <AssetName asset={item} size="2" style={{ color: 'var(--gray-12)' }}></AssetName>
                       <Flex gap="1">
                         <Badge size="1" color="jade">{ Readability.toAssetSymbol(item) }</Badge>
                         {
