@@ -34,7 +34,18 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
       setLoading(setTimeout(async () => {
         try {
           const result = await Swap.assetQuery(value);
-          setAssets(result.map((x) => ({ asset: x, contractAddress: Whitelist.contractAddressOf(x) })));
+          setAssets(result.map((x) => ({ asset: x, contractAddress: Whitelist.contractAddressOf(x) })).sort((a, b) => {
+            if (a.contractAddress && !b.contractAddress) {
+              return -1;
+            } else if (!a.contractAddress && b.contractAddress) {
+              return 1;
+            } else {
+              const nameA = a.asset.token || a.asset.chain || a.asset.handle;
+              const nameB = b.asset.token || b.asset.chain || b.asset.handle;
+              const comparison = nameA.localeCompare(nameB);
+              return comparison == 0 ? a.asset.handle.localeCompare(b.asset.handle) : comparison;
+            }
+          }));
         } catch { }
         setLoading(null);
       }, 300) as any);
