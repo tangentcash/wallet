@@ -79,10 +79,10 @@ function mergeVolumeSeries(a: VolumeBar[], b: VolumeBar[]): VolumeBar[] {
 function reduceLevels(levels: AggregatedLevel[], range: number): AggregatedLevel[] {
   const groups: any = { };
   levels.forEach((level) => {
-    const price = Math.floor(level.price.toNumber() / range) * range;
-    const target = groups[price];
+    const price = range > 0 ? level.price.dividedBy(range).integerValue().multipliedBy(range) : level.price;
+    const target = groups[price.toString()];
     if (!target) {
-      groups[price] = {
+      groups[price.toString()] = {
         price: new BigNumber(price),
         quantity: new BigNumber(level.quantity)
       };
@@ -451,7 +451,7 @@ export default function OrderbookPage() {
 
       try {
         const marketLevels = await levelsResult;
-        setLevels({ ask: marketLevels?.ask || [], bid: marketLevels?.bid || [] });
+        setLevels({ ask: reduceLevels(marketLevels?.ask || [], 0), bid: reduceLevels(marketLevels?.bid || [], 0) });
       } catch (exception: any) {
         AlertBox.open(AlertType.Error, 'Failed to fetch orderbook: ' + (exception.message || 'unknown error'));
       }
@@ -616,8 +616,8 @@ export default function OrderbookPage() {
             copy.bid.splice(bidIndex, 1);
         }
       }
-      copy.ask = copy.ask.sort((a, b) => a.price.minus(b.price).toNumber());
-      copy.bid = copy.bid.sort((a, b) => b.price.minus(a.price).toNumber());
+      copy.ask = reduceLevels(copy.ask.sort((a, b) => a.price.minus(b.price).toNumber()), 0);
+      copy.bid = reduceLevels(copy.bid.sort((a, b) => b.price.minus(a.price).toNumber()), 0);
       return copy;
     });
   }, [incomingLevels]);
