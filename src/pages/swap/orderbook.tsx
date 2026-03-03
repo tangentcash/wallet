@@ -24,6 +24,12 @@ enum PriceScope {
   Ask
 }
 
+type AggregatedGroupedLevel = {
+  ids: number[],
+  price: BigNumber,
+  quantity: BigNumber
+}
+
 function mergeSeries(a: GenericBar[], b: GenericBar[], merge: (a: GenericBar, b: GenericBar) => GenericBar): GenericBar[] {
   const c: GenericBar[] = []; let i = 0, j = 0;  
   while (i < a.length && j < b.length) {
@@ -76,25 +82,25 @@ function mergeVolumeSeries(a: VolumeBar[], b: VolumeBar[]): VolumeBar[] {
     } as GenericBar;
   }) as VolumeBar[];
 }
-function reduceLevels(levels: AggregatedLevel[], range: number): AggregatedLevel[] {
-  const groups: any = { };
+function reduceLevels(levels: (AggregatedGroupedLevel | AggregatedLevel)[], range: number): AggregatedGroupedLevel[] {
+  const groups: Record<string, AggregatedGroupedLevel> = { };
   levels.forEach((level) => {
+    const dynamicLevel: any = level;
+    const dynamicIds: number[] = Array.isArray(dynamicLevel.ids) ? [...dynamicLevel.ids] : [dynamicLevel.id];
     const price = range > 0 ? level.price.dividedBy(range).integerValue().multipliedBy(range) : level.price;
     const target = groups[price.toString()];
     if (!target) {
       groups[price.toString()] = {
+        ids: dynamicIds,
         price: new BigNumber(price),
         quantity: new BigNumber(level.quantity)
       };
     } else {
+      target.ids = target.ids.concat(dynamicIds);
       target.quantity = target.quantity.plus(level.quantity);
     }
   });
-  return Object.values(groups).map((group: any) => ({
-    id: 0,
-    price: group.price,
-    quantity: group.quantity
-  }));
+  return Object.values(groups);
 }
 function upperTimeSlot(interval: number, timepoint: number): number {
     return Math.ceil(timepoint / interval) * interval;
@@ -136,7 +142,7 @@ export default function OrderbookPage() {
   const [preset, setPreset] = useState<{ id: number, condition: OrderCondition, side: OrderSide, price: string } | null>(null);
   const [tab, setTab] = useState<'info' | 'order' | 'book' | 'trades'>(mobile ? 'info' : 'order');
   const [orders, setOrders] = useState<Order[]>([]);
-  const [levels, setLevels] = useState<{ ask: AggregatedLevel[], bid: AggregatedLevel[] }>({ ask: [], bid: [] })
+  const [levels, setLevels] = useState<{ ask: AggregatedGroupedLevel[], bid: AggregatedGroupedLevel[] }>({ ask: [], bid: [] })
   const [polyBalances, setPolyBalances] = useState<{ primary: Balance[], secondary: Balance[] }>({ primary: [], secondary: [] });
   const [tiers, setTiers] = useState<AccountTier | null>(null);
   const [legendBar, setLegendBar] = useState<{ price?: PriceBar | null, volume?: VolumeBar | null }>({ });
@@ -595,10 +601,10 @@ export default function OrderbookPage() {
         const data = incomingLevels[i].detail || null;
         if (data.id != null && data.side != null && data.price != null && data.quantity != null) {
           const target = data.side == OrderSide.Buy ? copy.bid : copy.ask;
-          const index = target.findIndex((v) => v.id == data.id);
+          const index = target.findIndex((v) => v.ids.indexOf(data.id) !== -1);
           if (index == -1) {
             target.push({
-              id: data.id,
+              ids: [data.id],
               price: new BigNumber(data.price),
               quantity: new BigNumber(data.quantity)
             });
@@ -608,8 +614,8 @@ export default function OrderbookPage() {
             level.quantity = new BigNumber(data.quantity);
           }
         } else if (data.id != null) {
-          const askIndex = copy.ask.findIndex((v) => v.id == data.id);
-          const bidIndex = copy.bid.findIndex((v) => v.id == data.id);
+          const askIndex = copy.ask.findIndex((v) => v.ids.indexOf(data.id) !== -1);
+          const bidIndex = copy.bid.findIndex((v) => v.ids.indexOf(data.id) !== -1);
           if (askIndex != -1)
             copy.ask.splice(askIndex, 1);
           if (bidIndex != -1)
