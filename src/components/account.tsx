@@ -1,18 +1,18 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, Flex, Heading, IconButton, Link, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, Flex, Heading, Link as UiLink, IconButton, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { RPC, EventResolver, SummaryState, AssetId, Readability, Chain, Whitelist } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiClose, mdiCoffin, mdiInformationOutline, mdiKeyOutline, mdiOpenInNew, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTagOutline, mdiTransitConnectionVariant } from "@mdi/js";
+import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiClose, mdiCoffin, mdiConsole, mdiInformationOutline, mdiKeyOutline, mdiOpenInNew, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTagOutline, mdiTransitConnectionVariant } from "@mdi/js";
 import { AppData } from "../core/app";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { Swap } from "../core/swap";
+import { AssetImage, AssetName } from "./asset";
 import BigNumber from "bignumber.js";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import QRCode from "react-qr-code";
 import Icon from "@mdi/react";
 import Transaction from "../components/transaction";
-import { AssetImage, AssetName } from "./asset";
 
 function toAddressType(type: string): string {
   switch (type) {
@@ -36,12 +36,13 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   const [blockchains, setBlockchains] = useState<any[]>([]);
   const [assets, setAssets] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<any[]>([]);
+  const [program, setProgram] = useState<string | null>(null);
   const [attestations, setAttestations] = useState<any[]>([]);
   const [participation, setParticipation] = useState<any>(null);
   const [production, setProduction] = useState<any>(null);
   const [selectedAddress, setSelectedAddress] = useState<number>(-1);
   const [selectedAddressVersion, setSelectedAddressVersion] = useState<number>(0);
-  const [control, setControl] = useState<'balance' | 'address' | 'validator'>('balance');
+  const [control, setControl] = useState<'balance' | 'address' | 'storage'>('balance');
   const [funding, setFunding] = useState<'bridge' | 'other'>('bridge');
   const [transactions, setTransactions] = useState<{ transaction: any, receipt?: any, state?: SummaryState }[]>([]);
   const [mempoolTransactions, setMempoolTransactions] = useState<any[]>([]);
@@ -75,8 +76,8 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
     else if (address.purpose == 'bridge')
       return <>Bridge wallet → receive/pay to routing wallets.</>;
     else if (address.bridge_hash != null)
-      return <>Unknown wallet. Linked to <Link href="#">{address.owner}</Link> and bridge <Link href="#">{Readability.toHash(address.bridge_hash)}</Link></>;
-    return <>Unknown wallet. Linked to <Link href="#">{address.owner}</Link></>;
+      return <>Unknown wallet. Linked to <UiLink href="#">{address.owner}</UiLink> and bridge <UiLink href="#">{Readability.toHash(address.bridge_hash)}</UiLink></>;
+    return <>Unknown wallet. Linked to <UiLink href="#">{address.owner}</UiLink></>;
   }, [ownerAddress]);
   const findTransactions = useCallback(async (refresh?: boolean) => {
     try {
@@ -151,7 +152,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
           }
         })());
         break;
-      case 'validator':
+      case 'storage':
         tasks.push((async () => {
           try {
             const attestationData = await RPC.getValidatorAttestationsWithRewards(ownerAddress);
@@ -176,6 +177,14 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
             setProduction(productionData || null);
           } catch {
             setProduction(null);
+          }
+        })());
+        tasks.push((async () => {
+          try {
+            const program = await RPC.getAccountProgram(ownerAddress);
+            setProgram(program?.hashcode || null);
+          } catch {
+            setProgram(null);
           }
         })());
         break;
@@ -223,10 +232,10 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                 <Text>Balance</Text>
               </Flex>
             </SegmentedControl.Item>
-            <SegmentedControl.Item value="validator">
+            <SegmentedControl.Item value="storage">
               <Flex gap="2" align="center">
-                { loading && control == 'validator' && <Spinner /> }
-                <Text>Node</Text>
+                { loading && control == 'storage' && <Spinner /> }
+                <Text>Data</Text>
               </Flex>
             </SegmentedControl.Item>
           </SegmentedControl.Root>
@@ -426,7 +435,27 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               )
             }
           </Tabs.Content>
-          <Tabs.Content value="validator">
+          <Tabs.Content value="storage">
+            {
+              program != null &&
+              <Flex px="2" py="2" gap="3">
+                <Icon path={mdiConsole} size={1.5} style={{ color: 'var(--bronze-10)' }} />
+                <Box width="100%">
+                  <Flex justify="between" align="center">
+                    <Text as="div" size="2" weight="light">Smart contract</Text>
+                  </Flex>
+                  <Flex align="center">
+                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                      navigator.clipboard.writeText(program);
+                      AlertBox.open(AlertType.Info, 'Program hashcode copied!')
+                    }}>{ Readability.toAddress(program) }</Button>
+                    <Box ml="2">
+                      <Link className="router-link" to={'/program/' + program}>▒▒</Link>
+                    </Box>
+                  </Flex>
+                </Box>
+              </Flex>
+            }
             <Flex px="2" py="2" gap="3">
               <Icon path={mdiArrowRightBoldHexagonOutline} size={1.5} style={{ color: 'var(--red-10)' }} />
               <Box width="100%">

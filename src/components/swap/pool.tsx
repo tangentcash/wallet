@@ -2,30 +2,34 @@ import { Badge, Box, Button, Card, DataList, Dialog, Flex, Text } from "@radix-u
 import { Readability } from "tangentsdk";
 import { Pool, Swap } from "../../core/swap";
 import { useMemo, useState } from "react";
-import * as Collapsible from "@radix-ui/react-collapsible";
-import PerformerButton, { Authorization } from "./performer";
 import { Link } from "react-router";
 import { AlertBox, AlertType } from "../alert";
-import Icon from "@mdi/react";
 import { mdiInformationOutline } from "@mdi/js";
 import { AssetImage } from "../asset";
+import * as Collapsible from "@radix-ui/react-collapsible";
+import PerformerButton, { Authorization } from "./performer";
+import Icon from "@mdi/react";
+import BigNumber from "bignumber.js";
 
 export default function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, readOnly?: boolean }) {
   const item = props.item;
   const concentrated = item.minPrice?.gt(0) && item.maxPrice?.gt(0);
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
-  const inRange = concentrated ? item.price.gt(item.minPrice || 0) && item.price.lt(item.maxPrice || 0) : true;
   const [expanded, setExpanded] = useState(props.open || false);
-  const revenue = useMemo(() => {
-    const primaryPrice = Swap.priceOf(props.item.primaryAsset);
-    const secondaryPrice = Swap.priceOf(props.item.secondaryAsset);
-    if (!primaryPrice.close || !secondaryPrice.close)
-      return null;
-
-    const absolute = primaryPrice.close.multipliedBy(props.item.primaryRevenue).plus(secondaryPrice.close.multipliedBy(props.item.secondaryRevenue));
-    const relative = absolute.dividedBy(primaryPrice.close.multipliedBy(props.item.primaryValue).plus(secondaryPrice.close.multipliedBy(props.item.secondaryValue)));
-    return { absolute: absolute, relative: relative };
-  }, [props.item]);
+  const bidPrice = useMemo(() => item.price.multipliedBy(new BigNumber(1).minus(item.feeRate)), [item.price, item.feeRate]);
+  const askPrice = useMemo(() => item.price.multipliedBy(new BigNumber(1).plus(item.feeRate)), [item.price, item.feeRate]);
+  const inLowerRange = useMemo(() => concentrated ? bidPrice.gte(item.minPrice || 0) : true, [bidPrice]);
+  const inUpperRange = useMemo(() => concentrated ? askPrice.lte(item.maxPrice || 0) : true, [askPrice]);
+  const state = useMemo(() => {
+    const primaryPrice = Swap.priceOf(item.primaryAsset), secondaryPrice = Swap.priceOf(item.secondaryAsset);
+    const isolatedLiquidity = item.primaryValue.multipliedBy(primaryPrice.close || new BigNumber(0)).plus(item.secondaryValue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
+    const revenueLiquidity = item.primaryRevenue.multipliedBy(primaryPrice.close || new BigNumber(0)).plus(item.secondaryRevenue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
+    return {
+      absoluteRevenue: revenueLiquidity,
+      relativeRevenue: isolatedLiquidity.gt(0) ? revenueLiquidity.dividedBy(isolatedLiquidity) : new BigNumber(0),
+      liquidity: isolatedLiquidity.plus(revenueLiquidity)
+    }
+  }, [item]);
 
   const FullPoolView = (subprops: { open?: boolean }) => (
     <Collapsible.Root open={subprops.open || expanded}>
@@ -42,28 +46,15 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
               <Text size="2">{ item.secondaryAsset.token || item.secondaryAsset.chain }</Text>
             </Flex>
             <Flex align="center" style={{ textDecoration: item.active ? undefined : 'line-through' }}>
-              <Text size="2">{ Readability.toMoney(null, item.price) }</Text>
+              <Text size="2">{ Readability.toMoney(Swap.equityAsset, state.liquidity) }</Text>
             </Flex>
           </Flex>
           <Flex justify="between" align="center">
             <Flex align="center" gap="2" pt="1">
-              {
-                revenue != null &&
-                <Flex gap="1">
-                  <Badge variant="soft" color="jade" size="2">{ Readability.toMoney(Swap.equityAsset, revenue.absolute, true) }</Badge>
-                  <Badge variant="soft" color="jade" size="2">{ revenue.relative.gt(0) ? '+' : '' }{ revenue.relative.multipliedBy(100).toFixed(2) }%</Badge>
-                </Flex>
-              }
-              {
-                !revenue &&
-                <Badge variant="soft" color={'gray'} size="1">
-                  <Flex align="center" style={{ textDecoration: item.active ? undefined : 'line-through' }}>
-                    <Text size="1">{ Readability.toMoney(null, item.primaryValue.plus(item.primaryRevenue)) }</Text>
-                    <Text size="1" color="gray">x</Text>
-                    <Text size="1">{ Readability.toMoney(null, item.secondaryValue.plus(item.secondaryRevenue)) }</Text>
-                  </Flex>
-                </Badge>
-              }
+              <Flex gap="1">
+                <Badge variant="soft" color={item.active ? 'jade' : 'gray'} size="2">{ Readability.toMoney(Swap.equityAsset, state.absoluteRevenue, true) }</Badge>
+                <Badge variant="soft" color={item.active ? 'jade' : 'gray'} size="2">{ state.relativeRevenue.gt(0) ? '+' : '' }{ state.relativeRevenue.multipliedBy(100).toFixed(2) }%</Badge>
+              </Flex>
             </Flex>
             <Badge variant="soft" color="gold" size="2">    
               <Icon path={mdiInformationOutline} size={0.65}></Icon>
@@ -107,46 +98,41 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
           <DataList.Item>
             <DataList.Label>Status:</DataList.Label>
             <DataList.Value>
-              <Badge color={item.active ? 'jade' : (inRange ? 'gray' : 'red')}>{ item.active ? 'Active' + (concentrated ? ' in range' : '') : (inRange ? 'Inactive' : 'Inactive out of range') }</Badge>
+              <Badge color={item.active ? (inLowerRange && inUpperRange ? 'jade' : 'yellow') : 'gray'}>{ item.active ? (inLowerRange && inUpperRange ? (concentrated ? 'Active (fully in range)' : 'Active') : 'Partially active (out of range)') : 'Inactive' }</Badge>
             </DataList.Value>
           </DataList.Item>
           {
             concentrated &&
             <DataList.Item>
-              <DataList.Label>Lowest price:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.minPrice || null) }</DataList.Value>
+              <DataList.Label>Price range:</DataList.Label>
+              <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.minPrice || null) } — { Readability.toMoney(item.secondaryAsset, item.maxPrice || null) }</DataList.Value>
             </DataList.Item>
           }
           <DataList.Item>
-            <DataList.Label>Current price:</DataList.Label>
-            <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.price) }</DataList.Value>
+            <DataList.Label>Price spread:</DataList.Label>
+            <DataList.Value>
+              <Flex wrap="wrap" gap="2">
+                { inLowerRange && <Badge color="jade">BID { Readability.toMoney(item.secondaryAsset, bidPrice) }</Badge> }
+                { inUpperRange && <Badge color="red">ASK { Readability.toMoney(item.secondaryAsset, askPrice) }</Badge> }
+              </Flex>
+            </DataList.Value>
           </DataList.Item>
-          {
-            concentrated &&
-            <DataList.Item>
-              <DataList.Label>Highest price:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.maxPrice || null) }</DataList.Value>
-            </DataList.Item>
-          }
+          <DataList.Item>
+            <DataList.Label>Fees onhold:</DataList.Label>
+            <DataList.Value>
+              <Flex wrap="wrap" gap="2">
+                { item.primaryRevenue.gt(0) && <Badge color="jade">{ Readability.toMoney(item.primaryAsset, item.primaryRevenue) }</Badge> }
+                { item.secondaryRevenue.gt(0) && <Badge color="jade">{ Readability.toMoney(item.secondaryAsset, item.secondaryRevenue) }</Badge> }
+              </Flex>
+            </DataList.Value>
+          </DataList.Item>
           <DataList.Item>
             <DataList.Label>{ Readability.toAssetSymbol(item.primaryAsset) } reserve:</DataList.Label>
             <DataList.Value>{ Readability.toMoney(item.primaryAsset, item.primaryValue) }</DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>{ Readability.toAssetSymbol(item.primaryAsset) } revenue:</DataList.Label>
-            <DataList.Value>
-              <Text color={item.primaryRevenue.gt(0) ? 'jade' : undefined}>{ Readability.toMoney(item.primaryAsset, item.primaryRevenue, true) }</Text>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
             <DataList.Label>{ Readability.toAssetSymbol(item.secondaryAsset) } reserve:</DataList.Label>
             <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.secondaryValue) }</DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>{ Readability.toAssetSymbol(item.secondaryAsset) } revenue:</DataList.Label>
-            <DataList.Value>
-              <Text color={item.secondaryRevenue.gt(0) ? 'jade' : undefined}>{ Readability.toMoney(item.secondaryAsset, item.secondaryRevenue, true) }</Text>
-            </DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Fee rate:</DataList.Label>

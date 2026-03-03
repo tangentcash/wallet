@@ -104,6 +104,7 @@ export type Market = {
   id: BigNumber;
   accountId: BigNumber;
   account: string;
+  version?: string;
   deployerAccountId: BigNumber;
   deployerAccount: string;
   blockNumber: BigNumber;
@@ -508,8 +509,8 @@ export class Swap {
     }
     return result;
   }
-  static async marketPair(marketId: number | string | BigNumber, primaryAsset: AssetId, secondaryAsset: AssetId): Promise<AggregatedPair> {
-    const result = await this.fetch('GET', `market/pair`, { id: marketId.toString(), primaryAssetHash: primaryAsset.id.toString(), secondaryAssetHash: secondaryAsset.id.toString() });
+  static async marketPair(marketId: number | string | BigNumber, primaryAsset: AssetId, secondaryAsset: AssetId, createIfNotExists: boolean): Promise<AggregatedPair> {
+    const result = await this.fetch('GET', `market/pair`, { id: marketId.toString(), primaryAssetHash: primaryAsset.id.toString(), secondaryAssetHash: secondaryAsset.id.toString(), createIfNotExists: createIfNotExists });
     result.primaryAsset = new AssetId(result.primaryAsset);
     result.secondaryAsset = new AssetId(result.secondaryAsset);
     return result;

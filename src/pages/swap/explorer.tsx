@@ -67,7 +67,7 @@ export default function ExplorerPage() {
       if (!market || !marketLauncher.primary || !marketLauncher.secondary)
         throw false;
 
-      const result = await Swap.marketPair(market.id, marketLauncher.primary, marketLauncher.secondary);
+      const result = await Swap.marketPair(market.id, marketLauncher.primary, marketLauncher.secondary, true);
       setLaunchablePair(result);
     } catch (exception: any) {
       if (exception instanceof Error)
@@ -102,13 +102,13 @@ export default function ExplorerPage() {
   return (
     <Box px="4" pt="4" minWidth="285px" maxWidth="680px" mx="auto">
       <Flex justify="between" pb="2" align="center">
-        <Heading size="5">{ market ? Swap.marketPolicyOf(market) : 'Explore' }</Heading>
-        <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => setMarket(Swap.contracts.find((v) => v.id.toString() == e) || null)} size="2">
-          <Select.Trigger variant="soft" color="gray">{ market ? market.account.substring(market.account.length - 6) : 'no market' }</Select.Trigger>
+        <Heading size="7">{ market ? Swap.marketPolicyOf(market) : 'Explore' }</Heading>
+        <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => setMarket(Swap.contracts.find((v) => v.id.toString() == e) || null)} size="3">
+          <Select.Trigger variant="soft" color="gray">{ market ? market.version || market.account.substring(market.account.length - 4) : 'no market' }</Select.Trigger>
           <Select.Content position="popper" side="bottom">
             <Select.Group>
               <Select.Label>Market contract</Select.Label>
-              { Swap.contracts.map((item) => <Select.Item key={item.id.toString()} value={item.id.toString()}>{ Swap.marketPolicyOf(item) } contract — { item.account.substring(item.account.length - 6) }</Select.Item>) }
+              { Swap.contracts.map((item) => <Select.Item key={item.id.toString()} value={item.id.toString()}>{ Swap.marketPolicyOf(item) } contract — { item.version || item.account.substring(item.account.length - 4) }</Select.Item>) }
             </Select.Group>
           </Select.Content>
         </Select.Root>

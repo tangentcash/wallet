@@ -393,7 +393,7 @@ export default function OrderbookPage() {
       if (!orderbook || !orderbook.marketId || !orderbook.primaryAsset || !orderbook.secondaryAsset)
         throw false;
       
-      const result = await Swap.marketPair(orderbook.marketId, orderbook.primaryAsset, orderbook.secondaryAsset);
+      const result = await Swap.marketPair(orderbook.marketId, orderbook.primaryAsset, orderbook.secondaryAsset, false);
       if (!result)
         throw false;
 
@@ -495,7 +495,7 @@ export default function OrderbookPage() {
     }
   }, [seriesState.ready, fetchSeries]);
   useEffect(() => {
-    if (!pair || !incomingTrades.length)
+    if (!pair || !seriesState.ready || !incomingTrades.length)
       return;
 
     const trades: AggregatedMatch[] = [];
@@ -583,7 +583,7 @@ export default function OrderbookPage() {
         volume: volumeSeries
       }
     });
-  }, [incomingTrades, pair, seriesOptions.interval]);
+  }, [incomingTrades, pair, seriesState.ready, seriesOptions.interval]);
   useEffect(() => {
     if (!incomingLevels.length)
       return;

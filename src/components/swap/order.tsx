@@ -205,7 +205,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
           {
             item.slippage &&
             <DataList.Item>
-              <DataList.Label>Price slippage:</DataList.Label>
+              <DataList.Label>{ item.condition == OrderCondition.Market ? 'Slippage price:' : 'Price slippage:' }</DataList.Label>
               <DataList.Value>{ item.slippage.lt(0) ? item.slippage.negated().multipliedBy(100).toFixed(2) + '%' : Readability.toMoney(item.secondaryAsset, item.slippage) }</DataList.Value>
             </DataList.Item>
           }

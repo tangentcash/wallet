@@ -20,6 +20,7 @@ import ConfigurePage from "./../pages/configure";
 import AccountPage from "./../pages/account";
 import BlockPage from "./../pages/block";
 import TransactionPage from "./../pages/transaction";
+import ProgramPage from "./../pages/program";
 import InteractionPage from "./../pages/interaction";
 import BridgePage from "./../pages/bridge"
 import PortfolioPage from "../pages/swap/portfolio";
@@ -757,6 +758,7 @@ export function App() {
             <Route path="/interaction" element={<InteractionPage />} />
             <Route path="/block/:id" element={<BlockPage />} />
             <Route path="/transaction/:id" element={<TransactionPage />} />
+            <Route path="/program/:id" element={<ProgramPage />} />
             <Route path="/account/:id" element={<AccountPage />} />
             <Route path="/restore" element={<RestorePage />} />
             <Route path="/swap/:account?" element={<PortfolioPage />} />
