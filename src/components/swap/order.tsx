@@ -241,7 +241,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
                   item.stopPrice &&
                   <Flex justify="between" wrap="wrap" gap="1">
                     <Text size="2" color="gray">Trigger at</Text>
-                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ item.side == OrderSide.Buy ? '≤' : '≥' } { Readability.toMoney(item.secondaryAsset, item.stopPrice) }</Text>
+                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ item.side == OrderSide.Buy ? '≥' : '≤'  } { Readability.toMoney(item.secondaryAsset, item.stopPrice) }</Text>
                   </Flex>
                 }
                 <Flex justify="between" wrap="wrap" gap="1">
@@ -257,19 +257,15 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
                 </Flex>
                 <Flex justify="between" wrap="wrap" gap="1">
                   <Text size="2" color={ item.side == OrderSide.Buy ? 'jade' : 'red' }>{ item.side == OrderSide.Buy ? 'Buy' : 'Sell' }</Text>
-                  <Text size="2" color={ item.side == OrderSide.Buy ? 'jade' : 'red' }>{ Readability.toMoney(item.primaryAsset, quantity) }</Text>
+                  <Text size="2" color={ item.side == OrderSide.Buy ? 'jade' : 'red' }>{ Readability.toMoney(item.primaryAsset, leftoverQuantity) }</Text>
                 </Flex>
                 {
-                  quantity && quantity.isFinite() && possiblePrice && possiblePrice.isFinite() &&
+                  leftoverQuantity && leftoverQuantity.isFinite() && possiblePrice && possiblePrice.isFinite() &&
                   <Flex justify="between" wrap="wrap" gap="1">
                     <Text size="2" color="gray">For</Text>
-                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(item.secondaryAsset, quantity.multipliedBy(possiblePrice)) }</Text>
+                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(item.secondaryAsset, leftoverQuantity.multipliedBy(possiblePrice)) }</Text>
                   </Flex>
                 }
-                <Flex justify="between" wrap="wrap" gap="1">
-                  <Text size="2" color="yellow">Left</Text>
-                  <Text size="2" color="yellow">{ Readability.toMoney(item.primaryAsset, leftoverQuantity) }</Text>
-                </Flex>
               </Flex>
             </Button>
           </Dialog.Trigger>
