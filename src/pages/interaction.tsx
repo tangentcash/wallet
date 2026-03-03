@@ -586,9 +586,9 @@ export default function InteractionPage() {
         });
       }
     } catch { }
-
-    setGasPrice(presetGasPrice.gte(0) ? presetGasPrice.toString() : '');
-    setGasLimit(presetGasLimit.gte(0) ? presetGasLimit.toString() : '');
+    
+    setGasPrice(presetGasPrice.gte(0) ? ByteUtil.bigNumberToString(presetGasPrice) : '');
+    setGasLimit(presetGasLimit.gte(0) ? ByteUtil.bigNumberToString(presetGasLimit) : '');
     if (loadingRequired)
       setLoadingGasPriceAndPrice(false);
     return true;

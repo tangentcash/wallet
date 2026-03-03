@@ -599,12 +599,16 @@ export default function OrderbookPage() {
       const copy = { ask: [...prev.ask], bid: [...prev.bid] };
       for (let i = 0; i < incomingLevels.length; i++) {
         const data = incomingLevels[i].detail || null;
-        if (data.id != null && data.side != null && data.price != null && data.quantity != null) {
+        const id = data && data.id != null ? parseInt(data.id) : NaN;
+        if (isNaN(id))
+          continue;
+
+        if (data.side != null && data.price != null && data.quantity != null) {
           const target = data.side == OrderSide.Buy ? copy.bid : copy.ask;
-          const index = target.findIndex((v) => v.ids.indexOf(data.id) !== -1);
+          const index = target.findIndex((v) => v.ids.indexOf(id) !== -1);
           if (index == -1) {
             target.push({
-              ids: [data.id],
+              ids: [id],
               price: new BigNumber(data.price),
               quantity: new BigNumber(data.quantity)
             });
@@ -613,17 +617,26 @@ export default function OrderbookPage() {
             level.price = new BigNumber(data.price);
             level.quantity = new BigNumber(data.quantity);
           }
-        } else if (data.id != null) {
-          const askIndex = copy.ask.findIndex((v) => v.ids.indexOf(data.id) !== -1);
-          const bidIndex = copy.bid.findIndex((v) => v.ids.indexOf(data.id) !== -1);
-          if (askIndex != -1)
-            copy.ask.splice(askIndex, 1);
-          if (bidIndex != -1)
-            copy.bid.splice(bidIndex, 1);
+        } else {
+          const askIndex = copy.ask.findIndex((v) => v.ids.indexOf(id) !== -1);
+          const bidIndex = copy.bid.findIndex((v) => v.ids.indexOf(id) !== -1);
+          if (askIndex != -1) {
+            const ask = copy.ask[askIndex];
+            ask.ids.splice(ask.ids.indexOf(id), 1);
+            if (!ask.ids.length)
+              copy.ask.splice(askIndex, 1);
+          }
+          if (bidIndex != -1) {
+            const bid = copy.bid[bidIndex];
+            bid.ids.splice(bid.ids.indexOf(id), 1);
+            if (!bid.ids.length)
+              copy.bid.splice(bidIndex, 1);
+          }
         }
       }
       copy.ask = reduceLevels(copy.ask.sort((a, b) => a.price.minus(b.price).toNumber()), 0);
       copy.bid = reduceLevels(copy.bid.sort((a, b) => b.price.minus(a.price).toNumber()), 0);
+      console.log(copy);
       return copy;
     });
   }, [incomingLevels]);
