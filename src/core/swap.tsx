@@ -1,4 +1,4 @@
-import { AssetId, ByteUtil, Hashing, Readability, Stream, Viewable, Whitelist } from "tangentsdk"
+import { AssetId, ByteUtil, Hashing, Readability, RPC, Stream, Viewable, Whitelist } from "tangentsdk"
 import { AlertBox, AlertType } from "../components/alert"
 import { Storage } from "./storage"
 import { AppData } from "./app"
@@ -221,33 +221,9 @@ export class Swap {
       params.append(fullKey, value);
     }
   }
-  static fetchObject(data: any): any {
-    if (typeof data == 'string') {
-      try {
-        if (!data.startsWith('0x')) {
-          const numeric = new BigNumber(data, 10).dp(18);
-          if (data.startsWith(numeric.toString()))
-            return numeric;
-        }
-      } catch { }
-    }
-    else if (typeof data == 'number') {
-      return new BigNumber(data);
-    }
-    else if (typeof data == 'object') {
-      for (let key in data) {
-        data[key] = this.fetchObject(data[key]);
-      }
-    } else if (Array.isArray(data)) {
-      for (let i = 0; i < data.length; i++) {
-        data[i] = this.fetchObject(data[i]);
-      }
-    }
-    return data;
-  }
   static fetchData(data: any): any {
     if (!data.error)
-      return this.fetchObject(data.result)
+      return RPC.fetchObject(data.result)
 
     const hash = ByteUtil.uint8ArrayToHexString(Hashing.hash160(ByteUtil.byteStringToUint8Array(data.error)));
     throw new Error(`${data.error} — E${hash.substring(0, 8).toUpperCase()}`);
