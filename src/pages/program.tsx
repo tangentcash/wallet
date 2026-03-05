@@ -1,8 +1,8 @@
 import { useParams } from "react-router";
 import { useEffectAsync } from "../core/react";
 import { useState } from "react";
-import { Box, Button, Callout, Card, Flex, Heading, IconButton, Spinner, Text } from "@radix-ui/themes";
-import { mdiContentCopy, mdiListStatus, mdiProgressQuestion } from "@mdi/js";
+import { Box, Button, Callout, Card, Flex, Heading, Spinner, Text } from "@radix-ui/themes";
+import { mdiListStatus, mdiProgressQuestion } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
 import { RPC, Readability } from "tangentsdk";
 import { CodeBlock } from 'react-code-block';
@@ -35,15 +35,9 @@ export default function ProgramPage() {
         <Flex justify="between" align="center">
           <Heading size="6">Program code</Heading>
           <Flex align="center" gap="2">
-            <IconButton size="3" variant="soft" color="indigo" onClick={() => {
-              navigator.clipboard.writeText(program.storage);
-              AlertBox.open(AlertType.Info, 'Program storage copied!')
-            }}>
-              <Icon path={mdiContentCopy} size={1}></Icon>
-            </IconButton>
             <Button size="3" variant="soft" color="indigo" onClick={() => {
-              navigator.clipboard.writeText(program.hashcode);
-              AlertBox.open(AlertType.Info, 'Program hashcode copied!')
+              navigator.clipboard.writeText(program.hashcode + '\r\n' + program.storage);
+              AlertBox.open(AlertType.Info, 'Program code copied!')
             }}>{ Readability.toHash(program.hashcode, 5) }</Button>
           </Flex>
         </Flex>

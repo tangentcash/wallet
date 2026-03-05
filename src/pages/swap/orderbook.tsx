@@ -166,7 +166,7 @@ export default function OrderbookPage() {
       [60, "1m"]
     ],
     interval: 3600,
-    bars: 256,
+    bars: 512,
     priceLevel: '',
     priceScope: PriceScope.All,
     view: ChartViewType.Candles,
