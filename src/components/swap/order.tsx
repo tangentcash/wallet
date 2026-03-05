@@ -15,7 +15,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [expanded, setExpanded] = useState(props.open || false);
   const price = useMemo((): BigNumber | null => {
-    return item.fillingPrice || item.price || item.stopPrice || null;
+    return item.price || item.stopPrice || item.fillingPrice || null;
   }, [props]);
   const possiblePrice = useMemo((): BigNumber | null => {
     return price || Swap.priceOf(item.primaryAsset, item.secondaryAsset).close
