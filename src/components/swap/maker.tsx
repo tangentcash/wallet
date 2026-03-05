@@ -24,7 +24,26 @@ class ConcentratedPool {
   }
 }
 
-const defaultState = {
+export type MakerState = {
+  condition: OrderCondition,
+  side: OrderSide,
+  fillOrKill: boolean,
+  stopPrice: string,
+  price: string,
+  basePrice: string,
+  minPrice: string,
+  maxPrice: string,
+  slippage: string,
+  trailingStep: string,
+  trailingDistance: string,
+  primaryValue: string,
+  secondaryValue: string,
+  value: string,
+  feeRate: string,
+  pool: boolean
+};
+
+const defaultState: MakerState = {
   condition: OrderCondition.Market,
   side: OrderSide.Buy,
   fillOrKill: false,
@@ -43,7 +62,7 @@ const defaultState = {
   pool: false
 };
 
-export default function Maker(props: {
+export function Maker(props: {
   path?: string,
   marketId: BigNumber,
   pairId: BigNumber,
@@ -52,10 +71,11 @@ export default function Maker(props: {
   balances?: { primary: Balance[], secondary: Balance[] },
   prices?: { ask: BigNumber | null, bid: BigNumber | null }
   tiers?: AccountTier,
-  preset?: ({ id: number } & Partial<typeof defaultState>) | null
+  preset?: ({ id: number } & Partial<typeof defaultState>) | null,
+  onStateChange?: (state: MakerState) => any
 }) {
   const [presetId, setPresetId] = useState<number>(0);
-  const [state, setState] = useState(defaultState);
+  const [state, setState] = useState<MakerState>(defaultState);
   const balances = useMemo((): { primary: BigNumber, secondary: BigNumber } | null => {
     if (!props.balances)
       return null;
@@ -376,7 +396,7 @@ export default function Maker(props: {
     const minPrice = TextUtil.toNumericValue(state.minPrice), maxPrice = TextUtil.toNumericValue(state.maxPrice);
     return minPrice.isGreaterThan(0) && maxPrice.isGreaterThan(0) && minPrice.isLessThan(maxPrice);
   }, [state.minPrice, state.maxPrice]);
-  const updateState = useCallback((change: (prev: typeof defaultState) => typeof defaultState) => {
+  const updateState = useCallback((change: (prev: MakerState) => MakerState) => {
     setState(prev => {
       const result = change(prev);
       if (props.path != null)
@@ -460,6 +480,10 @@ export default function Maker(props: {
       }
     }
   }, [props.path, presetId, updateState]);
+  useEffect(() => {
+    if (props.onStateChange)
+      props.onStateChange(state);
+  }, [state, props.onStateChange]);
 
   const makeOrder = () => (
     <Box>

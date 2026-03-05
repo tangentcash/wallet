@@ -118,14 +118,21 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>Fees onhold:</DataList.Label>
-            <DataList.Value>
-              <Flex wrap="wrap" gap="2">
-                { item.primaryRevenue.gt(0) && <Badge color="jade">{ Readability.toMoney(item.primaryAsset, item.primaryRevenue) }</Badge> }
-                { item.secondaryRevenue.gt(0) && <Badge color="jade">{ Readability.toMoney(item.secondaryAsset, item.secondaryRevenue) }</Badge> }
-              </Flex>
-            </DataList.Value>
+            <DataList.Label>Price:</DataList.Label>
+            <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.price) }</DataList.Value>
           </DataList.Item>
+          {
+            (item.primaryRevenue.gt(0) || item.secondaryRevenue.gt(0)) &&
+            <DataList.Item>
+              <DataList.Label>Fees onhold:</DataList.Label>
+              <DataList.Value>
+                <Flex wrap="wrap" gap="2">
+                  { item.primaryRevenue.gt(0) && <Badge color="jade">{ Readability.toMoney(item.primaryAsset, item.primaryRevenue) }</Badge> }
+                  { item.secondaryRevenue.gt(0) && <Badge color="jade">{ Readability.toMoney(item.secondaryAsset, item.secondaryRevenue) }</Badge> }
+                </Flex>
+              </DataList.Value>
+            </DataList.Item>
+          }
           <DataList.Item>
             <DataList.Label>{ Readability.toAssetSymbol(item.primaryAsset) } reserve:</DataList.Label>
             <DataList.Value>{ Readability.toMoney(item.primaryAsset, item.primaryValue) }</DataList.Value>
@@ -162,7 +169,18 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
           <Dialog.Trigger>
             <Button style={{ display: 'block', width: '100%', height: 'auto', padding: '0', backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
               <Flex direction="column" gap="2" style={{ padding: '12px' }}>
-
+                <Flex justify="between" wrap="wrap" gap="1" style={{ textDecoration: inLowerRange ? undefined : 'line-through', color: 'var(--gray-11)' }}>
+                  <Text size="2" color="jade">Buy at</Text>
+                  <Text size="2" color="jade">≤ { Readability.toMoney(item.secondaryAsset, bidPrice) }</Text>
+                </Flex>
+                <Flex justify="between" wrap="wrap" gap="1" style={{ textDecoration: inUpperRange ? undefined : 'line-through', color: 'var(--gray-11)' }}>
+                  <Text size="2" color="red">Sell at</Text>
+                  <Text size="2" color="red">≥ { Readability.toMoney(item.secondaryAsset, askPrice) }</Text>
+                </Flex>
+                <Flex justify="between" wrap="wrap" gap="1">
+                  <Text size="2" color="gray">With</Text>
+                  <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(Swap.equityAsset, state.liquidity) }</Text>
+                </Flex>
               </Flex>
             </Button>
           </Dialog.Trigger>

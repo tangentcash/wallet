@@ -2,7 +2,7 @@ import { AspectRatio, Badge, Box, Button, Card, Dialog, Flex, Heading, IconButto
 import { Link, useNavigate, useParams } from "react-router";
 import { AppData } from "../../core/app";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Swap, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide, Balance } from "../../core/swap";
+import { Swap, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide, Balance, Pool } from "../../core/swap";
 import { useEffectAsync } from "../../core/react";
 import { SeriesApiRef } from "lightweight-charts-react-components";
 import { BarPrice, ChartOptions, CrosshairMode, DeepPartial, IChartApi, LogicalRange, MouseEventParams, PriceScaleMode, Time } from "lightweight-charts";
@@ -11,12 +11,13 @@ import { GenericBar, PriceBar, VolumeBar, ChartViewType, ChartView } from "../..
 import { AlertBox, AlertType } from "../../components/alert";
 import { AssetId, Readability, Whitelist } from "tangentsdk";
 import { Storage } from "../../core/storage";
+import { Maker } from "../../components/swap/maker";
+import { AssetImage } from "../../components/asset";
 import BigNumber from "bignumber.js";
-import Maker from "../../components/swap/maker";
 import OrderView from "../../components/swap/order";
 import Icon from "@mdi/react";
 import Clock from "../../components/swap/clock";
-import { AssetImage } from "../../components/asset";
+import PoolView from "../../components/swap/pool";
 
 enum PriceScope {
   Bid,
@@ -138,10 +139,12 @@ export default function OrderbookPage() {
   const volumeSeriesRef = useRef<SeriesApiRef<'Histogram'>>(null);
   const [blockNumber, setBlockNumber] = useState<number>(AppData.tip?.toNumber() || 0)
   const [whitelisted, setWhitelisted] = useState<boolean | null>(null);
+  const [showingPools, setShowingPools] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [preset, setPreset] = useState<{ id: number, condition: OrderCondition, side: OrderSide, price: string } | null>(null);
   const [tab, setTab] = useState<'info' | 'order' | 'book' | 'trades'>(mobile ? 'info' : 'order');
   const [orders, setOrders] = useState<Order[]>([]);
+  const [pools, setPools] = useState<Pool[]>([]);
   const [levels, setLevels] = useState<{ ask: AggregatedGroupedLevel[], bid: AggregatedGroupedLevel[] }>({ ask: [], bid: [] })
   const [polyBalances, setPolyBalances] = useState<{ primary: Balance[], secondary: Balance[] }>({ primary: [], secondary: [] });
   const [tiers, setTiers] = useState<AccountTier | null>(null);
@@ -424,10 +427,15 @@ export default function OrderbookPage() {
           return;
 
         const ordersResult = Swap.accountOrders({ marketId: marketId, pairId: result.id, address: account, active: true });
+        const poolsResults = Swap.accountPools({ marketId: marketId, pairId: result.id, address: account, active: true });
         const tiersResult = Swap.accountTiers({ marketId: marketId, pairId: result.id, address: account });
         const balancesResult = Swap.accountBalances({ address: account });
         try {
           setOrders(await ordersResult || []);
+        } catch {  }
+
+        try {
+          setPools(await poolsResults || []);
         } catch {  }
 
         try {
@@ -457,7 +465,10 @@ export default function OrderbookPage() {
 
       try {
         const marketLevels = await levelsResult;
-        setLevels({ ask: reduceLevels(marketLevels?.ask || [], 0), bid: reduceLevels(marketLevels?.bid || [], 0) });
+        setLevels({
+          ask: reduceLevels(marketLevels?.ask || [], 0).sort((a, b) => a.price.minus(b.price).toNumber()),
+          bid: reduceLevels(marketLevels?.bid || [], 0).sort((a, b) => b.price.minus(a.price).toNumber())
+        });
       } catch (exception: any) {
         AlertBox.open(AlertType.Error, 'Failed to fetch orderbook: ' + (exception.message || 'unknown error'));
       }
@@ -489,7 +500,11 @@ export default function OrderbookPage() {
         accountUpdateId = setTimeout(() => updateAccount(), 500);
       };
       window.addEventListener('update:order', updateAccountReactive);
-      return () => window.removeEventListener('update:order', updateAccountReactive);
+      window.addEventListener('update:pool', updateAccountReactive);
+      return () => {
+        window.removeEventListener('update:pool', updateAccountReactive);
+        window.removeEventListener('update:order', updateAccountReactive);
+      };
     } catch (exception: any) {
       AlertBox.open(AlertType.Error, 'Failed to fetch market: ' + (exception.message || 'unknown error'));
       navigate('/explorer');
@@ -634,9 +649,8 @@ export default function OrderbookPage() {
           }
         }
       }
-      copy.ask = reduceLevels(copy.ask.sort((a, b) => a.price.minus(b.price).toNumber()), 0);
-      copy.bid = reduceLevels(copy.bid.sort((a, b) => b.price.minus(a.price).toNumber()), 0);
-      console.log(copy);
+      copy.ask = reduceLevels(copy.ask, 0).sort((a, b) => a.price.minus(b.price).toNumber());
+      copy.bid = reduceLevels(copy.bid, 0).sort((a, b) => b.price.minus(a.price).toNumber());
       return copy;
     });
   }, [incomingLevels]);
@@ -1008,11 +1022,18 @@ export default function OrderbookPage() {
                       balances={loading ? undefined : polyBalances}
                       prices={spreads}
                       tiers={tiers || undefined}
-                      preset={preset}></Maker>
+                      preset={preset}
+                      onStateChange={(state) => setShowingPools(state.pool)}></Maker>
                     {
-                      orders.map((item) =>
+                      !showingPools && orders.map((item) =>
                         <Box mt="3" key={item.orderId.toString()}>
                           <OrderView flash={true} item={item}></OrderView>
+                        </Box>)
+                    }
+                    {
+                      showingPools && pools.map((item) =>
+                        <Box mt="3" key={item.poolId.toString()}>
+                          <PoolView flash={true} item={item}></PoolView>
                         </Box>)
                     }
                   </Box>

@@ -1,7 +1,7 @@
 import { Box, Button, Card, Dialog, Flex, Heading, Tabs, Text, TextField } from "@radix-ui/themes";
 import { AssetId, Readability, RPC, Signing } from "tangentsdk";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { Swap, Balance, Order, Pool } from "../../core/swap";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Swap, Balance, Order, Pool, Cursor } from "../../core/swap";
 import { useEffectAsync } from "../../core/react";
 import { AppData } from "../..//core/app";
 import { mdiMagnify, mdiMagnifyScan, mdiRefresh } from "@mdi/js";
@@ -12,6 +12,8 @@ import BalanceView from "../../components/swap/balance";
 import OrderView from "../../components/swap/order";
 import PoolView from "../../components/swap/pool";
 import Icon from "@mdi/react";
+import InfiniteScroll from "react-infinite-scroll-component";
+import { AlertBox, AlertType } from "../../components/alert";
 
 export default function PortfolioPage() {
   const params = useParams();
@@ -31,6 +33,8 @@ export default function PortfolioPage() {
   const [assets, setAssets] = useState<any[]>([])
   const [orders, setOrders] = useState<Order[]>([]);
   const [pools, setPools] = useState<Pool[]>([]);
+  const [moreOrders, setMoreOrders] = useState(true);
+  const [morePools, setMorePools] = useState(true);
   const equityAssets = useMemo((): (Balance & { value: BigNumber, equity: { current: BigNumber | null, previous: BigNumber | null } })[] => {
     return assets.map((v: Balance) => {
       const price = Swap.priceOf(v.asset);
@@ -53,26 +57,64 @@ export default function PortfolioPage() {
       current: equityAssets.reduce((a, b) => a.plus(b.equity.current || b.equity.previous || new BigNumber(0)), new BigNumber(0))
     }
   }, [equityAssets]);
+  const findOrders = useCallback(async (refresh?: boolean) => {
+    try {
+      const cursor = Cursor.offset(refresh ? 0 : orders.length);
+      const data = await Swap.accountOrders({ address: ownerAddress, page: cursor.offset * cursor.count });
+      if (!Array.isArray(data) || !data.length) {
+        if (refresh)
+          setOrders([]);
+        setMoreOrders(false);
+        return false;
+      }
+
+      setOrders(refresh ? data : prev => prev.concat(data));
+      setMoreOrders(data.length >= cursor.count);
+      return data.length > 0;
+    } catch (exception) {
+      AlertBox.open(AlertType.Error, 'Failed to fetch orders: ' + (exception as Error).message);
+      if (refresh)
+        setOrders([]);
+      setMoreOrders(false);
+      return false;
+    }
+  }, [ownerAddress, pools]);
+  const findPools = useCallback(async (refresh?: boolean) => {
+    try {
+      const cursor = Cursor.offset(refresh ? 0 : pools.length);
+      const data = await Swap.accountPools({ address: ownerAddress, page: cursor.offset * cursor.count });
+      if (!Array.isArray(data) || !data.length) {
+        if (refresh)
+          setPools([]);
+        setMorePools(false);
+        return false;
+      }
+
+      setPools(refresh ? data : prev => prev.concat(data));
+      setMorePools(data.length >= cursor.count);
+      return data.length > 0;
+    } catch (exception) {
+      AlertBox.open(AlertType.Error, 'Failed to fetch pools: ' + (exception as Error).message);
+      if (refresh)
+        setPools([]);
+      setMorePools(false);
+      return false;
+    }
+  }, [ownerAddress, pools]);
   useEffectAsync(async () => {
     try {
       const pullAddress = params.account || ownerAddress;
       if (!pullAddress)
         throw false;
 
-      const portfolio = await Swap.accountPortfolio({ address: pullAddress, resync: dashboardUpdates == -1 });
-      if (!portfolio)
+      const balances = await Swap.accountBalances({ address: pullAddress, resync: dashboardUpdates == -1 });
+      if (!balances)
         throw false;
       
-      Storage.set(`__assets:${pullAddress}__`, portfolio.balances);
-      Storage.set(`__orders:${pullAddress}__`, portfolio.orders);
-      Storage.set(`__pools:${pullAddress}__`, portfolio.pools);
-      setAssets(portfolio.balances);
-      setOrders(portfolio.orders);
-      setPools(portfolio.pools);
+      Storage.set(`__assets:${pullAddress}__`, balances);
+      setAssets(balances);
     } catch {
       setAssets([]);
-      setOrders([]);
-      setPools([]);
     }
     setLoading(false);
   }, [params.account, dashboardUpdates]);
@@ -84,8 +126,6 @@ export default function PortfolioPage() {
     const updateAssets = () => setAssetUpdates(new Date().getTime());
     const updateDashboard = async () => setDashboardUpdates(new Date().getTime());
     setAssets(RPC.fetchObject(Storage.get(`__assets:${pullAddress}__`)) || []);
-    setOrders(RPC.fetchObject(Storage.get(`__orders:${pullAddress}__`)) || []);
-    setPools(RPC.fetchObject(Storage.get(`__pools:${pullAddress}__`)) || []);
     window.addEventListener('update:order', updateDashboard);
     window.addEventListener('update:pool', updateDashboard);
     window.addEventListener('update:trade', updateAssets);
@@ -97,6 +137,13 @@ export default function PortfolioPage() {
       window.removeEventListener('swap:ready', updateDashboard);
     };
   }, [params.account]); 
+  useEffect(() => {
+    if (viewer == 'orders') {
+      findOrders(true);
+    } else if (viewer == 'pools') {
+      findPools(true);
+    } 
+  }, [viewer]);
   useEffect(() => {
     const view = search.get('view');
     if (view != null && ['balances', 'orders', 'pools'].includes(view))
@@ -167,12 +214,15 @@ export default function PortfolioPage() {
           </Tabs.Content>
           <Tabs.Content value="orders">
             <Box pt="4">
-              {
-                orders.map((item) =>
-                  <Box key={item.orderId.toString()} mb="4">
-                    <OrderView item={item} readOnly={readOnly}></OrderView>
-                  </Box>)
-              }
+              <InfiniteScroll dataLength={orders.length} hasMore={moreOrders} next={findOrders} loader={<div></div>}>
+                {
+                  orders.map((item) =>
+                    <Box key={item.orderId.toString()} mb="4">
+                      <OrderView item={item} readOnly={readOnly}></OrderView>
+                    </Box>
+                  )
+                }
+              </InfiniteScroll>
               {
                 !orders.length &&
                 <Box px="4">
@@ -183,12 +233,14 @@ export default function PortfolioPage() {
           </Tabs.Content>
           <Tabs.Content value="pools">
             <Box pt="4">
-              {
-                pools.map((item) =>
-                  <Box key={item.poolId.toString()} mb="4">
-                    <PoolView item={item} readOnly={readOnly}></PoolView>
-                  </Box>)
-              }
+              <InfiniteScroll dataLength={pools.length} hasMore={morePools} next={findPools} loader={<div></div>}>
+                {
+                  pools.map((item) =>
+                    <Box key={item.poolId.toString()} mb="4">
+                      <PoolView item={item} readOnly={readOnly}></PoolView>
+                    </Box>)
+                }
+              </InfiniteScroll>
               {
                 !pools.length &&
                 <Box px="4">

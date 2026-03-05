@@ -183,6 +183,24 @@ export type BlockchainInfo = AssetId & {
 export type PriceDescriptors = Record<string, { whitelist: boolean, base: string | null, price: { open: BigNumber | null, close: BigNumber | null } }>;
 export type PromiseCallback = (data: any) => void;
 
+export class Cursor {
+    offset: number = 0;
+    count: number = 0;
+
+    static offset(offset: number, count: number = 32): Cursor {
+        const result = new Cursor();
+        result.offset = offset;
+        result.count = count;
+        return result;
+    }
+    static page(number: number, count: number = 32): Cursor {
+        const result = new Cursor();
+        result.count = count;
+        result.offset = result.count * number;
+        return result;
+    }
+}
+
 export enum SwapField {
   Orderbook = '__orderbook__'
 }
@@ -196,7 +214,7 @@ export class Swap {
   static equityAsset: AssetId = AssetId.fromHandle('USD');
   static orderbook:  string | null = null;
   static socket: WebSocket | null = null;
-  static pipeId: string | null = null;
+  static channelId: string | null = null;
   static awaitables: (() => void)[] | null = [];
   static requests = {
     pending: new Map<string, { resolve: PromiseCallback } >(),
@@ -391,7 +409,7 @@ export class Swap {
     if (!this.socket) {
       try {
         this.socket = await new Promise<WebSocket>((resolve, reject) => {
-          const socket = new WebSocket(`${this.location}/pipe`);
+          const socket = new WebSocket(`${this.location}/`);
           socket.onopen = () => resolve(socket);
           socket.onerror = () => reject(new Error('websocket connection error'));
         });
@@ -414,7 +432,7 @@ export class Swap {
                   if (response != null)
                     response.resolve(data);
                 } else {
-                  this.pipeId = data.id;
+                  this.channelId = data.id;
                 }
               }
             }
@@ -440,7 +458,7 @@ export class Swap {
 
     if (this.socket != null) {
       this.socket.send(JSON.stringify({
-        method: 'post://pipe',
+        method: 'post://',
         params: {
           accounts: addresses
         },
@@ -539,28 +557,6 @@ export class Swap {
       quantity: item.quantity
     }));
   }
-  static async accountPortfolio(account: AccountQuery & { resync?: boolean }): Promise<{ balances: Balance[], orders: Order[], pools: Pool[] } | null> {
-    const result = await this.fetch('GET', `account/portfolio`, {
-      id: account.id,
-      account: account.address,
-      resync: account.resync
-    });
-    if (!result)
-      return null;
-
-    return {
-      balances: (result.balances || []).map((v: any) => {
-        return {
-          asset: new AssetId(v.asset.id),
-          unavailable: v.unavailable,
-          available: v.available,
-          price: v.price
-        }
-      }),
-      orders: (result.orders || []).map((v: any) => this.toOrder(v)),
-      pools: (result.pools || []).map((v: any) => this.toPool(v))
-    };
-  }
   static async accountBalances(account: AccountQuery & { resync?: boolean }): Promise<Balance[]> {
     const result = await this.fetch('GET', `account/balances`, {
       id: account.id,
@@ -587,11 +583,12 @@ export class Swap {
     });
     return result.map((v: any) => this.toOrder(v));
   }
-  static async accountPools(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber } & AccountQuery & PageQuery): Promise<Pool[]> {
+  static async accountPools(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber, active?: boolean } & AccountQuery & PageQuery): Promise<Pool[]> {
     const result = await this.fetch('GET', `account/pools`, {
       id: account.id,
       marketId: account.marketId?.toString(),
       pairId: account.pairId?.toString(),
+      active: account.active,
       account: account.address,
       page: account.page
     });
