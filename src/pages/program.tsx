@@ -36,7 +36,7 @@ export default function ProgramPage() {
           <Heading size="6">Program code</Heading>
           <Flex align="center" gap="2">
             <Button size="3" variant="soft" color="indigo" onClick={() => {
-              navigator.clipboard.writeText(program.hashcode + '\r\n' + program.storage);
+              navigator.clipboard.writeText('// Program: ' + program.hashcode + '\r\n\r\n' + program.storage);
               AlertBox.open(AlertType.Info, 'Program code copied!')
             }}>{ Readability.toHash(program.hashcode, 5) }</Button>
           </Flex>
