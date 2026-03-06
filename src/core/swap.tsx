@@ -494,6 +494,14 @@ export class Swap {
   static async market(marketId: number | string | BigNumber): Promise<Market> {
     return await this.fetch('GET', `market`, { id: marketId.toString() });
   }
+  static async marketOrder(orderId: number | string | BigNumber): Promise<Order> {
+    const result = await this.fetch('GET', `market/order`, { id: orderId.toString() });
+    return this.toOrder(result);
+  }
+  static async marketPool(poolId: number | string | BigNumber): Promise<Pool> {
+    const result = await this.fetch('GET', `market/pool`, { id: poolId.toString() });
+    return this.toPool(result);
+  }
   static async marketPairs(marketId: number | string | BigNumber): Promise<AggregatedPair[]> {
     const result = await this.fetch('GET', `market/pairs`, { id: marketId.toString() });
     for (let key in result) {

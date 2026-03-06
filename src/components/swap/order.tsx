@@ -2,13 +2,13 @@ import { Badge, Box, Button, Card, DataList, Dialog, Flex, Text } from "@radix-u
 import { Order, OrderCondition, OrderPolicy, OrderSide, Swap } from "../../core/swap";
 import { AssetId, Readability } from "tangentsdk";
 import { useMemo, useState } from "react";
-import * as Collapsible from "@radix-ui/react-collapsible";
-import PerformerButton, { Authorization } from "./performer";
 import { AlertBox, AlertType } from "../alert";
 import { Link } from "react-router";
-import Icon from "@mdi/react";
 import { mdiInformationOutline } from "@mdi/js";
 import { AssetImage } from "../asset";
+import { PerformerButton, Builder } from "./performer";
+import * as Collapsible from "@radix-ui/react-collapsible";
+import Icon from "@mdi/react";
 
 export default function OrderView(props: { item: Order, open?: boolean, flash?: boolean, readOnly?: boolean }) {
   const item = props.item;
@@ -219,10 +219,10 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
           </DataList.Item>
         </DataList.Root>
         {
-          !props.readOnly && item.active &&
+          !props.flash && !props.readOnly && item.active &&
           <Flex justify="center" mt="4">
-            <PerformerButton title="Cancel this order" description="Smart contract will re-pay you back all unfilled value after this action" variant="surface" color="red" type={Authorization.OrderDeletion} onData={() => {
-              return { orderId: item.id.toString() }
+            <PerformerButton title="Close order" description="Smart contract will re-pay you back all unfilled value after this action" variant="surface" color="red" onBuild={() => {
+              return Builder.withdrawOrder({ orderId: item.id.toString() });
             }}></PerformerButton>
           </Flex>
         }
@@ -230,59 +230,67 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
     </Collapsible.Root>
   );
   return (
-    <>
+    <Card variant="surface" style={{ borderRadius: '22px', position: "relative" }}>
       {
         props.flash &&
-        <Dialog.Root>
-          <Dialog.Trigger>
-            <Button style={{ display: 'block', width: '100%', height: 'auto', padding: '0', backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
-              <Flex direction="column" gap="2" style={{ padding: '12px' }}>
-                {
-                  item.stopPrice &&
-                  <Flex justify="between" wrap="wrap" gap="1">
-                    <Text size="2" color="gray">Trigger at</Text>
-                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ item.side == OrderSide.Buy ? '≥' : '≤'  } { Readability.toMoney(item.secondaryAsset, item.stopPrice) }</Text>
-                  </Flex>
-                }
-                <Flex justify="between" wrap="wrap" gap="1">
-                  <Text size="2" color="gray">{ item.stopPrice ? 'Then at' : 'At' }</Text>
+        <Box>
+          <Dialog.Root>
+            <Dialog.Trigger>
+              <Button variant="surface" color="gray" style={{ display: 'block', width: '100%', height: 'auto', padding: '4px', backgroundColor: 'transparent', boxShadow: 'none' }}>
+                <Flex direction="column" gap="2">
                   {
-                    possiblePrice != null &&
-                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ item.side == OrderSide.Buy ? '≤' : '≥' } { Readability.toMoney(item.secondaryAsset, possiblePrice) }</Text>
+                    item.stopPrice &&
+                    <Flex justify="between" wrap="wrap" gap="1">
+                      <Text size="2" color="gray">Trigger at</Text>
+                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ item.side == OrderSide.Buy ? '≥' : '≤'  } { Readability.toMoney(item.secondaryAsset, item.stopPrice) }</Text>
+                    </Flex>
                   }
+                  <Flex justify="between" wrap="wrap" gap="1">
+                    <Text size="2" color="gray">{ item.stopPrice ? 'Then at' : 'At' }</Text>
+                    {
+                      possiblePrice != null &&
+                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ item.side == OrderSide.Buy ? '≤' : '≥' } { Readability.toMoney(item.secondaryAsset, possiblePrice) }</Text>
+                    }
+                    {
+                      !possiblePrice &&
+                      <Text size="2" style={{ color: 'var(--gray-12)' }}>Market price</Text>
+                    }
+                  </Flex>
+                  <Flex justify="between" wrap="wrap" gap="1">
+                    <Text size="2" color={ item.side == OrderSide.Buy ? 'jade' : 'red' }>{ item.side == OrderSide.Buy ? 'Buy' : 'Sell' }</Text>
+                    <Text size="2" color={ item.side == OrderSide.Buy ? 'jade' : 'red' }>{ Readability.toMoney(item.primaryAsset, leftoverQuantity) }</Text>
+                  </Flex>
                   {
-                    !possiblePrice &&
-                    <Text size="2" style={{ color: 'var(--gray-12)' }}>Market price</Text>
+                    leftoverQuantity && leftoverQuantity.isFinite() && possiblePrice && possiblePrice.isFinite() &&
+                    <Flex justify="between" wrap="wrap" gap="1">
+                      <Text size="2" color="gray">For</Text>
+                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(item.secondaryAsset, leftoverQuantity.multipliedBy(possiblePrice)) }</Text>
+                    </Flex>
                   }
                 </Flex>
-                <Flex justify="between" wrap="wrap" gap="1">
-                  <Text size="2" color={ item.side == OrderSide.Buy ? 'jade' : 'red' }>{ item.side == OrderSide.Buy ? 'Buy' : 'Sell' }</Text>
-                  <Text size="2" color={ item.side == OrderSide.Buy ? 'jade' : 'red' }>{ Readability.toMoney(item.primaryAsset, leftoverQuantity) }</Text>
-                </Flex>
-                {
-                  leftoverQuantity && leftoverQuantity.isFinite() && possiblePrice && possiblePrice.isFinite() &&
-                  <Flex justify="between" wrap="wrap" gap="1">
-                    <Text size="2" color="gray">For</Text>
-                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(item.secondaryAsset, leftoverQuantity.multipliedBy(possiblePrice)) }</Text>
-                  </Flex>
-                }
-              </Flex>
-            </Button>
-          </Dialog.Trigger>
-          <Dialog.Content maxWidth="450px">
-            <Dialog.Title>Order #{item.orderId.toString().length > 8 ? Readability.toHash(item.orderId.toString(), 4) : item.orderId.toString()}</Dialog.Title>
-            <FullOrderView open={true}></FullOrderView>
-          </Dialog.Content>
-        </Dialog.Root>
+              </Button>
+            </Dialog.Trigger>
+            <Dialog.Content maxWidth="450px">
+              <Dialog.Title>Order #{item.orderId.toString().length > 8 ? Readability.toHash(item.orderId.toString(), 4) : item.orderId.toString()}</Dialog.Title>
+              <FullOrderView open={true}></FullOrderView>
+            </Dialog.Content>
+          </Dialog.Root>
+          {
+            !props.readOnly && item.active &&
+            <Flex justify="center" mt="1">
+              <PerformerButton title="Close order" description="Smart contract will re-pay you back all unfilled value after this action" color="red" style={{ width: '100%' }} onBuild={() => {
+                return Builder.withdrawOrder({ orderId: item.id.toString() });
+              }}></PerformerButton>
+            </Flex>
+          }
+        </Box>
       }
       {
         !props.flash &&
-        <Card variant="surface" style={{ borderRadius: '22px', position: "relative" }}>
-          <Box px="1" py="1">
-            <FullOrderView></FullOrderView>
-          </Box>
-        </Card>
+        <Box px="1" py="1">
+          <FullOrderView></FullOrderView>
+        </Box>
       }
-    </>
+    </Card>
   );
 }

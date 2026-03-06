@@ -6,8 +6,8 @@ import { Link } from "react-router";
 import { AlertBox, AlertType } from "../alert";
 import { mdiInformationOutline } from "@mdi/js";
 import { AssetImage } from "../asset";
+import { PerformerButton, Builder } from "./performer";
 import * as Collapsible from "@radix-ui/react-collapsible";
-import PerformerButton, { Authorization } from "./performer";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
 
@@ -151,10 +151,10 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
           </DataList.Item>
         </DataList.Root>
         {
-          !props.readOnly && item.active &&
+          !props.flash && !props.readOnly && item.active &&
           <Flex justify="center" mt="4">
-            <PerformerButton title="Close this pool" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" variant="surface" color="red" type={Authorization.PoolDeletion} onData={() => {
-              return { poolId: item.id.toString() }
+            <PerformerButton title="Close pool" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" variant="surface" color="red" onBuild={() => {
+              return Builder.withdrawPool({ poolId: item.id.toString() });
             }}></PerformerButton>
           </Flex>
         }
@@ -162,42 +162,50 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
     </Collapsible.Root>
   );
   return (
-    <>
+    <Card variant="surface" style={{ borderRadius: '22px', position: "relative" }}>
       {
         props.flash &&
-        <Dialog.Root>
-          <Dialog.Trigger>
-            <Button style={{ display: 'block', width: '100%', height: 'auto', padding: '0', backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
-              <Flex direction="column" gap="2" style={{ padding: '12px' }}>
-                <Flex justify="between" wrap="wrap" gap="1" style={{ textDecoration: inLowerRange ? undefined : 'line-through', color: 'var(--gray-11)' }}>
-                  <Text size="2" color="jade">Buy at</Text>
-                  <Text size="2" color="jade">≤ { Readability.toMoney(item.secondaryAsset, bidPrice) }</Text>
+        <Box>
+          <Dialog.Root>
+            <Dialog.Trigger>
+              <Button variant="surface" color="gray" style={{ display: 'block', width: '100%', height: 'auto', padding: '4px', backgroundColor: 'transparent', boxShadow: 'none' }}>
+                <Flex direction="column" gap="2">
+                  <Flex justify="between" wrap="wrap" gap="1" style={{ textDecoration: inLowerRange ? undefined : 'line-through', color: 'var(--gray-11)' }}>
+                    <Text size="2" color="jade">Buy at</Text>
+                    <Text size="2" color="jade">≤ { Readability.toMoney(item.secondaryAsset, bidPrice) }</Text>
+                  </Flex>
+                  <Flex justify="between" wrap="wrap" gap="1" style={{ textDecoration: inUpperRange ? undefined : 'line-through', color: 'var(--gray-11)' }}>
+                    <Text size="2" color="red">Sell at</Text>
+                    <Text size="2" color="red">≥ { Readability.toMoney(item.secondaryAsset, askPrice) }</Text>
+                  </Flex>
+                  <Flex justify="between" wrap="wrap" gap="1">
+                    <Text size="2" color="gray">With</Text>
+                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(Swap.equityAsset, state.liquidity) }</Text>
+                  </Flex>
                 </Flex>
-                <Flex justify="between" wrap="wrap" gap="1" style={{ textDecoration: inUpperRange ? undefined : 'line-through', color: 'var(--gray-11)' }}>
-                  <Text size="2" color="red">Sell at</Text>
-                  <Text size="2" color="red">≥ { Readability.toMoney(item.secondaryAsset, askPrice) }</Text>
-                </Flex>
-                <Flex justify="between" wrap="wrap" gap="1">
-                  <Text size="2" color="gray">With</Text>
-                  <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(Swap.equityAsset, state.liquidity) }</Text>
-                </Flex>
-              </Flex>
-            </Button>
-          </Dialog.Trigger>
-          <Dialog.Content maxWidth="450px">
-            <Dialog.Title>Pool #{item.poolId.toString().length > 8 ? Readability.toHash(item.poolId.toString(), 4) : item.poolId.toString()}</Dialog.Title>
-            <FullPoolView open={true}></FullPoolView>
-          </Dialog.Content>
-        </Dialog.Root>
+              </Button>
+            </Dialog.Trigger>
+            <Dialog.Content maxWidth="450px">
+              <Dialog.Title>Pool #{item.poolId.toString().length > 8 ? Readability.toHash(item.poolId.toString(), 4) : item.poolId.toString()}</Dialog.Title>
+              <FullPoolView open={true}></FullPoolView>
+            </Dialog.Content>
+          </Dialog.Root>
+          {
+            !props.readOnly && item.active &&
+            <Flex justify="center" mt="4">
+              <PerformerButton title="Close pool" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" color="red" onBuild={() => {
+                return Builder.withdrawPool({ poolId: item.id.toString() });
+              }}></PerformerButton>
+            </Flex>
+          }
+        </Box>
       }
       {
         !props.flash &&
-        <Card variant="surface" style={{ borderRadius: '24px' }}>
-          <Box px="1" py="1">
-            <FullPoolView></FullPoolView>
-          </Box>
-        </Card>
+        <Box px="1" py="1">
+          <FullPoolView></FullPoolView>
+        </Box>
       }
-    </>
+    </Card>
   );
 }

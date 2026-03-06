@@ -2,12 +2,12 @@ import { Box, Button, Card, Flex, SegmentedControl, Select, Spinner, Text, TextF
 import { AccountTier, Balance, OrderCondition, OrderPolicy, OrderSide } from "../../core/swap";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mdiCurrencyUsd } from "@mdi/js";
-import { AssetId, Readability, TextUtil } from "tangentsdk";
+import { AssetId, ByteUtil, Readability, TextUtil } from "tangentsdk";
 import { AssetImage, AssetName } from "../asset";
 import { Storage } from "../../core/storage";
+import { PerformerButton, Builder } from "./performer";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
-import PerformerButton, { Authorization } from "./performer";
 
 class ConcentratedPool {
   static toLiquidity0(amount0: BigNumber, price: BigNumber, maxPrice: BigNumber): BigNumber {
@@ -132,6 +132,7 @@ export function Maker(props: {
     }
   }, [state.fillOrKill, isImmediate]);
   const orderPayload = useMemo((): {
+    pays: Record<string, string>,
     marketId: string,
     primaryAssetHash: string,
     secondaryAssetHash: string,
@@ -142,8 +143,7 @@ export function Maker(props: {
     price?: string,
     slippage?: string,
     trailingStep?: string,
-    trailingDistance?: string,
-    pays: Record<string, BigNumber>
+    trailingDistance?: string
   } | null => {
     if (state.pool)
       return null;
@@ -157,13 +157,13 @@ export function Maker(props: {
       return null;
 
     let leftover = new BigNumber(finalValue);
-    const pays: Record<string, BigNumber> = { };
+    const pays: Record<string, string> = { };
     const available = state.side == OrderSide.Buy ? props.balances.secondary : props.balances.primary;
     for (let i = 0; i < available.length; i++) {
       const balance = available[i];
       const change = BigNumber.min(balance.available, leftover);
       leftover = leftover.minus(change);
-      pays[balance.asset.id] = change;
+      pays[balance.asset.id] = ByteUtil.bigNumberToString(change);
       if (!leftover.gt(0))
           break;
     }
@@ -181,7 +181,7 @@ export function Maker(props: {
           condition: state.condition,
           policy: policy,
           side: state.side,
-          slippage: finalSlippage.relative ? finalSlippage.relative.negated().toString() : finalSlippage.value.toString(),
+          slippage: ByteUtil.bigNumberToString(finalSlippage.relative ? finalSlippage.relative.negated() : finalSlippage.value),
           pays: pays
         };
       }
@@ -197,7 +197,7 @@ export function Maker(props: {
           condition: state.condition,
           policy: policy,
           side: state.side,
-          price: finalPrice.toString(),
+          price: ByteUtil.bigNumberToString(finalPrice),
           pays: pays
         }
       }
@@ -217,8 +217,8 @@ export function Maker(props: {
           condition: state.condition,
           policy: policy,
           side: state.side,
-          stopPrice: finalStopPrice.toString(),
-          slippage: finalSlippage.relative ? finalSlippage.relative.negated().toString() : finalSlippage.value.toString(),
+          stopPrice: ByteUtil.bigNumberToString(finalStopPrice),
+          slippage: ByteUtil.bigNumberToString(finalSlippage.relative ? finalSlippage.relative.negated() : finalSlippage.value),
           pays: pays
         };
       }
@@ -238,8 +238,8 @@ export function Maker(props: {
           condition: state.condition,
           policy: policy,
           side: state.side,
-          stopPrice: finalStopPrice.toString(),
-          price: finalPrice.toString(),
+          stopPrice: ByteUtil.bigNumberToString(finalStopPrice),
+          price: ByteUtil.bigNumberToString(finalPrice),
           pays: pays
         };
       }
@@ -267,10 +267,10 @@ export function Maker(props: {
           condition: state.condition,
           policy: policy,
           side: state.side,
-          stopPrice: finalStopPrice.toString(),
-          slippage: finalSlippage.relative ? finalSlippage.relative.negated().toString() : finalSlippage.value.toString(),
-          trailingStep: finalTrailingStep.value.toString(),
-          trailingDistance: finalTrailingDistance.value.toString(),
+          stopPrice: ByteUtil.bigNumberToString(finalStopPrice),
+          slippage: ByteUtil.bigNumberToString(finalSlippage.relative ? finalSlippage.relative.negated() : finalSlippage.value),
+          trailingStep: ByteUtil.bigNumberToString(finalTrailingStep.value),
+          trailingDistance: ByteUtil.bigNumberToString(finalTrailingDistance.value),
           pays: pays
         };
       }
@@ -298,10 +298,10 @@ export function Maker(props: {
           condition: state.condition,
           policy: policy,
           side: state.side,
-          stopPrice: finalStopPrice.toString(),
-          price: finalPrice.toString(),
-          trailingStep: finalTrailingStep.value.toString(),
-          trailingDistance: finalTrailingDistance.value.toString(),
+          stopPrice: ByteUtil.bigNumberToString(finalStopPrice),
+          price: ByteUtil.bigNumberToString(finalPrice),
+          trailingStep: ByteUtil.bigNumberToString(finalTrailingStep.value),
+          trailingDistance: ByteUtil.bigNumberToString(finalTrailingDistance.value),
           pays: pays
         };
       }
@@ -310,15 +310,15 @@ export function Maker(props: {
     }
   }, [props.marketId, props.primaryAsset, props.secondaryAsset, state, policy, valueBalance]);
   const poolPayload = useMemo((): {
-    marketId?: string,
+    marketId: string,
     primaryAssetHash: string,
     secondaryAssetHash: string,
-    primaryPays: Record<string, BigNumber>,
-    secondaryPays: Record<string, BigNumber>,
+    primaryPays: Record<string, string>,
+    secondaryPays: Record<string, string>,
+    feeRate: string;
     price: string,
     minPrice?: string;
     maxPrice?: string;
-    feeRate: string;
   } | null => {
     if (!state.pool)
       return null;
@@ -349,23 +349,23 @@ export function Maker(props: {
       return null;
     
     let primaryLeftover = new BigNumber(primary.value);
-    const primaryPays: Record<string, BigNumber> = { };
+    const primaryPays: Record<string, string> = { };
     for (let i = 0; i < props.balances.primary.length; i++) {
       const balance = props.balances.primary[i];
       const change = BigNumber.min(balance.available, primaryLeftover);
       primaryLeftover = primaryLeftover.minus(change);
-      primaryPays[balance.asset.id] = change;
+      primaryPays[balance.asset.id] = ByteUtil.bigNumberToString(change);
       if (!primaryLeftover.gt(0))
           break;
     }
 
     let secondaryLeftover = new BigNumber(secondary.value);
-    const secondaryPays: Record<string, BigNumber> = { };
+    const secondaryPays: Record<string, string> = { };
     for (let i = 0; i < props.balances.secondary.length; i++) {
       const balance = props.balances.secondary[i];
       const change = BigNumber.min(balance.available, secondaryLeftover);
       secondaryLeftover = secondaryLeftover.minus(change);
-      secondaryPays[balance.asset.id] = change;
+      secondaryPays[balance.asset.id] = ByteUtil.bigNumberToString(change);
       if (!secondaryLeftover.gt(0))
           break;
     }
@@ -376,10 +376,10 @@ export function Maker(props: {
       secondaryAssetHash: props.secondaryAsset.id,
       primaryPays: primaryPays,
       secondaryPays: secondaryPays,
-      price: price.toString(),
-      minPrice: withPriceRange ? minPrice.toString() : undefined,
-      maxPrice: withPriceRange ? maxPrice.toString() : undefined,
-      feeRate: feeRate.value.toString()
+      price: ByteUtil.bigNumberToString(price),
+      minPrice: withPriceRange ? ByteUtil.bigNumberToString(minPrice) : undefined,
+      maxPrice: withPriceRange ? ByteUtil.bigNumberToString(maxPrice) : undefined,
+      feeRate: ByteUtil.bigNumberToString(feeRate.value)
     };
   }, [props.marketId, props.primaryAsset, props.secondaryAsset, balances, state]);
   const fee = useMemo(() => {
@@ -629,8 +629,8 @@ export function Maker(props: {
         </Box>
       }
       <Box>
-        <PerformerButton title="Place order" description={`Order placement involves paying ${Readability.toAssetSymbol(valueAsset)} to smart contract that can re-pay it back by withdrawal otherwise it will pay ${Readability.toAssetSymbol(state.side == OrderSide.Buy ? props.primaryAsset : props.secondaryAsset)} as it executes the order`} color={state.side == OrderSide.Buy ? 'jade' : 'red'} style={{ width: '100%' }} type={Authorization.OrderCreation} disabled={orderPayload == null} onData={() => {
-          return orderPayload as Record<string, any>;
+        <PerformerButton title="Place order" description={`Order placement involves paying ${Readability.toAssetSymbol(valueAsset)} to smart contract that can re-pay it back by withdrawal otherwise it will pay ${Readability.toAssetSymbol(state.side == OrderSide.Buy ? props.primaryAsset : props.secondaryAsset)} as it executes the order`} color={state.side == OrderSide.Buy ? 'jade' : 'red'} style={{ width: '100%' }} disabled={!orderPayload} onBuild={async () => {
+          return orderPayload ? Builder.depositOrder(orderPayload) : null;
         }}></PerformerButton>
       </Box>
     </Box>
@@ -715,8 +715,8 @@ export function Maker(props: {
         </Tooltip>
       </Box>
       <Box>
-        <PerformerButton title="Create pool" description={`Pool creation involves paying ${Readability.toAssetSymbol(props.primaryAsset)} and ${Readability.toAssetSymbol(props.secondaryAsset)} to smart contract that will re-pay it back by withdrawal otherwise it will use it to provide liquidity for taker orders`} style={{ width: '100%' }} type={Authorization.PoolCreation} disabled={poolPayload == null} onData={() => {
-          return poolPayload as Record<string, any>;
+        <PerformerButton title="Create pool" description={`Pool creation involves paying ${Readability.toAssetSymbol(props.primaryAsset)} and ${Readability.toAssetSymbol(props.secondaryAsset)} to smart contract that will re-pay it back by withdrawal otherwise it will use it to provide liquidity for taker orders`} style={{ width: '100%' }} disabled={!poolPayload}  onBuild={async () => {
+          return poolPayload ? Builder.depositPool(poolPayload) : null;
         }}></PerformerButton>
       </Box>
     </Box>

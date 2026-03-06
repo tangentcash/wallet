@@ -6,9 +6,9 @@ import { useMemo, useState } from "react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
-import PerformerButton, { Authorization } from "./performer";
-import AssetSelector from "./selector";
+import { PerformerButton, Builder } from "./performer";
 import { AssetImage, AssetName } from "../asset";
+import AssetSelector from "./selector";
 
 function RepayableBalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } } }) {
   const item = props.item;
@@ -93,8 +93,8 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
                 </Select.Content>
               </Select.Root>
             </Box>
-            <PerformerButton title="Repay" description="Smart contract will re-pay you back the 1:1 value of selected token after this action" variant="soft" color="yellow" type={Authorization.AssetRepayment} disabled={!assetPayload} onData={() => {
-              return assetPayload as Record<string, any>
+            <PerformerButton title="Repay" description="Smart contract will re-pay you back the 1:1 value of selected token after this action" variant="soft" color="yellow" disabled={!assetPayload} onBuild={async () => {
+              return assetPayload ? Builder.repayAsset(assetPayload) : null;
             }}></PerformerButton>
           </Flex>
         </Collapsible.Content>

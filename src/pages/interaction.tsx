@@ -627,7 +627,6 @@ export default function InteractionPage() {
     return true;
   }, [loadingTransaction, transactionReady, loadingTransaction, nonce, assets, asset, program, buildTransaction]);
   const decodeApprovableTransaction = useCallback(async (data: string, applyOnlyIfSuccessful: boolean): Promise<void> => {
-    //const data = ByteUtil.uint8ArrayToHexString(ByteUtil.byteStringToUint8Array(atob(message)));
     const result = new ApproveTransaction();
     result.hexMessage = data;
     try {
@@ -1227,8 +1226,8 @@ export default function InteractionPage() {
           <Transaction ownerAddress={ownerAddress} transaction={program.transaction} receipt={simulation?.receipt || undefined} state={simulation?.state || undefined} preview={true}></Transaction>
           {
             Array.isArray(program.transaction.transactions) && program.transaction.transactions.map((subtransaction: any, index: number) =>
-              <Box mt="4" key={subtransaction.hash + index.toString()}>
-                <Transaction ownerAddress={ownerAddress} transaction={subtransaction} preview={'Internal transaction #' + (index + 1).toString() + ' preview!'}></Transaction>
+              <Box mt="4" key={subtransaction.action.hash + index.toString()}>
+                <Transaction ownerAddress={ownerAddress} transaction={subtransaction.action} preview={'Internal transaction #' + (index + 1).toString() + ' preview!'}></Transaction>
               </Box>
             )
           }
@@ -1361,7 +1360,7 @@ export default function InteractionPage() {
                       <Text as="div" weight="light" size="4" mb="1">— Execute <Badge variant="surface" size="2" color="red">{ program.typename || 'unknown' } transaction</Badge></Text>
                       {
                         Array.isArray(program.transaction.transactions) && program.transaction.transactions.map((subtransaction: any, index: number) =>
-                          <Text as="div" weight="light" size="4" mb="1" key={subtransaction.hash + 'x' + index.toString()}>— Execute internal <Badge variant="surface" size="2" color="red">{ Readability.toTransactionType(subtransaction.type) } transaction</Badge></Text>
+                          <Text as="div" weight="light" size="4" mb="1" key={subtransaction.action.hash + 'x' + index.toString()}>— Execute internal <Badge variant="surface" size="2" color="red">{ Readability.toTransactionType(subtransaction.action.type) } transaction</Badge></Text>
                         )
                       }
                     </>
