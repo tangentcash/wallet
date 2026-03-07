@@ -1,8 +1,8 @@
-import { Button, DropdownMenu, Flex, Spinner, Tooltip } from "@radix-ui/themes";
+import { Blockquote, Box, Button, Dialog, Flex, IconButton, Spinner, Tooltip } from "@radix-ui/themes";
 import { CSSProperties, useCallback, useEffect, useState } from "react";
 import { OrderCondition, OrderPolicy, OrderSide, Swap } from "../../core/swap";
 import { AlertBox, AlertType } from "./../alert";
-import { mdiCollage, mdiSetRight } from "@mdi/js";
+import { mdiArrowRight, mdiArrowUp, mdiClose, mdiCollage, mdiSetRight } from "@mdi/js";
 import { AssetId, DEX, Hashsig, Readability, SchemaUtil, Signing, Stream, Transactions, Uint256 } from "tangentsdk";
 import { useNavigate } from "react-router";
 import BigNumber from "bignumber.js";
@@ -13,6 +13,11 @@ export enum BuildAction {
   DeferredAdd,
   DeferredBuild
 }
+
+export type BuilderResult = {
+  text: string,
+  body: Record<string, any>
+};
 
 export class Builder {
     static async depositOrder(args: {
@@ -28,7 +33,7 @@ export class Builder {
         slippage?: string,
         trailingStep?: string,
         trailingDistance?: string
-    }): Promise<Record<string, any>> {
+    }): Promise<BuilderResult> {
         const pays: { asset: AssetId, value: BigNumber }[] = [];
         for (let assetId of Object.keys(args.pays)) {
             const asset = new AssetId(assetId);
@@ -75,9 +80,38 @@ export class Builder {
         if (!pair)
             throw new Error('Pair cannot be found');
 
-        let method: string, parameters: any[];
+        let text: string, method: string, parameters: any[];
         const price = typeof args.price == 'string' || typeof args.price == 'number' ? new BigNumber(args.price) : null;
         const stopPrice = typeof args.stopPrice == 'string' || typeof args.stopPrice == 'number' ? new BigNumber(args.stopPrice) : null;
+        const targetPrice = price || stopPrice || pair.price.close;
+        const targetValue = pays.reduce((t, i) => t.plus(i.value), new BigNumber(0));
+        const toText = (order: { primaryAsset: AssetId, secondaryAsset: AssetId, condition: OrderCondition, side: OrderSide, slippage?: BigNumber, stopPrice?: BigNumber, trailingStep?: BigNumber, trailingDistance?: BigNumber, price?: BigNumber, value: BigNumber }, targetPrice?: BigNumber | null) => {
+            const toPercentile = (asset: AssetId, value?: BigNumber | null) => value ? (value.gte(0) ? value.toString() + ' ' + asset.handle : value.negated().multipliedBy(100).toFixed(2) + '%') : 'N/A';
+            const buying = order.side == OrderSide.Buy;
+            const primaryValue = buying ? (targetPrice ? order.value.dividedBy(targetPrice) : null) : order.value;
+            const secondaryValue = buying ? order.value : (targetPrice ? order.value.multipliedBy(targetPrice) : null);
+            const orderDescription = `${buying ? 'Buy' : 'Sell'} ${Readability.toMoney(order.primaryAsset, primaryValue)} for ${Readability.toMoney(order.secondaryAsset, secondaryValue)} at price no ${buying ? 'higher' : 'lower'} than`;
+            const marketOrderDescription = `${orderDescription} market price + ${toPercentile(order.secondaryAsset, order.slippage)}`;
+            const limitOrderDescription = `${orderDescription} ${Readability.toMoney(order.secondaryAsset, order.price || null)}`;
+            const triggerDescription = `if market price ${buying ? 'falls below' : 'rises above'}`;
+            const trailingDescription = `dynamic stop price (step: ${toPercentile(order.secondaryAsset, order.trailingStep)}, distance: ${toPercentile(order.secondaryAsset, order.trailingDistance)})${order.stopPrice != null ? ' initially set to ' + Readability.toMoney(order.secondaryAsset, order.stopPrice) : ''}`
+            switch (order.condition) {
+                case OrderCondition.Market:
+                    return marketOrderDescription;
+                case OrderCondition.Limit:
+                    return limitOrderDescription;
+                case OrderCondition.Stop:
+                    return `${marketOrderDescription} ${triggerDescription} ${Readability.toMoney(order.secondaryAsset, order.stopPrice || null)}`;
+                case OrderCondition.StopLimit:
+                    return `${limitOrderDescription} ${triggerDescription} ${Readability.toMoney(order.secondaryAsset, order.stopPrice || null)}`;
+                case OrderCondition.TrailingStop:
+                    return `${marketOrderDescription} ${triggerDescription} ${trailingDescription}`;
+                case OrderCondition.TrailingStopLimit:
+                    return `${limitOrderDescription} ${triggerDescription} ${trailingDescription}`;
+                default:
+                    return 'Invalid order condition';
+            }
+        }
         switch (condition) {
             case OrderCondition.Market: {
                 const slippage = typeof args.slippage == 'string' || typeof args.slippage == 'number' ? new BigNumber(args.slippage) : null;
@@ -91,6 +125,14 @@ export class Builder {
                 const slippagePrice = side == OrderSide.Buy ? pair.price.close.plus(distance) : BigNumber.max(pair.price.close.minus(distance), 0);
                 method = DEX.Spot.marketOrder;
                 parameters = [primaryAsset.toUint256(), secondaryAsset.toUint256(), side, policy, slippagePrice];
+                text = toText({
+                    primaryAsset: primaryAsset,
+                    secondaryAsset: secondaryAsset,
+                    condition: condition,
+                    side: side,
+                    slippage: slippage,
+                    value: targetValue
+                }, targetPrice);
                 break;
             }
             case OrderCondition.Limit: {
@@ -99,7 +141,15 @@ export class Builder {
 
                 method = DEX.Spot.limitOrder;
                 parameters = [primaryAsset.toUint256(), secondaryAsset.toUint256(), side, policy, price];
-                break;
+                text = toText({
+                    primaryAsset: primaryAsset,
+                    secondaryAsset: secondaryAsset,
+                    condition: condition,
+                    side: side,
+                    price: price,
+                    value: targetValue
+                }, targetPrice);
+              break;
             }
             case OrderCondition.Stop: {
                 if (!stopPrice || !stopPrice.gt(0))
@@ -111,6 +161,15 @@ export class Builder {
 
                 method = DEX.Spot.stopOrder;
                 parameters = [primaryAsset.toUint256(), secondaryAsset.toUint256(), side, policy, stopPrice, slippage];
+                text = toText({
+                    primaryAsset: primaryAsset,
+                    secondaryAsset: secondaryAsset,
+                    condition: condition,
+                    side: side,
+                    stopPrice: stopPrice,
+                    slippage: slippage,
+                    value: targetValue
+                }, targetPrice);
                 break;
             }
             case OrderCondition.StopLimit: {
@@ -122,6 +181,15 @@ export class Builder {
 
                 method = DEX.Spot.stopLimitOrder;
                 parameters = [primaryAsset.toUint256(), secondaryAsset.toUint256(), side, policy, stopPrice, price];
+                text = toText({
+                    primaryAsset: primaryAsset,
+                    secondaryAsset: secondaryAsset,
+                    condition: condition,
+                    side: side,
+                    stopPrice: stopPrice,
+                    price: price,
+                    value: targetValue
+                }, targetPrice);
                 break;
             }
             case OrderCondition.TrailingStop: {
@@ -142,6 +210,17 @@ export class Builder {
 
                 method = DEX.Spot.trailingStopOrder;
                 parameters = [primaryAsset.toUint256(), secondaryAsset.toUint256(), side, policy, stopPrice, slippage, trailingStep, trailingDistance];
+                text = toText({
+                    primaryAsset: primaryAsset,
+                    secondaryAsset: secondaryAsset,
+                    condition: condition,
+                    side: side,
+                    stopPrice: stopPrice,
+                    trailingStep: trailingStep,
+                    trailingDistance: trailingDistance,
+                    slippage: slippage,
+                    value: targetValue
+                }, targetPrice);
                 break;
             }
             case OrderCondition.TrailingStopLimit: {
@@ -161,6 +240,17 @@ export class Builder {
 
                 method = DEX.Spot.trailingStopLimitOrder;
                 parameters = [primaryAsset.toUint256(), secondaryAsset.toUint256(), side, policy, stopPrice, price, trailingStep, trailingDistance];
+                text = toText({
+                    primaryAsset: primaryAsset,
+                    secondaryAsset: secondaryAsset,
+                    condition: condition,
+                    side: side,
+                    stopPrice: stopPrice,
+                    trailingStep: trailingStep,
+                    trailingDistance: trailingDistance,
+                    price: price,
+                    value: targetValue
+                }, targetPrice);
                 break;
             }
             default:
@@ -168,13 +258,16 @@ export class Builder {
         }
         
         return {
-          callable: marketAccount,
-          pays: pays,
-          function: Readability.toFunction(method),
-          args: parameters
+            text: text,
+            body: {
+              callable: marketAccount,
+              pays: pays,
+              function: Readability.toFunction(method),
+              args: parameters
+            }
         };
     }
-    static async withdrawOrder(args: { orderId: number | string }): Promise<Record<string, any>> {
+    static async withdrawOrder(args: { orderId: number | string }): Promise<BuilderResult> {
         const id = typeof args.orderId == 'string' || typeof args.orderId == 'number' ? new Uint256(args.orderId) : null;
         if (!id)
             throw new Error('Order id not found');
@@ -188,10 +281,13 @@ export class Builder {
             throw new Error('Order ' + id.toString() + ' market account cannot be found');
       
         return {
-          callable: marketAccount,
-          pays: [],
-          function: Readability.toFunction(DEX.Spot.withdrawOrder),
-          args: [new Uint256(order.orderId.toString())]
+          text: 'Withdraw order #' + id.toString(),
+          body: {
+              callable: marketAccount,
+              pays: [],
+              function: Readability.toFunction(DEX.Spot.withdrawOrder),
+              args: [new Uint256(order.orderId.toString())]
+            }
         };
     }
     static async depositPool(args: {
@@ -204,7 +300,7 @@ export class Builder {
         price: string,
         minPrice?: string;
         maxPrice?: string;
-    }): Promise<Record<string, any>> {
+    }): Promise<BuilderResult> {
         if (typeof args.primaryPays != 'object' || typeof args.secondaryPays != 'object')
             throw new Error('Pool value must be set');
 
@@ -271,14 +367,19 @@ export class Builder {
             throw new Error('Pair cannot be found');
 
         const concentrated = minPrice && maxPrice;
+        const targetPrimaryValue = primaryPays.reduce((t, i) => t.plus(i.value), new BigNumber(0));
+        const targetSecondaryValue = secondaryPays.reduce((t, i) => t.plus(i.value), new BigNumber(0));
         return {
-          callable: marketAccount,
-          pays: [...primaryPays, ...secondaryPays],
-          function: Readability.toFunction(DEX.Spot.depositPool),
-          args: [primaryAsset.toUint256(), secondaryAsset.toUint256(), price, concentrated ? minPrice : new BigNumber(-1), concentrated ? maxPrice : new BigNumber(-1), feeRate]
+            text: `Provide liquidity with ${Readability.toMoney(primaryAsset, targetPrimaryValue)} and ${Readability.toMoney(secondaryAsset, targetSecondaryValue)} as reserves with initial price at ${Readability.toMoney(secondaryAsset, price)} active in ${concentrated ? 'concentrated' : 'uniform'} range [${concentrated ? Readability.toMoney(null, minPrice) : '0'}; ${concentrated ? Readability.toMoney(null, maxPrice) + ']' : '+∞)'} and fee set at ${feeRate.multipliedBy(100).toFixed(2)}%`,
+            body: {
+              callable: marketAccount,
+              pays: [...primaryPays, ...secondaryPays],
+              function: Readability.toFunction(DEX.Spot.depositPool),
+              args: [primaryAsset.toUint256(), secondaryAsset.toUint256(), price, concentrated ? minPrice : new BigNumber(-1), concentrated ? maxPrice : new BigNumber(-1), feeRate]
+            }
         };
     }
-    static async withdrawPool(args: { poolId: number | string }): Promise<Record<string, any>> {
+    static async withdrawPool(args: { poolId: number | string }): Promise<BuilderResult> {
         const id = typeof args.poolId == 'string' || typeof args.poolId == 'number' ? new Uint256(args.poolId) : null;
         if (!id)
             throw new Error('Pool id not found');
@@ -292,13 +393,16 @@ export class Builder {
             throw new Error('Pool ' + id.toString() + ' market account cannot be found');
 
         return {
-          callable: marketAccount,
-          pays: [],
-          function: Readability.toFunction(DEX.Spot.withdrawPool),
-          args: [new Uint256(pool.poolId.toString())]
+            text: 'Withdraw pool #' + id.toString(),
+            body: {
+              callable: marketAccount,
+              pays: [],
+              function: Readability.toFunction(DEX.Spot.withdrawPool),
+              args: [new Uint256(pool.poolId.toString())]
+            }
         };
     }
-    static async repayAsset(args: { marketId: string, repaymentAssetHash: string, paymentAssetHash: string, pays: string }): Promise<Record<string, any>> {
+    static async repayAsset(args: { marketId: string, repaymentAssetHash: string, paymentAssetHash: string, pays: string }): Promise<BuilderResult> {
         const repaymentAsset = typeof args.repaymentAssetHash == 'string' || typeof args.repaymentAssetHash == 'number' ? new AssetId(args.repaymentAssetHash) : null;
         if (!repaymentAsset || !repaymentAsset.isValid())
             throw new Error('Repayment asset must be set');
@@ -324,27 +428,30 @@ export class Builder {
             throw new Error('Market ' + marketId.toString() + ' account cannot be found');
 
         return {
-          callable: marketAccount,
-          pays: [{ asset: paymentAsset, value: value }],
-          function: Readability.toFunction(DEX.Spot.repayAsset),
-          args: [repaymentAsset.toUint256()]
+            text: `Repay ${Readability.toMoney(repaymentAsset, value)} from unified ${Readability.toAssetName(paymentAsset)}`,
+            body: {
+              callable: marketAccount,
+              pays: [{ asset: paymentAsset, value: value }],
+              function: Readability.toFunction(DEX.Spot.repayAsset),
+              args: [repaymentAsset.toUint256()]
+            }
         };
     }
 }
 
 export class BuilderQueue {
-  static internal: Record<string, any>[] = [];
+  static internal: BuilderResult[] = [];
 
-  static set(newQueue: Record<string, any>[]) {
+  static set(newQueue: BuilderResult[]) {
     this.internal = newQueue;
     window.dispatchEvent(new CustomEvent('update:builder'));
   }
-  static get(): Record<string, any>[] {
+  static get(): BuilderResult[] {
     return this.internal;
   }
 }
 
-export function PerformerButton(props: { title: string, description: string, disabled?: boolean, variant?: string, color?: string, style?: CSSProperties, onBuild: () => Promise<Record<string, any> | null> }) {
+export function PerformerButton(props: { title: string, description: string, disabled?: boolean, variant?: string, color?: string, style?: CSSProperties, onBuild: () => Promise<BuilderResult | null> }) {
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState(0);
   const navigate = useNavigate();
@@ -359,8 +466,8 @@ export function PerformerButton(props: { title: string, description: string, dis
     try {
       switch (type) {
         case BuildAction.ImmediateBuild: {
-          const body = await props.onBuild();
-          if (!body)
+          const result = await props.onBuild();
+          if (!result)
             throw new Error('Immediate action build failed');
 
           const stream = new Stream();
@@ -370,17 +477,17 @@ export function PerformerButton(props: { title: string, description: string, dis
               nonce: new Uint256(0),
               gasPrice: new BigNumber(0),
               gasLimit: new Uint256(0),
-              ...body
+              ...result.body
           }, new Transactions.Call());
           interact(stream);
           break;
         }
         case BuildAction.DeferredAdd: {
-          const body = await props.onBuild();
-          if (!body)
+          const result = await props.onBuild();
+          if (!result)
             throw new Error('Deferred action build failed');
 
-          BuilderQueue.set([...BuilderQueue.get(), body])
+          BuilderQueue.set([...BuilderQueue.get(), result])
           break;
         }
         case BuildAction.DeferredBuild: {
@@ -395,22 +502,22 @@ export function PerformerButton(props: { title: string, description: string, dis
                 nonce: new Uint256(0),
                 gasPrice: new BigNumber(0),
                 gasLimit: new Uint256(0)
-            }, new Transactions.Rollup(), BuilderQueue.get().map((body) => ({
+            }, new Transactions.Rollup(), BuilderQueue.get().map((result) => ({
               schema: new Transactions.Call(),
               args: {
                 asset: new AssetId(),
-                ...body
+                ...result.body
               }
             })));
           } else {
-            const body = BuilderQueue.get()[0];
+            const result = BuilderQueue.get()[0];
             SchemaUtil.store(stream, {
                 signature: new Hashsig(),
                 asset: new AssetId(),
                 nonce: new Uint256(0),
                 gasPrice: new BigNumber(0),
                 gasLimit: new Uint256(0),
-                ...body
+                ...result.body
             }, new Transactions.Call());
           }
           interact(stream);
@@ -437,26 +544,48 @@ export function PerformerButton(props: { title: string, description: string, dis
             <Icon path={mdiSetRight} size={0.75}></Icon>
           </Spinner>
           { loading ? 'Building...' : props.title }
-        </Button>
-        <DropdownMenu.Root key={state.toString()}>
-          <DropdownMenu.Trigger disabled={props.disabled || loading}>
+        </Button>  
+        <Dialog.Root>
+          <Dialog.Trigger disabled={props.disabled || loading}>
             <Button style={{ borderLeft: '2px solid var(--gray-a5)', borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any}>
               <Icon path={mdiCollage} size={0.65}></Icon>
               { BuilderQueue.get().length > 0 ? 'Multi (' + BuilderQueue.get().length + ')' : 'Multi' }
             </Button>
-          </DropdownMenu.Trigger>
-          <DropdownMenu.Content>
-            <DropdownMenu.Item color="yellow" onClick={() => build(BuildAction.DeferredAdd)}>Add: { props.title }</DropdownMenu.Item>
-            {
-              BuilderQueue.get().length > 0 &&
-              <>
-                <DropdownMenu.Item color="jade" onClick={() => BuilderQueue.get().length ? build(BuildAction.DeferredBuild) : undefined} disabled={!BuilderQueue.get().length}>Execute { Readability.toCount('action', BuilderQueue.get().length) }</DropdownMenu.Item>
-                <DropdownMenu.Separator />
-                <DropdownMenu.Item color="red" onClick={() => BuilderQueue.set([])}>Cleanup { Readability.toCount('action', BuilderQueue.get().length) }</DropdownMenu.Item>
-              </>
-            }
-          </DropdownMenu.Content>
-        </DropdownMenu.Root>
+          </Dialog.Trigger>
+          <Dialog.Content maxWidth="450px">
+            <Dialog.Title>Execute multi-action</Dialog.Title>
+            <Box px="2" py="2" style={{ backgroundColor: 'var(--color-panel)', borderRadius: '22px', minHeight: '120px' }} key={state.toString()}>
+              {
+                BuilderQueue.get().map((item, index) =>
+                  <Flex gap="2" key={item.text + index}>
+                    <Box py="1">
+                      <IconButton variant="soft" size="2" color="gray" onClick={() => {
+                        const queue = BuilderQueue.get()
+                        queue.splice(index, 1);
+                        BuilderQueue.set(queue);
+                      }}>
+                        <Icon path={mdiClose} size={1}></Icon>
+                      </IconButton>
+                    </Box>
+                    <Blockquote>
+                      <Box py="1">{ item.text }</Box>
+                    </Blockquote>
+                  </Flex>
+                )
+              }
+            </Box>
+            <Flex justify="end" gap="1" mt="4">
+              <Button variant={props.variant as any || 'soft'} color={props.color as any} onClick={() => build(BuildAction.DeferredAdd)}>
+                { props.title } <Icon path={mdiArrowUp} size={0.65}></Icon>
+              </Button>
+              <Dialog.Close>
+                <Button variant={props.variant as any || 'soft'} color="orange" onClick={() => BuilderQueue.get().length ? build(BuildAction.DeferredBuild) : undefined} disabled={!BuilderQueue.get().length}>
+                  Checkout <Icon path={mdiArrowRight} size={0.65}></Icon>
+                </Button>
+              </Dialog.Close>
+            </Flex>
+          </Dialog.Content>
+        </Dialog.Root>
       </Flex>
     </Tooltip>
   );
