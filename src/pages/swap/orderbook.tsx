@@ -682,7 +682,7 @@ export default function OrderbookPage() {
         </Box>
         <Flex direction="column" width="100%">
           <Flex justify="between">
-            <Tooltip content={whitelisted === true ? 'Well-known trading pair — current price is possibly within reasonable market ranges' : (whitelisted === false ? 'One or both of assets in trading pair are unknown and are possibly malicious — current price is likely not representative of actual market conditions' : 'Loading...')}>
+            <Tooltip side="left" content={whitelisted === true ? 'Well-known trading pair — current price is possibly within reasonable market ranges' : (whitelisted === false ? 'One or both of assets in trading pair are unknown and are possibly malicious — current price is likely not representative of actual market conditions' : 'Loading...')}>
               <Flex gap="1">
                 <Text size={mobile ? '3' : '4'} style={{ height: '18px', color: 'var(--gray-12)' }}>{ orderbook?.primaryAsset ? Readability.toAssetName(orderbook.primaryAsset) : '?' }</Text>
                 { <Icon path={whitelisted === true ? mdiCheckDecagram : (whitelisted === false ? mdiAlert : mdiTimelapse)} color={whitelisted === true ? 'var(--sky-9)' : (whitelisted === false ? 'var(--yellow-9)' : 'var(--gray-9)')} size={0.75} style={{ transform: 'translateY(3px)' }}></Icon> }
@@ -837,16 +837,16 @@ export default function OrderbookPage() {
             }}>
               <Tabs.List size="2" justify="center" color="orange" style={mobile ? { paddingTop: '20px' } : { }}>
                 <Tabs.Trigger value="info" className="tab-padding-erase">
-                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.1rem' } : undefined}>Market</Badge>
+                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.15rem' } : undefined}>Market</Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="order" className="tab-padding-erase">
-                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.1rem' } : undefined}>Trade</Badge>
+                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.15rem' } : undefined}>Trade</Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="book" className="tab-padding-erase">
-                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.1rem' } : undefined}>Book</Badge>
+                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.15rem' } : undefined}>Book</Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="trades" className="tab-padding-erase">
-                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.1rem' } : undefined}>History</Badge>
+                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.15rem' } : undefined}>History</Badge>
                 </Tabs.Trigger>
               </Tabs.List>
               <Clock></Clock>
@@ -904,7 +904,7 @@ export default function OrderbookPage() {
                               </Flex>
                             </Flex>
                           </Flex>
-                          <Tooltip content="Risk metric based on asset pair combination">
+                          <Tooltip side="left" content="Risk metric based on asset pair combination">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Risk</Text>
                               <Text size="2" style={{ color: whitelisted === true ? 'var(--jade-11)' : (whitelisted === false ? 'var(--red-11)' : 'var(--gray-11)') }}>
@@ -913,7 +913,7 @@ export default function OrderbookPage() {
                               </Text>
                             </Flex>
                           </Tooltip>
-                          <Tooltip content="Smart contract address that facilitates the trading">
+                          <Tooltip side="left" content="Smart contract address that facilitates the trading">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">{ policyOf(market) }</Text>
                               <Flex>
@@ -927,80 +927,80 @@ export default function OrderbookPage() {
                               </Flex>
                             </Flex>
                           </Tooltip>
-                          <Tooltip content="Price at the start of the day">
+                          <Tooltip side="left" content="Price at the start of the day">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Open</Text>
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.open || null) }</Text>
                             </Flex>
                           </Tooltip>
-                          <Tooltip content="Price at current time">
+                          <Tooltip side="left" content="Price at current time">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Close</Text>
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.close || null) }</Text>
                             </Flex>
                           </Tooltip>
-                          <Tooltip content="Absolute difference between price open and price close">
+                          <Tooltip side="left" content="Absolute difference between price open and price close">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Delta</Text>
                               <Text size="2" color={ (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'red' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'jade') }>{ Readability.toMoney(orderbook.secondaryAsset, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true) }</Text>
                             </Flex>
                           </Tooltip>
-                          <Tooltip content="Actual amount traded within last 24 hours">
+                          <Tooltip side="left" content="Actual amount traded within last 24 hours">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Volume</Text>
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.totalVolume || new BigNumber(0)) }</Text>
                             </Flex>
                           </Tooltip>
-                          <Tooltip content="Total amount being currently open for trading including LP positions">
+                          <Tooltip side="left" content="Total amount being currently open for trading including LP positions">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Liquidity</Text>
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.totalLiquidity || new BigNumber(0)) }</Text>
                             </Flex>
                           </Tooltip>
-                          <Tooltip content="Average revenue of LP position">
+                          <Tooltip side="left" content="Average revenue of LP position">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Revenue</Text>
                               <Text size="2" color="orange">{ market && pair?.price.poolVolume?.gt(0) && pair?.price.poolLiquidity?.gt(0) ? Swap.toAPY(pair.poolFeeRate || market.maxPoolFeeRate, pair.price.poolLiquidity, pair.price.poolVolume).toFixed(2) : '0.00' }% APY</Text>
                             </Flex>
                           </Tooltip>
-                          <Tooltip content="Minimal to maximal price range observed during the day">
+                          <Tooltip side="left" content="Minimal to maximal price range observed during the day">
                             <Flex justify="between" wrap="wrap" gap="1" mt="2" mb="1">
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toValue(null, pair?.price.low || null, false, true) }</Text>
                               <Text size="2" color="gray">—</Text>
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toValue(null, pair?.price.high || null, false, true) }</Text>
                             </Flex>
                           </Tooltip>
-                          <Tooltip content="Fee rate range taken from order makers">
+                          <Tooltip side="left" content="Fee rate range taken from order makers">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Maker fee</Text>
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.minMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% — { (market?.maxMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
                             </Flex>
                           </Tooltip>
-                          <Tooltip content="Fee rate range taken from order takers">
+                          <Tooltip side="left" content="Fee rate range taken from order takers">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Taker fee</Text>
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.minTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% — { (market?.maxTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
                             </Flex>
                           </Tooltip>
-                          <Tooltip content="Fee rate range for LP positions">
+                          <Tooltip side="left" content="Fee rate range for LP positions">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Pool fee</Text>
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>0.00% — { (market?.maxPoolFeeRate || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
                             </Flex>
                           </Tooltip>
-                          <Tooltip content={`Exit fee is based on fee revenue of a pool and will be charged on pool withdrawal. Any change to exit fee only affects new pools, existing pools are not affected.`}>
+                          <Tooltip side="left" content={`Exit fee is based on fee revenue of a pool and will be charged on pool withdrawal. Any change to exit fee only affects new pools, existing pools are not affected.`}>
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Pool exit fee</Text>
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.poolExitFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
                             </Flex>
                           </Tooltip>
-                          <Tooltip content={`To reach lowest maker/taker fees, account impact must cover at least ${(market?.assetVolumeTarget || new BigNumber(0)).multipliedBy(100).toFixed(0) }% of ${ (market?.assetResetDays || new BigNumber(0)).toString() } day volume of this market pair within ${ (market?.accountResetDays || new BigNumber(0)).toString() } days`}>
+                          <Tooltip side="left" content={`To reach lowest maker/taker fees, account impact must cover at least ${(market?.assetVolumeTarget || new BigNumber(0)).multipliedBy(100).toFixed(0) }% of ${ (market?.assetResetDays || new BigNumber(0)).toString() } day volume of this market pair within ${ (market?.accountResetDays || new BigNumber(0)).toString() } days`}>
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Impact rule</Text>
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>≥ { (market?.assetVolumeTarget || new BigNumber(0)).multipliedBy(100).toFixed(0) }% of { (market?.assetResetDays || new BigNumber(0)).toString() }d VOL</Text>
                             </Flex>
                           </Tooltip>
-                          <Tooltip content={`Maker/taker fee impact difficulty: fee will get lower exponentially as account impact grows, higher fee impact difficulty will slow down the fee discounts on smaller impact accounts and speed up the fee discounts on higher impact accounts`}>
+                          <Tooltip side="left" content={`Maker/taker fee impact difficulty: fee will get lower exponentially as account impact grows, higher fee impact difficulty will slow down the fee discounts on smaller impact accounts and speed up the fee discounts on higher impact accounts`}>
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Impact difficuly</Text>
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.makerFeeExponent || new BigNumber(0)).multipliedBy(100).toFixed(0) }% — { (market?.takerFeeExponent || new BigNumber(0)).multipliedBy(100).toFixed(0) }%</Text>
@@ -1077,7 +1077,7 @@ export default function OrderbookPage() {
                           <Box width={seriesOptions.priceScope == PriceScope.All ? '50%' : '100%'}>
                             {
                               groupedLevels.bid.map((item) =>
-                                <Tooltip key={item.price.toString()} content={`Buy ${Readability.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≤ ${Readability.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
+                                <Tooltip side="left" key={item.price.toString()} content={`Buy ${Readability.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≤ ${Readability.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
                                   <Button variant="ghost" radius="none" style={{ width: '100%', height: 'auto', padding: 0, margin: 0 }} onClick={() => updatePreset(OrderSide.Buy, item.price)}>
                                     <Flex width="100%" justify="start" px="1" py="1" position="relative">
                                       <Box position="absolute" top="0" left={`${100 - 100 * item.quantity.dividedBy(liquidity.bid[0]).toNumber()}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--jade-7)' }}></Box>
@@ -1097,7 +1097,7 @@ export default function OrderbookPage() {
                           <Box width={seriesOptions.priceScope == PriceScope.All ? '50%' : '100%'}>
                             {
                               groupedLevels.ask.map((item) =>
-                                <Tooltip key={item.price.toString()} content={`Sell ${Readability.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≥ ${Readability.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
+                                <Tooltip side="left" key={item.price.toString()} content={`Sell ${Readability.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≥ ${Readability.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
                                   <Button variant="ghost" radius="none" style={{ width: '100%', height: 'auto', padding: 0, margin: 0 }} onClick={() => updatePreset(OrderSide.Sell, item.price)}>
                                     <Flex width="100%" justify="end" px="1" py="1" position="relative">
                                       <Box position="absolute" top="0" left="0" right={`${100 - 100 * item.quantity.dividedBy(liquidity.ask[0]).toNumber()}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--red-7)' }}></Box>

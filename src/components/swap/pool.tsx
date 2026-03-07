@@ -1,12 +1,13 @@
 import { Badge, Box, Button, Card, DataList, Dialog, Flex, Text } from "@radix-ui/themes";
-import { Readability } from "tangentsdk";
+import { ByteUtil, Readability } from "tangentsdk";
 import { Pool, Swap } from "../../core/swap";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { AlertBox, AlertType } from "../alert";
 import { mdiInformationOutline } from "@mdi/js";
 import { AssetImage } from "../asset";
-import { PerformerButton, Builder } from "./performer";
+import { PerformerButton, Builder, BuilderResult } from "./performer";
+import { LiquidityPool } from "./maker";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
@@ -29,6 +30,55 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
       relativeRevenue: isolatedLiquidity.gt(0) ? revenueLiquidity.dividedBy(isolatedLiquidity) : new BigNumber(0),
       liquidity: isolatedLiquidity.plus(revenueLiquidity)
     }
+  }, [item]);
+  const rebalance = useCallback(async (): Promise<BuilderResult[]> => {
+    const price = Swap.priceOf(item.primaryAsset, item.secondaryAsset).close;
+    if (!price)
+      throw new Error('Failed to re-balance the pool because no market price found');
+    
+    let minPrice: BigNumber | null = item.minPrice && item.minPrice.isFinite() ? item.minPrice : null;
+    let maxPrice: BigNumber | null = item.maxPrice && item.maxPrice.isFinite() ? item.maxPrice : null;
+    if (minPrice?.gt(0) && maxPrice?.gt(0)) {
+      const range = maxPrice.minus(minPrice).dividedBy(2);
+      minPrice = BigNumber.max(price.minus(range), 0);
+      maxPrice = price.plus(range);
+    }
+    
+    const maxSecondaryValue = item.secondaryValue.plus(item.secondaryRevenue);
+    const maxPrimaryValue = item.primaryValue.plus(item.primaryRevenue);
+    let secondaryValue = LiquidityPool.toSecondaryValue(maxPrimaryValue, price, minPrice, maxPrice);
+    if (!secondaryValue)
+      throw new Error('Failed to re-balance the pool because of insufficient primary reserve');
+
+    let primaryValue: BigNumber | null = maxPrimaryValue;
+    if (secondaryValue.gt(maxSecondaryValue)) {
+      primaryValue = LiquidityPool.toPrimaryValue(maxSecondaryValue, price, minPrice, maxPrice);
+      if (!primaryValue)
+        throw new Error('Failed to re-balance the pool because of insufficient secondary reserve');
+
+      secondaryValue = LiquidityPool.toSecondaryValue(primaryValue, price, minPrice, maxPrice);
+      if (!secondaryValue)
+        throw new Error('Failed to re-balance the pool because of insufficient primary reserve');
+    }
+
+    const primaryPays: Record<string, string> = { };
+    const secondaryPays: Record<string, string> = { };
+    primaryPays[item.primaryAsset.id] = ByteUtil.bigNumberToString(primaryValue);
+    secondaryPays[item.secondaryAsset.id] = ByteUtil.bigNumberToString(secondaryValue);
+    return [
+      await Builder.withdrawPool({ poolId: item.id.toString() }),
+      await Builder.depositPool({
+        marketId: item.marketId.toString(),
+        primaryAssetHash: item.primaryAsset.id,
+        secondaryAssetHash: item.secondaryAsset.id,
+        primaryPays: primaryPays,
+        secondaryPays: secondaryPays,
+        price: ByteUtil.bigNumberToString(price),
+        minPrice: minPrice ? ByteUtil.bigNumberToString(minPrice) : undefined,
+        maxPrice: maxPrice ? ByteUtil.bigNumberToString(maxPrice) : undefined,
+        feeRate: ByteUtil.bigNumberToString(item.feeRate)
+      })
+    ];
   }, [item]);
 
   const FullPoolView = (subprops: { open?: boolean }) => (
@@ -152,10 +202,11 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
         </DataList.Root>
         {
           !props.flash && !props.readOnly && item.active &&
-          <Flex justify="center" mt="4">
-            <PerformerButton title="Close pool" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" variant="surface" color="red" onBuild={() => {
-              return Builder.withdrawPool({ poolId: item.id.toString() });
-            }}></PerformerButton>
+          <Flex justify="between" wrap="wrap" gap="1" mt="4">
+              <PerformerButton title="Recreate" description="Smart contract will re-create this pool based on current market price" color="orange" onBuild={() => rebalance()}></PerformerButton>
+              <PerformerButton title="Close" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" color="red" onBuild={() => {
+                return Builder.withdrawPool({ poolId: item.id.toString() });
+              }}></PerformerButton>
           </Flex>
         }
       </Collapsible.Content>
@@ -192,8 +243,9 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
           </Dialog.Root>
           {
             !props.readOnly && item.active &&
-            <Flex justify="center" mt="4">
-              <PerformerButton title="Close pool" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" color="red" onBuild={() => {
+            <Flex justify="between" wrap="wrap" gap="1" mt="1">
+              <PerformerButton title="Recreate" description="Smart contract will re-create this pool based on current market price" color="orange" onBuild={() => rebalance()}></PerformerButton>
+              <PerformerButton title="Close" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" color="red" onBuild={() => {
                 return Builder.withdrawPool({ poolId: item.id.toString() });
               }}></PerformerButton>
             </Flex>

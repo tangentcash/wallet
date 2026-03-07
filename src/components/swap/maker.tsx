@@ -9,7 +9,7 @@ import { PerformerButton, Builder } from "./performer";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 
-class ConcentratedPool {
+export class PoolFormula {
   static toLiquidity0(amount0: BigNumber, price: BigNumber, maxPrice: BigNumber): BigNumber {
     return amount0.multipliedBy(price).multipliedBy(maxPrice).dividedBy(BigNumber.max(0, maxPrice.minus(price))).dp(18);
   }
@@ -24,6 +24,37 @@ class ConcentratedPool {
   }
 }
 
+export class LiquidityPool {
+  static toPrimaryValue(secondaryValue: BigNumber, price: BigNumber, minPrice: BigNumber | null, maxPrice: BigNumber | null): BigNumber | null {
+    if (!secondaryValue.gt(0))
+      return null;
+
+    if (minPrice?.gt(0) && maxPrice?.gt(0)) {
+      const sqrtPrice = price.sqrt();
+      const sqrtMinPrice = minPrice.sqrt();
+      const sqrtMaxPrice = maxPrice.sqrt();
+      const liquidity = PoolFormula.toLiquidity1(secondaryValue, sqrtPrice, sqrtMinPrice);
+      return PoolFormula.toAmount0(liquidity, sqrtPrice, sqrtMaxPrice);
+    } else {
+      return secondaryValue.dividedBy(price);
+    }
+  }
+  static toSecondaryValue(primaryValue: BigNumber, price: BigNumber, minPrice: BigNumber | null, maxPrice: BigNumber | null): BigNumber | null { 
+    if (!primaryValue.gt(0))
+      return null;
+
+    if (minPrice?.gt(0) && maxPrice?.gt(0)) {
+      const sqrtPrice = price.sqrt();
+      const sqrtMinPrice = minPrice.sqrt();
+      const sqrtMaxPrice = maxPrice.sqrt();
+      const liquidity = PoolFormula.toLiquidity0(primaryValue, sqrtPrice, sqrtMaxPrice);
+      return PoolFormula.toAmount1(liquidity, sqrtPrice, sqrtMinPrice);
+    } else {
+      return price.multipliedBy(primaryValue);
+    }
+  }
+}
+
 export type MakerState = {
   condition: OrderCondition,
   side: OrderSide,
@@ -31,8 +62,7 @@ export type MakerState = {
   stopPrice: string,
   price: string,
   basePrice: string,
-  minPrice: string,
-  maxPrice: string,
+  rangePrice: string,
   slippage: string,
   trailingStep: string,
   trailingDistance: string,
@@ -50,8 +80,7 @@ const defaultState: MakerState = {
   stopPrice: '',
   price: '',
   basePrice: '',
-  minPrice: '',
-  maxPrice: '',
+  rangePrice: '',
   slippage: '1%',
   trailingStep: '',
   trailingDistance: '',
@@ -131,6 +160,24 @@ export function Maker(props: {
       return state.fillOrKill ? OrderPolicy.DeferredAll : OrderPolicy.Deferred;
     }
   }, [state.fillOrKill, isImmediate]);
+  const concentratedRange = useMemo((): { min: BigNumber, max: BigNumber } | null => {
+    const rangePrice = TextUtil.toNumericValue(state.rangePrice);
+    const price = TextUtil.toNumericValue(state.basePrice);
+    return rangePrice.gt(0) && price.gt(0) ? {
+      min: price.minus(rangePrice),
+      max: price.plus(rangePrice)
+    } : null;
+  }, [state.basePrice, state.rangePrice]);
+  const fee = useMemo(() => {
+    const min = (state.side == OrderSide.Buy ? props.tiers?.secondary?.makerFee : props.tiers?.primary?.makerFee) || new BigNumber(0);
+    const finalSlippage = hasSlippage ? TextUtil.toNumericValueOrPercent(state.slippage) : null;
+    return {
+      relativePrice: finalSlippage?.relative || new BigNumber(0),
+      absolutePrice: finalSlippage?.absolute || new BigNumber(0),
+      min: min,
+      max: (state.side == OrderSide.Buy ? props.tiers?.secondary?.takerFee : props.tiers?.primary?.takerFee) || new BigNumber(0),
+    }
+  }, [props.tiers, state.side, state.slippage, hasSlippage]);
   const orderPayload = useMemo((): {
     pays: Record<string, string>,
     marketId: string,
@@ -327,11 +374,9 @@ export function Maker(props: {
     if (!price.gt(0))
       return null;
 
-    const minPrice = TextUtil.toNumericValue(state.minPrice), maxPrice = TextUtil.toNumericValue(state.maxPrice);
-    const withPriceRange = minPrice.gt(0) && maxPrice.gt(0);
-    if (withPriceRange && (minPrice.gte(price) || maxPrice.lte(price) || minPrice.gte(maxPrice)))
+    if (concentratedRange && concentratedRange.min.lte(0))
       return null;
-
+    
     if (!props.balances || !balances)
       return null;
 
@@ -377,25 +422,11 @@ export function Maker(props: {
       primaryPays: primaryPays,
       secondaryPays: secondaryPays,
       price: ByteUtil.bigNumberToString(price),
-      minPrice: withPriceRange ? ByteUtil.bigNumberToString(minPrice) : undefined,
-      maxPrice: withPriceRange ? ByteUtil.bigNumberToString(maxPrice) : undefined,
+      minPrice: concentratedRange ? ByteUtil.bigNumberToString(concentratedRange.min) : undefined,
+      maxPrice: concentratedRange ? ByteUtil.bigNumberToString(concentratedRange.max) : undefined,
       feeRate: ByteUtil.bigNumberToString(feeRate.value)
     };
-  }, [props.marketId, props.primaryAsset, props.secondaryAsset, balances, state]);
-  const fee = useMemo(() => {
-    const min = (state.side == OrderSide.Buy ? props.tiers?.secondary?.makerFee : props.tiers?.primary?.makerFee) || new BigNumber(0);
-    const finalSlippage = hasSlippage ? TextUtil.toNumericValueOrPercent(state.slippage) : null;
-    return {
-      relativePrice: finalSlippage?.relative || new BigNumber(0),
-      absolutePrice: finalSlippage?.absolute || new BigNumber(0),
-      min: min,
-      max: (state.side == OrderSide.Buy ? props.tiers?.secondary?.takerFee : props.tiers?.primary?.takerFee) || new BigNumber(0),
-    }
-  }, [props.tiers, state.side, state.slippage, hasSlippage]);
-  const concentrated = useMemo(() => {
-    const minPrice = TextUtil.toNumericValue(state.minPrice), maxPrice = TextUtil.toNumericValue(state.maxPrice);
-    return minPrice.isGreaterThan(0) && maxPrice.isGreaterThan(0) && minPrice.isLessThan(maxPrice);
-  }, [state.minPrice, state.maxPrice]);
+  }, [props.marketId, props.primaryAsset, props.secondaryAsset, balances, state, concentratedRange]);
   const updateState = useCallback((change: (prev: MakerState) => MakerState) => {
     setState(prev => {
       const result = change(prev);
@@ -410,48 +441,32 @@ export function Maker(props: {
     if (price.gt(0)) {
       const primary = TextUtil.toNumericValueOrPercent(primaryValue);
       primary.value = balances ? (primary.relative ? primary.value.multipliedBy(balances.primary) : primary.value) : new BigNumber(0);
-      if (primary.value.gt(0)) {
-        if (concentrated) {
-          primary.value = primary.value.multipliedBy(1.00005);
-          if (primary.value.gt(0)) {
-            const sqrtPrice = new BigNumber(Math.sqrt(price.toNumber()));
-            const sqrtMinPrice = new BigNumber(Math.sqrt(TextUtil.toNumericValue(state.minPrice).toNumber()));
-            const sqrtMaxPrice = new BigNumber(Math.sqrt(TextUtil.toNumericValue(state.maxPrice).toNumber()));
-            const liquidity = ConcentratedPool.toLiquidity0(primary.value, sqrtPrice, sqrtMaxPrice);
-            const secondary = ConcentratedPool.toAmount1(liquidity, sqrtPrice, sqrtMinPrice);
-            return updateState((prev) => ({ ...prev, primaryValue: primaryValue, secondaryValue: secondary.toString() }));
-          }
-        } else {
-          return updateState((prev) => ({ ...prev, primaryValue: primaryValue, secondaryValue: price.multipliedBy(primary.value).toString() }));
+
+      if (!concentratedRange || concentratedRange.min.gt(0)) {
+        const secondary = concentratedRange ? LiquidityPool.toSecondaryValue(primary.value.multipliedBy(1.00005), price, concentratedRange.min || null, concentratedRange.max || null) : LiquidityPool.toSecondaryValue(primary.value, price, null, null);
+        if (secondary != null) {
+          return updateState((prev) => ({ ...prev, primaryValue: primaryValue, secondaryValue: secondary.toString() }));
         }
       }
     }
     updateState((prev) => ({ ...prev, primaryValue: primaryValue }));
-  }, [balances, state.primaryValue, state.basePrice, state.minPrice, state.maxPrice, concentrated]);
+  }, [balances, state.primaryValue, state.basePrice, state.rangePrice, concentratedRange]);
   const setSecondaryValue = useCallback((newSecondaryValue: string): void => {
     const secondaryValue = TextUtil.toValueOrPercent(state.secondaryValue, newSecondaryValue);
     const price = TextUtil.toNumericValue(state.basePrice);
     if (price.gt(0)) {
       const secondary = TextUtil.toNumericValueOrPercent(secondaryValue);
       secondary.value = balances ? (secondary.relative ? secondary.value.multipliedBy(balances.secondary) : secondary.value) : new BigNumber(0);
-      if (secondary.value.gt(0)) {
-        secondary.value = secondary.value.dividedBy(1.00005);
-        if (concentrated) {
-          if (secondary.value.gt(0)) {
-            const sqrtPrice = new BigNumber(Math.sqrt(price.toNumber()));
-            const sqrtMinPrice = new BigNumber(Math.sqrt(TextUtil.toNumericValue(state.minPrice).toNumber()));
-            const sqrtMaxPrice = new BigNumber(Math.sqrt(TextUtil.toNumericValue(state.maxPrice).toNumber()));
-            const liquidity = ConcentratedPool.toLiquidity1(secondary.value, sqrtPrice, sqrtMinPrice);
-            const primary = ConcentratedPool.toAmount0(liquidity, sqrtPrice, sqrtMaxPrice);
-            return updateState((prev) => ({ ...prev, primaryValue: primary.toString(), secondaryValue: secondaryValue }));
-          }
-        } else {
-          return updateState((prev) => ({ ...prev, primaryValue: secondary.value.dividedBy(price).toString(), secondaryValue: secondaryValue }));
+ 
+      if (!concentratedRange || concentratedRange.min.gt(0)) {
+        const primary = concentratedRange ? LiquidityPool.toPrimaryValue(secondary.value.dividedBy(1.00005), price, concentratedRange.min || null, concentratedRange.max || null) : LiquidityPool.toSecondaryValue(secondary.value, price, null, null);
+        if (primary != null) {
+          return updateState((prev) => ({ ...prev, primaryValue: primary.toString(), secondaryValue: secondaryValue }));
         }
       }
     }
     updateState((prev) => ({ ...prev, secondaryValue: secondaryValue }));
-  }, [balances, state.secondaryValue, state.basePrice, state.minPrice, state.maxPrice, concentrated]);
+  }, [balances, state.secondaryValue, state.basePrice, state.rangePrice, concentratedRange]);
   useEffect(() => {
     if (props.preset != null && presetId < props.preset.id) {
       setPresetId(props.preset.id);
@@ -462,8 +477,7 @@ export function Maker(props: {
         stopPrice: props.preset?.stopPrice || '',
         price: props.preset?.price || '',
         basePrice: props.preset?.basePrice || '',
-        minPrice: props.preset?.minPrice || '',
-        maxPrice: props.preset?.maxPrice || '',
+        rangePrice: props.preset?.rangePrice || '',
         slippage: props.preset?.slippage || '1%',
         trailingStep: props.preset?.trailingStep || '',
         trailingDistance: props.preset?.trailingDistance || '',
@@ -661,15 +675,6 @@ export function Maker(props: {
         </Button>
       </Box>
       <Box mb="2">
-        <Tooltip side="left" content={`Min price: min pool price equal to ${state.minPrice.length > 0 ? Readability.toMoney(props.secondaryAsset, state.minPrice) : 'selected'} minus fee rate which will concentrate liquidity at prices above selected`}>
-          <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' min price or none'} size="2" value={state.minPrice} onChange={(e) => updateState(prev => ({ ...prev, minPrice: TextUtil.toValue(prev.minPrice, e.target.value), primaryValue: '', secondaryValue: '' }))}>
-            <TextField.Slot>
-              <Icon path={mdiCurrencyUsd} size={0.8} />
-            </TextField.Slot>
-          </TextField.Root>
-        </Tooltip>
-      </Box>
-      <Box mb="2">
         <Tooltip side="left" content={`Price: starting price equal to ${state.basePrice.length > 0 ? Readability.toMoney(props.secondaryAsset, state.basePrice) : 'selected'} that will gradually adjust to market price as trades are made`}>
           <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' price'} size="2" value={state.basePrice} onChange={(e) => updateState(prev => ({ ...prev, basePrice: TextUtil.toValue(prev.basePrice, e.target.value), primaryValue: '', secondaryValue: '' }))}>
             <TextField.Slot>
@@ -679,14 +684,24 @@ export function Maker(props: {
         </Tooltip>
       </Box>
       <Box mb="2">
-        <Tooltip side="left" content={`Max price: max pool price equal to ${state.maxPrice.length > 0 ? Readability.toMoney(props.secondaryAsset, state.maxPrice) : 'selected'} plus fee rate which will concentrate liquidity at prices below selected`}>
-          <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' max price or none'} size="2" value={state.maxPrice} onChange={(e) => updateState(prev => ({ ...prev, maxPrice: TextUtil.toValue(prev.maxPrice, e.target.value), primaryValue: '', secondaryValue: '' }))}>
+        <Tooltip side="left" content={`Price range: lower/upper distance from inital price equal to ${state.rangePrice.length > 0 ? Readability.toMoney(props.secondaryAsset, state.rangePrice) : 'selected'} plus fee rate which will concentrate liquidity at prices below selected`}>
+          <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' price range or none'} size="2" value={state.rangePrice} onChange={(e) => updateState(prev => ({ ...prev, rangePrice: TextUtil.toValue(prev.rangePrice, e.target.value), primaryValue: '', secondaryValue: '' }))}>
             <TextField.Slot>
               <Icon path={mdiCurrencyUsd} size={0.8} />
             </TextField.Slot>
           </TextField.Root>
         </Tooltip>
       </Box>
+      {
+        concentratedRange &&
+        <Tooltip side="left" content="Minimal to maximal price range">
+          <Flex justify="between" wrap="wrap" gap="1" my="3" px="2">
+            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toValue(null, concentratedRange.min, false, true) }</Text>
+            <Text size="2" color="gray">—</Text>
+            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toValue(null, concentratedRange.max, false, true) }</Text>
+          </Flex>
+        </Tooltip>
+      }
       <Box mb="2">
         <Tooltip side="left" content={`Primary reserve: initial ${Readability.toAssetSymbol(props.primaryAsset)} reserve equal to ${Readability.toMoney(props.primaryAsset, state.primaryValue)} and will adjust as trades are made`}>
           <TextField.Root placeholder={Readability.toAssetSymbol(props.primaryAsset) + ' reserve or %'} size="2" value={state.primaryValue} onChange={(e) => setPrimaryValue(e.target.value)}>

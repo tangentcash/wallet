@@ -2,7 +2,7 @@ import { Box, Button, Dialog, Flex, IconButton, Spinner, Text, Tooltip } from "@
 import { CSSProperties, useCallback, useEffect, useState } from "react";
 import { OrderCondition, OrderPolicy, OrderSide, Swap } from "../../core/swap";
 import { AlertBox, AlertType } from "./../alert";
-import { mdiArrowRight, mdiBlur, mdiBlurOff, mdiCashRefund, mdiClose, mdiCollage, mdiWater, mdiWaterOff } from "@mdi/js";
+import { mdiArrowRight, mdiBlur, mdiBlurOff, mdiCancel, mdiCashRefund, mdiClose, mdiCollage, mdiWater, mdiWaterOff } from "@mdi/js";
 import { AssetId, DEX, Hashsig, Readability, SchemaUtil, Signing, Stream, Transactions, Uint256 } from "tangentsdk";
 import { useNavigate, useSearchParams } from "react-router";
 import BigNumber from "bignumber.js";
@@ -78,7 +78,8 @@ export class Builder {
         let text: string, method: string, parameters: any[];
         const price = typeof args.price == 'string' || typeof args.price == 'number' ? new BigNumber(args.price) : null;
         const stopPrice = typeof args.stopPrice == 'string' || typeof args.stopPrice == 'number' ? new BigNumber(args.stopPrice) : null;
-        const targetPrice = price || stopPrice || pair.price.close;
+        const closePrice = Swap.priceOf(pair.primaryAsset, pair.secondaryAsset).close;
+        const targetPrice = price || stopPrice || closePrice;
         const targetValue = pays.reduce((t, i) => t.plus(i.value), new BigNumber(0));
         const toText = (order: { primaryAsset: AssetId, secondaryAsset: AssetId, condition: OrderCondition, side: OrderSide, slippage?: BigNumber, stopPrice?: BigNumber, trailingStep?: BigNumber, trailingDistance?: BigNumber, price?: BigNumber, value: BigNumber }, targetPrice?: BigNumber | null) => {
             const toPercentile = (asset: AssetId, value?: BigNumber | null) => value ? (value.gte(0) ? value.toString() + ' ' + asset.handle : value.negated().multipliedBy(100).toFixed(2) + '%') : 'N/A';
@@ -113,11 +114,11 @@ export class Builder {
                 if (!slippage)
                     throw new Error('Order slippage must be set');
 
-                if (!pair.price.close || !pair.price.close.gt(0))
+                if (!closePrice?.gt(0))
                     throw new Error('No last price to calculate slippage price from');
 
-                const distance = slippage.lt(0) ? slippage.multipliedBy(pair.price.close.negated()) : slippage;
-                const slippagePrice = side == OrderSide.Buy ? pair.price.close.plus(distance) : BigNumber.max(pair.price.close.minus(distance), 0);
+                const distance = slippage.lt(0) ? slippage.multipliedBy(closePrice.negated()) : slippage;
+                const slippagePrice = side == OrderSide.Buy ? closePrice.plus(distance) : BigNumber.max(closePrice.minus(distance), 0);
                 method = DEX.Spot.marketOrder;
                 parameters = [primaryAsset.toUint256(), secondaryAsset.toUint256(), side, policy, slippagePrice];
                 text = toText({
@@ -298,6 +299,7 @@ export class Builder {
         minPrice?: string;
         maxPrice?: string;
     }): Promise<BuilderResult> {
+      console.log(args);
         if (typeof args.primaryPays != 'object' || typeof args.secondaryPays != 'object')
             throw new Error('Pool value must be set');
 
@@ -451,7 +453,7 @@ export class BuilderQueue {
   }
 }
 
-export function PerformerButton(props: { title: string, description: string, disabled?: boolean, variant?: string, color?: string, style?: CSSProperties, onBuild: () => Promise<BuilderResult | null> }) {
+export function PerformerButton(props: { title: string, description: string, disabled?: boolean, variant?: string, color?: string, style?: CSSProperties, onBuild: () => Promise<BuilderResult | BuilderResult[] | null> }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState(0);
@@ -466,7 +468,11 @@ export function PerformerButton(props: { title: string, description: string, dis
       if (!result)
         throw new Error('Failed to receive action data');
 
-      BuilderQueue.set([...BuilderQueue.get(), result]);
+      if (Array.isArray(result)) {
+        BuilderQueue.set([...BuilderQueue.get(), ...result]);
+      } else {
+        BuilderQueue.set([...BuilderQueue.get(), result]);
+      }
     } catch (exception: any) {
       AlertBox.open(AlertType.Error, 'Build failed: ' + exception.message);
     }
@@ -545,8 +551,8 @@ export function PerformerButton(props: { title: string, description: string, dis
             <Box key={state.toString()}>
               {
                 BuilderQueue.get().map((item, index) =>
-                  <Box px="2" py="2" position="relative" style={{ backgroundColor: 'var(--color-panel)', borderRadius: '22px' }} mb={index == BuilderQueue.get().length - 1 ? undefined : '3'}>
-                    <Flex gap="2" key={item.text + index}>
+                  <Box px="2" py="2" position="relative" style={{ backgroundColor: 'var(--color-panel)', borderRadius: '22px' }} mb={index == BuilderQueue.get().length - 1 ? undefined : '3'} key={item.text + index}>
+                    <Flex gap="2">
                       <Flex px="4" py="4" justify="center">
                         <Icon path={item.icon} size={1.5}></Icon>
                       </Flex>
@@ -571,7 +577,10 @@ export function PerformerButton(props: { title: string, description: string, dis
                 </Flex>
               }
             </Box>
-            <Flex justify="end" gap="1" mt="4">
+            <Flex justify="between" gap="1" mt="4">
+              <Button variant={props.variant as any || 'soft'} color="gray" onClick={() => BuilderQueue.set([])} disabled={!BuilderQueue.get().length}>
+                Clear all <Icon path={mdiCancel} size={0.65}></Icon>
+              </Button>
               <Dialog.Close>
                 <Button variant={props.variant as any || 'soft'} color="orange" onClick={() => BuilderQueue.get().length ? checkout() : undefined} disabled={!BuilderQueue.get().length}>
                   Checkout <Icon path={mdiArrowRight} size={0.65}></Icon>
