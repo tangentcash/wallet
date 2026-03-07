@@ -59,13 +59,13 @@ export default function TransactionPage() {
         <Transaction ownerAddress={ownerAddress} transaction={data.transaction} receipt={data.receipt} state={data.state} open={true}></Transaction>
         {
           Array.isArray(data.transaction.transactions) && data.transaction.transactions.map((subtransaction: any, index: number) =>
-            <Box mt="4" key={subtransaction.hash + index.toString()}>
+            <Box mt="4" key={subtransaction.action.hash + index.toString()}>
               <Transaction ownerAddress={ownerAddress} preview={'Internal transaction #' + (index + 1).toString()} transaction={(() => ({
-                ...subtransaction,
+                ...subtransaction.action,
                 gas_price: new BigNumber(0),
                 gas_limit: rollupGasLimit.gt(0) ? rollupGasLimit : data.transaction.gas_limit
               }))()} receipt={(() => {
-                const receipt = data.state ? data.state.receipts[subtransaction.hash] : null;
+                const receipt = data.state ? data.state.receipts[subtransaction.action.hash] : null;
                 return {
                   ...data.receipt,
                   relative_gas_use: receipt ? receipt.relativeGasUse : data.receipt.relative_gas_use,
