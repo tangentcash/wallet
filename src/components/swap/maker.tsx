@@ -512,7 +512,7 @@ export function Maker(props: {
       </Box>
       <Box mb="2">
         <Select.Root value={state.condition.toString()} onValueChange={(e) => updateState(prev => ({ ...prev, condition: parseInt(e) }))}>
-          <Tooltip content="Order matching style">
+          <Tooltip side="left" content="Condition: order matching style">
             <Select.Trigger style={{ width: '100%' }} />
           </Tooltip>
           <Select.Content>
@@ -530,7 +530,7 @@ export function Maker(props: {
       </Box>
       <Box mb="2">
         <Select.Root value={state.fillOrKill ? '1' : '0'} onValueChange={(e) => updateState(prev => ({ ...prev, fillOrKill: parseInt(e) > 0 }))}>
-          <Tooltip content={`Fill completely/partially${isImmediate ? ' and cancel leftovers' : ''} or fill ${ isImmediate ? 'completely and cancel if not possible to do so' : 'only completely'}`}>
+          <Tooltip side="left" content={`Policy: fill completely/partially${isImmediate ? ' and cancel leftovers' : ''} or fill ${ isImmediate ? 'completely and cancel if not possible to do so' : 'only completely'}`}>
             <Select.Trigger style={{ width: '100%' }}>
             </Select.Trigger>
           </Tooltip>
@@ -546,7 +546,7 @@ export function Maker(props: {
       {
         hasStopPrice &&
         <Box mb="2">
-          <Tooltip content={`${state.side == OrderSide.Buy ? 'Minimal' : 'Maximal'} ${isTrailing ? 'initial ' : ''}price to replace the ${isTrailing ? 'trailing stop' : 'stop'} order with ${isImmediate ? 'market' : 'limit'} order`}>
+          <Tooltip side="left" content={`Stop price: ${state.side == OrderSide.Buy ? 'maximal' : 'minimal'} ${isTrailing ? 'initial ' : ''}price to replace the ${isTrailing ? 'trailing stop' : 'stop'} order with ${isImmediate ? 'market' : 'limit'} order`}>
             <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' stop price'} size="2" value={state.stopPrice} onChange={(e) => updateState(prev => ({ ...prev, stopPrice: TextUtil.toValue(prev.stopPrice, e.target.value) }))}>
               <TextField.Slot>
                 <Icon path={mdiCurrencyUsd} size={0.8} />
@@ -558,7 +558,7 @@ export function Maker(props: {
       {
         hasPrice &&
         <Box mb="2">
-          <Tooltip content={`Match ${state.side == OrderSide.Buy ? 'selling' : 'buying'} orders with price ${state.side == OrderSide.Buy ? 'lower' : 'higher'} than or equal to ${state.price.length > 0 ? Readability.toMoney(props.secondaryAsset, state.price) : 'selected'}`}>
+          <Tooltip side="left" content={`Price: match ${state.side == OrderSide.Buy ? 'selling' : 'buying'} orders with price ${state.side == OrderSide.Buy ? 'lower' : 'higher'} than or equal to ${state.price.length > 0 ? Readability.toMoney(props.secondaryAsset, state.price) : 'selected'}`}>
             <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' price'} size="2" value={state.price} onChange={(e) => updateState(prev => ({ ...prev, price: TextUtil.toValue(prev.price, e.target.value) }))}>
               <TextField.Slot>
                 <Icon path={mdiCurrencyUsd} size={0.8} />
@@ -571,7 +571,7 @@ export function Maker(props: {
         isTrailing &&
         <>
           <Box mb="2">
-            <Tooltip content={`Minimal price ${state.side == OrderSide.Buy ? 'fall' : 'rise'} to trigger stop price change`}>
+            <Tooltip side="left" content={`Trailing stop: minimal price ${state.side == OrderSide.Buy ? 'fall' : 'rise'} to trigger stop price change`}>
               <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' step or %'} size="2" value={state.trailingStep} onChange={(e) => updateState(prev => ({ ...prev, trailingStep: TextUtil.toValueOrPercent(prev.trailingStep, e.target.value) }))}>
                 <TextField.Slot>
                   <Icon path={mdiCurrencyUsd} size={0.8} />
@@ -580,7 +580,7 @@ export function Maker(props: {
             </Tooltip>
           </Box>
           <Box mb="2">
-            <Tooltip content={`Stop price distance ${state.side == OrderSide.Buy ? 'above' : 'below'} market price`}>
+            <Tooltip side="left" content={`Trailing distance: stop price distance ${state.side == OrderSide.Buy ? 'above' : 'below'} market price`}>
               <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' distance or %'} size="2" value={state.trailingDistance} onChange={(e) => updateState(prev => ({ ...prev, trailingDistance: TextUtil.toValueOrPercent(prev.trailingDistance, e.target.value) }))}>
                 <TextField.Slot>
                   <Icon path={mdiCurrencyUsd} size={0.8} />
@@ -593,7 +593,7 @@ export function Maker(props: {
       {
         hasSlippage &&
         <Box mb="2">
-          <Tooltip content={`Maximal unfavorable deviation from best price`}>
+          <Tooltip side="left" content={`Slippage: maximal unfavorable deviation from best price`}>
             <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' slippage or %'} size="2" value={state.slippage} onChange={(e) => updateState(prev => ({ ...prev, slippage: TextUtil.toValueOrPercent(prev.slippage, e.target.value) }))}>
               <TextField.Slot>
                 <Icon path={mdiCurrencyUsd} size={0.8} />
@@ -603,7 +603,7 @@ export function Maker(props: {
         </Box>
       }
       <Box mb="2">
-        <Tooltip content={`Receive ~${state.side == OrderSide.Buy ? Readability.toMoney(props.primaryAsset, (bestPrice.gt(0) ? payingValue.dividedBy(bestPrice) : new BigNumber(0))) : Readability.toMoney(props.secondaryAsset, bestPrice.multipliedBy(payingValue))} excluding fees and slippage`}>
+        <Tooltip side="left" content={`Quantity: receive ~${state.side == OrderSide.Buy ? Readability.toMoney(props.primaryAsset, (bestPrice.gt(0) ? payingValue.dividedBy(bestPrice) : new BigNumber(0))) : Readability.toMoney(props.secondaryAsset, bestPrice.multipliedBy(payingValue))} excluding fees and slippage`}>
           <TextField.Root placeholder={Readability.toAssetSymbol(valueAsset) + ' quantity or %'} size="2" value={state.value} onChange={(e) => updateState(prev => ({ ...prev, value: TextUtil.toValueOrPercent(prev.value, e.target.value) }))}>
             <TextField.Slot>
               <Icon path={mdiCurrencyUsd} size={0.8} />
@@ -661,7 +661,7 @@ export function Maker(props: {
         </Button>
       </Box>
       <Box mb="2">
-        <Tooltip content={`Min pool price equal to ${state.minPrice.length > 0 ? Readability.toMoney(props.secondaryAsset, state.minPrice) : 'selected'} minus fee rate which will concentrate liquidity at prices above selected`}>
+        <Tooltip side="left" content={`Min price: min pool price equal to ${state.minPrice.length > 0 ? Readability.toMoney(props.secondaryAsset, state.minPrice) : 'selected'} minus fee rate which will concentrate liquidity at prices above selected`}>
           <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' min price or none'} size="2" value={state.minPrice} onChange={(e) => updateState(prev => ({ ...prev, minPrice: TextUtil.toValue(prev.minPrice, e.target.value), primaryValue: '', secondaryValue: '' }))}>
             <TextField.Slot>
               <Icon path={mdiCurrencyUsd} size={0.8} />
@@ -670,7 +670,7 @@ export function Maker(props: {
         </Tooltip>
       </Box>
       <Box mb="2">
-        <Tooltip content={`Starting price equal to ${state.basePrice.length > 0 ? Readability.toMoney(props.secondaryAsset, state.basePrice) : 'selected'} that will gradually adjust to market price as trades are made`}>
+        <Tooltip side="left" content={`Price: starting price equal to ${state.basePrice.length > 0 ? Readability.toMoney(props.secondaryAsset, state.basePrice) : 'selected'} that will gradually adjust to market price as trades are made`}>
           <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' price'} size="2" value={state.basePrice} onChange={(e) => updateState(prev => ({ ...prev, basePrice: TextUtil.toValue(prev.basePrice, e.target.value), primaryValue: '', secondaryValue: '' }))}>
             <TextField.Slot>
               <Icon path={mdiCurrencyUsd} size={0.8} />
@@ -679,7 +679,7 @@ export function Maker(props: {
         </Tooltip>
       </Box>
       <Box mb="2">
-        <Tooltip content={`Max pool price equal to ${state.maxPrice.length > 0 ? Readability.toMoney(props.secondaryAsset, state.maxPrice) : 'selected'} plus fee rate which will concentrate liquidity at prices below selected`}>
+        <Tooltip side="left" content={`Max price: max pool price equal to ${state.maxPrice.length > 0 ? Readability.toMoney(props.secondaryAsset, state.maxPrice) : 'selected'} plus fee rate which will concentrate liquidity at prices below selected`}>
           <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' max price or none'} size="2" value={state.maxPrice} onChange={(e) => updateState(prev => ({ ...prev, maxPrice: TextUtil.toValue(prev.maxPrice, e.target.value), primaryValue: '', secondaryValue: '' }))}>
             <TextField.Slot>
               <Icon path={mdiCurrencyUsd} size={0.8} />
@@ -688,7 +688,7 @@ export function Maker(props: {
         </Tooltip>
       </Box>
       <Box mb="2">
-        <Tooltip content={`Initial ${Readability.toAssetSymbol(props.primaryAsset)} reserve equal to ${Readability.toMoney(props.primaryAsset, state.primaryValue)} and will adjust as trades are made`}>
+        <Tooltip side="left" content={`Primary reserve: initial ${Readability.toAssetSymbol(props.primaryAsset)} reserve equal to ${Readability.toMoney(props.primaryAsset, state.primaryValue)} and will adjust as trades are made`}>
           <TextField.Root placeholder={Readability.toAssetSymbol(props.primaryAsset) + ' reserve or %'} size="2" value={state.primaryValue} onChange={(e) => setPrimaryValue(e.target.value)}>
             <TextField.Slot>
               <Icon path={mdiCurrencyUsd} size={0.8} />
@@ -697,7 +697,7 @@ export function Maker(props: {
         </Tooltip>
       </Box>
       <Box mb="2">
-        <Tooltip content={`Initial ${Readability.toAssetSymbol(props.secondaryAsset)} reserve equal to ${Readability.toMoney(props.secondaryAsset, state.secondaryValue)} and will adjust as trades are made`}>
+        <Tooltip side="left" content={`Secondary reserve: initial ${Readability.toAssetSymbol(props.secondaryAsset)} reserve equal to ${Readability.toMoney(props.secondaryAsset, state.secondaryValue)} and will adjust as trades are made`}>
           <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' reserve or %'} size="2" value={state.secondaryValue} onChange={(e) => setSecondaryValue(e.target.value)}>
             <TextField.Slot>
               <Icon path={mdiCurrencyUsd} size={0.8} />
@@ -706,7 +706,7 @@ export function Maker(props: {
         </Tooltip>
       </Box>
       <Box mb="2">
-        <Tooltip content={`Pool fee equal to ${state.feeRate ? state.feeRate : 'N/A'} and taken from each trade with this pool`}>
+        <Tooltip side="left" content={`Fee rate: pool fee equal to ${state.feeRate ? state.feeRate : 'N/A'} and taken from each trade with this pool`}>
           <TextField.Root placeholder={'Swap fee %'} size="2" value={state.feeRate} onChange={(e) => updateState(prev => ({ ...prev, feeRate: TextUtil.toPercent(prev.feeRate, e.target.value) }))}>
             <TextField.Slot>
               <Icon path={mdiCurrencyUsd} size={0.8} />

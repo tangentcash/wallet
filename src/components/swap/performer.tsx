@@ -1,20 +1,15 @@
-import { Blockquote, Box, Button, Dialog, Flex, IconButton, Spinner, Tooltip } from "@radix-ui/themes";
+import { Box, Button, Dialog, Flex, IconButton, Spinner, Text, Tooltip } from "@radix-ui/themes";
 import { CSSProperties, useCallback, useEffect, useState } from "react";
 import { OrderCondition, OrderPolicy, OrderSide, Swap } from "../../core/swap";
 import { AlertBox, AlertType } from "./../alert";
-import { mdiArrowRight, mdiArrowUp, mdiClose, mdiCollage } from "@mdi/js";
+import { mdiArrowRight, mdiBlur, mdiBlurOff, mdiCashRefund, mdiClose, mdiCollage, mdiWater, mdiWaterOff } from "@mdi/js";
 import { AssetId, DEX, Hashsig, Readability, SchemaUtil, Signing, Stream, Transactions, Uint256 } from "tangentsdk";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 
-export enum BuildAction {
-  ImmediateBuild,
-  DeferredAdd,
-  DeferredBuild
-}
-
 export type BuilderResult = {
+  icon: string,
   text: string,
   body: Record<string, any>
 };
@@ -258,6 +253,7 @@ export class Builder {
         }
         
         return {
+            icon: mdiBlur,
             text: text,
             body: {
               callable: marketAccount,
@@ -281,8 +277,9 @@ export class Builder {
             throw new Error('Order ' + id.toString() + ' market account cannot be found');
       
         return {
-          text: 'Withdraw order #' + id.toString(),
-          body: {
+            icon: mdiBlurOff,
+            text: 'Withdraw order #' + id.toString(),
+            body: {
               callable: marketAccount,
               pays: [],
               function: Readability.toFunction(DEX.Spot.withdrawOrder),
@@ -370,6 +367,7 @@ export class Builder {
         const targetPrimaryValue = primaryPays.reduce((t, i) => t.plus(i.value), new BigNumber(0));
         const targetSecondaryValue = secondaryPays.reduce((t, i) => t.plus(i.value), new BigNumber(0));
         return {
+            icon: mdiWater,
             text: `Provide liquidity with ${Readability.toMoney(primaryAsset, targetPrimaryValue)} and ${Readability.toMoney(secondaryAsset, targetSecondaryValue)} as reserves with initial price at ${Readability.toMoney(secondaryAsset, price)} active in ${concentrated ? 'concentrated' : 'uniform'} range [${concentrated ? Readability.toMoney(null, minPrice) : '0'}; ${concentrated ? Readability.toMoney(null, maxPrice) + ']' : '+∞)'} and fee set at ${feeRate.multipliedBy(100).toFixed(2)}%`,
             body: {
               callable: marketAccount,
@@ -393,6 +391,7 @@ export class Builder {
             throw new Error('Pool ' + id.toString() + ' market account cannot be found');
 
         return {
+            icon: mdiWaterOff,
             text: 'Withdraw pool #' + id.toString(),
             body: {
               callable: marketAccount,
@@ -428,6 +427,7 @@ export class Builder {
             throw new Error('Market ' + marketId.toString() + ' account cannot be found');
 
         return {
+            icon: mdiCashRefund,
             text: `Repay ${Readability.toMoney(repaymentAsset, value)} from unified ${Readability.toAssetName(paymentAsset)}`,
             body: {
               callable: marketAccount,
@@ -452,134 +452,128 @@ export class BuilderQueue {
 }
 
 export function PerformerButton(props: { title: string, description: string, disabled?: boolean, variant?: string, color?: string, style?: CSSProperties, onBuild: () => Promise<BuilderResult | null> }) {
+  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState(0);
   const navigate = useNavigate();
-  const interact = useCallback((stream: Stream) => {
-    return navigate(`/interaction?type=approve&transaction=${stream.encode()}&back=${encodeURIComponent(location.pathname + location.search)}`);
-  }, [navigate]);
-  const build = useCallback(async (type: BuildAction) => {
+  const append = useCallback(async () => {
     if (loading)
       return;
 
     setLoading(true);
     try {
-      switch (type) {
-        case BuildAction.ImmediateBuild: {
-          const result = await props.onBuild();
-          if (!result)
-            throw new Error('Immediate action build failed');
+      const result = await props.onBuild();
+      if (!result)
+        throw new Error('Failed to receive action data');
 
-          const stream = new Stream();
-          SchemaUtil.store(stream, {
-              signature: new Hashsig(),
-              asset: new AssetId(),
-              nonce: new Uint256(0),
-              gasPrice: new BigNumber(0),
-              gasLimit: new Uint256(0),
-              ...result.body
-          }, new Transactions.Call());
-          interact(stream);
-          break;
-        }
-        case BuildAction.DeferredAdd: {
-          const result = await props.onBuild();
-          if (!result)
-            throw new Error('Deferred action build failed');
-
-          BuilderQueue.set([...BuilderQueue.get(), result])
-          break;
-        }
-        case BuildAction.DeferredBuild: {
-          if (!BuilderQueue.get().length)
-            throw new Error('Must have deferred actions');
-
-          const stream = new Stream();
-          if (BuilderQueue.get().length > 1) {
-            SchemaUtil.storeRollup(stream, {
-                signature: new Hashsig(),
-                asset: new AssetId(),
-                nonce: new Uint256(0),
-                gasPrice: new BigNumber(0),
-                gasLimit: new Uint256(0)
-            }, new Transactions.Rollup(), BuilderQueue.get().map((result) => ({
-              schema: new Transactions.Call(),
-              args: {
-                asset: new AssetId(),
-                ...result.body
-              }
-            })));
-          } else {
-            const result = BuilderQueue.get()[0];
-            SchemaUtil.store(stream, {
-                signature: new Hashsig(),
-                asset: new AssetId(),
-                nonce: new Uint256(0),
-                gasPrice: new BigNumber(0),
-                gasLimit: new Uint256(0),
-                ...result.body
-            }, new Transactions.Call());
-          }
-          interact(stream);
-          BuilderQueue.set([]);
-          break;
-        }
-      }
+      BuilderQueue.set([...BuilderQueue.get(), result]);
     } catch (exception: any) {
       AlertBox.open(AlertType.Error, 'Build failed: ' + exception.message);
     }
     setLoading(false);
+  }, [loading, props.onBuild]);
+  const checkout = useCallback(() => {
+    try {
+      if (!BuilderQueue.get().length)
+        throw new Error('No actions to checkout');
+
+      const stream = new Stream();
+      if (BuilderQueue.get().length > 1) {
+        SchemaUtil.storeRollup(stream, {
+            signature: new Hashsig(),
+            asset: new AssetId(),
+            nonce: new Uint256(0),
+            gasPrice: new BigNumber(0),
+            gasLimit: new Uint256(0)
+        }, new Transactions.Rollup(), BuilderQueue.get().map((result) => ({
+          schema: new Transactions.Call(),
+          args: {
+            asset: new AssetId(),
+            ...result.body
+          }
+        })));
+      } else {
+        const result = BuilderQueue.get()[0];
+        SchemaUtil.store(stream, {
+            signature: new Hashsig(),
+            asset: new AssetId(),
+            nonce: new Uint256(0),
+            gasPrice: new BigNumber(0),
+            gasLimit: new Uint256(0),
+            ...result.body
+        }, new Transactions.Call());
+      }
+
+      navigate(`/interaction?type=approve&transaction=${stream.encode()}&back=${encodeURIComponent(location.pathname + location.search + (location.search.indexOf('?') == -1 ? '?' : '') + 'cleanup=1')}`);
+    } catch (exception: any) {
+      AlertBox.open(AlertType.Error, 'Serialization failed: ' + exception.message);
+    }
   }, [loading, props.onBuild]);
   useEffect(() => {
     const updateState = () => setState(new Date().getTime());
     window.addEventListener('update:builder', updateState);
     return () => window.removeEventListener('update:builder', updateState);
   }, []);
+  useEffect(() => {
+    if (searchParams.has('cleanup')) {
+      const copy = new URLSearchParams(searchParams);
+      copy.delete('cleanup');
+      BuilderQueue.set([]);
+      setSearchParams(copy);
+    }
+  }, [searchParams]);
 
   return (
     <Tooltip content={props.description}>
       <Flex style={props.style}>
-        <Button style={{ flex: 1, width: '100%', borderTopRightRadius: 0, borderBottomRightRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any} disabled={props.disabled || loading} onClick={() => build(BuildAction.ImmediateBuild)}>
-          { loading ? 'Building...' : props.title }
-          <Spinner loading={loading}>
-            <Icon path={mdiArrowRight} size={0.75}></Icon>
-          </Spinner>
-        </Button>  
         <Dialog.Root>
           <Dialog.Trigger disabled={props.disabled || loading}>
-            <Button style={{ borderLeft: '2px solid var(--gray-a5)', borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any}>
-              <Icon path={mdiCollage} size={0.65}></Icon>
-              { BuilderQueue.get().length > 0 ? 'Multi (' + BuilderQueue.get().length + ')' : 'Multi' }
-            </Button>
+            <Flex style={props.style}>
+              <Button style={{ flex: 1, width: '100%', borderTopRightRadius: 0, borderBottomRightRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any} disabled={props.disabled || loading} onClick={() => append()}>
+                { loading ? 'Building...' : props.title }
+                <Spinner loading={loading}>
+                  <Icon path={mdiArrowRight} size={0.75}></Icon>
+                </Spinner>
+              </Button>
+              <Button style={{ borderLeft: '2px solid var(--gray-a5)', borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any} disabled={props.disabled || loading}>
+                <Icon path={mdiCollage} size={0.65}></Icon>
+              </Button>
+            </Flex>
           </Dialog.Trigger>
-          <Dialog.Content maxWidth="450px">
-            <Dialog.Title>Execute multi-action</Dialog.Title>
-            <Box px="2" py="2" style={{ backgroundColor: 'var(--color-panel)', borderRadius: '22px', minHeight: '120px' }} key={state.toString()}>
+          <Dialog.Content maxWidth="600px">
+            <Dialog.Title>Execution plan</Dialog.Title>
+            <Box key={state.toString()}>
               {
                 BuilderQueue.get().map((item, index) =>
-                  <Flex gap="2" key={item.text + index}>
-                    <Box py="1">
-                      <IconButton variant="soft" size="2" color="gray" onClick={() => {
+                  <Box px="2" py="2" position="relative" style={{ backgroundColor: 'var(--color-panel)', borderRadius: '22px' }} mb={index == BuilderQueue.get().length - 1 ? undefined : '3'}>
+                    <Flex gap="2" key={item.text + index}>
+                      <Flex px="4" py="4" justify="center">
+                        <Icon path={item.icon} size={1.5}></Icon>
+                      </Flex>
+                      <Box py="1">{ item.text }</Box>
+                    </Flex>
+                    <Box position="absolute" style={{ top: '-12px', right: '-12px' }}>
+                      <IconButton variant="soft" size="3" color="red" onClick={() => {
                         const queue = BuilderQueue.get()
                         queue.splice(index, 1);
                         BuilderQueue.set(queue);
                       }}>
-                        <Icon path={mdiClose} size={1}></Icon>
+                        <Icon path={mdiClose} size={0.5}></Icon>
                       </IconButton>
                     </Box>
-                    <Blockquote>
-                      <Box py="1">{ item.text }</Box>
-                    </Blockquote>
-                  </Flex>
+                  </Box>
                 )
+              }
+              {
+                !BuilderQueue.get().length &&
+                <Flex px="2" py="2" width="100%" height="100px" justify="center" align="center" style={{ backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
+                  <Text color="gray">Empty plan</Text>
+                </Flex>
               }
             </Box>
             <Flex justify="end" gap="1" mt="4">
-              <Button variant={props.variant as any || 'soft'} color={props.color as any} onClick={() => build(BuildAction.DeferredAdd)}>
-                { props.title } <Icon path={mdiArrowUp} size={0.65}></Icon>
-              </Button>
               <Dialog.Close>
-                <Button variant={props.variant as any || 'soft'} color="orange" onClick={() => BuilderQueue.get().length ? build(BuildAction.DeferredBuild) : undefined} disabled={!BuilderQueue.get().length}>
+                <Button variant={props.variant as any || 'soft'} color="orange" onClick={() => BuilderQueue.get().length ? checkout() : undefined} disabled={!BuilderQueue.get().length}>
                   Checkout <Icon path={mdiArrowRight} size={0.65}></Icon>
                 </Button>
               </Dialog.Close>
