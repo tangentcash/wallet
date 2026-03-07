@@ -2,7 +2,7 @@ import { Blockquote, Box, Button, Dialog, Flex, IconButton, Spinner, Tooltip } f
 import { CSSProperties, useCallback, useEffect, useState } from "react";
 import { OrderCondition, OrderPolicy, OrderSide, Swap } from "../../core/swap";
 import { AlertBox, AlertType } from "./../alert";
-import { mdiArrowRight, mdiArrowUp, mdiClose, mdiCollage, mdiSetRight } from "@mdi/js";
+import { mdiArrowRight, mdiArrowUp, mdiClose, mdiCollage } from "@mdi/js";
 import { AssetId, DEX, Hashsig, Readability, SchemaUtil, Signing, Stream, Transactions, Uint256 } from "tangentsdk";
 import { useNavigate } from "react-router";
 import BigNumber from "bignumber.js";
@@ -540,10 +540,10 @@ export function PerformerButton(props: { title: string, description: string, dis
     <Tooltip content={props.description}>
       <Flex style={props.style}>
         <Button style={{ flex: 1, width: '100%', borderTopRightRadius: 0, borderBottomRightRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any} disabled={props.disabled || loading} onClick={() => build(BuildAction.ImmediateBuild)}>
-          <Spinner loading={loading}>
-            <Icon path={mdiSetRight} size={0.75}></Icon>
-          </Spinner>
           { loading ? 'Building...' : props.title }
+          <Spinner loading={loading}>
+            <Icon path={mdiArrowRight} size={0.75}></Icon>
+          </Spinner>
         </Button>  
         <Dialog.Root>
           <Dialog.Trigger disabled={props.disabled || loading}>
