@@ -6,7 +6,7 @@ import { AlertBox, AlertType } from "../components/alert";
 import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiClose, mdiCoffin, mdiConsole, mdiInformationOutline, mdiKeyOutline, mdiOpenInNew, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTagOutline, mdiTransitConnectionVariant } from "@mdi/js";
 import { AppData } from "../core/app";
 import { Link, useNavigate } from "react-router";
-import { Swap } from "../core/swap";
+import { Exchange } from "../core/exchange";
 import { AssetImage, AssetName } from "./asset";
 import BigNumber from "bignumber.js";
 import InfiniteScroll from 'react-infinite-scroll-component';
@@ -615,12 +615,12 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               </Select.Group>
             </Select.Content>
           </Select.Root>
-          <Button color="jade" size="3" variant="soft" className="shadow-rainbow-hover" onClick={() => navigate(Swap.subroute)}>
+          <Button color="orange" size="3" variant="soft" className="shadow-rainbow-hover" onClick={() => navigate(Exchange.subroute)}>
             <Flex align="center" gap="2">
               <Box style={{ transform: 'translateY(2px)' }}>
-                <Icon path={mdiRulerSquareCompass} size={0.9} color="var(--jade-11)"></Icon>
+                <Icon path={mdiRulerSquareCompass} size={0.9} color="var(--orange-11)"></Icon>
               </Box>
-              <Text size="3" weight="light" color="jade">Trade</Text>
+              <Text size="3" weight="light" color="orange">Exchange</Text>
             </Flex>
           </Button>
         </Flex>

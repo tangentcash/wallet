@@ -2,7 +2,7 @@ import { mdiAlphabeticalVariant, mdiCancel, mdiConsole, mdiMagnify, mdiPlus } fr
 import { Badge, Box, Button, Dialog, Flex, IconButton, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { AssetId, Readability, Whitelist } from "tangentsdk";
-import { Swap, BlockchainInfo } from "../../core/swap";
+import { Exchange, BlockchainInfo } from "../../core/exchange";
 import Icon from "@mdi/react";
 import { AssetImage, AssetName } from "../asset";
 
@@ -14,7 +14,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
   const [address, setAddress] = useState('');
   const [query, setQuery] = useState('');
   const [assets, setAssets] = useState<{ asset: AssetId, contractAddress: boolean | string }[]>([]);
-  const policy = useMemo((): BlockchainInfo | null => policyIndex != null ? Swap.descriptors[policyIndex] : null, [policyIndex]);
+  const policy = useMemo((): BlockchainInfo | null => policyIndex != null ? Exchange.descriptors[policyIndex] : null, [policyIndex]);
   const customToken = useMemo((): (AssetId & { contractAddress: boolean | string }) | null => {
     const targetSymbol = symbol.trim(), targetAddress = address.trim();
     if (!policy || !targetSymbol.length || targetAddress.length < 32)
@@ -33,7 +33,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
     if (value.length > 0) {
       setLoading(setTimeout(async () => {
         try {
-          const result = await Swap.assetQuery(value);
+          const result = await Exchange.assetQuery(value);
           setAssets(result.map((x) => ({ asset: x, contractAddress: Whitelist.contractAddressOf(x) })).sort((a, b) => {
             if (a.contractAddress && !b.contractAddress) {
               return -1;
@@ -63,7 +63,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
 
     setAddress('');
     if (props.value != null) {
-      const policyId = Swap.descriptors.findIndex((item) => item.chain == props.value?.chain);
+      const policyId = Exchange.descriptors.findIndex((item) => item.chain == props.value?.chain);
       const asset = new AssetId(props.value.id);
       setQuery(props.value.handle);
       setPolicyIndex(policyId != -1 ? policyId : null);
@@ -154,7 +154,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
             <Select.Content position="popper" side="bottom" color="gray">
               <Select.Item value={"-1"} disabled={true}>Token's blockchain</Select.Item>
               {
-                Swap.descriptors.map((item, index) =>
+                Exchange.descriptors.map((item, index) =>
                   <Select.Item key={item.id + 'select'} value={index.toString()}>
                     <Flex align="center" gap="1">
                       <AssetImage asset={item} size="1" iconSize="16px"></AssetImage>

@@ -29,8 +29,8 @@ function toServerInfo(url: string): string {
 
 export default function ConfigurePage() {
   const [counter, setCounter] = useState(0);
-  const [resolverAddress, setResolverAddress] = useState(AppData.props.resolver || '');
-  const [serverAddress, setServerAddress] = useState(AppData.props.server || '');
+  const [seederAddress, setSeederAddress] = useState(AppData.props.seeder || '');
+  const [validatorAddress, setValidatorAddress] = useState(AppData.props.validator || '');
   const [loadingProps, setLoadingProps] = useState(false);
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const networkInfo = useMemo<{ connections: number, sentBytes: number, receivedBytes: number, requests: number, responses: number, minTime: Date | null, maxTime: Date | null }>(() => {
@@ -64,7 +64,7 @@ export default function ConfigurePage() {
       maxTime: maxTime
     };
   }, [counter]);
-  const setResolverServer = useCallback((address: string) => {
+  const setSeederServer = useCallback((address: string) => {
     if (loadingProps)
       return false;
 
@@ -74,19 +74,19 @@ export default function ConfigurePage() {
       if (target != null)
         new URL(target);
       
-      AppData.setResolver(target);
+      AppData.setSeeder(target);
       if (target != null)
-        AlertBox.open(AlertType.Info, 'Using ' + target + ' for server discovery');
+        AlertBox.open(AlertType.Info, 'Using ' + target + ' as seeder server');
       else
-        AlertBox.open(AlertType.Warning, 'Server discovery disabled');
+        AlertBox.open(AlertType.Warning, 'Seeder server disabled');
     } catch {
-      AlertBox.open(AlertType.Error, 'Resolver address must be a valid URL');
+      AlertBox.open(AlertType.Error, 'Seeder address must be a valid URL');
     }
 
     setLoadingProps(false);
     return true;
   }, [loadingProps]);
-  const setOverriderServer = useCallback(async (address: string) => {
+  const setValidatorServer = useCallback(async (address: string) => {
     if (loadingProps)
       return false;
 
@@ -96,17 +96,17 @@ export default function ConfigurePage() {
       if (target != null)
         new URL('tcp://' + target);
       
-      AppData.setServer(target);
+      AppData.setValidator(target);
       if (target != null) {
         await RPC.disconnectSocket();
         AppData.reconfigure(null, AppPermission.ReadOnly);
         if (await AppData.sync()) {
-          AlertBox.open(AlertType.Info, 'Using ' + target + ' as overriding server');
+          AlertBox.open(AlertType.Info, 'Using ' + target + ' as validator server');
         } else {
-          AlertBox.open(AlertType.Warning, 'Server connection failed');
+          AlertBox.open(AlertType.Warning, 'Validator server connection failed');
         }
       } else {
-        AlertBox.open(AlertType.Warning, 'Overriding server disabled');
+        AlertBox.open(AlertType.Warning, 'Custom validator server disabled');
       }
     } catch {
       AlertBox.open(AlertType.Error, 'Server must be in a hostname:port format');
@@ -125,7 +125,7 @@ export default function ConfigurePage() {
     if (await AppData.sync()) {
       AlertBox.open(AlertType.Info, 'Network reset: connection re-acquired');
     } else {
-      AlertBox.open(AlertType.Warning, 'Server connection failed');
+      AlertBox.open(AlertType.Warning, 'Connection failed');
     }
     setLoadingProps(false);
     return true;
@@ -213,18 +213,18 @@ export default function ConfigurePage() {
         <Box px="2" py="2">
           <Heading size="5" mb="1">Server options</Heading>
           <Flex gap="1" mt="2">
-            <Tooltip content="This discovery server helps the client to find validator servers">
-              <TextField.Root style={{ width: '100%' }} size="2" placeholder="Resolver server address" type="text" value={resolverAddress} onChange={(e) => setResolverAddress(e.target.value.trim())} />
+            <Tooltip content="This seeder server helps the client to find validator servers">
+              <TextField.Root style={{ width: '100%' }} size="2" placeholder="Seeder server address" type="text" value={seederAddress} onChange={(e) => setSeederAddress(e.target.value.trim())} />
             </Tooltip>
-            <Button size="2" variant="soft" color="orange" onClick={() => setResolverServer(resolverAddress)}>
+            <Button size="2" variant="soft" color="orange" onClick={() => setSeederServer(seederAddress)}>
               <Icon path={mdiRefresh} size={0.85} />
             </Button>
           </Flex>
           <Flex gap="1" mt="2">
             <Tooltip content="This validator server is the only one used to interact with Tangent (if present)">
-              <TextField.Root style={{ width: '100%' }} size="2" placeholder="Validator server address" type="text" value={serverAddress} onChange={(e) => setServerAddress(e.target.value.trim())} />
+              <TextField.Root style={{ width: '100%' }} size="2" placeholder="Validator server address" type="text" value={validatorAddress} onChange={(e) => setValidatorAddress(e.target.value.trim())} />
             </Tooltip>
-            <Button size="2" variant="soft" color="orange" onClick={() => setOverriderServer(serverAddress)}>
+            <Button size="2" variant="soft" color="orange" onClick={() => setValidatorServer(validatorAddress)}>
               <Icon path={mdiRefresh} size={0.85} />
             </Button>
           </Flex>

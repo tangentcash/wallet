@@ -2,22 +2,22 @@ import { AspectRatio, Badge, Box, Button, Card, Dialog, Flex, Heading, IconButto
 import { Link, useNavigate, useParams } from "react-router";
 import { AppData } from "../../core/app";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Swap, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide, Balance, Pool } from "../../core/swap";
+import { Exchange, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide, Balance, Pool } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { SeriesApiRef } from "lightweight-charts-react-components";
 import { BarPrice, ChartOptions, CrosshairMode, DeepPartial, IChartApi, LogicalRange, MouseEventParams, PriceScaleMode, Time } from "lightweight-charts";
 import { mdiAlert, mdiArrowRightThin, mdiCheck, mdiCheckDecagram, mdiCog, mdiCubeOutline, mdiCurrencyUsd, mdiTimelapse } from "@mdi/js";
-import { GenericBar, PriceBar, VolumeBar, ChartViewType, ChartView } from "../../components/swap/chart";
+import { GenericBar, PriceBar, VolumeBar, ChartViewType, ChartView } from "../../components/exchange/chart";
 import { AlertBox, AlertType } from "../../components/alert";
 import { AssetId, Readability, Whitelist } from "tangentsdk";
 import { Storage } from "../../core/storage";
-import { Maker } from "../../components/swap/maker";
+import { Maker } from "../../components/exchange/maker";
 import { AssetImage } from "../../components/asset";
 import BigNumber from "bignumber.js";
-import OrderView from "../../components/swap/order";
+import OrderView from "../../components/exchange/order";
 import Icon from "@mdi/react";
-import Clock from "../../components/swap/clock";
-import PoolView from "../../components/swap/pool";
+import Clock from "../../components/exchange/clock";
+import PoolView from "../../components/exchange/pool";
 
 enum PriceScope {
   Bid,
@@ -194,8 +194,8 @@ export default function OrderbookPage() {
     if (!params.orderbook)
       return null;
     
-    Swap.setOrderbook(params.orderbook);
-    return Swap.fromOrderbookQuery(params.orderbook);
+    Exchange.setOrderbook(params.orderbook);
+    return Exchange.fromOrderbookQuery(params.orderbook);
   }, [params]);
   const orderPath = useMemo(() => {
     return params.orderbook ? pathOfOrder(params.orderbook) : undefined;
@@ -221,7 +221,7 @@ export default function OrderbookPage() {
     };
   }, [polyBalances]);
   const valuation = useMemo(() => {
-    const rate = pair ? Swap.priceOf(seriesOptions.showPrimary ? pair.secondaryAsset : pair.primaryAsset)?.close : null;
+    const rate = pair ? Exchange.priceOf(seriesOptions.showPrimary ? pair.secondaryAsset : pair.primaryAsset)?.close : null;
     const basePrice = rate ? (seriesOptions.showPrimary ? balances.primary.price : balances.secondary.price)?.dividedBy(rate) || null : null;
     const currentPrice = rate ? (seriesOptions.showPrimary ? pair?.price.close : (pair?.price.close ? new BigNumber(1).dividedBy(pair.price.close) : null)) || null : null;
     const quantity = seriesOptions.showPrimary ? balances.primary.value : balances.secondary.value;
@@ -311,7 +311,7 @@ export default function OrderbookPage() {
     const reset = !seriesState.ready;
     setSeriesState(prev => ({ ...prev, ready: true, loading: true }));
     try {
-      const result = await Swap.marketPriceSeries(pair.id, seriesOptions.interval, Math.floor(from / seriesOptions.interval));
+      const result = await Exchange.marketPriceSeries(pair.id, seriesOptions.interval, Math.floor(from / seriesOptions.interval));
       const price: PriceBar[] = [], volume: VolumeBar[] = [];
       let min = result.length > 0 ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER;
       let max = Number.MIN_SAFE_INTEGER;
@@ -402,7 +402,7 @@ export default function OrderbookPage() {
       if (!orderbook || !orderbook.marketId || !orderbook.primaryAsset || !orderbook.secondaryAsset)
         throw false;
       
-      const result = await Swap.marketPair(orderbook.marketId, orderbook.primaryAsset, orderbook.secondaryAsset, false);
+      const result = await Exchange.marketPair(orderbook.marketId, orderbook.primaryAsset, orderbook.secondaryAsset, false);
       if (!result)
         throw false;
 
@@ -426,10 +426,10 @@ export default function OrderbookPage() {
         if (!account)
           return;
 
-        const ordersResult = Swap.accountOrders({ marketId: marketId, pairId: result.id, address: account, active: true });
-        const poolsResults = Swap.accountPools({ marketId: marketId, pairId: result.id, address: account, active: true });
-        const tiersResult = Swap.accountTiers({ marketId: marketId, pairId: result.id, address: account });
-        const balancesResult = Swap.accountBalances({ address: account });
+        const ordersResult = Exchange.accountOrders({ marketId: marketId, pairId: result.id, address: account, active: true });
+        const poolsResults = Exchange.accountPools({ marketId: marketId, pairId: result.id, address: account, active: true });
+        const tiersResult = Exchange.accountTiers({ marketId: marketId, pairId: result.id, address: account });
+        const balancesResult = Exchange.accountBalances({ address: account });
         try {
           setOrders(await ordersResult || []);
         } catch {  }
@@ -453,10 +453,10 @@ export default function OrderbookPage() {
           });
         } catch { }
       };
-      const marketResult = Swap.market(orderbook.marketId);
-      const levelsResult = Swap.marketPriceLevels(orderbook.marketId, result.id);
-      const assetsResult = Swap.marketAssets(orderbook.marketId, result.id);
-      const tradesResult = Swap.marketTrades({ marketId: orderbook.marketId, pairId: result.id });
+      const marketResult = Exchange.market(orderbook.marketId);
+      const levelsResult = Exchange.marketPriceLevels(orderbook.marketId, result.id);
+      const assetsResult = Exchange.marketAssets(orderbook.marketId, result.id);
+      const tradesResult = Exchange.marketTrades({ marketId: orderbook.marketId, pairId: result.id });
       try {
         setMarket(await marketResult);
       } catch (exception: any) {
@@ -507,7 +507,7 @@ export default function OrderbookPage() {
       };
     } catch (exception: any) {
       AlertBox.open(AlertType.Error, 'Failed to fetch market: ' + (exception.message || 'unknown error'));
-      navigate('/explorer');
+      navigate(Exchange.location);
     }
   }, [orderbook]);
   useEffectAsync(async () => {
@@ -520,7 +520,7 @@ export default function OrderbookPage() {
       return;
 
     const trades: AggregatedMatch[] = [];
-    const target = Swap.priceOf(pair.primaryAsset, pair.secondaryAsset);
+    const target = Exchange.priceOf(pair.primaryAsset, pair.secondaryAsset);
     let sentiment = 0, price = target.close, quantity = new BigNumber(0);
     for (let i = 0; i < incomingTrades.length; i++) {
       const data = incomingTrades[i].detail || null;
@@ -922,7 +922,7 @@ export default function OrderbookPage() {
                                   AlertBox.open(AlertType.Info, 'Program account address copied!')
                                 }}>{ Readability.toAddress(market?.account || 'NULL', 5) }</Button>
                                 <Box ml="2">
-                                  <Link className="router-link" to={'/swap/' + market?.account}>▒▒</Link>
+                                  <Link className="router-link" to={'/exchange/' + market?.account}>▒▒</Link>
                                 </Box>
                               </Flex>
                             </Flex>
@@ -960,7 +960,7 @@ export default function OrderbookPage() {
                           <Tooltip side="left" content="Average revenue of LP position">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Revenue</Text>
-                              <Text size="2" color="orange">{ market && pair?.price.poolVolume?.gt(0) && pair?.price.poolLiquidity?.gt(0) ? Swap.toAPY(pair.poolFeeRate || market.maxPoolFeeRate, pair.price.poolLiquidity, pair.price.poolVolume).toFixed(2) : '0.00' }% APY</Text>
+                              <Text size="2" color="orange">{ market && pair?.price.poolVolume?.gt(0) && pair?.price.poolLiquidity?.gt(0) ? Exchange.toAPY(pair.poolFeeRate || market.maxPoolFeeRate, pair.price.poolLiquidity, pair.price.poolVolume).toFixed(2) : '0.00' }% APY</Text>
                             </Flex>
                           </Tooltip>
                           <Tooltip side="left" content="Minimal to maximal price range observed during the day">
@@ -1138,7 +1138,7 @@ export default function OrderbookPage() {
                                   AlertBox.open(AlertType.Info, 'Account address copied!')
                                 }}>{ Readability.toAddress(item.account || 'NULL', 5) }</Button>
                                 <Box ml="2">
-                                  <Link className="router-link" to={'/swap/' + item.account}>▒▒</Link>
+                                  <Link className="router-link" to={'/exchange/' + item.account}>▒▒</Link>
                                 </Box>
                               </Flex>
                             </Flex>

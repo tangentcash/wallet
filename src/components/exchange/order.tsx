@@ -1,5 +1,5 @@
 import { Badge, Box, Button, Card, DataList, Dialog, Flex, Text } from "@radix-ui/themes";
-import { Order, OrderCondition, OrderPolicy, OrderSide, Swap } from "../../core/swap";
+import { Order, OrderCondition, OrderPolicy, OrderSide, Exchange } from "../../core/exchange";
 import { AssetId, Readability } from "tangentsdk";
 import { useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../alert";
@@ -18,7 +18,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
     return item.price || item.stopPrice || item.fillingPrice || null;
   }, [props]);
   const possiblePrice = useMemo((): BigNumber | null => {
-    return price || Swap.priceOf(item.primaryAsset, item.secondaryAsset).close
+    return price || Exchange.priceOf(item.primaryAsset, item.secondaryAsset).close
   }, [props, price]);
   const quantity = useMemo((): BigNumber | null => {
     if (item.side == OrderSide.Sell)
@@ -125,7 +125,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
                 AlertBox.open(AlertType.Info, 'Address copied!')
               }}>{ Readability.toAddress(item.marketAccount || 'NULL') }</Button>
               <Box ml="2">
-                <Link className="router-link" to={'/swap/' + item.marketAccount}>▒▒</Link>
+                <Link className="router-link" to={'/exchange/' + item.marketAccount}>▒▒</Link>
               </Box>
             </DataList.Value>
           </DataList.Item>

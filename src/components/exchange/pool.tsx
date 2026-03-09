@@ -1,6 +1,6 @@
 import { Badge, Box, Button, Card, DataList, Dialog, Flex, Text } from "@radix-ui/themes";
 import { ByteUtil, Readability } from "tangentsdk";
-import { Pool, Swap } from "../../core/swap";
+import { Pool, Exchange } from "../../core/exchange";
 import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { AlertBox, AlertType } from "../alert";
@@ -22,7 +22,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
   const inLowerRange = useMemo(() => concentrated ? bidPrice.gte(item.minPrice || 0) : true, [bidPrice]);
   const inUpperRange = useMemo(() => concentrated ? askPrice.lte(item.maxPrice || 0) : true, [askPrice]);
   const state = useMemo(() => {
-    const primaryPrice = Swap.priceOf(item.primaryAsset), secondaryPrice = Swap.priceOf(item.secondaryAsset);
+    const primaryPrice = Exchange.priceOf(item.primaryAsset), secondaryPrice = Exchange.priceOf(item.secondaryAsset);
     const isolatedLiquidity = item.primaryValue.multipliedBy(primaryPrice.close || new BigNumber(0)).plus(item.secondaryValue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
     const revenueLiquidity = item.primaryRevenue.multipliedBy(primaryPrice.close || new BigNumber(0)).plus(item.secondaryRevenue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
     return {
@@ -32,7 +32,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
     }
   }, [item]);
   const rebalance = useCallback(async (): Promise<BuilderResult[]> => {
-    const price = Swap.priceOf(item.primaryAsset, item.secondaryAsset).close;
+    const price = Exchange.priceOf(item.primaryAsset, item.secondaryAsset).close;
     if (!price)
       throw new Error('Failed to re-balance the pool because no market price found');
     
@@ -96,13 +96,13 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
               <Text size="2">{ item.secondaryAsset.token || item.secondaryAsset.chain }</Text>
             </Flex>
             <Flex align="center" style={{ textDecoration: item.active ? undefined : 'line-through' }}>
-              <Text size="2">{ Readability.toMoney(Swap.equityAsset, state.liquidity) }</Text>
+              <Text size="2">{ Readability.toMoney(Exchange.equityAsset, state.liquidity) }</Text>
             </Flex>
           </Flex>
           <Flex justify="between" align="center">
             <Flex align="center" gap="2" pt="1">
               <Flex gap="1">
-                <Badge variant="soft" color={item.active ? 'jade' : 'gray'} size="2">{ Readability.toMoney(Swap.equityAsset, state.absoluteRevenue, true) }</Badge>
+                <Badge variant="soft" color={item.active ? 'jade' : 'gray'} size="2">{ Readability.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</Badge>
                 <Badge variant="soft" color={item.active ? 'jade' : 'gray'} size="2">{ state.relativeRevenue.gt(0) ? '+' : '' }{ state.relativeRevenue.multipliedBy(100).toFixed(2) }%</Badge>
               </Flex>
             </Flex>
@@ -124,7 +124,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
                 AlertBox.open(AlertType.Info, 'Address copied!')
               }}>{ Readability.toAddress(item.marketAccount || 'NULL') }</Button>
               <Box ml="2">
-                <Link className="router-link" to={'/swap/' + item.marketAccount}>▒▒</Link>
+                <Link className="router-link" to={'/exchange/' + item.marketAccount}>▒▒</Link>
               </Box>
             </DataList.Value>
           </DataList.Item>
@@ -231,7 +231,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
                   </Flex>
                   <Flex justify="between" wrap="wrap" gap="1">
                     <Text size="2" color="gray">With</Text>
-                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(Swap.equityAsset, state.liquidity) }</Text>
+                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(Exchange.equityAsset, state.liquidity) }</Text>
                   </Flex>
                 </Flex>
               </Button>

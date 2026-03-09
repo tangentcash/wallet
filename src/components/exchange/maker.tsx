@@ -1,5 +1,5 @@
 import { Box, Button, Card, Flex, SegmentedControl, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { AccountTier, Balance, OrderCondition, OrderPolicy, OrderSide } from "../../core/swap";
+import { AccountTier, Balance, OrderCondition, OrderPolicy, OrderSide } from "../../core/exchange";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mdiCurrencyUsd } from "@mdi/js";
 import { AssetId, ByteUtil, Readability, TextUtil } from "tangentsdk";
@@ -722,7 +722,7 @@ export function Maker(props: {
       </Box>
       <Box mb="2">
         <Tooltip side="left" content={`Fee rate: pool fee equal to ${state.feeRate ? state.feeRate : 'N/A'} and taken from each trade with this pool`}>
-          <TextField.Root placeholder={'Swap fee %'} size="2" value={state.feeRate} onChange={(e) => updateState(prev => ({ ...prev, feeRate: TextUtil.toPercent(prev.feeRate, e.target.value) }))}>
+          <TextField.Root placeholder={'Exchange fee %'} size="2" value={state.feeRate} onChange={(e) => updateState(prev => ({ ...prev, feeRate: TextUtil.toPercent(prev.feeRate, e.target.value) }))}>
             <TextField.Slot>
               <Icon path={mdiCurrencyUsd} size={0.8} />
             </TextField.Slot>

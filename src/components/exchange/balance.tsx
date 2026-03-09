@@ -1,5 +1,5 @@
 import { Badge, Box, Button, Card, Flex, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { Swap, Balance, Market } from "../../core/swap";
+import { Exchange, Balance, Market } from "../../core/exchange";
 import { AssetId, Readability, TextUtil } from "tangentsdk";
 import { mdiCurrencyUsd, mdiLockOutline, mdiSetRight } from "@mdi/js";
 import { useMemo, useState } from "react";
@@ -16,7 +16,7 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
   const previousEquity = item.equity.previous ? item.equity.previous : baseEquity;
   const currentEquity = item.equity.current ? item.equity.current : baseEquity;
   const [expanded, setExpanded] = useState(false);
-  const [market, setMarket] = useState<Market | null>(Swap.contracts[0] || null);
+  const [market, setMarket] = useState<Market | null>(Exchange.contracts[0] || null);
   const [asset, setAsset] = useState<AssetId | null>(null);
   const [amount, setAmount] = useState<string>('');
   const assetPayload = useMemo((): {
@@ -51,7 +51,7 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
           <Box width="100%">
             <Flex justify="between">
               <AssetName asset={item.asset} size="2"></AssetName>
-              <Text size="2">{ Readability.toMoney(Swap.equityAsset, item.equity.current) }</Text>
+              <Text size="2">{ Readability.toMoney(Exchange.equityAsset, item.equity.current) }</Text>
             </Flex>
             <Flex justify="between" align="center">
               <Tooltip content={ 'Currently locked: ' + Readability.toMoney(item.asset, item.unavailable) }>
@@ -60,7 +60,7 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
                   <Text size="2" color="gray">{ Readability.toMoney(null, item.available.plus(item.unavailable)) }</Text>
                 </Flex>
               </Tooltip>
-              <Tooltip content={ Readability.toMoney(Swap.equityAsset, currentEquity.minus(previousEquity), true) }>
+              <Tooltip content={ Readability.toMoney(Exchange.equityAsset, currentEquity.minus(previousEquity), true) }>
                 <Badge size="2" variant="soft" color={previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : 'jade')} mt="1">
                   <Icon path={mdiSetRight} size={0.7}></Icon>
                   <Text size="1">{ Readability.toPercentageDelta(previousEquity, currentEquity) }</Text>
@@ -83,12 +83,12 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
           </Flex>
           <Flex justify="between" mt="2" gap="2">
             <Box width="100%">
-              <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => setMarket(Swap.contracts.find((v) => v.id.toString() == e) || null)} size="2">
+              <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => setMarket(Exchange.contracts.find((v) => v.id.toString() == e) || null)} size="2">
                 <Select.Trigger variant="soft" color="gray" style={{ width: '100%' }}>{ market ? market.account.substring(market.account.length - 6) : 'no market' }</Select.Trigger>
                 <Select.Content position="popper" side="bottom">
                   <Select.Group>
                     <Select.Label>Market contract</Select.Label>
-                    { Swap.contracts.map((item) => <Select.Item key={item.id.toString()} value={item.id.toString()}>{ Swap.marketPolicyOf(item) } contract — { item.account.substring(item.account.length - 6) }</Select.Item>) }
+                    { Exchange.contracts.map((item) => <Select.Item key={item.id.toString()} value={item.id.toString()}>{ Exchange.marketPolicyOf(item) } contract — { item.account.substring(item.account.length - 6) }</Select.Item>) }
                   </Select.Group>
                 </Select.Content>
               </Select.Root>
@@ -114,7 +114,7 @@ function DefaultBalanceView(props: { item: Balance & { equity: { current: BigNum
         <Box width="100%">
           <Flex justify="between">
             <AssetName asset={item.asset} size="2"></AssetName>
-            <Text size="2">{ Readability.toMoney(Swap.equityAsset, item.equity.current) }</Text>
+            <Text size="2">{ Readability.toMoney(Exchange.equityAsset, item.equity.current) }</Text>
           </Flex>
           <Flex justify="between" align="center">
             <Tooltip content={ 'Currently locked: ' + Readability.toMoney(item.asset, item.unavailable) }>
@@ -123,7 +123,7 @@ function DefaultBalanceView(props: { item: Balance & { equity: { current: BigNum
                 <Text size="2" color="gray">{ Readability.toMoney(null, item.available.plus(item.unavailable)) }</Text>
               </Flex>
             </Tooltip>
-            <Tooltip content={ Readability.toMoney(Swap.equityAsset, currentEquity.minus(previousEquity), true) }>
+            <Tooltip content={ Readability.toMoney(Exchange.equityAsset, currentEquity.minus(previousEquity), true) }>
               <Badge size="2" variant="soft" color={previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : 'jade')} mt="1">
                 <Text size="1">{ Readability.toPercentageDelta(previousEquity, currentEquity) }</Text>
               </Badge>

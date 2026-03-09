@@ -1,16 +1,16 @@
 import { Box, Button, Card, Dialog, Flex, Heading, Tabs, Text, TextField } from "@radix-ui/themes";
 import { AssetId, Readability, RPC, Signing } from "tangentsdk";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Swap, Balance, Order, Pool, Cursor } from "../../core/swap";
+import { Exchange, Balance, Order, Pool, Cursor } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { AppData } from "../..//core/app";
 import { mdiMagnify, mdiMagnifyScan, mdiRefresh } from "@mdi/js";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { Storage } from "../../core/storage";
 import BigNumber from "bignumber.js";
-import BalanceView from "../../components/swap/balance";
-import OrderView from "../../components/swap/order";
-import PoolView from "../../components/swap/pool";
+import BalanceView from "../../components/exchange/balance";
+import OrderView from "../../components/exchange/order";
+import PoolView from "../../components/exchange/pool";
 import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
 import { AlertBox, AlertType } from "../../components/alert";
@@ -37,7 +37,7 @@ export default function PortfolioPage() {
   const [morePools, setMorePools] = useState(true);
   const equityAssets = useMemo((): (Balance & { value: BigNumber, equity: { current: BigNumber | null, previous: BigNumber | null } })[] => {
     return assets.map((v: Balance) => {
-      const price = Swap.priceOf(v.asset);
+      const price = Exchange.priceOf(v.asset);
       const value = v.available.plus(v.unavailable);
       const previousEquity = todayProfits ? (price.open ? new BigNumber(price.open.multipliedBy(value).toFixed(2)) : null) : (v.price ? new BigNumber(v.price.multipliedBy(value).toFixed(2)) : null);
       const currentEquity = price.close ? new BigNumber(price.close.multipliedBy(value).toFixed(2)) : null;
@@ -60,7 +60,7 @@ export default function PortfolioPage() {
   const findOrders = useCallback(async (refresh?: boolean) => {
     try {
       const cursor = Cursor.offset(refresh ? 0 : orders.length);
-      const data = await Swap.accountOrders({ address: ownerAddress, page: cursor.offset * cursor.count });
+      const data = await Exchange.accountOrders({ address: ownerAddress, page: cursor.offset * cursor.count });
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setOrders([]);
@@ -82,7 +82,7 @@ export default function PortfolioPage() {
   const findPools = useCallback(async (refresh?: boolean) => {
     try {
       const cursor = Cursor.offset(refresh ? 0 : pools.length);
-      const data = await Swap.accountPools({ address: ownerAddress, page: cursor.offset * cursor.count });
+      const data = await Exchange.accountPools({ address: ownerAddress, page: cursor.offset * cursor.count });
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setPools([]);
@@ -107,7 +107,7 @@ export default function PortfolioPage() {
       if (!pullAddress)
         throw false;
 
-      const balances = await Swap.accountBalances({ address: pullAddress, resync: dashboardUpdates == -1 });
+      const balances = await Exchange.accountBalances({ address: pullAddress, resync: dashboardUpdates == -1 });
       if (!balances)
         throw false;
       
@@ -129,12 +129,12 @@ export default function PortfolioPage() {
     window.addEventListener('update:order', updateDashboard);
     window.addEventListener('update:pool', updateDashboard);
     window.addEventListener('update:trade', updateAssets);
-    window.addEventListener('swap:ready', updateDashboard);
+    window.addEventListener('exchange:ready', updateDashboard);
     return () => {
       window.removeEventListener('update:order', updateDashboard);
       window.removeEventListener('update:pool', updateDashboard);
       window.removeEventListener('update:trade', updateAssets);
-      window.removeEventListener('swap:ready', updateDashboard);
+      window.removeEventListener('exchange:ready', updateDashboard);
     };
   }, [params.account]); 
   useEffect(() => {
@@ -173,7 +173,7 @@ export default function PortfolioPage() {
                   </TextField.Slot>
                 </TextField.Root>
                 <Flex justify="center" mt="4">
-                  <Button variant="ghost" size="3" type="submit" loading={loading} disabled={!query.trim().length || !Signing.verifyAddress(query.trim()) } onClick={(e) => { e.preventDefault(); navigate(`/swap/${query.trim()}`); }}>Find portfolio</Button>
+                  <Button variant="ghost" size="3" type="submit" loading={loading} disabled={!query.trim().length || !Signing.verifyAddress(query.trim()) } onClick={(e) => { e.preventDefault(); navigate(`/exchange/${query.trim()}`); }}>Find portfolio</Button>
                 </Flex>
               </form>
             </Dialog.Content>
@@ -189,9 +189,9 @@ export default function PortfolioPage() {
                 <Icon path={mdiRefresh} size={0.8}></Icon> Re-sync
               </Button>
             </Flex>
-            <Heading size="7">{ Readability.toMoney(Swap.equityAsset, equity.current) }</Heading>
+            <Heading size="7">{ Readability.toMoney(Exchange.equityAsset, equity.current) }</Heading>
           </Box>
-          <Button variant="soft" size="2" color={ equity.previous.gt(equity.current) ? 'red' : (equity.previous.eq(equity.current) ? 'gray' : 'jade') } onClick={() => setTodayProfits(!todayProfits)}>{ Readability.toMoney(Swap.equityAsset, equity.current.minus(equity.previous), true) } ({ Readability.toPercentageDelta(equity.previous, equity.current) }) - { todayProfits ? 'Today' : 'Total' }</Button>
+          <Button variant="soft" size="2" color={ equity.previous.gt(equity.current) ? 'red' : (equity.previous.eq(equity.current) ? 'gray' : 'jade') } onClick={() => setTodayProfits(!todayProfits)}>{ Readability.toMoney(Exchange.equityAsset, equity.current.minus(equity.previous), true) } ({ Readability.toPercentageDelta(equity.previous, equity.current) }) - { todayProfits ? 'Today' : 'Total' }</Button>
         </Box>
       </Card>
       <Tabs.Root value={viewer} onValueChange={(x) => setSearch({ view: x })} mt="4">

@@ -23,9 +23,9 @@ import TransactionPage from "./../pages/transaction";
 import ProgramPage from "./../pages/program";
 import InteractionPage from "./../pages/interaction";
 import BridgePage from "./../pages/bridge"
-import PortfolioPage from "../pages/swap/portfolio";
-import ExplorerPage from "../pages/swap/explorer";
-import OrderbookPage from "../pages/swap/orderbook";
+import PortfolioPage from "../pages/exchange/portfolio";
+import ExplorerPage from "../pages/exchange/explorer";
+import OrderbookPage from "../pages/exchange/orderbook";
 
 export type DecodedTransaction = {
   typename: string,
@@ -58,14 +58,14 @@ export type AppState = {
 }
 
 export type AppDefs = {
-  prefix: string | null,
-  swapper: string | null,
+  cachePrefix: string | null,
+  exchangeUrl: string | null,
   authorizer: boolean,
 };
 
 export type AppProps = {
-  resolver: string | null,
-  server: string | null,
+  seeder: string | null,
+  validator: string | null,
   account: string | null,
   appearance: 'dark' | 'light'
 }
@@ -87,13 +87,13 @@ export class AppData {
     setNavigation: null
   };
   static defs: AppDefs = {
-    prefix: null,
-    swapper: null,
+    cachePrefix: null,
+    exchangeUrl: null,
     authorizer: false,
   };
   static props: AppProps = {
-    resolver: null,
-    server: null,
+    seeder: null,
+    validator: null,
     account: null,
     appearance: 'dark'
   };
@@ -557,11 +557,11 @@ export class AppData {
       onNodeRequest: this.nodeRequest,
       onNodeResponse: this.nodeResponse,
       onNodeError: this.nodeError,
-      onCacheStore: (path: string, value: any): boolean => Storage.set((this.defs.prefix || 'V') + ':' + path, value),
-      onCacheLoad: (path: string): any | null => Storage.get((this.defs.prefix || 'V') + ':' + path),
-      onCacheKeys: (): string[] => Storage.keys().filter((v) => v.startsWith((this.defs.prefix || 'V'))).map((v) => v.substring((this.defs.prefix || 'V').length + 1)),
-      onIpsetLoad: (): { servers: string[] } => Storage.get(StorageField.Discovery),
-      onIpsetStore: (ipset: { servers: string[] }) => Storage.set(StorageField.Discovery, ipset)
+      onCacheStore: (path: string, value: any): boolean => Storage.set((this.defs.cachePrefix || 'V') + ':' + path, value),
+      onCacheLoad: (path: string): any | null => Storage.get((this.defs.cachePrefix || 'V') + ':' + path),
+      onCacheKeys: (): string[] => Storage.keys().filter((v) => v.startsWith((this.defs.cachePrefix || 'V'))).map((v) => v.substring((this.defs.cachePrefix || 'V').length + 1)),
+      onIpsetLoad: (): { servers: string[] } => Storage.get(StorageField.Ipset),
+      onIpsetStore: (ipset: { servers: string[] }) => Storage.set(StorageField.Ipset, ipset)
     });
     this.reconfigure(null, AppPermission.ReadOnly);
     
@@ -591,7 +591,7 @@ export class AppData {
       Storage.set(StorageField.Network, network);
     } 
       
-    const config: { resolverUrl: string | null, serverUrl: string | null, swapUrl: string | null, cachePrefix: string | null, authorizer: boolean } = (() => {
+    const config: { seederUrl: string | null, validatorUrl: string | null, exchangeUrl: string | null, cachePrefix: string | null, authorizer: boolean } = (() => {
       switch (network) {
         case NetworkType.Regtest:
           return Regtest;
@@ -603,22 +603,22 @@ export class AppData {
           throw new Error('invalid network');
       }
     })();
-    this.defs.prefix = config.cachePrefix;
-    this.defs.swapper = config.swapUrl;
+    this.defs.cachePrefix = config.cachePrefix;
+    this.defs.exchangeUrl = config.exchangeUrl;
     this.defs.authorizer = config.authorizer;
-    if (resetNetwork || !this.props.resolver)
-      this.props.resolver = config.resolverUrl;
-    if (resetNetwork || (!this.props.resolver && !this.props.server) || !Storage.get(StorageField.App))
-      this.props.server = config.serverUrl;
+    if (resetNetwork || !this.props.seeder)
+      this.props.seeder = config.seederUrl;
+    if (resetNetwork || (!this.props.seeder && !this.props.validator) || !Storage.get(StorageField.App))
+      this.props.validator = config.validatorUrl;
     if (resetNetwork)
       RPC.clearCache();
     
     const address = this.getWalletAddress();
     RPC.applyTopics(address ? [address] : []);
-    RPC.applyResolver(this.props.resolver);
-    RPC.applyServer(this.props.server);
+    RPC.applyResolver(this.props.seeder);
+    RPC.applyServer(this.props.validator);
     if (resetNetwork) {
-      Storage.set(StorageField.Discovery);
+      Storage.set(StorageField.Ipset);
     }
   }
   static openDevTools(): void {
@@ -660,14 +660,14 @@ export class AppData {
     window.URL.revokeObjectURL(target);
     document.body.removeChild(link);
   }
-  static setResolver(value: string | null): void {
-    this.props.resolver = value;
-    RPC.applyResolver(this.props.resolver);
+  static setSeeder(value: string | null): void {
+    this.props.seeder = value;
+    RPC.applyResolver(this.props.seeder);
     this.save();
   }
-  static setServer(value: string | null): void {
-    this.props.server = value;
-    RPC.applyServer(this.props.server);
+  static setValidator(value: string | null): void {
+    this.props.validator = value;
+    RPC.applyServer(this.props.validator);
     this.save();
   }
   static setAppearance(value: 'dark' | 'light'): void {
@@ -761,9 +761,9 @@ export function App() {
             <Route path="/program/:id" element={<ProgramPage />} />
             <Route path="/account/:id" element={<AccountPage />} />
             <Route path="/restore" element={<RestorePage />} />
-            <Route path="/swap/:account?" element={<PortfolioPage />} />
-            <Route path="/swap/explorer" element={<ExplorerPage />} />
-            <Route path="/swap/orderbook/:orderbook?" element={<OrderbookPage />} />
+            <Route path="/exchange" element={<ExplorerPage />} />
+            <Route path="/exchange/orderbook/:orderbook?" element={<OrderbookPage />} />
+            <Route path="/exchange/portfolio/:account?" element={<PortfolioPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <Navbar></Navbar>

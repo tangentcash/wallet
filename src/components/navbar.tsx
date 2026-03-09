@@ -2,7 +2,7 @@ import { Box, Button, Flex, IconButton, Tooltip } from "@radix-ui/themes";
 import { mdiCardsOutline, mdiChartTimelineVariantShimmer, mdiContactlessPaymentCircleOutline, mdiDotsCircle, mdiExitToApp, mdiMagnifyScan, mdiRulerSquareCompass, mdiSetRight, mdiSquareRoundedBadgeOutline } from "@mdi/js";
 import { useLocation, useNavigate } from "react-router";
 import { AppData } from "../core/app";
-import { Swap } from "../core/swap";
+import { Exchange } from "../core/exchange";
 import { useMemo } from "react";
 import Icon from "@mdi/react";
 
@@ -26,20 +26,20 @@ const types: {
   { path: '/transaction', name: 'Txn', tip: 'Transaction details', icon: mdiMagnifyScan, activeColor: 'blue' },
   { path: '/program', name: 'Program', tip: 'Program details', icon: mdiMagnifyScan, activeColor: 'blue' },
   { path: '/account', name: 'Account', tip: 'Account details', icon: mdiMagnifyScan, activeColor: 'blue' },
-  { path: `${Swap.subroute}`, name: 'Portfolio', tip: 'My portfolio', icon: mdiCardsOutline, baseColor: 'orange', activeColor: 'orange', persistent: true },
-  { path: `${Swap.subroute}/explorer`, name: 'Explorer', tip: 'Market explorer', icon: mdiRulerSquareCompass, baseColor: 'orange', activeColor: 'orange', persistent: true },
-  { path: `${Swap.subroute}/orderbook`, name: 'Trading', tip: 'Current market', icon: mdiChartTimelineVariantShimmer, baseColor: 'orange', activeColor: 'orange', persistent: true, deep: true, disabled: () => !Swap.getOrderbook(), toPath: () => `${Swap.subroute}/orderbook/${Swap.getOrderbook()}` },
-  { path: `${Swap.subroute}/exit`, name: 'Exit', tip: 'Exit trading', icon: mdiExitToApp, baseColor: 'red', activeColor: 'red', persistent: true, toPath: () => '/' }
+  { path: `${Exchange.subroute}`, name: 'Explorer', tip: 'Market explorer', icon: mdiRulerSquareCompass, baseColor: 'orange', activeColor: 'orange', persistent: true },
+  { path: `${Exchange.subroute}/orderbook`, name: 'Trading', tip: 'Last market', icon: mdiChartTimelineVariantShimmer, baseColor: 'orange', activeColor: 'orange', persistent: true, deep: true, disabled: () => !Exchange.getOrderbook(), toPath: () => `${Exchange.subroute}/orderbook/${Exchange.getOrderbook()}` },
+  { path: `${Exchange.subroute}/portfolio`, name: 'Portfolio', tip: 'My portfolio', icon: mdiCardsOutline, baseColor: 'orange', activeColor: 'orange', persistent: true },
+  { path: `${Exchange.subroute}/exit`, name: 'Exit', tip: 'Exit exchange', icon: mdiExitToApp, baseColor: 'red', activeColor: 'red', persistent: true, toPath: () => '/' }
 ]
 
 export function Navbar() {
   const enlarge = document.body.clientWidth < 600;
   const location = useLocation();
   const navigate = useNavigate();
-  const swap = useMemo(() => location.pathname.startsWith(Swap.subroute), [location.pathname]);
+  const exchange = useMemo(() => location.pathname.startsWith(Exchange.subroute), [location.pathname]);
   const filteredTypes = useMemo(() => {
-    return types.filter((item) => item.path.startsWith(Swap.subroute) == swap);
-  }, [swap]);
+    return types.filter((item) => item.path.startsWith(Exchange.subroute) == exchange);
+  }, [exchange]);
   const locator = useMemo(() => {
     return filteredTypes.filter((item) => location.pathname.startsWith(item.path)).sort((a, b) => b.path.length - a.path.length)[0]?.path || null;
   }, [filteredTypes, location.pathname]);

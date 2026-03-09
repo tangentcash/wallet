@@ -1,7 +1,7 @@
 {
-  "resolverUrl": null,
-  "serverUrl": "localhost:18419",
-  "swapUrl": "http://localhost:19420",
+  "seederUrl": null,
+  "validatorUrl": "localhost:18419",
+  "exchangeUrl": "http://localhost:19420",
   "cachePrefix": "VRT",
   "authorizer": true
 }

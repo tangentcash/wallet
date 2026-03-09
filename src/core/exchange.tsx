@@ -201,13 +201,13 @@ export class Cursor {
     }
 }
 
-export enum SwapField {
+export enum ExchangeField {
   Orderbook = '__orderbook__'
 }
 
-export class Swap {
+export class Exchange {
   static location: string = '';
-  static subroute: string = '/swap';
+  static subroute: string = '/exchange';
   static prices: PriceDescriptors = { };
   static contracts: Market[] = [];
   static descriptors: BlockchainInfo[] = [];
@@ -299,7 +299,7 @@ export class Swap {
     const target = this.fromOrderbookQuery(orderbook);
     const value = target.marketId && target.primaryAsset && target.secondaryAsset ? orderbook : null;
     if (value != this.orderbook)
-      Storage.set(SwapField.Orderbook, this.orderbook = value);
+      Storage.set(ExchangeField.Orderbook, this.orderbook = value);
   }
   static getOrderbook(): string | null {
     return this.orderbook;
@@ -307,7 +307,7 @@ export class Swap {
   static async acquire(): Promise<void> {
     try {
       const address = AppData.getWalletAddress();
-      this.location = AppData.defs.swapper || '';
+      this.location = AppData.defs.exchangeUrl || '';
       
       const connection = await this.channel(address ? [address] : []);
       if (!connection)
@@ -323,8 +323,8 @@ export class Swap {
         this.equityAsset = base ? AssetId.fromHandle(base) : this.equityAsset;
       } catch { }
 
-      this.orderbook = Storage.get(SwapField.Orderbook);
-      this.dispatchEvent('swap:ready', { data: { } });
+      this.orderbook = Storage.get(ExchangeField.Orderbook);
+      this.dispatchEvent('exchange:ready', { data: { } });
       if (this.awaitables != null) {
         for (let i = 0; i < this.awaitables.length; i++) {
           this.awaitables[i]();
@@ -332,7 +332,7 @@ export class Swap {
         this.awaitables = null;
       }
     } catch (exception: any) {
-      AlertBox.open(AlertType.Error, 'Swap server error: ' + exception.message);
+      AlertBox.open(AlertType.Error, 'Exchange server error: ' + exception.message);
     }
   }
   static acquireDeferred(): Promise<void> {
@@ -351,7 +351,7 @@ export class Swap {
       await this.acquireDeferred();
 
     if (this.socket) {
-      console.log('[swap-rpc]', `${this.location.replace('http', 'ws')}/${location}`, 'call', args);
+      console.log('[exchange-rpc]', `${this.location.replace('http', 'ws')}/${location}`, 'call', args);
       const id = (++this.requests.count).toString();
       const data: any | Error = await new Promise((resolve, reject) => {
         const context = { resolve: (_: any) => { } };
@@ -375,10 +375,10 @@ export class Swap {
           context.resolve(new Error('connection reset'));
         }
       });
-      console.log('[swap-rpc]', `${this.location.replace('http', 'ws')}/${location}`, 'return', data);
+      console.log('[exchange-rpc]', `${this.location.replace('http', 'ws')}/${location}`, 'return', data);
       return this.fetchData(data instanceof Error ? { error: data.toString() } : data);
     } else {
-      console.log('[swap-rpc]', `${this.location}/${location}`, 'call', args);
+      console.log('[exchange-rpc]', `${this.location}/${location}`, 'call', args);
       const body = method != 'GET';
       const search = new URLSearchParams();
       if (!body && args != null && typeof args == 'object')
@@ -391,7 +391,7 @@ export class Swap {
         body: body && args != null ? JSON.stringify(args) : undefined,
       });
       const data = await response.json();
-      console.log('[swap-rpc]', `${this.location}/${location}`, 'return', data);
+      console.log('[exchange-rpc]', `${this.location}/${location}`, 'return', data);
       return this.fetchData(data);
     }
   }

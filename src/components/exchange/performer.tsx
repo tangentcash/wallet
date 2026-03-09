@@ -1,6 +1,6 @@
 import { Box, Button, Dialog, Flex, IconButton, Spinner, Text, Tooltip } from "@radix-ui/themes";
 import { CSSProperties, useCallback, useEffect, useState } from "react";
-import { OrderCondition, OrderPolicy, OrderSide, Swap } from "../../core/swap";
+import { OrderCondition, OrderPolicy, OrderSide, Exchange } from "../../core/exchange";
 import { AlertBox, AlertType } from "./../alert";
 import { mdiArrowRight, mdiBlur, mdiBlurOff, mdiCancel, mdiCashRefund, mdiClose, mdiCollage, mdiWater, mdiWaterOff } from "@mdi/js";
 import { AssetId, DEX, Hashsig, Readability, SchemaUtil, Signing, Stream, Transactions, Uint256 } from "tangentsdk";
@@ -40,7 +40,7 @@ export class Builder {
             pays.push({ asset: asset, value: value });
         }
         
-        const market = await Swap.market(args.marketId);
+        const market = await Exchange.market(args.marketId);
         if (!market || !market.account)
             throw new Error('Market ' + args.marketId.toString() + ' account cannot be found');
 
@@ -71,14 +71,14 @@ export class Builder {
         if (!marketAccount)
             throw new Error('Market ' + market.id.toString() + ' account cannot be found');
 
-        const pair = await Swap.marketPair(market.id, primaryAsset, secondaryAsset, true);
+        const pair = await Exchange.marketPair(market.id, primaryAsset, secondaryAsset, true);
         if (!pair)
             throw new Error('Pair cannot be found');
 
         let text: string, method: string, parameters: any[];
         const price = typeof args.price == 'string' || typeof args.price == 'number' ? new BigNumber(args.price) : null;
         const stopPrice = typeof args.stopPrice == 'string' || typeof args.stopPrice == 'number' ? new BigNumber(args.stopPrice) : null;
-        const closePrice = Swap.priceOf(pair.primaryAsset, pair.secondaryAsset).close;
+        const closePrice = Exchange.priceOf(pair.primaryAsset, pair.secondaryAsset).close;
         const targetPrice = price || stopPrice || closePrice;
         const targetValue = pays.reduce((t, i) => t.plus(i.value), new BigNumber(0));
         const toText = (order: { primaryAsset: AssetId, secondaryAsset: AssetId, condition: OrderCondition, side: OrderSide, slippage?: BigNumber, stopPrice?: BigNumber, trailingStep?: BigNumber, trailingDistance?: BigNumber, price?: BigNumber, value: BigNumber }, targetPrice?: BigNumber | null) => {
@@ -269,7 +269,7 @@ export class Builder {
         if (!id)
             throw new Error('Order id not found');
 
-        const order = await Swap.marketOrder(id.toString());
+        const order = await Exchange.marketOrder(id.toString());
         if (!order)
             throw new Error('Order ' + id.toString() + ' not found');
 
@@ -353,7 +353,7 @@ export class Builder {
         if (maxPrice && minPrice && (maxPrice.lt(price) || maxPrice.eq(minPrice)))
             throw new Error('Pool max price must be lower or equal to price');
 
-        const market = await Swap.market(marketId.toString());
+        const market = await Exchange.market(marketId.toString());
         if (!market || !market.account)
             throw new Error('Market ' + marketId.toString() + ' account cannot be found');
 
@@ -361,7 +361,7 @@ export class Builder {
         if (!marketAccount)
             throw new Error('Market ' + marketId.toString() + ' account cannot be found');
 
-        const pairId = await Swap.marketPair(market.id, primaryAsset, secondaryAsset, true);
+        const pairId = await Exchange.marketPair(market.id, primaryAsset, secondaryAsset, true);
         if (!pairId)
             throw new Error('Pair cannot be found');
 
@@ -384,7 +384,7 @@ export class Builder {
         if (!id)
             throw new Error('Pool id not found');
 
-        const pool = await Swap.marketPool(id.toString());
+        const pool = await Exchange.marketPool(id.toString());
         if (!pool)
             throw new Error('Pool ' + id.toString() + ' not found');
 
@@ -420,7 +420,7 @@ export class Builder {
         if (!marketId)
             throw new Error('Market id must be set');
 
-        const market = await Swap.market(marketId.toString());
+        const market = await Exchange.market(marketId.toString());
         if (!market || !market.account)
             throw new Error('Market ' + marketId.toString() + ' account cannot be found');
 

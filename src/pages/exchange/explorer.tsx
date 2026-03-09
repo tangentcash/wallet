@@ -1,6 +1,6 @@
 import { Badge, Box, Button, Flex, Heading, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useEffect, useMemo, useState } from "react";
-import { AggregatedPair, Swap, Market } from "../../core/swap";
+import { AggregatedPair, Exchange, Market } from "../../core/exchange";
 import { AlertBox, AlertType } from "../../components/alert";
 import { useEffectAsync } from "../../core/react";
 import { mdiArrowLeftRight, mdiCheckDecagram, mdiCurrencyBtc, mdiCurrencyUsd, mdiMagnify } from "@mdi/js";
@@ -9,7 +9,7 @@ import { useNavigate } from "react-router";
 import { AssetImage } from "../../components/asset";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
-import AssetSelector from "../../components/swap/selector";
+import AssetSelector from "../../components/exchange/selector";
 import { Storage } from "../../core/storage";
 
 function toAssetSymbol(asset: AssetId): string {
@@ -42,14 +42,14 @@ export default function ExplorerPage() {
   }, [pairs, assetQuery, launchablePair]);
   const navigate = useNavigate();
   useEffectAsync(async () => {
-    await Swap.acquireDeferred();
-    if (Swap.contracts.length > 0)
-      setMarket(Swap.contracts[0]);
+    await Exchange.acquireDeferred();
+    if (Exchange.contracts.length > 0)
+      setMarket(Exchange.contracts[0]);
   }, []);
   useEffectAsync(async () => {
     try {
       if (market != null) {
-        const results = await Swap.marketPairs(market.id);
+        const results = await Exchange.marketPairs(market.id);
         if (Array.isArray(results)) {
           const data = results.map((x) => ({ pair: x, whitelisted: !!Whitelist.contractAddressOf(x.primaryAsset) && !!Whitelist.contractAddressOf(x.secondaryAsset) }));
           Storage.set('__explorer__', data);
@@ -67,7 +67,7 @@ export default function ExplorerPage() {
       if (!market || !marketLauncher.primary || !marketLauncher.secondary)
         throw false;
 
-      const result = await Swap.marketPair(market.id, marketLauncher.primary, marketLauncher.secondary, true);
+      const result = await Exchange.marketPair(market.id, marketLauncher.primary, marketLauncher.secondary, true);
       setLaunchablePair(result);
     } catch (exception: any) {
       if (exception instanceof Error)
@@ -81,7 +81,7 @@ export default function ExplorerPage() {
         const copy = [...prev];
         for (let i = 0; i < copy.length; i++) {
           const symbol = copy[i];
-          const target = Swap.priceOf(symbol.pair.primaryAsset, symbol.pair.secondaryAsset);
+          const target = Exchange.priceOf(symbol.pair.primaryAsset, symbol.pair.secondaryAsset);
           symbol.pair.price.open = target.open || symbol.pair.price.open;
           symbol.pair.price.close = target.close || symbol.pair.price.close;
         }
@@ -102,13 +102,13 @@ export default function ExplorerPage() {
   return (
     <Box px="4" pt="4" minWidth="285px" maxWidth="680px" mx="auto">
       <Flex justify="between" pb="2" align="center">
-        <Heading size="7">{ market ? Swap.marketPolicyOf(market) : 'Explore' }</Heading>
-        <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => setMarket(Swap.contracts.find((v) => v.id.toString() == e) || null)} size="3">
+        <Heading size="7">{ market ? Exchange.marketPolicyOf(market) : 'Explore' }</Heading>
+        <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => setMarket(Exchange.contracts.find((v) => v.id.toString() == e) || null)} size="3">
           <Select.Trigger variant="soft" color="gray">{ market ? market.version || market.account.substring(market.account.length - 4) : 'no market' }</Select.Trigger>
           <Select.Content position="popper" side="bottom">
             <Select.Group>
               <Select.Label>Market contract</Select.Label>
-              { Swap.contracts.map((item) => <Select.Item key={item.id.toString()} value={item.id.toString()}>{ Swap.marketPolicyOf(item) } contract — { item.version || item.account.substring(item.account.length - 4) }</Select.Item>) }
+              { Exchange.contracts.map((item) => <Select.Item key={item.id.toString()} value={item.id.toString()}>{ Exchange.marketPolicyOf(item) } contract — { item.version || item.account.substring(item.account.length - 4) }</Select.Item>) }
             </Select.Group>
           </Select.Content>
         </Select.Root>
@@ -166,7 +166,7 @@ export default function ExplorerPage() {
       <Box pt="4">
         {
           market != null && pairsFilter.map((item, index) =>
-            <Button variant="ghost" radius="none" style={{ display: 'block', width: '100%', borderRadius: '24px' }} mb={index < pairsFilter.length - 1 ? '4' : undefined} key={item.pair.id.toString()} onClick={() => navigate(`/swap/orderbook/${Swap.toOrderbookQuery(market.id, item.pair.primaryAsset, item.pair.secondaryAsset)}`)}>
+            <Button variant="ghost" radius="none" style={{ display: 'block', width: '100%', borderRadius: '24px' }} mb={index < pairsFilter.length - 1 ? '4' : undefined} key={item.pair.id.toString()} onClick={() => navigate(`/exchange/orderbook/${Exchange.toOrderbookQuery(market.id, item.pair.primaryAsset, item.pair.secondaryAsset)}`)}>
               <Box px="2" py="2">
                 <Flex justify="start" align="center" gap="3">
                   <Box style={{ position: 'relative' }}>
@@ -201,7 +201,7 @@ export default function ExplorerPage() {
                       <Flex gap="1">
                         {
                           item.pair.price.poolVolume?.gt(0) && item.pair.price.poolLiquidity?.gt(0) &&
-                          <Badge radius="full" size="1" color="orange">{ Swap.toAPY(item.pair.poolFeeRate || market.maxPoolFeeRate, item.pair.price.poolLiquidity, item.pair.price.poolVolume).toFixed(2) }% APY</Badge>
+                          <Badge radius="full" size="1" color="orange">{ Exchange.toAPY(item.pair.poolFeeRate || market.maxPoolFeeRate, item.pair.price.poolLiquidity, item.pair.price.poolVolume).toFixed(2) }% APY</Badge>
                         }
                         <Badge radius="full" size="1" color={ (item.pair.price.open || new BigNumber(0)).gt(item.pair.price.close || new BigNumber(0)) ? 'red' : ((item.pair.price.open || new BigNumber(0)).eq(item.pair.price.close || new BigNumber(0)) ? 'gray' : 'jade') }>{ Readability.toPercentageDelta(item.pair.price.open || new BigNumber(0), item.pair.price.close || new BigNumber(0)) }</Badge>
                       </Flex>
