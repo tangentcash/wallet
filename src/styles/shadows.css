@@ -1,12 +1,14 @@
 .shadow-rainbow,
 .shadow-rainbow-animation,
-.shadow-rainbow-hover {
+.shadow-rainbow-hover,
+.shadow-rainbow-alt-hover {
   position: relative;
 }
 
 .shadow-rainbow::before,
 .shadow-rainbow-animation::before,
-.shadow-rainbow-hover::before {
+.shadow-rainbow-hover::before,
+.shadow-rainbow-alt-hover::before {
   content: "";
   border-radius: inherit;
   position: absolute;
@@ -19,8 +21,13 @@
   transition: all 0.2s linear;
 }
 
+.shadow-rainbow-alt-hover::before {
+  box-shadow: -15px 0 30px -10px var(--yellow-a7), 0 0 30px -10px var(--orange-a7), 15px 0 30px -10px var(--blue-a7), 0 0 0 1px var(--orange-a4);
+}
+
 .shadow-rainbow::before,
-.shadow-rainbow-hover:not(:disabled):hover::before {
+.shadow-rainbow-hover:not(:disabled):hover::before,
+.shadow-rainbow-alt-hover:not(:disabled):hover::before {
   opacity: 0.65;
 }
 

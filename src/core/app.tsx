@@ -762,7 +762,7 @@ export function App() {
             <Route path="/account/:id" element={<AccountPage />} />
             <Route path="/restore" element={<RestorePage />} />
             <Route path="/exchange" element={<ExplorerPage />} />
-            <Route path="/exchange/orderbook/:orderbook?" element={<OrderbookPage />} />
+            <Route path="/exchange/:orderbook" element={<OrderbookPage />} />
             <Route path="/exchange/portfolio/:account?" element={<PortfolioPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>

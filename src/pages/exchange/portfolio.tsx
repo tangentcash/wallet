@@ -173,7 +173,7 @@ export default function PortfolioPage() {
                   </TextField.Slot>
                 </TextField.Root>
                 <Flex justify="center" mt="4">
-                  <Button variant="ghost" size="3" type="submit" loading={loading} disabled={!query.trim().length || !Signing.verifyAddress(query.trim()) } onClick={(e) => { e.preventDefault(); navigate(`/exchange/${query.trim()}`); }}>Find portfolio</Button>
+                  <Button variant="ghost" size="3" type="submit" loading={loading} disabled={!query.trim().length || !Signing.verifyAddress(query.trim()) } onClick={(e) => { e.preventDefault(); navigate(`/exchange/portfolio/${query.trim()}`); }}>Find portfolio</Button>
                 </Flex>
               </form>
             </Dialog.Content>

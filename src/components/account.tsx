@@ -615,7 +615,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               </Select.Group>
             </Select.Content>
           </Select.Root>
-          <Button color="orange" size="3" variant="soft" className="shadow-rainbow-hover" onClick={() => navigate(Exchange.subroute)}>
+          <Button color="orange" size="3" variant="soft" className="shadow-rainbow-alt-hover" onClick={() => navigate(Exchange.subroute)}>
             <Flex align="center" gap="2">
               <Box style={{ transform: 'translateY(2px)' }}>
                 <Icon path={mdiRulerSquareCompass} size={0.9} color="var(--orange-11)"></Icon>
