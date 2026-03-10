@@ -1,31 +1,18 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { AspectRatio, Avatar, Badge, Box, Button, Callout, Card, Flex, Heading, Link as UiLink, IconButton, SegmentedControl, Select, Spinner, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Avatar, Badge, Box, Button, Card, Flex, Heading, SegmentedControl, Select, Spinner, Tabs, Text, Tooltip } from "@radix-ui/themes";
 import { RPC, EventResolver, SummaryState, AssetId, Readability, Chain, Whitelist } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiClose, mdiCoffin, mdiConsole, mdiInformationOutline, mdiKeyOutline, mdiOpenInNew, mdiQrcodeScan, mdiRulerSquareCompass, mdiSetLeft, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTagOutline, mdiTransitConnectionVariant } from "@mdi/js";
+import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiCoffin, mdiConsole, mdiOpenInNew, mdiRulerSquareCompass, mdiSetLeft, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTransitConnectionVariant } from "@mdi/js";
 import { AppData } from "../core/app";
 import { Link, useNavigate } from "react-router";
 import { Exchange } from "../core/exchange";
 import { AssetImage, AssetName } from "./asset";
+import { AddressView } from "./address";
 import BigNumber from "bignumber.js";
 import InfiniteScroll from 'react-infinite-scroll-component';
-import QRCode from "react-qr-code";
 import Icon from "@mdi/react";
 import Transaction from "../components/transaction";
-
-function toAddressType(type: string): string {
-  switch (type) {
-    case 'routing':
-      return 'Withdrawal receiver / deposit sender';
-    case 'bridge':
-      return 'Deposit receiver';
-    case 'witness':
-      return 'Dismissed witness';
-    default:
-      return 'Tangent wallet';
-  }
-}
 
 const TRANSACTION_COUNT = 16;
 export default function Account(props: { ownerAddress: string, self?: boolean, nonce?: number }) {
@@ -41,44 +28,43 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   const [participation, setParticipation] = useState<any>(null);
   const [production, setProduction] = useState<any>(null);
   const [selectedAddress, setSelectedAddress] = useState<number>(-1);
-  const [selectedAddressVersion, setSelectedAddressVersion] = useState<number>(0);
   const [control, setControl] = useState<'balance' | 'address' | 'storage'>('balance');
-  const [funding, setFunding] = useState<'bridge' | 'other'>('bridge');
   const [transactions, setTransactions] = useState<{ transaction: any, receipt?: any, state?: SummaryState }[]>([]);
   const [mempoolTransactions, setMempoolTransactions] = useState<any[]>([]);
   const [moreTransactions, setMoreTransactions] = useState(true);
   const filteredAddresses = useMemo((): any[] => {
-    if (funding == 'other')
-      return addresses.filter((x) => x.asset.chain == Chain.policy.TOKEN_NAME || x.purpose != 'bridge');
-
     const routes = addresses.filter((x) => x.purpose == 'routing');
     const bridges = addresses.filter((x) => x.asset.chain == Chain.policy.TOKEN_NAME || x.purpose == 'bridge');
+    const results: Record<string, any> = { };
+    const filteredResults = [{ asset: new AssetId(), addresses: [{ address: ownerAddress }] }];
+    const merge = (item: any) => {
+      const key = item.asset.chain + item.purpose;
+      const target = results[key];
+      if (target != null) {
+        target.addresses = [...target.addresses, ...item.addresses];
+      } else {
+        results[key] = { ...item };
+      }
+    };
     for (let i = 0; i < routes.length; i++) {
       const route = routes[i];
       const bridge = bridges.find((x) => x.asset.chain == route.asset.chain);
-      if (!bridge) {
-        const blockchain = blockchains.find((x) => x.chain == route.asset.chain);
-        if (blockchain != null && blockchain.routing_policy == 'account') {
-          bridges.push({ ...route, purpose: 'bridge', addresses: null });
-        }
-      }
+      const blockchain = bridge ? null : blockchains.find((x) => x.chain == route.asset.chain);
+      if (!bridge && blockchain != null && blockchain.routing_policy == 'account')
+        bridges.push({ ...route, purpose: 'bridge', addresses: null });
+      merge(route);
     }
-    return bridges;
-  }, [funding, blockchains, addresses]);
-  const addressPurpose = useCallback((address: any) => {
-    if (!address || !address.purpose)
-      return <>Tangent wallet with cross-chain capabilities.</>;
-
-    if (address.purpose == 'witness')
-      return <>Witness wallet → dismissed.</>;
-    else if (address.purpose == 'routing')
-      return <>Routing wallet → receive/pay to bridge wallets.</>;
-    else if (address.purpose == 'bridge')
-      return <>Bridge wallet → receive/pay to routing wallets.</>;
-    else if (address.bridge_hash != null)
-      return <>Unknown wallet. Linked to <UiLink href="#">{address.owner}</UiLink> and bridge <UiLink href="#">{Readability.toHash(address.bridge_hash)}</UiLink></>;
-    return <>Unknown wallet. Linked to <UiLink href="#">{address.owner}</UiLink></>;
-  }, [ownerAddress]);
+    for (let i = 0; i < bridges.length; i++) {
+      merge(bridges[i]);
+    }
+    for (let chain in results) {
+      filteredResults.push(results[chain]);
+    }
+    return filteredResults;
+  }, [blockchains, addresses]);
+  const filteredAddress = useMemo((): any => {
+    return selectedAddress >= 0 && selectedAddress < filteredAddresses.length ? filteredAddresses[selectedAddress] : null;
+  }, [filteredAddresses, selectedAddress]);
   const findTransactions = useCallback(async (refresh?: boolean) => {
     try {
       const data = await RPC.getTransactionsByOwner(ownerAddress, refresh ? 0 : transactions.length, TRANSACTION_COUNT, 0, 2);
@@ -118,19 +104,18 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
     switch (control) {
       case 'address':
         tasks.push((async () => {
-          const defaultAddress = { asset: new AssetId(), addresses: [{ address: ownerAddress }] };
           try {
             let addressData = await RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count));
             if (Array.isArray(addressData) && addressData.length > 0) {
               addressData = addressData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle)).map((item) => ({ ...item, addresses: item.addresses.map((address: string) => Readability.toTaggedAddress(address)) }));
-              setAddresses([defaultAddress, ...addressData]);
+              setAddresses(addressData);
             } else {
-              setAddresses([defaultAddress]);
+              setAddresses([]);
               setSelectedAddress(-1);
             }
           } catch (exception) {
             AlertBox.open(AlertType.Error, 'Failed to fetch account addresses: ' + (exception as Error).message);
-            setAddresses([defaultAddress]);
+            setAddresses([]);
             setSelectedAddress(-1);
           }
         })());
@@ -243,104 +228,18 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
         <Tabs.Root value={control}>
           <Tabs.Content value="address">
             {
-              selectedAddress >= 0 && selectedAddress < filteredAddresses.length &&
-              <Box px="2" py="2">
-                <Flex justify="center" mb="4">
-                  <Callout.Root size="1">
-                    <Callout.Icon>
-                      <Icon path={mdiInformationOutline} size={1} />
-                    </Callout.Icon>
-                    <Callout.Text wrap="balance" style={{ wordBreak: 'break-word' }}>
-                      { addressPurpose(filteredAddresses[selectedAddress]) } 
-                    </Callout.Text>
-                  </Callout.Root>
-                </Flex>
-                <Flex justify="center" width="100%">
-                  <Box width="80%" maxWidth="280px" px="3" py="3" style={{ borderRadius: '16px', backgroundColor: 'white' }}>
-                    <AspectRatio ratio={1}>
-                      <QRCode value={ filteredAddresses[selectedAddress].addresses[selectedAddressVersion].address } style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
-                    </AspectRatio>
-                  </Box>
-                </Flex>
-                <Flex align="center" justify="center" mt="3" gap="2">
-                  <Badge size="2" color={filteredAddresses[selectedAddress].purpose != 'witness' ? 'orange' : 'red'} style={{ textTransform: 'uppercase' }}>{ toAddressType(filteredAddresses[selectedAddress].purpose) }</Badge>
-                  {
-                    filteredAddresses[selectedAddress].purpose != 'bridge' &&
-                    <Badge size="2" color="red" style={{ textTransform: 'uppercase' }}>Your wallet</Badge>
-                  }
-                </Flex>
-                <Box mt="6">
-                  <Flex gap="2">
-                    <TextField.Root size="3" style={{ width: '100%' }} variant="soft" readOnly={true} value={ Readability.toAddress(filteredAddresses[selectedAddress].addresses[selectedAddressVersion].address, mobile ? 6 : 12) } onClick={() => {
-                        navigator.clipboard.writeText(filteredAddresses[selectedAddress].addresses[selectedAddressVersion].address);
-                        AlertBox.open(AlertType.Info, 'Address v' + (filteredAddresses[selectedAddress].addresses.length - selectedAddressVersion) + ' copied!')
-                      }}>
-                      <TextField.Slot color="gray">
-                        <Icon path={mdiKeyOutline} size={0.7} style={{ paddingLeft: '4px' }} />
-                      </TextField.Slot>
-                    </TextField.Root>
-                    <IconButton variant="soft" size="3" color="red" onClick={() => { setSelectedAddress(-1); setSelectedAddressVersion(0); }}>
-                      <Icon path={mdiClose} size={1}></Icon>
-                    </IconButton>
-                  </Flex>
-                  {
-                    filteredAddresses[selectedAddress].addresses[selectedAddressVersion].tag != null &&
-                    <TextField.Root mt="3" size="3" color="red" variant="soft" readOnly={true} value={ 'Destination tag (memo) #' + filteredAddresses[selectedAddress].addresses[selectedAddressVersion].tag } onClick={() => {
-                        navigator.clipboard.writeText(filteredAddresses[selectedAddress].addresses[selectedAddressVersion].tag);
-                        AlertBox.open(AlertType.Info, 'Destination tag / memo copied!')
-                      }}>
-                      <TextField.Slot color="red">
-                        <Icon path={mdiTagOutline} size={0.7} style={{ paddingLeft: '4px' }} />
-                      </TextField.Slot>
-                    </TextField.Root>
-                  }
-                  <Box width="100%" mt="3">
-                    <Select.Root size="3" value={selectedAddressVersion.toString()} onValueChange={(value) => setSelectedAddressVersion(parseInt(value))}>
-                      <Select.Trigger variant="soft" color="gray" style={{ width: '100%' }}>
-                        <Flex as="span" align="center" gap="2">
-                          <Icon path={mdiQrcodeScan} size={0.7} style={{ color: 'var(--gray-11)' }} />
-                          <Text color="gray">{ Readability.toAssetName(filteredAddresses[selectedAddress].asset) } address v{ filteredAddresses[selectedAddress].addresses.length - selectedAddressVersion }</Text>
-                        </Flex>
-                      </Select.Trigger>
-                      <Select.Content variant="soft">
-                        <Select.Group>
-                          <Select.Label>Address version</Select.Label>
-                          {
-                            filteredAddresses[selectedAddress].addresses.map((address: any, index: number) =>
-                              <Select.Item value={index.toString()} key={address + '_address'}>
-                                <Flex align="center" gap="1">
-                                  <Text>Version {filteredAddresses[selectedAddress].addresses.length - index}</Text>
-                                </Flex>
-                              </Select.Item>
-                            )
-                          }
-                        </Select.Group>
-                      </Select.Content>
-                    </Select.Root>
-                  </Box>
-                </Box>
-              </Box>
+              filteredAddress != null &&
+              <AddressView address={filteredAddress} onExit={() => setSelectedAddress(-1)}></AddressView>
             }
             {
-              (selectedAddress < 0 || selectedAddress >= filteredAddresses.length) &&
+              !filteredAddress &&
               <Box px="2" py="2">
-                <Flex justify="between" align="center" mb="4">
-                  <Heading size="4">Address listing</Heading>
-                  <Select.Root size="3" value={funding} onValueChange={(e) => setFunding(e as any)}>
-                    <Select.Trigger />
-                    <Select.Content>
-                      <Select.Item value="bridge">Deposit</Select.Item>
-                      <Select.Item value="other">Linking</Select.Item>
-                    </Select.Content>
-                  </Select.Root>
-                </Flex>
                 {
                   filteredAddresses.map((item, index) =>
                     <Box key={item.hash + '_address_select'} mb={ index == filteredAddresses.length - 1 ? undefined : '4' }>
                       <Button variant="soft" color="gray" size="3" style={{ display: 'block', height: 'auto', width: '100%' }} onClick={() => {
                         if (item.addresses != null) {
                           setSelectedAddress(index);
-                          setSelectedAddressVersion(0);
                         } else {
                           navigate(`/bridge?asset=${item.asset.id}&bindings=1`);
                         }

@@ -37,6 +37,5 @@
 }
 
 .layer-gradient .radix-themes {
-  background: linear-gradient(180deg, var(--layer-front), var(--layer-back));
-  background-attachment: fixed;
+  background-color: var(--layer-color) !important;
 }

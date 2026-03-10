@@ -1,15 +1,15 @@
 import { mdiBackburger, mdiOpenInNew } from "@mdi/js";
-import { Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Heading, Select, Text, Tooltip } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Heading, Text, Tooltip } from "@radix-ui/themes";
 import { useNavigate, useSearchParams } from "react-router";
 import { useCallback, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AssetId, Chain, RPC, Readability } from "tangentsdk";
 import { AppData } from "../core/app";
-import * as Collapsible from "@radix-ui/react-collapsible";
+import { AssetImage, AssetName } from "../components/asset";
 import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
-import { AssetImage, AssetName } from "../components/asset";
+import { AddressView } from "../components/address";
 
 const BRIDGE_COUNT = 48;
 const ASSET_INFORMATION: Record<string, { depositTime: number, tokenStandard: string | null }> = {
@@ -143,45 +143,84 @@ export default function BridgePage() {
   const ownerAddress = AppData.getWalletAddress() || '';
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [query] = useSearchParams();
-  const [preference, setPreference] = useState<'security' | 'balance'>('balance');
   const [blockchains, setBlockchains] = useState<any[]>([]);
-  const [walletAddresses, setWalletAddresses] = useState<any[]>([]);
-  const [cachedAddresses, setCachedAddresses] = useState<any[] | null>(null);
-  const [acquiredBridges, setAcquiredBridges] = useState<{ [key: string]: any }>({ });
-  const [candidateBridges, setCandidateBridges] = useState<any[]>([]);
+  const [addresses, setAddresses] = useState<any[]>([]);
+  const [bridges, setBridges] = useState<any[]>([]);
   const [moreBridges, setMoreBridges] = useState(true);
   const navigate = useNavigate();
   const asset = useMemo(() => {
     const target = new AssetId(query.get('asset') || '');
     return target ? blockchains.find((v) => v.chain == target.chain) || null : null;
   }, [query, blockchains]);
+  const filteredAddresses = useMemo((): { routing: any, bridge: any } => {
+    const result: { routing: any, bridge: any } = { routing: null, bridge: null };
+    if (!asset)
+      return result;
+
+    const duplicates = new Set<string>();
+    const targetedAddresses = addresses.filter((x) => x.asset.chain == asset.chain && (x.purpose == 'routing' || x.purpose == 'bridge'));
+    for (let i = 0; i < targetedAddresses.length; i++) {
+      const target = targetedAddresses[i];
+      const listing = result as any;
+      if (target.asset.chain == asset.chain) {
+        target.addresses.forEach((x: any) => duplicates.add(x.tag != null ? x.address + '#' + x.tag : x.address));
+        if (listing[target.purpose] != null) {
+          listing[target.purpose].addresses = [...listing[target.purpose].addresses, ...target.addresses];
+        } else {
+          listing[target.purpose] = { ...target };
+        }
+      }
+    }
+    if (result.routing) {
+      const blockchain = blockchains.find((x) => x.chain == asset.chain);
+      if (blockchain != null && blockchain.routing_policy == 'account') {
+        for (let i = 0; i < bridges.length; i++) {
+          const bridge = bridges[i];
+          if (!bridge.master || !Array.isArray(bridge.master.addresses))
+            continue;
+
+          const filteredMapping = bridge.master.addresses.filter((x: string) => !duplicates.has(x));
+          filteredMapping.forEach((x: string) => duplicates.add(x));
+
+          const mapping = filteredMapping.map((x: string) => Readability.toTaggedAddress(x));
+          if (result.bridge != null) {
+            result.bridge.addresses = [...result.bridge.addresses, ...mapping];
+          } else {
+            result.bridge = { ...result.routing, purpose: 'bridge', addresses: mapping };
+          }
+        }
+      }
+    }
+    if (result.bridge && result.bridge.addresses.length > 1) {
+      for (let i = result.bridge.addresses.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [result.bridge.addresses[i], result.bridge.addresses[j]] = [result.bridge.addresses[j], result.bridge.addresses[i]];
+      }
+    }
+    return result;
+  }, [asset, blockchains, addresses, bridges]);
+  const senderAddresses = useMemo((): string[] => {
+    return filteredAddresses.routing ? filteredAddresses.routing.addresses.map((x: any) => x.address) : [];
+  }, [filteredAddresses]);
   const findBridges = useCallback(async (refresh?: boolean) => {
     try {
       if (!asset)
         return null;
 
-      let data;
-      switch (preference) {
-        case 'security':
-          data = await RPC.getBestBridgeInstancesBySecurity(new AssetId(asset.id), refresh ? 0 : candidateBridges.length, BRIDGE_COUNT);
-          break;
-        case 'balance':
-          data = await RPC.getBestBridgeInstancesByBalance(new AssetId(asset.id), refresh ? 0 : candidateBridges.length, BRIDGE_COUNT);
-          if (!data || !data.length)
-            data = await RPC.getBestBridgeInstancesBySecurity(new AssetId(asset.id), refresh ? 0 : candidateBridges.length, BRIDGE_COUNT);
-          break;
-        default:
-          return null;
+      let data = await RPC.getBestBridgeInstancesByBalance(new AssetId(asset.id), refresh ? 0 : bridges.length, BRIDGE_COUNT);
+      if (!Array.isArray(data) || !data.length) {
+        data = await RPC.getBestBridgeInstancesBySecurity(new AssetId(asset.id), refresh ? 0 : bridges.length, BRIDGE_COUNT);
       }
+
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
-          setCandidateBridges([]);
+          setBridges([]);
         setMoreBridges(false);
         return null;
       }
 
-      const result = refresh ? data : data.concat(candidateBridges);
-      setCandidateBridges(result.map((x) => {
+      const result = refresh ? data : data.concat(bridges);
+      setBridges(result.map((x) => {
         const balance: BigNumber | null = x.balances.find((v: any) => v.asset.id == asset.id)?.supply || null;
         x.withdrawable = balance ? balance.gte(x.instance.fee_rate) : false;
         return x;
@@ -190,15 +229,31 @@ export default function BridgePage() {
       return result;
     } catch {
       if (refresh)
-        setCandidateBridges([]);
+        setBridges([]);
       setMoreBridges(false);
       return null;
     }
-  }, [asset, preference, candidateBridges]);
+  }, [asset, bridges]);
   const toTargetAsset = useCallback((asset: any) => {
     const target = new AssetId(query.get('asset') || '');
     return target && target.chain == asset.chain ? target : asset;
   }, [query]);
+  useEffectAsync(async () => {
+    if (!asset)
+      return;
+
+    try {
+      let [addressData] = await Promise.all([RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count)), findBridges(true)]);
+      if (Array.isArray(addressData)) {
+        addressData = addressData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle)).map((item) => ({ ...item, addresses: item.addresses.map((address: string) => Readability.toTaggedAddress(address)) }));
+        setAddresses(addressData);
+      } else {
+        setAddresses([]);
+      }
+    } catch {
+      setAddresses([]);
+    }
+  }, [asset]);
   useEffectAsync(async () => {
     try {
       if (!blockchains.length) {
@@ -215,48 +270,6 @@ export default function BridgePage() {
       }
     } catch { }
   }, []);
-  useEffectAsync(async () => {
-    if (!asset)
-      return;
-
-    const possibleBridges = await findBridges(true);
-    try {
-      const addressData = cachedAddresses ? cachedAddresses : await RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count));
-      if (!cachedAddresses && Array.isArray(addressData)) {
-        setCachedAddresses(addressData);
-      }
-      if (!addressData)
-        throw false;
-
-      const bridgeAddresses = addressData.filter((item) => item.asset.id.toString() == asset.id.toString() && item.purpose == 'bridge').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
-      const mapping: any = { };
-      for (let item in bridgeAddresses) {
-        let input = bridgeAddresses[item];
-        let output = mapping[input.bridge_hash];
-        if (output != null) {
-          output.addresses = [...new Set([...input.addresses, ...output.addresses])];
-        } else {
-          mapping[input.bridge_hash] = input;
-        }
-      }
-
-      const routingAddresses = addressData.filter((item) => item.asset.id.toString() == asset.id.toString() && item.purpose == 'routing').sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
-      if (possibleBridges != null && routingAddresses.length > 0) {
-        for (let i = 0; i < possibleBridges.length; i++) {
-          const possibleBridge = possibleBridges[i];
-          if (possibleBridge && possibleBridge.master && possibleBridge.master.addresses.length > 0 && !mapping[possibleBridge.instance.bridge_hash]) {
-            mapping[possibleBridge.instance.bridge_hash] = possibleBridge.master;
-          }
-        }
-      }
-      
-      setWalletAddresses(routingAddresses);  
-      setAcquiredBridges(mapping);
-    } catch {
-      setAcquiredBridges([]);
-      setWalletAddresses([]);
-    }
-  }, [asset, preference, cachedAddresses]);
 
   return (
     <Box px="4" pt="4" mx="auto" maxWidth="640px">
@@ -296,283 +309,165 @@ export default function BridgePage() {
       {
         asset != null &&
         <Box>
-          <Box width="100%" mb="6">
-            <Box width="100%" mb="4">
-              <Flex justify="between" align="center" mb="3">
-                <Heading size="6">Registrations</Heading>
-                <Button variant="surface" color="gray" onClick={() => navigate('/bridge')}>
-                  <Icon path={mdiBackburger} size={0.7} />
-                  <Flex align="center" gap="1">
-                    <AssetImage asset={asset} size="1" iconSize="24px"></AssetImage>
-                    <AssetName asset={asset} size="2"></AssetName>
-                  </Flex>
-                </Button>
-              </Flex>
-              <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-            </Box>
-            <Card mb="4">
-              <Collapsible.Root open={query.get('bindings') != null || undefined}>
-                <Collapsible.Trigger asChild={true}>
-                  <Flex justify="between" align="center" mb="2">
-                    <Heading size="4">Deposit addresses</Heading>
-                    {
-                      Object.keys(acquiredBridges).length > 0 &&
-                      <Button size="1" radius="large" variant="soft" color="jade" className="shadow-rainbow-animation">
-                        Bindings
-                        <Box ml="1">
-                          <DropdownMenu.TriggerIcon />
-                        </Box>
-                      </Button>
-                    }
-                  </Flex>
-                </Collapsible.Trigger>
-                <Collapsible.Content>
-                  {
-                    Object.keys(acquiredBridges).map((item: string) => {
-                      const bridge = acquiredBridges[item];
-                      return (
-                        <Box key={bridge.hash} mt="4">
-                          <DataList.Root orientation={orientation}>
-                            <DataList.Item>
-                              <DataList.Label>Bridge hash:</DataList.Label>
-                              <DataList.Value>
-                                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                  navigator.clipboard.writeText(bridge.bridge_hash);
-                                  AlertBox.open(AlertType.Info, 'Bridge hash copied!')
-                                }}>{ Readability.toHash(bridge.bridge_hash) }</Button>
-                              </DataList.Value>
-                            </DataList.Item>
-                            <DataList.Item>
-                              <DataList.Label>Deposit instruction:</DataList.Label>
-                              <DataList.Value>
-                                <Flex direction="column" gap="1">
-                                  {
-                                    asset.routing_policy == 'utxo' &&
-                                    <Badge color="jade">Any sender</Badge>
-                                  }
-                                  {
-                                    asset.routing_policy == 'memo' && bridge.addresses.map((walletAddress: string, walletAddressIndex: number) =>
-                                      <Flex gap="2" wrap="wrap" pb={walletAddressIndex < bridge.addresses.length - 1 ? '2' : '0'} key={walletAddress}>
-                                        <Badge color="red">Any sender with destination tag (memo): { Readability.toTaggedAddress(walletAddress).tag || '0' }</Badge>
-                                      </Flex>
-                                    )
-                                  }
-                                  {
-                                    asset.routing_policy == 'account' && walletAddresses.map((wallet, walletAddressIndex: number) => {
-                                      return wallet.addresses.map((walletAddress: string, addressIndex: number) =>
-                                        <Flex gap="1" pb={walletAddressIndex < walletAddresses.length - 1 ? '2' : '0'} key={walletAddress}>
-                                          <Text size="2">Send from</Text>
-                                          <Button size="1" variant="soft" color="yellow" onClick={() => {
-                                            navigator.clipboard.writeText(walletAddress);
-                                            AlertBox.open(AlertType.Info, 'Address copied!')
-                                          }}>{ Readability.toAddress(walletAddress) }</Button>
-                                          { addressIndex < wallet.addresses.length - 1 && <Text>OR</Text> }
-                                        </Flex>
-                                      )
-                                    })
-                                  }
-                                </Flex>
-                              </DataList.Value>
-                            </DataList.Item>
-                            {
-                              bridge.addresses.map((address: string, addressIndex: number) =>
-                                <DataList.Item key={address}>
-                                  <DataList.Label>Deposit address v{bridge.addresses.length - addressIndex}:</DataList.Label>
-                                  <DataList.Value>
-                                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                      navigator.clipboard.writeText(Readability.toTaggedAddress(address).address);
-                                      AlertBox.open(AlertType.Info, 'Address copied!')
-                                    }}>{ Readability.toAddress(address) }</Button>
-                                  </DataList.Value>
-                                </DataList.Item>
-                              )
-                            }
-                          </DataList.Root>
-                          <Box width="100%" mt="4" my="3">
-                            <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-                          </Box>
-                        </Box>
-                      )
-                    })
-                  }
-                </Collapsible.Content>
-              </Collapsible.Root>
-              <Text size="1" weight="light"><Text color="yellow">Deposit</Text> to register your deposit and personal {Readability.toAssetName(asset)} address </Text>
-            </Card>
-            <Card>
-              <Collapsible.Root>
-                <Collapsible.Trigger asChild={true}>
-                  <Flex justify="between" align="center" mb="2">
-                    <Heading size="4">Withdrawal addresses</Heading>
-                    {
-                      walletAddresses.length > 0 &&
-                      <Button size="1" radius="large" variant="soft" color="yellow">
-                        Preview
-                        <Box ml="1">
-                          <DropdownMenu.TriggerIcon />
-                        </Box>
-                      </Button>
-                    }
-                  </Flex>
-                </Collapsible.Trigger>
-                <Collapsible.Content>
-                  <Box mt="4">
-                    <DataList.Root orientation={orientation}>
-                      {
-                        walletAddresses.map((wallet) => {
-                          return wallet.addresses.map((walletAddress: string, addressIndex: number) =>
-                            <DataList.Item key={walletAddress}>
-                              <DataList.Label>{ asset.routing_policy == 'account' ? 'Sender/withdrawal' : 'Withdrawal' } address v{wallet.addresses.length - addressIndex}:</DataList.Label>
-                              <DataList.Value>
-                                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                  navigator.clipboard.writeText(walletAddress);
-                                  AlertBox.open(AlertType.Info, 'Address copied!')
-                                }}>{ Readability.toAddress(walletAddress) }</Button>
-                              </DataList.Value>
-                            </DataList.Item>
-                          )
-                        })
-                      }
-                    </DataList.Root>
-                  </Box>
-                  {
-                    walletAddresses.length > 0 &&
-                    <Box width="100%" mt="4" my="3">
-                      <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-                    </Box>
-                  }
-                </Collapsible.Content>
-              </Collapsible.Root>
-              <Text size="1" weight="light"><Text color="yellow">Withdraw</Text> to register your personal {Readability.toAssetName(asset)} address</Text>
-            </Card>
-          </Box>
           <Box width="100%" mb="4">
             <Flex justify="between" align="center" mb="3">
               <Heading size="6">Bridges</Heading>
-              <Select.Root value={preference} onValueChange={(value) => setPreference(value as ('security' | 'balance'))}>
-                <Select.Trigger />
-                <Select.Content>
-                  <Select.Group>
-                    <Select.Label>Bridge preference</Select.Label>
-                    <Select.Item value="security">Security</Select.Item>
-                    <Select.Item value="balance">Balance</Select.Item>
-                  </Select.Group>
-                </Select.Content>
-              </Select.Root>
+              <Button variant="surface" color="gray" onClick={() => navigate('/bridge')}>
+                <Icon path={mdiBackburger} size={0.7} />
+                <Flex align="center" gap="1">
+                  <AssetImage asset={asset} size="1" iconSize="24px"></AssetImage>
+                  <AssetName asset={asset} size="2"></AssetName>
+                </Flex>
+              </Button>
             </Flex>
             <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
           </Box>
           {
-            !candidateBridges.length &&
-            <Text color="red">No active bridges for {Readability.toAssetName(asset)} blockchain</Text>
+            filteredAddresses.bridge != null &&
+            <Card mb="4" variant="surface" style={{ borderRadius: '28px' }}>
+              <AddressView address={filteredAddresses.bridge}></AddressView>
+              <Flex px="4" mt="2" gap="2" align="center" wrap="wrap">
+                <Text size="3" color="red">Deposit from</Text>
+                {
+                  asset.routing_policy == 'utxo' &&
+                  <Badge color="jade" size="3">any address</Badge>
+                }
+                {
+                  asset.routing_policy == 'memo' &&
+                  <>
+                    <Badge color="yellow" size="3">any address</Badge>
+                    <Badge color="red" size="3">use { filteredAddresses.bridge.addresses[0].tag || '0' } as dest. tag / memo</Badge>
+                  </>
+                }
+                {
+                  asset.routing_policy == 'account' && senderAddresses.map((address: string, index: number) =>
+                    <>
+                      <Button size="2" variant="soft" color="yellow" onClick={() => {
+                        navigator.clipboard.writeText(address);
+                        AlertBox.open(AlertType.Info, 'Address copied!')
+                      }}>{ Readability.toAddress(address) }</Button>
+                      { index < senderAddresses.length - 1 && <Text color="red">or</Text> }
+                    </>
+                  )
+                }
+              </Flex>
+            </Card>
           }
-          <InfiniteScroll dataLength={candidateBridges.length} hasMore={moreBridges} next={findBridges} loader={<div></div>}>
+          {
+            !bridges.length &&
+            <Flex justify="center" mt="5">
+              <Text color="red">{Readability.toAssetName(asset)} blockchain has no bridges</Text>
+            </Flex>
+          }
+          <InfiniteScroll dataLength={bridges.length} hasMore={moreBridges} next={findBridges} loader={<div></div>}>
             {
-              candidateBridges.map((item, index) =>
+              bridges.map((item, index) =>
                 <Box width="100%" key={item.instance.hash + index} mb="4">
-                  <Card>
-                    <Flex justify="between" align="center" mb="3">
-                      <Flex align="center" gap="2">
-                        <Heading size="5">Bridge</Heading>
-                        <Badge variant="surface" size="3">{ Readability.toHash(item.instance.bridge_hash, 4) }</Badge>
+                  <Card variant="surface" style={{ borderRadius: '28px' }}>
+                    <Box px="2" py="2">
+                      <Flex justify="between" align="center" mb="3">
+                        <Flex align="center" gap="2">
+                          <Heading size="5">Bridge</Heading>
+                          <Badge variant="surface" size="3">{ Readability.toHash(item.instance.bridge_hash, 4) }</Badge>
+                        </Flex>
+                          <DropdownMenu.Root>
+                            <DropdownMenu.Trigger>
+                              <Button size="2" variant="soft" color="yellow">Engage <Icon path={mdiOpenInNew} size={0.6}></Icon></Button>
+                            </DropdownMenu.Trigger>
+                            <DropdownMenu.Content side="left">
+                              <DropdownMenu.Item shortcut="↙" onClick={() => navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=register&bridge=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`)}>Claim an address</DropdownMenu.Item>
+                              <Tooltip content={(item.withdrawable ? 'Enough ' : 'Not enough ') + Readability.toAssetSymbol(asset) + ' for a withdrawal'}>
+                                <DropdownMenu.Item shortcut="↗" disabled={!item.withdrawable} onClick={() => {
+                                  if (item.withdrawable) {
+                                    navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=withdraw&bridge=${item.instance.bridge_hash}&fee=${item.instance.fee_rate.toString()}&back=${encodeURIComponent(location.pathname + location.search)}`);
+                                  }
+                                }}>Queue a withdrawal</DropdownMenu.Item>
+                              </Tooltip>
+                            </DropdownMenu.Content>
+                          </DropdownMenu.Root>
                       </Flex>
-                        <DropdownMenu.Root>
-                          <DropdownMenu.Trigger>
-                            <Button size="2" variant="soft" color="yellow">Engage <Icon path={mdiOpenInNew} size={0.6}></Icon></Button>
-                          </DropdownMenu.Trigger>
-                          <DropdownMenu.Content side="left">
-                            <DropdownMenu.Item shortcut="↙" onClick={() => navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=register&bridge=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`)}>Deposit into account</DropdownMenu.Item>
-                            <Tooltip content={(item.withdrawable ? 'Enough ' : 'Not enough ') + Readability.toAssetSymbol(asset) + ' for a withdrawal'}>
-                              <DropdownMenu.Item shortcut="↗" disabled={!item.withdrawable} onClick={() => {
-                                if (item.withdrawable) {
-                                  navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=withdraw&bridge=${item.instance.bridge_hash}&fee=${item.instance.fee_rate.toString()}&back=${encodeURIComponent(location.pathname + location.search)}`);
+                      <DataList.Root orientation={orientation}>
+                        {
+                          item.master != null && item.master.addresses && filteredAddresses.routing != null &&
+                          <DataList.Item>
+                            <DataList.Label>Deposit address:</DataList.Label>
+                            <DataList.Value>
+                              <Tooltip content="This is a deposit address shared by all users (master deposit address), send only from addresses you explicitly registered">
+                                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                                  navigator.clipboard.writeText(item.master.addresses[0]);
+                                  AlertBox.open(AlertType.Info, 'Address copied!')
+                                }}>{ Readability.toAddress(item.master.addresses[0]) }</Button>
+                              </Tooltip>
+                            </DataList.Value>
+                          </DataList.Item>
+                        }
+                        <DataList.Item>
+                          <DataList.Label>Bridge ref hash:</DataList.Label>
+                          <DataList.Value>
+                            <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                              navigator.clipboard.writeText(item.instance.bridge_hash);
+                              AlertBox.open(AlertType.Info, 'Bridge hash copied!')
+                            }}>{ Readability.toAddress(item.instance.bridge_hash) }</Button>
+                          </DataList.Value>
+                        </DataList.Item>
+                        <Tooltip content="Amount of accounts linked to this bridge">
+                          <DataList.Item>
+                            <DataList.Label>Bridge accounts:</DataList.Label>
+                            {
+                              (asset.routing_policy == 'account') &&
+                              <DataList.Value>
+                                <Badge size="1" color="orange">Master account only</Badge>
+                              </DataList.Value>
+                            }
+                            {
+                              (asset.routing_policy != 'account') &&
+                              <DataList.Value>
+                                <Badge size="1" color="blue">{ Readability.toCount('account', item.instance.account_nonce) }</Badge>
+                              </DataList.Value>
+                            }
+                          </DataList.Item>
+                        </Tooltip>
+                        <Tooltip content="Amount of transactions made from this bridge">
+                          <DataList.Item>
+                            <DataList.Label>Bridge transactions:</DataList.Label>
+                            <DataList.Value>
+                              <Badge size="1" color="blue">{ Readability.toCount('transaction', item.instance.transaction_nonce) }</Badge>
+                            </DataList.Value>
+                          </DataList.Item>
+                        </Tooltip>
+                        <Tooltip content="Unspent balance of a bridge usable as withdrawal liquidity">
+                          <DataList.Item>
+                            <DataList.Label>Total value locked:</DataList.Label>
+                            <DataList.Value>
+                              <Flex wrap="wrap" gap="1">
+                                {
+                                  item.balances && item.balances.map((next: any) =>
+                                    <Badge key={item.instance.hash + index + next.asset.id} size="1" color="jade">{ Readability.toMoney(next.asset, next.supply) }</Badge>)
                                 }
-                              }}>Withdraw from account</DropdownMenu.Item>
-                            </Tooltip>
-                          </DropdownMenu.Content>
-                        </DropdownMenu.Root>
-                    </Flex>
-                    <DataList.Root orientation={orientation}>
-                      {
-                        item.master != null && item.master.addresses && walletAddresses.length > 0 &&
-                        <DataList.Item>
-                          <DataList.Label>Deposit address:</DataList.Label>
-                          <DataList.Value>
-                            <Tooltip content="This is a deposit address shared by all users (master deposit address), send only from addresses you explicitly registered">
-                              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                navigator.clipboard.writeText(item.master.addresses[0]);
-                                AlertBox.open(AlertType.Info, 'Address copied!')
-                              }}>{ Readability.toAddress(item.master.addresses[0]) }</Button>
-                            </Tooltip>
-                          </DataList.Value>
-                        </DataList.Item>
-                      }
-                      <DataList.Item>
-                        <DataList.Label>Bridge ref hash:</DataList.Label>
-                        <DataList.Value>
-                          <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                            navigator.clipboard.writeText(item.instance.bridge_hash);
-                            AlertBox.open(AlertType.Info, 'Bridge hash copied!')
-                          }}>{ Readability.toAddress(item.instance.bridge_hash) }</Button>
-                        </DataList.Value>
-                      </DataList.Item>
-                      <Tooltip content="Amount of accounts linked to this bridge">
-                        <DataList.Item>
-                          <DataList.Label>Bridge accounts:</DataList.Label>
-                          {
-                            (asset.routing_policy == 'account') &&
-                            <DataList.Value>
-                              <Badge size="1" color="orange">Master account only</Badge>
+                                {
+                                  (!item.balances || !item.balances.length) &&
+                                  <Badge size="1" color="yellow">{ Readability.toMoney(asset, null) }</Badge>
+                                }
+                              </Flex>
                             </DataList.Value>
-                          }
-                          {
-                            (asset.routing_policy != 'account') &&
+                          </DataList.Item>
+                        </Tooltip>
+                        <Tooltip content={'Defines how many randomly chosen participants to involve in each created account but no less than ' + Chain.policy.PARTICIPATION_COMMITTEE[0] + ' and no more than ' + Chain.policy.PARTICIPATION_COMMITTEE[1] + ' per account'}>
+                          <DataList.Item>
+                            <DataList.Label>Participation size:</DataList.Label>
                             <DataList.Value>
-                              <Badge size="1" color="blue">{ Readability.toCount('account', item.instance.account_nonce) }</Badge>
+                              <Badge size="1" color={speedOverSecurity(item.instance) ? 'red' : 'jade'}>{ Readability.toCount('participant', item.instance.security_level) }</Badge>
                             </DataList.Value>
-                          }
-                        </DataList.Item>
-                      </Tooltip>
-                      <Tooltip content="Amount of transactions made from this bridge">
-                        <DataList.Item>
-                          <DataList.Label>Bridge transactions:</DataList.Label>
-                          <DataList.Value>
-                            <Badge size="1" color="blue">{ Readability.toCount('transaction', item.instance.transaction_nonce) }</Badge>
-                          </DataList.Value>
-                        </DataList.Item>
-                      </Tooltip>
-                      <Tooltip content="Unspent balance of a bridge usable as withdrawal liquidity">
-                        <DataList.Item>
-                          <DataList.Label>Total value locked:</DataList.Label>
-                          <DataList.Value>
-                            <Flex wrap="wrap" gap="1">
-                              {
-                                item.balances && item.balances.map((next: any) =>
-                                  <Badge key={item.instance.hash + index + next.asset.id} size="1" color="jade">{ Readability.toMoney(next.asset, next.supply) }</Badge>)
-                              }
-                              {
-                                (!item.balances || !item.balances.length) &&
-                                <Badge size="1" color="yellow">{ Readability.toMoney(asset, null) }</Badge>
-                              }
-                            </Flex>
-                          </DataList.Value>
-                        </DataList.Item>
-                      </Tooltip>
-                      <Tooltip content={'Defines how many randomly chosen participants to involve in each created account but no less than ' + Chain.policy.PARTICIPATION_COMMITTEE[0] + ' and no more than ' + Chain.policy.PARTICIPATION_COMMITTEE[1] + ' per account'}>
-                        <DataList.Item>
-                          <DataList.Label>Participation size:</DataList.Label>
-                          <DataList.Value>
-                            <Badge size="1" color={speedOverSecurity(item.instance) ? 'red' : 'jade'}>{ Readability.toCount('participant', item.instance.security_level) }</Badge>
-                          </DataList.Value>
-                        </DataList.Item>
-                      </Tooltip>
-                      <Tooltip content="This amount of fee will be deduced from each withdrawal to cover off-chain network fees and to pay to bridge attesters and participants">
-                        <DataList.Item>
-                          <DataList.Label>Transactional cost:</DataList.Label>
-                          <DataList.Value>{ Readability.toMoney(new AssetId(asset.id), item.instance.fee_rate) }</DataList.Value>
-                        </DataList.Item>
-                      </Tooltip>
-                    </DataList.Root>
+                          </DataList.Item>
+                        </Tooltip>
+                        <Tooltip content="This amount of fee will be deduced from each withdrawal to cover off-chain network fees and to pay to bridge attesters and participants">
+                          <DataList.Item>
+                            <DataList.Label>Transactional cost:</DataList.Label>
+                            <DataList.Value>{ Readability.toMoney(new AssetId(asset.id), item.instance.fee_rate) }</DataList.Value>
+                          </DataList.Item>
+                        </Tooltip>
+                      </DataList.Root>
+                    </Box>
                   </Card>
                 </Box>
               )
