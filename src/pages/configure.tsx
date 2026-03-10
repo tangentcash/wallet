@@ -131,7 +131,7 @@ export default function ConfigurePage() {
     return true;
   }, [loadingProps]);
   useEffect(() => {
-    const timeout = setInterval(() => setCounter(new Date().getTime()), 1000);
+    const timeout = setInterval(() => setCounter(new Date().getTime()), 3000);
     return () => clearInterval(timeout);
   }, []);
 

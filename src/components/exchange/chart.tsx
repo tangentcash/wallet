@@ -1,6 +1,6 @@
-import { ChartOptions, DeepPartial, IChartApi, LogicalRangeChangeEventHandler, MouseEventHandler, Time } from "lightweight-charts";
+import { ChartOptions, DeepPartial, IChartApi, LogicalRangeChangeEventHandler, MouseEventHandler, MouseEventParams, Time } from "lightweight-charts";
 import { AreaSeries, BarSeries, CandlestickSeries, Chart, HistogramSeries, LineSeries, SeriesApiRef, TimeScale, TimeScaleFitContentTrigger } from "lightweight-charts-react-components";
-import { RefObject } from "react";
+import { RefObject, useCallback } from "react";
 import { AppData } from "../../core/app";
 
 export type GenericBar = { time: Time };
@@ -14,7 +14,8 @@ export enum ChartViewType {
   Line
 }
 
-let crosshairTrackingTimeout: number | null = null;
+let crosshairTimeout: number | null = null;
+let crosshairLogical: string | null = null;
 
 export function ChartView(props: {
   type: ChartViewType,
@@ -27,16 +28,23 @@ export function ChartView(props: {
   onCrosshairMove?: MouseEventHandler<Time>
   onVisibleLogicalRangeChange?: LogicalRangeChangeEventHandler
 }) {
+  const onCrosshairMove = useCallback((e: MouseEventParams) => {
+    const logical = e.logical?.toString() || '';
+    if (!props.onCrosshairMove || crosshairLogical == logical)
+      return;
+    
+    crosshairLogical = logical;
+    if (crosshairTimeout != null)
+      clearTimeout(crosshairTimeout);
+
+    crosshairTimeout = setTimeout(() => {
+      if (props.onCrosshairMove)
+        props.onCrosshairMove(e);
+      crosshairTimeout = null;
+    }, 10) as any;
+  }, [props.onCrosshairMove]);
   return (
-    <Chart options={props.options} onInit={props.onInit} onCrosshairMove={props.onCrosshairMove ? ((e) => {
-      if (crosshairTrackingTimeout != null)
-        clearTimeout(crosshairTrackingTimeout);
-      crosshairTrackingTimeout = setTimeout(() => {
-        if (props.onCrosshairMove)
-          props.onCrosshairMove(e);
-        crosshairTrackingTimeout = null;
-      }, 10) as any;
-    }) : undefined }>
+    <Chart options={props.options} onInit={props.onInit} onCrosshairMove={onCrosshairMove}>
       {
         props.type == ChartViewType.Candles &&
         <CandlestickSeries ref={props.priceRef as any} data={props.priceData} />

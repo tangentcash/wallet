@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { StrictMode, useEffect, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { BrowserRouter, Navigate, NavigateFunction, Route, Routes } from "react-router";
 import { Box, Theme } from "@radix-ui/themes";
@@ -319,7 +319,15 @@ export class AppData {
   private static render(): void {
     const element = document.getElementById("root") as HTMLElement;
     this.root = createRoot(element);
-    this.root.render(<App />);
+    if (this.isDev()) {
+      this.root.render(
+        <StrictMode>
+          <App />
+        </StrictMode>
+      );
+    } else {
+      this.root.render(<App />);
+    }
   }
   static async restoreWallet(passphrase: string, network?: NetworkType): Promise<boolean> {
     this.props.account = null;
@@ -703,6 +711,10 @@ export class AppData {
   static isApp(): boolean {
     return core.isTauri();
   }
+  static isDev(): boolean {
+    // @ts-ignore
+    return import.meta.env.DEV;
+  }
   static styleOf(property: string): string | undefined {
     if (!this.styles) {
       const element = document.querySelector('.radix-themes')
@@ -731,8 +743,7 @@ export class AppData {
     return result;
   }
   static defaultNetwork(): NetworkType {
-    // @ts-ignore
-    return import.meta.env.DEV ? NetworkType.Regtest : NetworkType.Mainnet;
+    return this.isDev() ? NetworkType.Regtest : NetworkType.Mainnet;
   }
 }
 

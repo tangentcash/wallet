@@ -104,6 +104,11 @@
   resolved "https://registry.yarnpkg.com/@babel/helper-validator-identifier/-/helper-validator-identifier-7.27.1.tgz#a7054dcc145a967dd4dc8fee845a57c1316c9df8"
   integrity sha512-D2hP9eA+Sqx1kBZgzxZh0y1trbuU+JoDkiEwqhQ36nodYqJwyEIhPSdMNd7lOm/4io72luTPWH20Yda0xOuUow==
 
+"@babel/helper-validator-identifier@^7.28.5":
+  version "7.28.5"
+  resolved "https://registry.yarnpkg.com/@babel/helper-validator-identifier/-/helper-validator-identifier-7.28.5.tgz#010b6938fab7cb7df74aa2bbc06aa503b8fe5fb4"
+  integrity sha512-qSs4ifwzKJSV39ucNjsvc6WVHs6b7S03sOh2OcHF9UHfVPqWWALUsNUVzhSBiItjRZoLHx7nIarVjqKVusUZ1Q==
+
 "@babel/helper-validator-option@^7.27.1":
   version "7.27.1"
   resolved "https://registry.yarnpkg.com/@babel/helper-validator-option/-/helper-validator-option-7.27.1.tgz#fa52f5b1e7db1ab049445b421c4471303897702f"
@@ -167,6 +172,14 @@
   dependencies:
     "@babel/helper-string-parser" "^7.27.1"
     "@babel/helper-validator-identifier" "^7.27.1"
+
+"@babel/types@^7.26.0":
+  version "7.29.0"
+  resolved "https://registry.yarnpkg.com/@babel/types/-/types-7.29.0.tgz#9f5b1e838c446e72cf3cd4b918152b8c605e37c7"
+  integrity sha512-LwdZHpScM4Qz8Xw2iKSzS+cfglZzJGvofQICy7W7v4caru4EaAmyUuO6BGrbyQ2mYV11W0U8j5mBhd14dd3B0A==
+  dependencies:
+    "@babel/helper-string-parser" "^7.27.1"
+    "@babel/helper-validator-identifier" "^7.28.5"
 
 "@esbuild/aix-ppc64@0.21.5":
   version "0.21.5"
@@ -1253,7 +1266,7 @@
     "@tauri-apps/cli-win32-ia32-msvc" "2.7.1"
     "@tauri-apps/cli-win32-x64-msvc" "2.7.1"
 
-"@tauri-apps/plugin-barcode-scanner@~2":
+"@tauri-apps/plugin-barcode-scanner@2.4.0":
   version "2.4.0"
   resolved "https://registry.yarnpkg.com/@tauri-apps/plugin-barcode-scanner/-/plugin-barcode-scanner-2.4.0.tgz#b29d0effb6750cdfbb8b793ad57a832d9c69fd0a"
   integrity sha512-L+z7hejwlg3L7gApj1XburCL7pF4QbrU5rZDeCevGGqG85i0jXWUykU50v2/NI0XdLhFXYx3ERbXDPblH/BvBA==
@@ -1359,6 +1372,13 @@ aria-hidden@^1.2.4:
   dependencies:
     tslib "^2.0.0"
 
+babel-plugin-react-compiler@1.0.0:
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/babel-plugin-react-compiler/-/babel-plugin-react-compiler-1.0.0.tgz#bdf7360a23a4d5ebfca090255da3893efd07425f"
+  integrity sha512-Ixm8tFfoKKIPYdCCKYTsqv+Fd4IJ0DQqMyEimo+pxUOMUR9cVPlwTrFt9Avu+3cb6Zp3mAzl+t1MrG2fxxKsxw==
+  dependencies:
+    "@babel/types" "^7.26.0"
+
 bech32@2.0.0:
   version "2.0.0"
   resolved "https://registry.yarnpkg.com/bech32/-/bech32-2.0.0.tgz#078d3686535075c8c79709f054b1b226a133b355"
@@ -1404,7 +1424,7 @@ clsx@^2.0.0:
   resolved "https://registry.yarnpkg.com/clsx/-/clsx-2.1.1.tgz#eed397c9fd8bd882bfb18deab7102049a2f32999"
   integrity sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==
 
-colorjs.io@^0.6.0:
+colorjs.io@0.6.0:
   version "0.6.0"
   resolved "https://registry.yarnpkg.com/colorjs.io/-/colorjs.io-0.6.0.tgz#4f3bfc47999c33c682f062e3e23e7a4a3c7eea09"
   integrity sha512-NgaccdK0ajJ9DPfa5OrIFRfTm4XILboOuqKV6tu9UonREcve+RUilZR3cdo7BbG+xIHFbDv4CxTE4M2vsj7nqw==
@@ -1562,12 +1582,12 @@ libsodium@^0.7.15:
   resolved "https://registry.yarnpkg.com/libsodium/-/libsodium-0.7.15.tgz#ac284e3dcb1c29ae9526c5581cdada6a072f6d20"
   integrity sha512-sZwRknt/tUpE2AwzHq3jEyUU5uvIZHtSssktXq7owd++3CSgn8RGrv6UZJJBpP7+iBghBqe7Z06/2M31rI2NKw==
 
-lightweight-charts-react-components@^1.4.0:
+lightweight-charts-react-components@1.4.0:
   version "1.4.0"
   resolved "https://registry.yarnpkg.com/lightweight-charts-react-components/-/lightweight-charts-react-components-1.4.0.tgz#0bf71f71cd9215a7d69d640f89113fb660848aa7"
   integrity sha512-FWzEiQDhQaQ04l6kV2fzsODK6jCrzbLOai+r6oEvCqC3tniXjKUAFHbTUlemII7PfiWYwyVAVgl1XRv72Q8Phw==
 
-lightweight-charts@^5.0.9:
+lightweight-charts@5.0.9:
   version "5.0.9"
   resolved "https://registry.yarnpkg.com/lightweight-charts/-/lightweight-charts-5.0.9.tgz#22ccaf5643b4561c0accecee5d84eec78d3d058d"
   integrity sha512-8oQIis8jfZVfSwz8j9Z5x3O79dIRTkEYI9UY7DKtE4O3ZxlHjMK3L0+4nOVOOFq4FHI/oSIzz1RHeNImCk6/Jg==
@@ -1642,7 +1662,7 @@ postcss@^8.4.38:
     picocolors "^1.1.1"
     source-map-js "^1.2.1"
 
-prism-react-renderer@^2.4.1:
+prism-react-renderer@2.4.1:
   version "2.4.1"
   resolved "https://registry.yarnpkg.com/prism-react-renderer/-/prism-react-renderer-2.4.1.tgz#ac63b7f78e56c8f2b5e76e823a976d5ede77e35f"
   integrity sha512-ey8Ls/+Di31eqzUxC46h8MksNuGx/n0AAC8uKpwFau4RPDYLuE3EXTp8N8G2vX2N7UC/+IXeNUnlWBGGcAG+Ig==
@@ -1725,7 +1745,7 @@ radix-ui@^1.1.3:
     "@radix-ui/react-use-size" "1.1.1"
     "@radix-ui/react-visually-hidden" "1.2.3"
 
-react-code-block@^1.1.3:
+react-code-block@1.1.3:
   version "1.1.3"
   resolved "https://registry.yarnpkg.com/react-code-block/-/react-code-block-1.1.3.tgz#c3675a5e08d15fc1bf757131bfbc7461b02984dd"
   integrity sha512-XfSb9BkJWt4j7FvcVMmgQxIs61g81R0y0bxoemrVPo6/v0kS61PL3S1MWWtHl2g67aRPJeoTqPa4D91v/DzMdQ==
