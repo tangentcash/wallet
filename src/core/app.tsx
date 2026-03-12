@@ -759,7 +759,7 @@ export function App() {
   }, []);
 
   return (
-    <Theme appearance={AppData.props.appearance} accentColor="iris" radius="full" id={state.toString()}>
+    <Theme appearance={AppData.props.appearance} accentColor="lime" radius="full" id={state.toString()}>
       <Box minWidth="285px" style={{ paddingBottom: '96px' }}>
         <BrowserRouter>
           <Routes>

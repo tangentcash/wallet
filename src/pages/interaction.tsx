@@ -861,7 +861,7 @@ export default function InteractionPage() {
                 omniTransaction &&
                 <Flex justify="between" gap="1">
                   <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
-                  <IconButton variant="soft" size="3" color={index != 0 ? 'red' : 'jade'} disabled={!omniTransaction && index == 0} onClick={() => {
+                  <IconButton variant="soft" size="3" color={index != 0 ? 'red' : 'lime'} disabled={!omniTransaction && index == 0} onClick={() => {
                     const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                     if (index == 0) {
                       copy.to.push({ address: '', derivation: null, value: '' });
@@ -897,7 +897,7 @@ export default function InteractionPage() {
             <Select.Content color="gray">
               <Select.Item value="standby">Block production unchanged</Select.Item>
               <Select.Item value="enable">
-                <Text color="jade">ENABLE</Text> block production
+                <Text color="lime">ENABLE</Text> block production
               </Select.Item>
               <Select.Item value="disable">
                 <Text color="red">DISABLE</Text> block production
@@ -928,7 +928,7 @@ export default function InteractionPage() {
               <Select.Content color="gray">
                 <Select.Item value="standby">Bridge participation unchanged</Select.Item>
                 <Select.Item value="enable">
-                  <Text color="jade">ENABLE</Text> bridge participation
+                  <Text color="lime">ENABLE</Text> bridge participation
                 </Select.Item>
                 <Select.Item value="disable">
                   <Text color="red">DISABLE</Text> bridge participation
@@ -985,7 +985,7 @@ export default function InteractionPage() {
                         setProgram(copy);
                       }}>Cancel changes</Button>
                       <Tooltip content="Unlock stake">
-                        <Text as="label" size="2" color={item.stake != null ? 'jade' : 'red'}>
+                        <Text as="label" size="2" color={item.stake != null ? 'lime' : 'red'}>
                           <Flex gap="2" justify="end">
                             <Checkbox size="3" checked={item.stake == null} onCheckedChange={(value) => {
                               const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
@@ -1138,7 +1138,7 @@ export default function InteractionPage() {
                         }} />
                       </Tooltip>
                     </Box>
-                    <IconButton variant="soft" size="3" color="jade" onClick={() => {
+                    <IconButton variant="soft" size="3" color="lime" onClick={() => {
                       const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                       copy.migrations.splice(index, 1);
                       setProgram(copy);
@@ -1282,7 +1282,7 @@ export default function InteractionPage() {
           <Flex justify="center" mt="4">
             <Dialog.Root>
               <Dialog.Trigger>
-                <Button variant="outline" size="3" color="jade" className="shadow-rainbow-animation" loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => transactionReady ? buildTransaction() : calculateTransactionGas(0.95)}>Review transaction</Button>
+                <Button variant="outline" size="3" color="lime" className="shadow-rainbow-animation" loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => transactionReady ? buildTransaction() : calculateTransactionGas(0.95)}>Review transaction</Button>
               </Dialog.Trigger>
               <Dialog.Content maxWidth="500px">
                 <Flex justify="between" align="center">

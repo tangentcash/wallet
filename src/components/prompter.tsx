@@ -92,13 +92,13 @@ export function Prompter() {
           <AlertDialog.Title>
             <Flex justify="between" align="center">
               Approve { metadata.kind }
-              <Badge size="2" color={metadata.trulyTrustless ? 'jade' : 'red'}>{ metadata.trulyTrustless ? 'SECURE' : 'NOT SECURE' }</Badge>
+              <Badge size="2" color={metadata.trulyTrustless ? 'lime' : 'red'}>{ metadata.trulyTrustless ? 'SECURE' : 'NOT SECURE' }</Badge>
             </Flex>
           </AlertDialog.Title>
           <Card mb="4">
             <Flex justify="between" align="center">
               <Flex gap="2">
-                <Avatar src={entity.about.favicon || ''} fallback={metadata.symbol || '?'} size="4" color={metadata.trulyTrustless ? 'jade' : 'amber'} />
+                <Avatar src={entity.about.favicon || ''} fallback={metadata.symbol || '?'} size="4" color={metadata.trulyTrustless ? 'lime' : 'amber'} />
                 <Flex direction="column" mt="1" gap="1" align="start" justify="center">
                   <Badge color={metadata.trulyTrustless ? 'grass' : 'amber'} size="2">{ entity.proof.hostname }</Badge>
                   <Text color="gray" size="1">{ Readability.toAddress(metadata.encodedPublicKey || '0x00000000') }</Text>

@@ -1,7 +1,6 @@
 import "@radix-ui/themes/styles.css";
 import './styles/shadows.css';
 import './styles/transforms.css';
-import './styles/backgrounds.css';
 import './styles/transitions.css';
 import './styles/breakpoints.css';
 import './styles/colors.css';

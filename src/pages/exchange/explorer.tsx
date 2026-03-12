@@ -124,7 +124,7 @@ export default function ExplorerPage() {
       </Box>
       <Flex gap="1">
         <AssetSelector title="token 1 to launch" value={marketLauncher.primary} onChange={(value) => setMarketLauncher(prev => ({ primary: value, secondary: prev?.secondary || null }))}>
-          <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--gray-2)', position: 'relative' }} color="red">
+          <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--gray-3)', position: 'relative' }} color="red">
             <Flex justify="center" align="center">
               {
                 marketLauncher.primary != null &&
@@ -138,7 +138,7 @@ export default function ExplorerPage() {
                 <Icon path={mdiCurrencyBtc} size={1.2} color="var(--gray-11)"></Icon>
               }
             </Flex>
-            <Box style={{ zIndex: '1', borderRadius: '16px', backgroundColor: 'var(--gray-2)', padding: '4px', position: 'absolute', bottom: '50%', right: '-25px', transform: 'translateY(50%)' }}>
+            <Box style={{ zIndex: '1', borderRadius: '16px', backgroundColor: 'var(--gray-3)', padding: '4px', position: 'absolute', bottom: '50%', right: '-25px', transform: 'translateY(50%)' }}>
               <Flex justify="center" align="center" style={{ borderRadius: '12px', backgroundColor: 'var(--gray-4)', width: '40px', height: '40px' }}>
                 <Icon path={mdiArrowLeftRight} size={1.2} color="var(--gray-11)"></Icon>
               </Flex>
@@ -146,7 +146,7 @@ export default function ExplorerPage() {
           </Button>
         </AssetSelector>
         <AssetSelector title="token 2 to launch" value={marketLauncher.secondary} onChange={(value) => setMarketLauncher(prev => ({ primary: prev?.primary || null, secondary: value }))}>
-          <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--gray-2)' }} color="red">
+          <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--gray-3)' }} color="red">
             <Flex justify="center" align="center">
               {
                 marketLauncher.secondary != null &&
@@ -166,7 +166,7 @@ export default function ExplorerPage() {
       <Box pt="4">
         {
           market != null && pairsFilter.map((item, index) =>
-            <Button variant="ghost" radius="none" style={{ display: 'block', width: '100%', borderRadius: '24px' }} mb={index < pairsFilter.length - 1 ? '4' : undefined} key={item.pair.id.toString()} onClick={() => navigate(`/exchange/${Exchange.toOrderbookQuery(market.id, item.pair.primaryAsset, item.pair.secondaryAsset)}`)}>
+            <Button variant="ghost" color="gray" radius="none" style={{ display: 'block', width: '100%', borderRadius: '24px' }} mb={index < pairsFilter.length - 1 ? '4' : undefined} key={item.pair.id.toString()} onClick={() => navigate(`/exchange/${Exchange.toOrderbookQuery(market.id, item.pair.primaryAsset, item.pair.secondaryAsset)}`)}>
               <Box px="2" py="2">
                 <Flex justify="start" align="center" gap="3">
                   <Box style={{ position: 'relative' }}>
@@ -203,7 +203,7 @@ export default function ExplorerPage() {
                           item.pair.price.poolVolume?.gt(0) && item.pair.price.poolLiquidity?.gt(0) &&
                           <Badge radius="full" size="1" color="orange">{ Exchange.toAPY(item.pair.poolFeeRate || market.maxPoolFeeRate, item.pair.price.poolLiquidity, item.pair.price.poolVolume).toFixed(2) }% APY</Badge>
                         }
-                        <Badge radius="full" size="1" color={ (item.pair.price.open || new BigNumber(0)).gt(item.pair.price.close || new BigNumber(0)) ? 'red' : ((item.pair.price.open || new BigNumber(0)).eq(item.pair.price.close || new BigNumber(0)) ? 'gray' : 'jade') }>{ Readability.toPercentageDelta(item.pair.price.open || new BigNumber(0), item.pair.price.close || new BigNumber(0)) }</Badge>
+                        <Badge radius="full" size="1" color={ (item.pair.price.open || new BigNumber(0)).gt(item.pair.price.close || new BigNumber(0)) ? 'red' : ((item.pair.price.open || new BigNumber(0)).eq(item.pair.price.close || new BigNumber(0)) ? 'gray' : 'lime') }>{ Readability.toPercentageDelta(item.pair.price.open || new BigNumber(0), item.pair.price.close || new BigNumber(0)) }</Badge>
                       </Flex>
                     </Flex>
                   </Box>

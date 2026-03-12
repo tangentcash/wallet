@@ -21,15 +21,15 @@ type Route = {
 
 const types: Route[] = [
   { path: '/', name: 'Home', tip: 'My account', icon: mdiSquareRoundedBadgeOutline, persistent: true },
-  { path: '/bridge', name: 'Bridge', tip: 'Bridge transaction', icon: mdiSetRight, activeColor: 'orange', persistent: true },
-  { path: '/interaction', name: 'Pay', tip: 'Send transaction', activeColor: 'jade', icon: mdiContactlessPaymentCircleOutline, persistent: true, disabled: (path: string) => path.startsWith('/restore') && !AppData.isWalletReady() },
-  { path: '/configure', name: 'Configure', tip: 'App settings', activeColor: 'yellow', icon: mdiDotsCircle, persistent: true },
-  { path: '/block', name: 'Block', tip: 'Block details', icon: mdiMagnifyScan, activeColor: 'blue' },
-  { path: '/transaction', name: 'Txn', tip: 'Transaction details', icon: mdiMagnifyScan, activeColor: 'blue' },
-  { path: '/program', name: 'Program', tip: 'Program details', icon: mdiMagnifyScan, activeColor: 'blue' },
-  { path: '/account', name: 'Account', tip: 'Account details', icon: mdiMagnifyScan, activeColor: 'blue' },
-  { path: `${Exchange.subroute}`, name: 'Trading', tip: 'Market trading', icon: mdiRulerSquareCompass, baseColor: 'orange', activeColor: 'orange', persistent: true, deep: true },
-  { path: `${Exchange.subroute}/portfolio`, name: 'Portfolio', tip: 'My portfolio', icon: mdiCardsOutline, baseColor: 'orange', activeColor: 'orange', persistent: true },
+  { path: '/bridge', name: 'Bridge', tip: 'Bridge transaction', icon: mdiSetRight, persistent: true },
+  { path: '/interaction', name: 'Pay', tip: 'Send transaction', icon: mdiContactlessPaymentCircleOutline, persistent: true, disabled: (path: string) => path.startsWith('/restore') && !AppData.isWalletReady() },
+  { path: '/configure', name: 'Configure', tip: 'App settings', icon: mdiDotsCircle, persistent: true },
+  { path: '/block', name: 'Block', tip: 'Block details', icon: mdiMagnifyScan },
+  { path: '/transaction', name: 'Txn', tip: 'Transaction details', icon: mdiMagnifyScan },
+  { path: '/program', name: 'Program', tip: 'Program details', icon: mdiMagnifyScan },
+  { path: '/account', name: 'Account', tip: 'Account details', icon: mdiMagnifyScan },
+  { path: `${Exchange.subroute}`, name: 'Trading', tip: 'Market trading', icon: mdiRulerSquareCompass, persistent: true, deep: true },
+  { path: `${Exchange.subroute}/portfolio`, name: 'Portfolio', tip: 'My portfolio', icon: mdiCardsOutline, persistent: true },
   { path: `${Exchange.subroute}/exit`, name: 'Exit', tip: 'Exit exchange', icon: mdiExitToApp, baseColor: 'red', activeColor: 'red', persistent: true, toPath: () => '/' }
 ]
 
@@ -72,7 +72,7 @@ export function Navbar() {
                       <Box>
                         {
                           item.selected &&
-                          <Button size={enlarge ? '3' : '2'} variant="outline" style={{ boxShadow: `inset 0 0 0 1px var(--${item.activeColor || 'jade'}-a7)` }} color={item.activeColor as any} disabled={item.disabled ? item.disabled(location.pathname) : false}>
+                          <Button size={enlarge ? '3' : '2'} variant="outline" style={{ boxShadow: `inset 0 0 0 1px var(--${item.activeColor || 'lime'}-a7)` }} color={item.activeColor as any} disabled={item.disabled ? item.disabled(location.pathname) : false}>
                             <Icon path={item.icon} size={1} />
                             {item.name}
                           </Button>

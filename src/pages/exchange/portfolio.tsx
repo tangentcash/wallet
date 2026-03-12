@@ -191,7 +191,7 @@ export default function PortfolioPage() {
             </Flex>
             <Heading size="7">{ Readability.toMoney(Exchange.equityAsset, equity.current) }</Heading>
           </Box>
-          <Button variant="soft" size="2" color={ equity.previous.gt(equity.current) ? 'red' : (equity.previous.eq(equity.current) ? 'gray' : 'jade') } onClick={() => setTodayProfits(!todayProfits)}>{ Readability.toMoney(Exchange.equityAsset, equity.current.minus(equity.previous), true) } ({ Readability.toPercentageDelta(equity.previous, equity.current) }) - { todayProfits ? 'Today' : 'Total' }</Button>
+          <Button variant="soft" size="2" color={ equity.previous.gt(equity.current) ? 'red' : (equity.previous.eq(equity.current) ? 'gray' : 'lime') } onClick={() => setTodayProfits(!todayProfits)}>{ Readability.toMoney(Exchange.equityAsset, equity.current.minus(equity.previous), true) } ({ Readability.toPercentageDelta(equity.previous, equity.current) }) - { todayProfits ? 'Today' : 'Total' }</Button>
         </Box>
       </Card>
       <Tabs.Root value={viewer} onValueChange={(x) => setSearch({ view: x })} mt="4">

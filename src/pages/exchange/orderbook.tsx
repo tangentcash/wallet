@@ -695,7 +695,7 @@ export default function OrderbookPage() {
             <Box>
               <Text size={mobile ? '1' : '2'}>{ Readability.toValue(null, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true, true) }</Text>
               <Text size={mobile ? '1' : '2'} color="gray"> | </Text>
-              <Text size={mobile ? '1' : '2'} color={ (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'red' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'jade') }>{ Readability.toPercentageDelta(pair?.price.open || new BigNumber(0), pair?.price.close || new BigNumber(0)) }</Text>
+              <Text size={mobile ? '1' : '2'} color={ (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'red' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'lime') }>{ Readability.toPercentageDelta(pair?.price.open || new BigNumber(0), pair?.price.close || new BigNumber(0)) }</Text>
             </Box>
           </Flex>
         </Flex>
@@ -884,7 +884,7 @@ export default function OrderbookPage() {
                         <Flex direction="column" mt="4">
                           <Text size="2" color="gray">{ Readability.toAssetSymbol(valuation.secondary) } cost of { Readability.toAssetSymbol(valuation.primary) }</Text>
                           <Text size="4">{ Readability.toMoney(valuation.secondary, valuation.worth) }</Text>
-                          <Text size="2" color={valuation.relativePL.gt(0) ? 'jade' : (valuation.relativePL.lt(0) ? 'red' : 'gray')}>{ Readability.toValue(null, valuation.absolutePL, true, true) } ({ valuation.relativePL.gt(0) ? '+' : '' }{ valuation.relativePL.multipliedBy(100).toFixed(2) }%)</Text>
+                          <Text size="2" color={valuation.relativePL.gt(0) ? 'lime' : (valuation.relativePL.lt(0) ? 'red' : 'gray')}>{ Readability.toValue(null, valuation.absolutePL, true, true) } ({ valuation.relativePL.gt(0) ? '+' : '' }{ valuation.relativePL.multipliedBy(100).toFixed(2) }%)</Text>
                         </Flex>
                       </Card>
                       <Card mb="3" variant="surface" style={{ borderRadius: '22px' }}>
@@ -907,8 +907,8 @@ export default function OrderbookPage() {
                           <Tooltip side="left" content="Risk metric based on asset pair combination">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Risk</Text>
-                              <Text size="2" style={{ color: whitelisted === true ? 'var(--jade-11)' : (whitelisted === false ? 'var(--red-11)' : 'var(--gray-11)') }}>
-                                { typeof whitelisted == 'boolean' && <Icon path={whitelisted === true ? mdiCheck : mdiAlert} color={whitelisted === true ? 'var(--jade-10)' : 'var(--yellow-9)'} size={0.7} style={{ transform: 'translateY(3px)', marginRight: '5px' }}></Icon> }
+                              <Text size="2" style={{ color: whitelisted === true ? 'var(--lime-11)' : (whitelisted === false ? 'var(--red-11)' : 'var(--gray-11)') }}>
+                                { typeof whitelisted == 'boolean' && <Icon path={whitelisted === true ? mdiCheck : mdiAlert} color={whitelisted === true ? 'var(--lime-10)' : 'var(--yellow-9)'} size={0.7} style={{ transform: 'translateY(3px)', marginRight: '5px' }}></Icon> }
                                 { whitelisted === true ? 'Low risk pair' : (whitelisted === false ? 'High risk pair' : 'Loading...') }
                               </Text>
                             </Flex>
@@ -942,7 +942,7 @@ export default function OrderbookPage() {
                           <Tooltip side="left" content="Absolute difference between price open and price close">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Delta</Text>
-                              <Text size="2" color={ (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'red' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'jade') }>{ Readability.toMoney(orderbook.secondaryAsset, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true) }</Text>
+                              <Text size="2" color={ (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'red' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'lime') }>{ Readability.toMoney(orderbook.secondaryAsset, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true) }</Text>
                             </Flex>
                           </Tooltip>
                           <Tooltip side="left" content="Actual amount traded within last 24 hours">
@@ -1059,8 +1059,8 @@ export default function OrderbookPage() {
                         {
                           seriesOptions.priceScope != PriceScope.Ask &&
                           <>
-                            <Box position="absolute" top="0" left="0" right={`${seriesOptions.priceScope == PriceScope.All ? liquidity.ask[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--jade-a5)' }}></Box>
-                            <Text size="2" style={{ zIndex: 1, color: 'var(--jade-11)' }}>{ Readability.toMoney(orderbook?.primaryAsset || null, liquidity.bid[0]) }</Text>
+                            <Box position="absolute" top="0" left="0" right={`${seriesOptions.priceScope == PriceScope.All ? liquidity.ask[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--lime-a5)' }}></Box>
+                            <Text size="2" style={{ zIndex: 1, color: 'var(--lime-11)' }}>{ Readability.toMoney(orderbook?.primaryAsset || null, liquidity.bid[0]) }</Text>
                           </>
                         }
                         {
@@ -1080,8 +1080,8 @@ export default function OrderbookPage() {
                                 <Tooltip side="left" key={item.price.toString()} content={`Buy ${Readability.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≤ ${Readability.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
                                   <Button variant="ghost" radius="none" style={{ width: '100%', height: 'auto', padding: 0, margin: 0 }} onClick={() => updatePreset(OrderSide.Buy, item.price)}>
                                     <Flex width="100%" justify="start" px="1" py="1" position="relative">
-                                      <Box position="absolute" top="0" left={`${100 - 100 * item.quantity.dividedBy(liquidity.bid[0]).toNumber()}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--jade-7)' }}></Box>
-                                      <Text size="2" style={{ zIndex: 1, color: 'var(--jade-11)' }}>{ Readability.toValue(null, item.price, false, true) }</Text>
+                                      <Box position="absolute" top="0" left={`${100 - 100 * item.quantity.dividedBy(liquidity.bid[0]).toNumber()}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--lime-7)' }}></Box>
+                                      <Text size="2" style={{ zIndex: 1, color: 'var(--lime-11)' }}>{ Readability.toValue(null, item.price, false, true) }</Text>
                                     </Flex>
                                   </Button>
                                 </Tooltip>)
@@ -1127,8 +1127,8 @@ export default function OrderbookPage() {
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook?.secondaryAsset || null, item.price) }</Text>
                             </Flex>
                             <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color={item.side == OrderSide.Buy ? 'jade' : 'red'}>{ item.side == OrderSide.Buy ? 'Buy' : 'Sell' }</Text>
-                              <Text size="2" color={item.side == OrderSide.Buy ? 'jade' : 'red'}>{ Readability.toMoney(orderbook?.primaryAsset || null, item.quantity) }</Text>
+                              <Text size="2" color={item.side == OrderSide.Buy ? 'lime' : 'red'}>{ item.side == OrderSide.Buy ? 'Buy' : 'Sell' }</Text>
+                              <Text size="2" color={item.side == OrderSide.Buy ? 'lime' : 'red'}>{ Readability.toMoney(orderbook?.primaryAsset || null, item.quantity) }</Text>
                             </Flex>
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" style={{ color: 'var(--gray-12)' }}>With</Text>

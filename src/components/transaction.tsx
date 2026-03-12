@@ -100,7 +100,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           <DataList.Item>
             <DataList.Label>Callable:</DataList.Label>
             <DataList.Value>
-              <Button size="2" variant="ghost" color="jade" onClick={() => {
+              <Button size="2" variant="ghost" color="lime" onClick={() => {
                 navigator.clipboard.writeText(method);
                 AlertBox.open(AlertType.Info, 'Program function copied!')
               }}>{ Readability.toHash(method, 20) }</Button>
@@ -167,7 +167,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
               <DataList.Item>
                 <DataList.Label>Block production:</DataList.Label>
                 <DataList.Value>
-                  <Badge color={ typeof transaction.block_production == 'object' ? 'jade' : 'red' }>{ typeof transaction.block_production == 'object' ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.block_production) + ' locked' : 'Offline' }</Badge>
+                  <Badge color={ typeof transaction.block_production == 'object' ? 'lime' : 'red' }>{ typeof transaction.block_production == 'object' ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.block_production) + ' locked' : 'Offline' }</Badge>
                 </DataList.Value>
               </DataList.Item>
             }
@@ -176,7 +176,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
               <DataList.Item>
                 <DataList.Label>Bridge participation:</DataList.Label>
                 <DataList.Value>
-                  <Badge color={ typeof transaction.bridge_participation == 'object' ? 'jade' : 'red' }>{ typeof transaction.bridge_participation == 'object' ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.bridge_participation) + ' locked' : 'Offline' }</Badge>
+                  <Badge color={ typeof transaction.bridge_participation == 'object' ? 'lime' : 'red' }>{ typeof transaction.bridge_participation == 'object' ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.bridge_participation) + ' locked' : 'Offline' }</Badge>
                 </DataList.Value>
               </DataList.Item>
             }
@@ -188,7 +188,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
                 <DataList.Item>
                   <DataList.Label>{ item.asset.chain } attestation stake:</DataList.Label>
                   <DataList.Value>
-                    <Badge color={ item.stake != null ? 'jade' : 'red' }>{ item.stake != null ? 'Online with ' + Readability.toMoney(new AssetId(), item.stake) : 'Offline' }</Badge>
+                    <Badge color={ item.stake != null ? 'lime' : 'red' }>{ item.stake != null ? 'Online with ' + Readability.toMoney(new AssetId(), item.stake) : 'Offline' }</Badge>
                   </DataList.Value>
                 </DataList.Item>
                 {
@@ -796,7 +796,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <DataList.Item>
                       <DataList.Label>Position:</DataList.Label>
                       <DataList.Value>
-                        <Badge color={event.size.gt(1) ? 'yellow' : 'jade'}>{ event.size.gt(1) ? 'Executes after ' + Readability.toCount('transaction', event.size) : 'Executes immediately' }</Badge>
+                        <Badge color={event.size.gt(1) ? 'yellow' : 'lime'}>{ event.size.gt(1) ? 'Executes after ' + Readability.toCount('transaction', event.size) : 'Executes immediately' }</Badge>
                       </DataList.Value>
                     </DataList.Item>
                   </DataList.Root>
@@ -908,7 +908,7 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
                     <DataList.Item>
                       <DataList.Label>Address type:</DataList.Label>
                       <DataList.Value>
-                        <Badge color="jade">{ event.purpose[0].toUpperCase() + event.purpose.substring(1) } account</Badge>
+                        <Badge color="lime">{ event.purpose[0].toUpperCase() + event.purpose.substring(1) } account</Badge>
                       </DataList.Value>
                     </DataList.Item>
                   </DataList.Root>
@@ -1043,7 +1043,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               <Flex gap="2" wrap="wrap">
                 {
                   !transaction.error && EventResolver.isSummaryStateEmpty(state, ownerAddress) &&
-                  <Badge size="1" color={receipt.successful ? 'jade' : 'red'}>{ receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Rollback' }<Icon path={receipt.successful ? mdiCheck : mdiAlert} size={0.55}></Icon></Badge>
+                  <Badge size="1" color={receipt.successful ? 'lime' : 'red'}>{ receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Rollback' }<Icon path={receipt.successful ? mdiCheck : mdiAlert} size={0.55}></Icon></Badge>
                 }
                 {
                   transaction.error != null &&
@@ -1059,7 +1059,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                     const zero = value.supply.eq(0) && value.reserve.eq(0);
                     return (
                       <Flex key={'X0' + transaction.hash + asset} gap="2">
-                        { (zero || !value.supply.eq(0)) && <Badge size="1" color={value.supply.gt(0) ? 'jade' : (value.supply.isNegative() ? 'red' : 'gray')}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge> }
+                        { (zero || !value.supply.eq(0)) && <Badge size="1" color={value.supply.gt(0) ? 'lime' : (value.supply.isNegative() ? 'red' : 'gray')}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge> }
                         {
                           !value.reserve.eq(0) &&
                           <Badge size="1" color="gold">
@@ -1116,7 +1116,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   Object.keys(state.bridge.queues).length > 0 && Object.keys(state.bridge.queues[Object.keys(state.bridge.queues)[0]]).map((asset) => {
                     const queue = state.bridge.queues[Object.keys(state.bridge.queues)[0]][asset];
                     return (
-                      <Badge key={'X148' + transaction.hash + asset} size="1" color={queue.size.gt(1) ? 'yellow' : 'jade'}>
+                      <Badge key={'X148' + transaction.hash + asset} size="1" color={queue.size.gt(1) ? 'yellow' : 'lime'}>
                         { Readability.toValue(null, queue.size, false, false) }<Icon path={mdiListBox} size={0.55}></Icon>
                       </Badge>
                     )
@@ -1126,7 +1126,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   Object.keys(state.witness.accounts).map((asset) => {
                     const aliases = state.witness.accounts[asset].aliases;
                     const bridge = state.witness.accounts[asset].purpose == 'bridge';
-                    return aliases.map((alias) => <Badge key={'X3' + alias} size="1" color={bridge ? 'blue' : 'jade'}>{ Readability.toAddress(alias, 6) }</Badge>)
+                    return aliases.map((alias) => <Badge key={'X3' + alias} size="1" color={bridge ? 'blue' : 'lime'}>{ Readability.toAddress(alias, 6) }</Badge>)
                   })
                 }
                 {
@@ -1175,7 +1175,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 <DataList.Item>
                   <DataList.Label>Status:</DataList.Label>
                   <DataList.Value>
-                    <Badge color={receipt.successful ? 'jade' : 'red'}>Execution { receipt.successful ? 'finalized' : 'reverted' }</Badge>
+                    <Badge color={receipt.successful ? 'lime' : 'red'}>Execution { receipt.successful ? 'finalized' : 'reverted' }</Badge>
                   </DataList.Value>
                 </DataList.Item>
                 <DataList.Item>
@@ -1192,7 +1192,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   <DataList.Item>
                     <DataList.Label>Confidence:</DataList.Label>
                     <DataList.Value>
-                      <Badge color={AppData.tip.minus(receipt.block_number).gt(0) ? 'jade' : 'orange'}>{ Readability.toCount('confirmation', AppData.tip.minus(receipt.block_number).plus(1)) }</Badge>
+                      <Badge color={AppData.tip.minus(receipt.block_number).gt(0) ? 'lime' : 'orange'}>{ Readability.toCount('confirmation', AppData.tip.minus(receipt.block_number).plus(1)) }</Badge>
                     </DataList.Value>
                   </DataList.Item>
                 }

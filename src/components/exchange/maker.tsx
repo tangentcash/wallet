@@ -502,7 +502,7 @@ export function Maker(props: {
   const makeOrder = () => (
     <Box>
       <Box mb="4">
-        <Button variant="soft" color={state.side == OrderSide.Buy ? 'jade' : 'red'} style={{ display: 'block', height: 'auto', width: '100%', borderRadius: '24px' }} onClick={() => {
+        <Button variant="soft" color={state.side == OrderSide.Buy ? 'lime' : 'red'} style={{ display: 'block', height: 'auto', width: '100%', borderRadius: '24px' }} onClick={() => {
           if (valueBalance != null)
             updateState(prev => ({ ...prev, value: valueBalance.toString() }));
         }}>
@@ -643,7 +643,7 @@ export function Maker(props: {
         </Box>
       }
       <Box>
-        <PerformerButton title="Place order" description={`Order placement involves paying ${Readability.toAssetSymbol(valueAsset)} to smart contract that can re-pay it back by withdrawal otherwise it will pay ${Readability.toAssetSymbol(state.side == OrderSide.Buy ? props.primaryAsset : props.secondaryAsset)} as it executes the order`} color={state.side == OrderSide.Buy ? 'jade' : 'red'} style={{ width: '100%' }} disabled={!orderPayload} onBuild={async () => {
+        <PerformerButton title="Place order" description={`Order placement involves paying ${Readability.toAssetSymbol(valueAsset)} to smart contract that can re-pay it back by withdrawal otherwise it will pay ${Readability.toAssetSymbol(state.side == OrderSide.Buy ? props.primaryAsset : props.secondaryAsset)} as it executes the order`} color={state.side == OrderSide.Buy ? 'lime' : 'red'} style={{ width: '100%' }} disabled={!orderPayload} onBuild={async () => {
           return orderPayload ? Builder.depositOrder(orderPayload) : null;
         }}></PerformerButton>
       </Box>

@@ -61,7 +61,7 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
                 </Flex>
               </Tooltip>
               <Tooltip content={ Readability.toMoney(Exchange.equityAsset, currentEquity.minus(previousEquity), true) }>
-                <Badge size="2" variant="soft" color={previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : 'jade')} mt="1">
+                <Badge size="2" variant="soft" color={previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : 'lime')} mt="1">
                   <Icon path={mdiSetRight} size={0.7}></Icon>
                   <Text size="1">{ Readability.toPercentageDelta(previousEquity, currentEquity) }</Text>
                 </Badge>
@@ -124,7 +124,7 @@ function DefaultBalanceView(props: { item: Balance & { equity: { current: BigNum
               </Flex>
             </Tooltip>
             <Tooltip content={ Readability.toMoney(Exchange.equityAsset, currentEquity.minus(previousEquity), true) }>
-              <Badge size="2" variant="soft" color={previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : 'jade')} mt="1">
+              <Badge size="2" variant="soft" color={previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : 'lime')} mt="1">
                 <Text size="1">{ Readability.toPercentageDelta(previousEquity, currentEquity) }</Text>
               </Badge>
             </Tooltip>

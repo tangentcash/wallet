@@ -263,7 +263,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                             </Flex>
                             {
                               item.purpose == null &&
-                              <Box className="rt-reset rt-BaseButton rt-r-size-2 rt-variant-surface rt-IconButton" data-accent-color="jade">
+                              <Box className="rt-reset rt-BaseButton rt-r-size-2 rt-variant-surface rt-IconButton" data-accent-color="lime">
                                 <Icon path={mdiSourceCommitStartNextLocal} size={1}></Icon>
                               </Box>
                             }
@@ -275,7 +275,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                             }
                             {
                               item.purpose == 'routing' && 
-                              <Box className="rt-reset rt-BaseButton rt-r-size-2 rt-variant-surface rt-IconButton" data-accent-color="jade">
+                              <Box className="rt-reset rt-BaseButton rt-r-size-2 rt-variant-surface rt-IconButton" data-accent-color="lime">
                                 <Icon path={mdiSourceCommitLocal} size={1}></Icon>
                               </Box>
                             }
@@ -325,7 +325,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                           <Text style={{ display: 'block' }} mt="1">Total value: { new BigNumber(item.supply).toString() } { Readability.toAssetSymbol(item.asset) }</Text>
                         </>
                         }>
-                        <Badge size="1" color={item.reserve.gt(0) ? 'yellow' : 'jade'}>{ (Math.floor(10000 - item.reserve.dividedBy(item.supply).toNumber() * 10000) / 100).toFixed(1) }%</Badge>
+                        <Badge size="1" color={item.reserve.gt(0) ? 'yellow' : 'lime'}>{ (Math.floor(10000 - item.reserve.dividedBy(item.supply).toNumber() * 10000) / 100).toFixed(1) }%</Badge>
                       </Tooltip>
                     </Flex>
                     <Text as="div" size="2" weight="medium">{ Readability.toMoney(item.asset, item.supply) }</Text>
@@ -361,7 +361,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                 <Flex justify="between" align="center">
                   <Text as="div" size="2" weight="light">Block production</Text>
                 </Flex>
-                <Badge size="1" color={production ? (production.stake != null ? 'jade' : 'red') : 'orange'}>PRODUCER { production ? (production.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ production != null ? production.stake != null ? ' IN BLOCK ' + production.block_number.toNumber() : (' FROM BLOCK ' + production.block_number.toNumber()) : '' }</Badge>
+                <Badge size="1" color={production ? (production.stake != null ? 'lime' : 'red') : 'orange'}>PRODUCER { production ? (production.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ production != null ? production.stake != null ? ' IN BLOCK ' + production.block_number.toNumber() : (' FROM BLOCK ' + production.block_number.toNumber()) : '' }</Badge>
               </Box>
             </Flex>
             {
@@ -403,7 +403,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                     <Flex justify="between" align="center">
                       <Text as="div" size="2" weight="light">Bridge participation</Text>
                     </Flex>
-                    <Badge size="1" color={participation.stake != null ? 'jade' : 'red'}>PARTICIPANT { (participation.stake != null ? 'ACTIVE' : 'OFFLINE') }{ participation.stake != null ? ' IN BLOCK ' + participation.block_number.toNumber() : (' FROM BLOCK ' + participation.block_number.toNumber()) }</Badge>
+                    <Badge size="1" color={participation.stake != null ? 'lime' : 'red'}>PARTICIPANT { (participation.stake != null ? 'ACTIVE' : 'OFFLINE') }{ participation.stake != null ? ' IN BLOCK ' + participation.block_number.toNumber() : (' FROM BLOCK ' + participation.block_number.toNumber()) }</Badge>
                   </Box>
                 </Flex>
                 <Box pl="5">
@@ -439,12 +439,12 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               attestations.map((attestation) =>
                 <Box key={attestation.asset.id + '_attestation'}>
                   <Flex px="2" py="2" gap="3">
-                    <Icon path={mdiTransitConnectionVariant} size={1.5} style={{ color: 'var(--jade-10)' }} />
+                    <Icon path={mdiTransitConnectionVariant} size={1.5} style={{ color: 'var(--lime-10)' }} />
                     <Box width="100%">
                       <Flex justify="between" align="center">
                         <Text as="div" size="2" weight="light">Bridge attestation — { Readability.toAssetName(new AssetId(attestation.asset.id)) }</Text>
                       </Flex>
-                      <Badge size="1" color={attestation ? (attestation.stake != null ? 'jade' : 'red') : 'orange'}>ATTESTATION { attestation ? (attestation.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ attestation != null ? attestation.stake != null ? ' IN BLOCK ' + attestation.block_number.toNumber() : (' FROM BLOCK ' + attestation.block_number.toNumber()) : '' }</Badge>
+                      <Badge size="1" color={attestation ? (attestation.stake != null ? 'lime' : 'red') : 'orange'}>ATTESTATION { attestation ? (attestation.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ attestation != null ? attestation.stake != null ? ' IN BLOCK ' + attestation.block_number.toNumber() : (' FROM BLOCK ' + attestation.block_number.toNumber()) : '' }</Badge>
                     </Box>
                   </Flex>
                   <Box pl="5">
@@ -514,12 +514,12 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               </Select.Group>
             </Select.Content>
           </Select.Root>
-          <Button color="orange" size="3" variant="soft" className="shadow-rainbow-alt-hover" onClick={() => navigate(Exchange.subroute)}>
+          <Button color="lime" size="3" variant="soft" className="shadow-rainbow-hover" onClick={() => navigate(Exchange.subroute)}>
             <Flex align="center" gap="2">
               <Box style={{ transform: 'translateY(2px)' }}>
-                <Icon path={mdiRulerSquareCompass} size={0.9} color="var(--orange-11)"></Icon>
+                <Icon path={mdiRulerSquareCompass} size={0.9} color="var(--lime-11)"></Icon>
               </Box>
-              <Text size="3" weight="light" color="orange">Exchange</Text>
+              <Text size="3" weight="light" color="lime">Exchange</Text>
             </Flex>
           </Button>
         </Flex>

@@ -12,7 +12,7 @@ import Icon from '@mdi/react';
 
 // @ts-ignore
 const PASSWORD_SIZE = 6;
-const COLOR_MAP = ["gray", "gold", "bronze", "brown", "yellow", "amber", "orange", "tomato", "red", "ruby", "crimson", "pink", "plum", "purple", "violet", "iris", "indigo", "blue", "cyan", "teal", "jade", "green", "grass", "lime", "mint", "sky"];
+const COLOR_MAP = ["gray", "gold", "bronze", "brown", "yellow", "amber", "orange", "tomato", "red", "ruby", "crimson", "pink", "plum", "purple", "violet", "iris", "indigo", "blue", "cyan", "teal", "lime", "green", "grass", "lime", "mint", "sky"];
 
 function cyrb128(str: string): number[] {
   let h1 = 1779033703, h2 = 3144134277, h3 = 1013904242, h4 = 2773480762;
@@ -291,7 +291,7 @@ export default function RestorePage() {
                   !AppData.isWalletExists() &&
                   <Flex justify="center" mt="2" px="2">
                     <Text size="1" weight="light" color="gray">
-                      At any cost, do not forget.<Link size="1" ml="1" color="jade" onClick={importWallet}>{ importValid ? 'Change wallet.' : 'Import wallet.' }</Link>
+                      At any cost, do not forget.<Link size="1" ml="1" color="lime" onClick={importWallet}>{ importValid ? 'Change wallet.' : 'Import wallet.' }</Link>
                     </Text>
                   </Flex>
                 }
@@ -448,7 +448,7 @@ export default function RestorePage() {
               <Select.Group>
                 <Select.Label>Tangent network</Select.Label>
                 <Select.Item value="mainnet">
-                  <Text color="jade">Main network</Text>
+                  <Text color="lime">Main network</Text>
                 </Select.Item>
                 <Select.Item value="testnet">
                   <Text color="blue">Test network</Text>

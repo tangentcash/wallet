@@ -286,7 +286,7 @@ export default function BridgePage() {
                     <Flex justify="start" align="start" direction="column">
                       <AssetName asset={item} size="2" style={{ color: 'var(--gray-12)' }}></AssetName>
                       <Flex gap="1">
-                        <Badge size="1" color="jade">{ Readability.toAssetSymbol(item) }</Badge>
+                        <Badge size="1" color="lime">{ Readability.toAssetSymbol(item) }</Badge>
                         {
                           item.info != null &&
                           <>
@@ -330,7 +330,7 @@ export default function BridgePage() {
                 <Text size="3" color="red">Deposit from</Text>
                 {
                   asset.routing_policy == 'utxo' &&
-                  <Badge color="jade" size="3">any address</Badge>
+                  <Badge color="lime" size="3">any address</Badge>
                 }
                 {
                   asset.routing_policy == 'memo' &&
@@ -442,7 +442,7 @@ export default function BridgePage() {
                               <Flex wrap="wrap" gap="1">
                                 {
                                   item.balances && item.balances.map((next: any) =>
-                                    <Badge key={item.instance.hash + index + next.asset.id} size="1" color="jade">{ Readability.toMoney(next.asset, next.supply) }</Badge>)
+                                    <Badge key={item.instance.hash + index + next.asset.id} size="1" color="lime">{ Readability.toMoney(next.asset, next.supply) }</Badge>)
                                 }
                                 {
                                   (!item.balances || !item.balances.length) &&
@@ -456,7 +456,7 @@ export default function BridgePage() {
                           <DataList.Item>
                             <DataList.Label>Participation size:</DataList.Label>
                             <DataList.Value>
-                              <Badge size="1" color={speedOverSecurity(item.instance) ? 'red' : 'jade'}>{ Readability.toCount('participant', item.instance.security_level) }</Badge>
+                              <Badge size="1" color={speedOverSecurity(item.instance) ? 'red' : 'lime'}>{ Readability.toCount('participant', item.instance.security_level) }</Badge>
                             </DataList.Value>
                           </DataList.Item>
                         </Tooltip>

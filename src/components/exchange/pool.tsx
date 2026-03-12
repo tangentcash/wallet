@@ -102,8 +102,8 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
           <Flex justify="between" align="center">
             <Flex align="center" gap="2" pt="1">
               <Flex gap="1">
-                <Badge variant="soft" color={item.active ? 'jade' : 'gray'} size="2">{ Readability.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</Badge>
-                <Badge variant="soft" color={item.active ? 'jade' : 'gray'} size="2">{ state.relativeRevenue.gt(0) ? '+' : '' }{ state.relativeRevenue.multipliedBy(100).toFixed(2) }%</Badge>
+                <Badge variant="soft" color={item.active ? 'lime' : 'gray'} size="2">{ Readability.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</Badge>
+                <Badge variant="soft" color={item.active ? 'lime' : 'gray'} size="2">{ state.relativeRevenue.gt(0) ? '+' : '' }{ state.relativeRevenue.multipliedBy(100).toFixed(2) }%</Badge>
               </Flex>
             </Flex>
             <Badge variant="soft" color="gold" size="2">    
@@ -148,7 +148,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
           <DataList.Item>
             <DataList.Label>Status:</DataList.Label>
             <DataList.Value>
-              <Badge color={item.active ? (inLowerRange && inUpperRange ? 'jade' : 'yellow') : 'gray'}>{ item.active ? (inLowerRange && inUpperRange ? (concentrated ? 'Active (fully in range)' : 'Active') : 'Partially active (out of range)') : 'Inactive' }</Badge>
+              <Badge color={item.active ? (inLowerRange && inUpperRange ? 'lime' : 'yellow') : 'gray'}>{ item.active ? (inLowerRange && inUpperRange ? (concentrated ? 'Active (fully in range)' : 'Active') : 'Partially active (out of range)') : 'Inactive' }</Badge>
             </DataList.Value>
           </DataList.Item>
           {
@@ -162,7 +162,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
             <DataList.Label>Price spread:</DataList.Label>
             <DataList.Value>
               <Flex wrap="wrap" gap="2">
-                { inLowerRange && <Badge color="jade">BID { Readability.toMoney(item.secondaryAsset, bidPrice) }</Badge> }
+                { inLowerRange && <Badge color="lime">BID { Readability.toMoney(item.secondaryAsset, bidPrice) }</Badge> }
                 { inUpperRange && <Badge color="red">ASK { Readability.toMoney(item.secondaryAsset, askPrice) }</Badge> }
               </Flex>
             </DataList.Value>
@@ -177,8 +177,8 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
               <DataList.Label>Fees onhold:</DataList.Label>
               <DataList.Value>
                 <Flex wrap="wrap" gap="2">
-                  { item.primaryRevenue.gt(0) && <Badge color="jade">{ Readability.toMoney(item.primaryAsset, item.primaryRevenue) }</Badge> }
-                  { item.secondaryRevenue.gt(0) && <Badge color="jade">{ Readability.toMoney(item.secondaryAsset, item.secondaryRevenue) }</Badge> }
+                  { item.primaryRevenue.gt(0) && <Badge color="lime">{ Readability.toMoney(item.primaryAsset, item.primaryRevenue) }</Badge> }
+                  { item.secondaryRevenue.gt(0) && <Badge color="lime">{ Readability.toMoney(item.secondaryAsset, item.secondaryRevenue) }</Badge> }
                 </Flex>
               </DataList.Value>
             </DataList.Item>
@@ -222,8 +222,8 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
               <Button variant="surface" color="gray" style={{ display: 'block', width: '100%', height: 'auto', padding: '4px', backgroundColor: 'transparent', boxShadow: 'none' }}>
                 <Flex direction="column" gap="2">
                   <Flex justify="between" wrap="wrap" gap="1" style={{ textDecoration: inLowerRange ? undefined : 'line-through', color: 'var(--gray-11)' }}>
-                    <Text size="2" color="jade">Buy at</Text>
-                    <Text size="2" color="jade">≤ { Readability.toMoney(item.secondaryAsset, bidPrice) }</Text>
+                    <Text size="2" color="lime">Buy at</Text>
+                    <Text size="2" color="lime">≤ { Readability.toMoney(item.secondaryAsset, bidPrice) }</Text>
                   </Flex>
                   <Flex justify="between" wrap="wrap" gap="1" style={{ textDecoration: inUpperRange ? undefined : 'line-through', color: 'var(--gray-11)' }}>
                     <Text size="2" color="red">Sell at</Text>

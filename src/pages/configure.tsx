@@ -147,14 +147,14 @@ export default function ConfigurePage() {
           <Text as="label" size="1">
             <Flex gap="2" align="center" justify="between">
               <Text size="2" color="gray">Display theme</Text>
-              <Button size="2" variant="soft" color="jade" onClick={() => AppData.setAppearance(AppData.props.appearance == 'dark' ? 'light' : 'dark')}>
+              <Button size="2" variant="soft" color="lime" onClick={() => AppData.setAppearance(AppData.props.appearance == 'dark' ? 'light' : 'dark')}>
                 <Icon path={AppData.props.appearance == 'dark' ? mdiLightbulbOutline : mdiLightbulbOn} size={0.85} />
               </Button>
             </Flex>
           </Text>
           <Flex justify="between" align="center" mt="2">
             <Text size="2" color="gray">Erase cache</Text>
-            <Button size="2" variant="soft" color="jade" onClick={() => {
+            <Button size="2" variant="soft" color="lime" onClick={() => {
               RPC.clearCache();
               AlertBox.open(AlertType.Info, 'Application cache erased');
             }}>
@@ -184,7 +184,7 @@ export default function ConfigurePage() {
           </Flex>
           <Flex justify="between" align="center" mt="2">
             <Text size="2" color="gray">Close wallet</Text>
-            <Button size="2" variant="soft" color="jade" disabled={!AppData.isWalletReady()} onClick={() => AppData.clearWallet()}>
+            <Button size="2" variant="soft" color="lime" disabled={!AppData.isWalletReady()} onClick={() => AppData.clearWallet()}>
               <Icon path={mdiLocationExit} size={0.85} />
             </Button>
           </Flex>
@@ -243,14 +243,14 @@ export default function ConfigurePage() {
             <DataList.Item>
               <DataList.Label>Channel</DataList.Label>
               <DataList.Value>
-                { networkInfo.connections > 0 && <Badge size="2" color="jade">{ Readability.toCount('connection', networkInfo.connections) }</Badge> }
+                { networkInfo.connections > 0 && <Badge size="2" color="lime">{ Readability.toCount('connection', networkInfo.connections) }</Badge> }
                 { !networkInfo.connections && <Badge size="2" color="red">OFFLINE</Badge> }
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Quality</DataList.Label>
               <DataList.Value>
-                <Badge size="2" color={(networkInfo.requests ? networkInfo.responses / networkInfo.requests < 0.9 : false) ? 'red' : 'jade'} variant="soft" radius="full">{ (100 * Math.min(1, networkInfo.requests > 0 ? networkInfo.responses / networkInfo.requests : 1)).toFixed(2) }%</Badge>
+                <Badge size="2" color={(networkInfo.requests ? networkInfo.responses / networkInfo.requests < 0.9 : false) ? 'red' : 'lime'} variant="soft" radius="full">{ (100 * Math.min(1, networkInfo.requests > 0 ? networkInfo.responses / networkInfo.requests : 1)).toFixed(2) }%</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -299,7 +299,7 @@ export default function ConfigurePage() {
                     <Table.Row key={item[0]}>
                       <Table.RowHeaderCell>{ toServerInfo(item[0]) }</Table.RowHeaderCell>
                       <Table.Cell>
-                        <Badge size="2" color={(item[1].requests ? item[1].responses / item[1].requests < 0.9 : false) ? 'red' : 'jade'} variant="soft" radius="full">{ (100 * Math.min(1, item[1].requests > 0 ? item[1].responses / item[1].requests : 1)).toFixed(2) }%</Badge>
+                        <Badge size="2" color={(item[1].requests ? item[1].responses / item[1].requests < 0.9 : false) ? 'red' : 'lime'} variant="soft" radius="full">{ (100 * Math.min(1, item[1].requests > 0 ? item[1].responses / item[1].requests : 1)).toFixed(2) }%</Badge>
                       </Table.Cell>
                     </Table.Row>)
                 }
