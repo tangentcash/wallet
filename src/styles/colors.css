@@ -19,9 +19,9 @@
 }
 
 .rt-TooltipText {
-    -webkit-user-select: initial;
-    user-select: initial;
-    cursor: initial;
+  -webkit-user-select: initial;
+  user-select: initial;
+  cursor: initial;
 }
 
 .router-link {
@@ -36,11 +36,13 @@
 .light .rt-BaseButton:where(.rt-variant-soft):not(:hover):not(:active):not(:focus),
 .light .rt-SelectTrigger:where(.rt-variant-soft):not(:hover):not(:active):not(:focus),
 .light .rt-TextFieldRoot:where(.rt-variant-soft):not(:hover):not(:active):not(:focus) {
-  background-color: var(--gray-1);
+  background-color: #f0f4f0;
 }
 
 :root, .light, .light-theme {
-  --color-background: var(--gray-3);
+  --color-surface: #f0f4f0;
+  --color-panel-translucent: #ffffffcc;
+  --color-background: #f0f4f0;
 
   --lime-1: #fcfdfa;
   --lime-2: #f7fbf1;

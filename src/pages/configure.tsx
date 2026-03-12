@@ -1,4 +1,4 @@
-import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiRefresh, mdiReloadAlert } from "@mdi/js";
+import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiOpenInNew, mdiRefresh, mdiReloadAlert } from "@mdi/js";
 import { Badge, Box, Button, Card, DataList, Flex, Heading, Table, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
@@ -144,14 +144,12 @@ export default function ConfigurePage() {
       <Card mt="4">
         <Box px="2" py="2">
           <Heading size="5" mb="2">Client options</Heading>
-          <Text as="label" size="1">
-            <Flex gap="2" align="center" justify="between">
-              <Text size="2" color="gray">Display theme</Text>
-              <Button size="2" variant="soft" color="lime" onClick={() => AppData.setAppearance(AppData.props.appearance == 'dark' ? 'light' : 'dark')}>
-                <Icon path={AppData.props.appearance == 'dark' ? mdiLightbulbOutline : mdiLightbulbOn} size={0.85} />
-              </Button>
-            </Flex>
-          </Text>
+          <Flex gap="2" align="center" justify="between">
+            <Text size="2" color="gray">Display theme</Text>
+            <Button size="2" variant="soft" color="lime" onClick={() => AppData.setAppearance(AppData.props.appearance == 'dark' ? 'light' : 'dark')}>
+              <Icon path={AppData.props.appearance == 'dark' ? mdiLightbulbOutline : mdiLightbulbOn} size={0.85} />
+            </Button>
+          </Flex>
           <Flex justify="between" align="center" mt="2">
             <Text size="2" color="gray">Erase cache</Text>
             <Button size="2" variant="soft" color="lime" onClick={() => {
@@ -172,6 +170,14 @@ export default function ConfigurePage() {
             <Button size="2" variant="soft" color="yellow" onClick={() => AppData.openDevTools()}>
               <Icon path={mdiBugOutline} size={0.85} />
             </Button>
+          </Flex>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" color="gray">Project page</Text>
+            <a href={`https://tangent.cash`} target="_blank" style={{ textDecoration: 'none', color: 'var(--gray-12)' }}>
+              <Button size="2" variant="soft" color="blue">
+                <Icon path={mdiOpenInNew} size={0.85} />
+              </Button>
+            </a>
           </Flex>
         </Box>
       </Card>
