@@ -1271,7 +1271,7 @@ export default function InteractionPage() {
           {
             sendingValue.gt(0) && gasAsset?.id == assets[asset].asset.id && maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber() > 40.0 &&
             <Flex justify="center" pt="4">
-              <Text color="orange" size="2" weight="medium">Warning: transaction fee may cost up to {maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber().toFixed(2)}% of paying value</Text>
+              <Text color="yellow" size="2" weight="medium">Warning: transaction fee may cost up to {maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber().toFixed(2)}% of paying value</Text>
             </Flex>
           }
         </Card>
@@ -1345,7 +1345,7 @@ export default function InteractionPage() {
                       }</Badge> bridge</Text>
                       {
                         program.fee != null &&
-                        <Text as="div" weight="light" size="4" mb="1">— Pay <Text color="orange">{ Readability.toMoney(gasAsset, program.fee) }</Text> to <Text color="sky">bridging as fee</Text></Text>
+                        <Text as="div" weight="light" size="4" mb="1">— Pay <Text color="yellow">{ Readability.toMoney(gasAsset, program.fee) }</Text> to <Text color="sky">bridging as fee</Text></Text>
                       }
                     </>
                   }
@@ -1365,7 +1365,7 @@ export default function InteractionPage() {
                       }
                     </>
                   }
-                  <Text as="div" weight="light" size="4" mb="1">— Pay up to <Text color="orange">{ Readability.toMoney(gasAsset, maxFeeValue) }</Text> to <Text color="sky">miner as fee</Text></Text>
+                  <Text as="div" weight="light" size="4" mb="1">— Pay up to <Text color="yellow">{ Readability.toMoney(gasAsset, maxFeeValue) }</Text> to <Text color="sky">miner as fee</Text></Text>
                 </Box>
                 <Flex gap="3" mt="4" justify="between">
                   <Dialog.Close>

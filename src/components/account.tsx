@@ -361,7 +361,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                 <Flex justify="between" align="center">
                   <Text as="div" size="2" weight="light">Block production</Text>
                 </Flex>
-                <Badge size="1" color={production ? (production.stake != null ? 'lime' : 'red') : 'orange'}>PRODUCER { production ? (production.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ production != null ? production.stake != null ? ' IN BLOCK ' + production.block_number.toNumber() : (' FROM BLOCK ' + production.block_number.toNumber()) : '' }</Badge>
+                <Badge size="1" color={production ? (production.stake != null ? 'lime' : 'red') : 'gray'}>PRODUCER { production ? (production.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ production != null ? production.stake != null ? ' IN BLOCK ' + production.block_number.toNumber() : (' FROM BLOCK ' + production.block_number.toNumber()) : '' }</Badge>
               </Box>
             </Flex>
             {
@@ -444,7 +444,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                       <Flex justify="between" align="center">
                         <Text as="div" size="2" weight="light">Bridge attestation — { Readability.toAssetName(new AssetId(attestation.asset.id)) }</Text>
                       </Flex>
-                      <Badge size="1" color={attestation ? (attestation.stake != null ? 'lime' : 'red') : 'orange'}>ATTESTATION { attestation ? (attestation.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ attestation != null ? attestation.stake != null ? ' IN BLOCK ' + attestation.block_number.toNumber() : (' FROM BLOCK ' + attestation.block_number.toNumber()) : '' }</Badge>
+                      <Badge size="1" color={attestation ? (attestation.stake != null ? 'lime' : 'red') : 'gray'}>ATTESTATION { attestation ? (attestation.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ attestation != null ? attestation.stake != null ? ' IN BLOCK ' + attestation.block_number.toNumber() : (' FROM BLOCK ' + attestation.block_number.toNumber()) : '' }</Badge>
                     </Box>
                   </Flex>
                   <Box pl="5">

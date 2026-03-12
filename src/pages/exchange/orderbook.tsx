@@ -835,7 +835,7 @@ export default function OrderbookPage() {
               if (e != 'order')
                 setPreset(null);
             }}>
-              <Tabs.List size="2" justify="center" color="orange" style={mobile ? { paddingTop: '20px' } : { }}>
+              <Tabs.List size="2" justify="center" color="lime" style={mobile ? { paddingTop: '20px' } : { }}>
                 <Tabs.Trigger value="info" className="tab-padding-erase">
                   <Badge size="3" radius="large" style={mobile ? { fontSize: '1.15rem' } : undefined}>Market</Badge>
                 </Tabs.Trigger>
@@ -846,7 +846,7 @@ export default function OrderbookPage() {
                   <Badge size="3" radius="large" style={mobile ? { fontSize: '1.15rem' } : undefined}>Book</Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="trades" className="tab-padding-erase">
-                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.15rem' } : undefined}>History</Badge>
+                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.15rem' } : undefined}>Log</Badge>
                 </Tabs.Trigger>
               </Tabs.List>
               <Clock></Clock>
@@ -960,7 +960,7 @@ export default function OrderbookPage() {
                           <Tooltip side="left" content="Average revenue of LP position">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Revenue</Text>
-                              <Text size="2" color="orange">{ market && pair?.price.poolVolume?.gt(0) && pair?.price.poolLiquidity?.gt(0) ? Exchange.toAPY(pair.poolFeeRate || market.maxPoolFeeRate, pair.price.poolLiquidity, pair.price.poolVolume).toFixed(2) : '0.00' }% APY</Text>
+                              <Text size="2" color="purple">{ market && pair?.price.poolVolume?.gt(0) && pair?.price.poolLiquidity?.gt(0) ? Exchange.toAPY(pair.poolFeeRate || market.maxPoolFeeRate, pair.price.poolLiquidity, pair.price.poolVolume).toFixed(2) : '0.00' }% APY</Text>
                             </Flex>
                           </Tooltip>
                           <Tooltip side="left" content="Minimal to maximal price range observed during the day">

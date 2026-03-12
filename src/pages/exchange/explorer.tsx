@@ -201,7 +201,7 @@ export default function ExplorerPage() {
                       <Flex gap="1">
                         {
                           item.pair.price.poolVolume?.gt(0) && item.pair.price.poolLiquidity?.gt(0) &&
-                          <Badge radius="full" size="1" color="orange">{ Exchange.toAPY(item.pair.poolFeeRate || market.maxPoolFeeRate, item.pair.price.poolLiquidity, item.pair.price.poolVolume).toFixed(2) }% APY</Badge>
+                          <Badge radius="full" size="1" color="purple">{ Exchange.toAPY(item.pair.poolFeeRate || market.maxPoolFeeRate, item.pair.price.poolLiquidity, item.pair.price.poolVolume).toFixed(2) }% APY</Badge>
                         }
                         <Badge radius="full" size="1" color={ (item.pair.price.open || new BigNumber(0)).gt(item.pair.price.close || new BigNumber(0)) ? 'red' : ((item.pair.price.open || new BigNumber(0)).eq(item.pair.price.close || new BigNumber(0)) ? 'gray' : 'lime') }>{ Readability.toPercentageDelta(item.pair.price.open || new BigNumber(0), item.pair.price.close || new BigNumber(0)) }</Badge>
                       </Flex>

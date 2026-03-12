@@ -186,7 +186,7 @@ export default function ConfigurePage() {
           <Heading size="5" mb="2">Wallet options</Heading>
           <Flex justify="between" align="center" mt="2">
             <Text size="2" color="gray">Wallet status</Text>
-            <Badge size="3" color="orange">{ AppData.getWalletSecretKey() != null ? 'Read/write' : 'Read-only' }</Badge>
+            <Badge size="3" color="lime">{ AppData.getWalletSecretKey() != null ? 'Read/write' : 'Read-only' }</Badge>
           </Flex>
           <Flex justify="between" align="center" mt="2">
             <Text size="2" color="gray">Close wallet</Text>
@@ -222,7 +222,7 @@ export default function ConfigurePage() {
             <Tooltip content="This seeder server helps the client to find validator servers">
               <TextField.Root style={{ width: '100%' }} size="2" placeholder="Seeder server address" type="text" value={seederAddress} onChange={(e) => setSeederAddress(e.target.value.trim())} />
             </Tooltip>
-            <Button size="2" variant="soft" color="orange" onClick={() => setSeederServer(seederAddress)}>
+            <Button size="2" variant="soft" color="yellow" onClick={() => setSeederServer(seederAddress)}>
               <Icon path={mdiRefresh} size={0.85} />
             </Button>
           </Flex>
@@ -230,7 +230,7 @@ export default function ConfigurePage() {
             <Tooltip content="This validator server is the only one used to interact with Tangent (if present)">
               <TextField.Root style={{ width: '100%' }} size="2" placeholder="Validator server address" type="text" value={validatorAddress} onChange={(e) => setValidatorAddress(e.target.value.trim())} />
             </Tooltip>
-            <Button size="2" variant="soft" color="orange" onClick={() => setValidatorServer(validatorAddress)}>
+            <Button size="2" variant="soft" color="yellow" onClick={() => setValidatorServer(validatorAddress)}>
               <Icon path={mdiRefresh} size={0.85} />
             </Button>
           </Flex>

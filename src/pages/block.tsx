@@ -203,7 +203,7 @@ export default function BlockPage() {
               <DataList.Item>
                 <DataList.Label>Confidence:</DataList.Label>
                 <DataList.Value>
-                  <Badge color="orange">{ Readability.toCount('confirmation', AppData.tip.minus(block.number).plus(1)) }</Badge>
+                  <Badge color="yellow">{ Readability.toCount('confirmation', AppData.tip.minus(block.number).plus(1)) }</Badge>
                 </DataList.Value>
               </DataList.Item>
             }
@@ -246,7 +246,7 @@ export default function BlockPage() {
             </DataList.Item>
           </DataList.Root>
           <Box mt="2">
-            <Progress variant="surface" size="3" color="orange" value={block.gas_use.div(block.gas_limit.gt(0) ? block.gas_limit : 1).toNumber() * 100} />
+            <Progress variant="surface" size="3" color="yellow" value={block.gas_use.div(block.gas_limit.gt(0) ? block.gas_limit : 1).toNumber() * 100} />
           </Box>
           <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
           <DataList.Root orientation={orientation}>

@@ -203,7 +203,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
         {
           !props.flash && !props.readOnly && item.active &&
           <Flex justify="between" wrap="wrap" gap="1" mt="4">
-              <PerformerButton title="Recreate" description="Smart contract will re-create this pool based on current market price" color="orange" onBuild={() => rebalance()}></PerformerButton>
+              <PerformerButton title="Recreate" description="Smart contract will re-create this pool based on current market price" color="blue" onBuild={() => rebalance()}></PerformerButton>
               <PerformerButton title="Close" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" color="red" onBuild={() => {
                 return Builder.withdrawPool({ poolId: item.id.toString() });
               }}></PerformerButton>
@@ -244,7 +244,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
           {
             !props.readOnly && item.active &&
             <Flex justify="between" wrap="wrap" gap="1" mt="1">
-              <PerformerButton title="Recreate" description="Smart contract will re-create this pool based on current market price" color="orange" onBuild={() => rebalance()}></PerformerButton>
+              <PerformerButton title="Recreate" description="Smart contract will re-create this pool based on current market price" color="blue" onBuild={() => rebalance()}></PerformerButton>
               <PerformerButton title="Close" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" color="red" onBuild={() => {
                 return Builder.withdrawPool({ poolId: item.id.toString() });
               }}></PerformerButton>

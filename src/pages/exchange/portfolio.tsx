@@ -155,7 +155,7 @@ export default function PortfolioPage() {
       <Flex gap="2" align="center" justify="between" px="2" mb="2">
         <Flex align="center" gap="2">
           <Heading size={document.body.clientWidth < 450 ? '4' : '6'}>Portfolio</Heading>
-          <Button variant="surface" size="1" color={ readOnly ? 'red' : 'orange' }>{ baseAddress.substring(baseAddress.length - 6) }</Button>
+          <Button variant="surface" size="1" color={ readOnly ? 'red' : 'lime' }>{ baseAddress.substring(baseAddress.length - 6) }</Button>
         </Flex>
         <Flex justify="end" gap="1">
           <Dialog.Root onOpenChange={(opened) => setSearching(opened)} open={searching}>
@@ -185,7 +185,7 @@ export default function PortfolioPage() {
           <Box mb="2">
             <Flex justify="between" align="center" mb="1">
               <Text size="3" color="gray">Net worth</Text>
-              <Button variant="soft" size="2" color="orange" loading={loading} onClick={() => setDashboardUpdates(-1)}>
+              <Button variant="soft" size="2" color="yellow" loading={loading} onClick={() => setDashboardUpdates(-1)}>
                 <Icon path={mdiRefresh} size={0.8}></Icon> Re-sync
               </Button>
             </Flex>

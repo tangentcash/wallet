@@ -582,7 +582,7 @@ export function PerformerButton(props: { title: string, description: string, dis
                 Clear all <Icon path={mdiCancel} size={0.65}></Icon>
               </Button>
               <Dialog.Close>
-                <Button variant={props.variant as any || 'soft'} color="orange" onClick={() => BuilderQueue.get().length ? checkout() : undefined} disabled={!BuilderQueue.get().length}>
+                <Button variant={props.variant as any || 'soft'} color="lime" onClick={() => BuilderQueue.get().length ? checkout() : undefined} disabled={!BuilderQueue.get().length}>
                   Checkout <Icon path={mdiArrowRight} size={0.65}></Icon>
                 </Button>
               </Dialog.Close>

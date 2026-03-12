@@ -107,7 +107,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
             <Flex align="center" gap="2" pt="1">
               <Badge variant="soft" color={item.active ? (item.side == OrderSide.Buy ? 'lime' : 'red') : 'gray'} size="2">{ side } — { condition }</Badge>
             </Flex>
-            <Badge size="2" variant="soft" color={item.active ? (progress > 0 ? (progress >= 100 ? 'lime' : 'orange') : 'gray') : 'gray'} mt="1">
+            <Badge size="2" variant="soft" color={item.active ? (progress > 0 ? (progress >= 100 ? 'lime' : 'yellow') : 'gray') : 'gray'} mt="1">
               <Icon path={mdiInformationOutline} size={0.65}></Icon>
               <Text size="1">{ progress.toFixed(1) }% fill</Text>
             </Badge>
@@ -149,7 +149,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
           <DataList.Item>
             <DataList.Label>Status:</DataList.Label>
             <DataList.Value>
-              <Badge color={item.active ? (progress > 0 ? (progress >= 100 ? 'lime' : 'orange') : 'gray') : 'gray'}>{ status }</Badge>
+              <Badge color={item.active ? (progress > 0 ? (progress >= 100 ? 'lime' : 'yellow') : 'gray') : 'gray'}>{ status }</Badge>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -161,7 +161,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
           <DataList.Item>
             <DataList.Label>Trigger:</DataList.Label>
             <DataList.Value>
-              <Badge color="orange">{ condition } price</Badge>
+              <Badge color="yellow">{ condition } price</Badge>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>

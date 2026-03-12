@@ -485,7 +485,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
               <DataList.Item>
                 <DataList.Label>On-chain assurance:</DataList.Label>
                 <DataList.Value>
-                  <Badge color="orange">{ Readability.toCount('signature', signatures) } in { Readability.toCount('commitment', commitments) }</Badge>
+                  <Badge color="lime">{ Readability.toCount('signature', signatures) } in { Readability.toCount('commitment', commitments) }</Badge>
                 </DataList.Value>
               </DataList.Item>
             </DataList.Root>
@@ -539,7 +539,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             <DataList.Item>
               <DataList.Label>On-chain assurance:</DataList.Label>
               <DataList.Value>
-                <Badge color="orange">{ Readability.toCount('signature', signatures) } in { Readability.toCount('commitment', commitments) }</Badge>
+                <Badge color="lime">{ Readability.toCount('signature', signatures) } in { Readability.toCount('commitment', commitments) }</Badge>
               </DataList.Value>
             </DataList.Item>
           </DataList.Root>
@@ -1140,7 +1140,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
             {
               state == null &&
               <Flex gap="2" wrap="wrap" justify="between">
-                <Badge size="1" color={props.preview ? 'orange' : 'gray'}>{ props.preview ? (typeof props.preview == 'string' ? props.preview : 'Preview transaction!') : 'Pending transaction' }</Badge>
+                <Badge size="1" color={props.preview ? 'yellow' : 'gray'}>{ props.preview ? (typeof props.preview == 'string' ? props.preview : 'Preview transaction!') : 'Pending transaction' }</Badge>
               </Flex>
             }
           </Box>
@@ -1192,7 +1192,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   <DataList.Item>
                     <DataList.Label>Confidence:</DataList.Label>
                     <DataList.Value>
-                      <Badge color={AppData.tip.minus(receipt.block_number).gt(0) ? 'lime' : 'orange'}>{ Readability.toCount('confirmation', AppData.tip.minus(receipt.block_number).plus(1)) }</Badge>
+                      <Badge color={AppData.tip.minus(receipt.block_number).gt(0) ? 'lime' : 'yellow'}>{ Readability.toCount('confirmation', AppData.tip.minus(receipt.block_number).plus(1)) }</Badge>
                     </DataList.Value>
                   </DataList.Item>
                 }

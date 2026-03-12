@@ -652,7 +652,7 @@ export function Maker(props: {
   const makePool = () => (
     <Box>
       <Box mb="4">
-        <Button variant="soft" color="orange" style={{ display: 'block', height: 'auto', width: '100%', borderRadius: '24px' }}>
+        <Button variant="soft" color="blue" style={{ display: 'block', height: 'auto', width: '100%', borderRadius: '24px' }}>
           <Flex align="center" gap="2" px="2" py="3">
             <Box style={{ position: 'relative' }}>
               <AssetImage asset={props.secondaryAsset} size="2" iconSize="26px" style={{ position: 'absolute', top: '20px', left: '-6px' }}></AssetImage>

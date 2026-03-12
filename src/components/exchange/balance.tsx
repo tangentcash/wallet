@@ -78,7 +78,7 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
               </TextField.Slot>
             </TextField.Root>
             <AssetSelector title={item.asset.token + " variant to repay"} value={asset} onChange={(value) => setAsset(value)}>
-              <Button size="2" variant="soft" color="orange">{ asset ? asset.chain + (asset.token != null ? ' ' + asset.token : '') : 'Of token' }</Button>
+              <Button size="2" variant="soft" color="yellow">{ asset ? asset.chain + (asset.token != null ? ' ' + asset.token : '') : 'Of token' }</Button>
             </AssetSelector>
           </Flex>
           <Flex justify="between" mt="2" gap="2">

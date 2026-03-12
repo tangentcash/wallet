@@ -293,7 +293,7 @@ export default function BridgePage() {
                             <Badge size="1" color="gold">ETA { item.info.depositTime }-{ item.info.depositTime + 10 } min.</Badge>
                             {
                               item.info.tokenStandard != null &&
-                              <Badge size="1" color="orange">{ item.info.tokenStandard } tokens</Badge>
+                              <Badge size="1" color="jade">{ item.info.tokenStandard } tokens</Badge>
                             }
                           </>
                         }
@@ -416,7 +416,7 @@ export default function BridgePage() {
                             {
                               (asset.routing_policy == 'account') &&
                               <DataList.Value>
-                                <Badge size="1" color="orange">Master account only</Badge>
+                                <Badge size="1" color="blue">Master account only</Badge>
                               </DataList.Value>
                             }
                             {

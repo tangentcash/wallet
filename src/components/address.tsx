@@ -57,7 +57,7 @@ export function AddressView(props: { address: any, onExit?: () => any }) {
         </Box>
       </Flex>
       <Flex align="center" justify="center" mt="3" gap="2">
-        <Badge size="2" color={props.address.purpose != 'witness' ? 'orange' : 'red'} style={{ textTransform: 'uppercase' }}>{ toAddressType(props.address.purpose) }</Badge>
+        <Badge size="2" color={props.address.purpose != 'witness' ? 'lime' : 'red'} style={{ textTransform: 'uppercase' }}>{ toAddressType(props.address.purpose) }</Badge>
         { props.address.purpose != 'bridge' && <Badge size="2" color="red" style={{ textTransform: 'uppercase' }}>Your wallet</Badge> }
       </Flex>
       <Box mt="6">
