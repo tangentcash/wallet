@@ -2,77 +2,100 @@ import { useParams } from "react-router";
 import { useEffectAsync } from "../core/react";
 import { useState } from "react";
 import { Box, Callout, Flex, Heading, Spinner, Text } from "@radix-ui/themes";
-import { EventResolver, RPC } from "tangentsdk";
+import { EventResolver, RPC, Stream } from "tangentsdk";
 import { AppData } from "../core/app";
 import { mdiListStatus, mdiProgressQuestion } from "@mdi/js";
 import Transaction from "../components/transaction";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 
+function ExtendedTransaction(props: { data: any }) {
+  const data = props.data;
+  const ownerAddress = AppData.getWalletAddress() || '';
+  return (
+    <>
+      <Transaction ownerAddress={ownerAddress} transaction={data.transaction} receipt={data.receipt} state={data.state} open={true}></Transaction>
+      {
+        Array.isArray(data.transaction.transactions) && data.transaction.transactions.map((subtransaction: any, index: number) =>
+          <Box mt="4" key={subtransaction.action.hash + index.toString()}>
+            <Transaction ownerAddress={ownerAddress} preview={'Internal transaction #' + (index + 1).toString()} transaction={(() => ({
+              ...subtransaction.action,
+              gas_price: new BigNumber(0),
+              gas_limit: data.rollupGasLimit.gt(0) ? data.rollupGasLimit : data.transaction.gas_limit
+            }))()} receipt={(() => {
+              const receipt = data.state ? data.state.receipts[subtransaction.action.hash] : null;
+              return {
+                ...data.receipt,
+                relative_gas_use: receipt ? receipt.relativeGasUse : data.receipt.relative_gas_use,
+              };
+            })()} open={true}></Transaction>
+          </Box>
+        )
+      }
+    </>
+  )
+}
+
 export default function TransactionPage() {
   const params = useParams();
-  const [data, setData] = useState<any>(null);
+  const [targets, setTargets] = useState<any[] | null>(null);
   const [loading, setLoading] = useState(true);
   useEffectAsync(async () => {
     try {
       if (!params.id)
         throw false;
 
-      let result = null;
+      let results: any[] | null = null;
       try {
-        result = await RPC.getTransactionByHash(params.id, 2);
-        if (!result)
-          throw false;
+        results = await RPC.getTransactionsByHash(params.id, 2);
+        if (!results)
+            throw false;
       } catch {
-        result = await RPC.getMempoolTransactionByHash(params.id);
-        if (!result)
-          throw false;
+        try {
+          results = await RPC.getTransactionsByHash(new Stream().writeString(params.id).hash().toHex(), 2);
+          if (!results)
+            throw false;
+        } catch {
+          let result = await RPC.getMempoolTransactionByHash(params.id);
+          if (!result)
+            throw false;
+
+          results = [result];
+        }
       }
       
-      if (!result.transaction) {
-        result = { transaction: result };
-      } else {
-        result.state = EventResolver.calculateSummaryState(result.receipt?.events);
+      for (let i = 0; i < results.length; i++) {
+        const result = results[i];
+        if (!result.transaction) {
+          results[i] = { transaction: result };
+        } else {
+          result.state = EventResolver.calculateSummaryState(result.receipt?.events);
+        }
+
+        result.rollupGasLimit = new BigNumber(0);
+        if (result.state != null && result.state.receipts) {
+          for (let hash in result.state.receipts) {
+            result.rollupGasLimit = result.rollupGasLimit.plus(result.state.receipts[hash].relativeGasUse);
+          }
+        }
       }
-      
+  
       if (!AppData.tip)
         await AppData.sync();
 
-      setData(result);
+      setTargets(results);
     } catch {
-      setData(null);
+      setTargets(null);
     }
     setLoading(false);
   }, [params]);
 
-  if (data != null) {
-    const ownerAddress = AppData.getWalletAddress() || '';
-    let rollupGasLimit = new BigNumber(0);
-    if (data.state != null && data.state.receipts) {
-      for (let hash in data.state.receipts) {
-        rollupGasLimit = rollupGasLimit.plus(data.state.receipts[hash].relativeGasUse);
-      }
-    }
+  if (targets != null) {
     return (
       <Box px="4" pt="4" mb="6" maxWidth="800px" mx="auto">
-        <Heading size="6">Transaction</Heading>
-        <Transaction ownerAddress={ownerAddress} transaction={data.transaction} receipt={data.receipt} state={data.state} open={true}></Transaction>
+        <Heading size="6">{ targets.length > 1 ? 'Group of transactions' : 'Transaction' }</Heading>
         {
-          Array.isArray(data.transaction.transactions) && data.transaction.transactions.map((subtransaction: any, index: number) =>
-            <Box mt="4" key={subtransaction.action.hash + index.toString()}>
-              <Transaction ownerAddress={ownerAddress} preview={'Internal transaction #' + (index + 1).toString()} transaction={(() => ({
-                ...subtransaction.action,
-                gas_price: new BigNumber(0),
-                gas_limit: rollupGasLimit.gt(0) ? rollupGasLimit : data.transaction.gas_limit
-              }))()} receipt={(() => {
-                const receipt = data.state ? data.state.receipts[subtransaction.action.hash] : null;
-                return {
-                  ...data.receipt,
-                  relative_gas_use: receipt ? receipt.relativeGasUse : data.receipt.relative_gas_use,
-                };
-              })()} open={true}></Transaction>
-            </Box>
-          )
+          targets.map((data) => <ExtendedTransaction key={data.transaction.hash} data={data}></ExtendedTransaction>)
         }
       </Box>
     )

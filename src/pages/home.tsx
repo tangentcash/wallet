@@ -4,7 +4,7 @@ import { mdiMagnify, mdiMagnifyScan, mdiQrcodeScan } from "@mdi/js";
 import { KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData } from "../core/app";
-import { Authorizer, RPC, Signing } from "tangentsdk";
+import { Authorizer, RPC, Signing, Stream } from "tangentsdk";
 import { scan, Format } from '@tauri-apps/plugin-barcode-scanner';
 import Account from "../components/account";
 import Icon from "@mdi/react";
@@ -50,7 +50,18 @@ export default function HomePage() {
         setLoading(false);
         return;
       }
+    } catch { }
 
+    try {
+      const aliasTransaction = await RPC.getTransactionByHash(new Stream().writeString(value).hash().toHex());
+      if (aliasTransaction != null) {
+        navigate('/transaction/' + value);
+        setLoading(false);
+        return;
+      }
+    } catch { }
+
+    try {
       const mempoolTransaction = await RPC.getMempoolTransactionByHash(value);
       if (mempoolTransaction != null) {
         navigate('/transaction/' + value);

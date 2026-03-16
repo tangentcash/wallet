@@ -186,9 +186,9 @@ export default function BlockPage() {
               block.witnesses.map((item: any) => {
                 return (
                   <DataList.Item key={item.asset.chain + item.number.toString()}>
-                    <DataList.Label>Witnessed by:</DataList.Label>
+                    <DataList.Label>Tangent to:</DataList.Label>
                     <DataList.Value>
-                      <Badge color="gray">{ item.asset.chain } block number #{ item.number.toString() }</Badge>
+                      <Badge color="gray">{ item.asset.chain } block number #{ Readability.toValue(null, item.number, false, false) }</Badge>
                     </DataList.Value>
                   </DataList.Item>
                 )
@@ -207,14 +207,6 @@ export default function BlockPage() {
                 </DataList.Value>
               </DataList.Item>
             }
-            <DataList.Item>
-              <DataList.Label>Transactions:</DataList.Label>
-              <DataList.Value>{ Readability.toCount('transaction', block.transaction_count) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Transitions:</DataList.Label>
-              <DataList.Value>{ Readability.toCount('transition', block.transition_count) }</DataList.Value>
-            </DataList.Item>
             <DataList.Item>
               <DataList.Label>Coinbase:</DataList.Label>
               <DataList.Value>{ Readability.toMoney(new AssetId(), block.coinbase) }</DataList.Value>
@@ -235,6 +227,14 @@ export default function BlockPage() {
             <DataList.Item>
               <DataList.Label>Absolute work:</DataList.Label>
               <DataList.Value>{ Readability.toCount('weight unit', block.absolute_work) }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Transactions:</DataList.Label>
+              <DataList.Value>{ Readability.toCount('transaction', block.transaction_count) } | { Readability.toValue(null, new BigNumber(1000).multipliedBy(block.transaction_count).dividedBy(time).toFixed(2), false, false) }/sec.</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Transitions:</DataList.Label>
+              <DataList.Value>{ Readability.toCount('transition', block.transition_count) } | { Readability.toValue(null, new BigNumber(1000).multipliedBy(block.transition_count).dividedBy(time).toFixed(2), false, false) }/sec.</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Gas limit:</DataList.Label>
