@@ -1,4 +1,4 @@
-import { Box, Button, Dialog, Flex, Heading, TextField } from "@radix-ui/themes";
+import { Box, Button, Dialog, DropdownMenu, Flex, Heading, TextField } from "@radix-ui/themes";
 import { Navigate, useLocation, useNavigate } from "react-router";
 import { mdiMagnify, mdiMagnifyScan, mdiQrcodeScan } from "@mdi/js";
 import { KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
@@ -18,7 +18,7 @@ export default function HomePage() {
   const [nonce, setNonce] = useState(0);
   const searchInput = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
-  const search = useCallback(async () => {
+  const search = useCallback(async (awaitMode: 'block' | 'transaction' | false) => {
     if (loading)
       return;
 
@@ -31,55 +31,73 @@ export default function HomePage() {
       return;
     }
     
-    const blockNumber = parseInt(value, 10);
-    if (!isNaN(blockNumber) && blockNumber > 0) {
+    if (!awaitMode || awaitMode == 'block') {
+      const blockNumber = parseInt(value, 10);
+      if (!isNaN(blockNumber) && blockNumber > 0) {
+        try {
+          const block = await RPC.getBlockByNumber(blockNumber);
+          if (block != null) {
+            navigate('/block/' + value);
+            setLoading(false);
+            return;
+          }
+        } catch { }
+      }
+    }
+
+    if (!awaitMode || awaitMode == 'transaction') {
       try {
-        const block = await RPC.getBlockByNumber(blockNumber);
+        const transaction = await RPC.getTransactionByHash(value);
+        if (transaction != null) {
+          navigate('/transaction/' + value);
+          setLoading(false);
+          return;
+        }
+      } catch { }
+
+      try {
+        const aliasTransaction = await RPC.getTransactionByHash(new Stream().writeString(value).hash().toHex());
+        if (aliasTransaction != null) {
+          navigate('/transaction/' + value);
+          setLoading(false);
+          return;
+        }
+      } catch { }
+
+      try {
+        const mempoolTransaction = await RPC.getMempoolTransactionByHash(value);
+        if (mempoolTransaction != null) {
+          navigate('/transaction/' + value);
+          setLoading(false);
+          return;
+        }
+      } catch { }
+
+      if (awaitMode) {
+        navigate('/transaction/' + value);
+        setLoading(false);
+        return;
+      }
+    }
+
+    if (!awaitMode || awaitMode == 'block') {
+      try {
+        const block = await RPC.getBlockByHash(value);
         if (block != null) {
           navigate('/block/' + value);
           setLoading(false);
           return;
         }
       } catch { }
-    }
 
-    try {
-      const transaction = await RPC.getTransactionByHash(value);
-      if (transaction != null) {
-        navigate('/transaction/' + value);
-        setLoading(false);
-        return;
-      }
-    } catch { }
-
-    try {
-      const aliasTransaction = await RPC.getTransactionByHash(new Stream().writeString(value).hash().toHex());
-      if (aliasTransaction != null) {
-        navigate('/transaction/' + value);
-        setLoading(false);
-        return;
-      }
-    } catch { }
-
-    try {
-      const mempoolTransaction = await RPC.getMempoolTransactionByHash(value);
-      if (mempoolTransaction != null) {
-        navigate('/transaction/' + value);
-        setLoading(false);
-        return;
-      }
-    } catch { }
-
-    try {
-      const block = await RPC.getBlockByHash(value);
-      if (block != null) {
+      if (awaitMode) {
         navigate('/block/' + value);
         setLoading(false);
         return;
       }
-    } catch { }
-    
-    AlertBox.open(AlertType.Error, 'No blockchain data found');
+    }
+
+    AlertBox.open(AlertType.Error, 'Nothing found');
     setLoading(false);
   }, [query, loading]);
   const searchLatest = useCallback(async () => {
@@ -198,7 +216,18 @@ export default function HomePage() {
                   </TextField.Slot>
                 </TextField.Root>
                 <Flex justify="center" mt="4">
-                  <Button variant="ghost" size="3" type="submit" loading={loading} disabled={!query.trim().length} onClick={(e) => { e.preventDefault(); search(); }}>Search the blockchain</Button>
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger disabled={!query.trim().length}>
+                      <Button variant="ghost" size="3" type="submit" loading={loading}>
+                        Search in…<DropdownMenu.TriggerIcon />
+                      </Button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content>
+                      <DropdownMenu.Item onClick={() => search(false)}>Everything</DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={() => search('block')}>Blocks</DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={() => search('transaction')}>Transactions</DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
                 </Flex>
               </form>
             </Dialog.Content>

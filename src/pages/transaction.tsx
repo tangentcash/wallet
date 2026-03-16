@@ -1,20 +1,20 @@
 import { useParams } from "react-router";
 import { useEffectAsync } from "../core/react";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Box, Callout, Flex, Heading, Spinner, Text } from "@radix-ui/themes";
-import { EventResolver, RPC, Stream } from "tangentsdk";
+import { Chain, EventResolver, RPC, Stream } from "tangentsdk";
 import { AppData } from "../core/app";
-import { mdiListStatus, mdiProgressQuestion } from "@mdi/js";
+import { mdiListStatus } from "@mdi/js";
 import Transaction from "../components/transaction";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 
-function ExtendedTransaction(props: { data: any }) {
+function ExtendedTransaction(props: { data: any, focused: boolean }) {
   const data = props.data;
   const ownerAddress = AppData.getWalletAddress() || '';
   return (
     <>
-      <Transaction ownerAddress={ownerAddress} transaction={data.transaction} receipt={data.receipt} state={data.state} open={true}></Transaction>
+      <Transaction ownerAddress={ownerAddress} transaction={data.transaction} receipt={data.receipt} state={data.state} open={props.focused || undefined}></Transaction>
       {
         Array.isArray(data.transaction.transactions) && data.transaction.transactions.map((subtransaction: any, index: number) =>
           <Box mt="4" key={subtransaction.action.hash + index.toString()}>
@@ -39,8 +39,9 @@ function ExtendedTransaction(props: { data: any }) {
 export default function TransactionPage() {
   const params = useParams();
   const [targets, setTargets] = useState<any[] | null>(null);
+  const [timeoutId, setTimeoutId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  useEffectAsync(async () => {
+  const fetchTransaction = useCallback(async () => {
     try {
       if (!params.id)
         throw false;
@@ -87,15 +88,27 @@ export default function TransactionPage() {
     } catch {
       setTargets(null);
     }
+    setTimeoutId(setTimeout(() => fetchTransaction(), Chain.policy.BLOCK_TIME) as any);
+  }, [params.id]);
+  useEffectAsync(async () => {
+    setLoading(true);
+    await fetchTransaction();
     setLoading(false);
-  }, [params]);
+  }, [fetchTransaction]);
+  useEffect(() => {
+    return () => {
+      if (timeoutId != null) {
+        clearTimeout(timeoutId);
+      }
+    }
+  }, [timeoutId]);
 
   if (targets != null) {
     return (
       <Box px="4" pt="4" mb="6" maxWidth="800px" mx="auto">
         <Heading size="6">{ targets.length > 1 ? 'Group of transactions' : 'Transaction' }</Heading>
         {
-          targets.map((data) => <ExtendedTransaction key={data.transaction.hash} data={data}></ExtendedTransaction>)
+          targets.map((data) => <ExtendedTransaction key={data.transaction.hash} data={data} focused={targets.length == 1}></ExtendedTransaction>)
         }
       </Box>
     )
@@ -109,8 +122,8 @@ export default function TransactionPage() {
     return (
       <Box px="4" pt="6" maxWidth="800px" mx="auto">
         <Flex align="center" mb="3" gap="2">
-          <Icon path={mdiProgressQuestion} size={1.1} />
-          <Heading>Transaction not found</Heading>
+          <Spinner size="3"></Spinner>
+          <Heading>Awaiting transaction</Heading>
         </Flex>
         <Callout.Root color="yellow">
           <Callout.Icon>
@@ -118,7 +131,7 @@ export default function TransactionPage() {
           </Callout.Icon>
           <Callout.Text>
             <Flex direction="column" gap="2">
-              <Text>1. If you have just submitted a transaction please wait for at least 30 seconds before refreshing this page.</Text>
+              <Text>1. If you have just submitted a transaction then it will appear here shortly.</Text>
               <Text>2. It could still be in the mempool of a different node, waiting to be broadcasted.</Text>
               <Text>3. When the network is busy it can take a while for your transaction to propagate through the network.</Text>
               <Text>4. If it still does not show up after 1 hour then this transaction either got dropped or was not sent.</Text>

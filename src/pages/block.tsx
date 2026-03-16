@@ -1,8 +1,8 @@
 import { Link, useNavigate, useParams } from "react-router";
 import { useEffectAsync } from "../core/react";
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge, Box, Button, Callout, Card, DataList, Flex, Heading, IconButton, Progress, Spinner, Table, Text } from "@radix-ui/themes";
-import { mdiArrowLeftBoldCircleOutline, mdiArrowRightBoldCircleOutline, mdiListStatus, mdiProgressQuestion } from "@mdi/js";
+import { mdiArrowLeftBoldCircleOutline, mdiArrowRightBoldCircleOutline, mdiListStatus } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
 import { AssetId, Chain, RPC, Readability, lerp } from "tangentsdk";
 import { AppData } from "../core/app";
@@ -13,28 +13,45 @@ export default function BlockPage() {
   const params = useParams();
   const [block, setBlock] = useState<any>(null);
   const [hasChildBlock, setHasChildBlock] = useState(true);
+  const [timeoutId, setTimeoutId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const blockETA = useMemo((): { blockNumber: BigNumber, blockDelta: BigNumber, blockDate: Date } | null => {
+    if (!params.id)
+      return null;
+
+    const number = parseInt(params.id, 10);
+    if (isNaN(number) || !isFinite(number) || !Number.isSafeInteger(number))
+      return null;
+
+    const index = new BigNumber(number);
+    const time = new Date().getTime();
+    const delta = AppData.tip ? BigNumber.max(1, index.minus(AppData.tip)) : new BigNumber(1);
+    return {
+      blockNumber: index,
+      blockDelta: delta,
+      blockDate: new Date(time + Chain.policy.BLOCK_TIME * delta.toNumber())
+    }
+  }, [params.id, timeoutId]);
   const nextBlock = useCallback((number: number) => {
     setBlock(null);
     setHasChildBlock(true);
     setLoading(true);
     navigate('/block/' + number);
   }, []);
-  useEffectAsync(async () => {
+  const fetchBlock = useCallback(async () => {
+    let retry = true;
     try {
-      const id = params.id;
-      if (!id)
+      if (!params.id)
         throw false;
 
-      const number = parseInt(id, 10);
-      const result = await (!isNaN(number) && number > 0 ? RPC.getBlockByNumber(number, 1) : RPC.getBlockByHash(id, 1));
+      await AppData.sync();
+      const number = parseInt(params.id, 10);
+      const result = await (!isNaN(number) && number > 0 ? RPC.getBlockByNumber(number, 1) : RPC.getBlockByHash(params.id, 1));
       if (!result)
         throw false;
 
-      if (!AppData.tip)
-        await AppData.sync();
-
+      retry = false;
       setBlock(result);
       try {
         const childBlock = await RPC.getBlockByNumber(result.number.toNumber() + 1);
@@ -45,8 +62,25 @@ export default function BlockPage() {
     } catch {
       setBlock(null);
     }
+
+    if (retry) {
+      setTimeoutId(setTimeout(() => fetchBlock(), Chain.policy.BLOCK_TIME) as any);
+    } else {
+      setTimeoutId(null);
+    }
+  }, [params.id]);
+  useEffectAsync(async () => {
+    setLoading(true);
+    await fetchBlock();
     setLoading(false);
-  }, [params]);
+  }, [fetchBlock]);
+  useEffect(() => {
+    return () => {
+      if (timeoutId != null) {
+        clearTimeout(timeoutId);
+      }
+    }
+  }, [timeoutId]);
 
   if (block != null) {
     if (!AppData.tip || block.number.gt(AppData.tip))
@@ -320,8 +354,8 @@ export default function BlockPage() {
     return (
       <Box px="4" pt="6" maxWidth="800px" mx="auto">
         <Flex align="center" mb="3" gap="2">
-          <Icon path={mdiProgressQuestion} size={1.1} />
-          <Heading>Block not found</Heading>
+          <Spinner size="3"></Spinner>
+          <Heading>Awaiting block</Heading>
         </Flex>
         <Callout.Root color="yellow">
           <Callout.Icon>
@@ -329,12 +363,32 @@ export default function BlockPage() {
           </Callout.Icon>
           <Callout.Text>
             <Flex direction="column" gap="2">
-              <Text>1. If a node have just submitted a block please wait for at least 30 seconds before refreshing this page.</Text>
+              <Text>1. If a node have just submitted a block then it will appear here shortly.</Text>
               <Text>2. When the network is busy it can take a while for a block to propagate through the network.</Text>
               <Text>3. If it still does not show up after 10 minutes then this block either got dropped or was not created.</Text>
             </Flex>
           </Callout.Text>
         </Callout.Root>
+        {
+          blockETA != null &&
+          <Box mt="4">
+            <Box style={{ border: '1px dashed var(--gray-8)' }} mb="4"></Box>
+            <Flex wrap="wrap" gap="3">
+              <Card>
+                <Heading size="3">Block number</Heading>
+                <Text>{ Readability.toValue(null, blockETA.blockNumber, false, false) }</Text>
+              </Card>
+              <Card>
+                <Heading size="3">Block countdown</Heading>
+                <Text>{ Readability.toValue(null, blockETA.blockDelta.negated(), true, false) } | { new BigNumber(1).minus(blockETA.blockNumber.minus(blockETA.blockDelta).dividedBy(blockETA.blockNumber)).multipliedBy(100).toFixed(3) }% left</Text>
+              </Card>
+              <Card>
+                <Heading size="3">Estimated date</Heading>
+                <Text>{ blockETA.blockDate.toLocaleString() }</Text>
+              </Card>
+            </Flex>
+          </Box>
+        }
       </Box>
     )
   }

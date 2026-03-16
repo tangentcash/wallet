@@ -1,5 +1,6 @@
 import { Box } from "@radix-ui/themes";
 import { useEffect, useState } from "react";
+import { Chain } from "tangentsdk";
 
 let timeout: any;
 
@@ -14,7 +15,7 @@ export default function Clock() {
       timeout = setTimeout(() => {
         setBaseTime(time);
         setPrevTime(time);
-        setNextTime(time + 12000);
+        setNextTime(time + Chain.policy.BLOCK_TIME);
       }, 500);
     };
     const interval = setInterval(() => setPrevTime(new Date().getTime()), 500);
