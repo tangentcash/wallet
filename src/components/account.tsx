@@ -27,7 +27,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   const [attestations, setAttestations] = useState<any[]>([]);
   const [participation, setParticipation] = useState<any>(null);
   const [production, setProduction] = useState<any>(null);
-  const [selectedAddress, setSelectedAddress] = useState<number>(-1);
+  const [selectedAddress, setSelectedAddress] = useState<number>(0);
   const [control, setControl] = useState<'balance' | 'address' | 'storage'>('balance');
   const [transactions, setTransactions] = useState<{ transaction: any, receipt?: any, state?: SummaryState }[]>([]);
   const [mempoolTransactions, setMempoolTransactions] = useState<any[]>([]);
@@ -111,12 +111,12 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               setAddresses(addressData);
             } else {
               setAddresses([]);
-              setSelectedAddress(-1);
+              setSelectedAddress(0);
             }
           } catch (exception) {
             AlertBox.open(AlertType.Error, 'Failed to fetch account addresses: ' + (exception as Error).message);
             setAddresses([]);
-            setSelectedAddress(-1);
+            setSelectedAddress(0);
           }
         })());
         break;
@@ -251,7 +251,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                               <AssetName asset={item.asset}></AssetName>
                               {
                                 item.addresses != null &&
-                                <Text size="1" color="gray">{ Readability.toAddress(item.addresses[0].address, 6) }{ item.addresses.length > 1 ? ' + ' + Readability.toCount('variant', item.addresses.length) : '' }</Text>
+                                <Text size="1" color="gray">{ Readability.toAddress(item.addresses[0].address, 6) }{ item.addresses.length > 1 ? ' + ' + Readability.toCount('variant', item.addresses.length - 1) : '' }</Text>
                               }
                               {
                                 !item.addresses &&
