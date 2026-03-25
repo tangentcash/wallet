@@ -207,7 +207,6 @@ export enum ExchangeField {
 
 export class Exchange {
   static location: string = '';
-  static subroute: string = '/exchange';
   static prices: PriceDescriptors = { };
   static contracts: Market[] = [];
   static descriptors: BlockchainInfo[] = [];
@@ -450,8 +449,6 @@ export class Exchange {
           this.channel(addresses);
         };
       } catch {
-        if (window.location.pathname.startsWith(this.subroute))
-          setTimeout(() => this.channel(addresses), 5000);
         return false;
       }
     }

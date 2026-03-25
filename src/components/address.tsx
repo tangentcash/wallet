@@ -47,7 +47,7 @@ export function AddressView(props: { address: any, onExit?: () => any }) {
         </Callout.Root>
       </Flex>
       <Flex justify="center" width="100%">
-        <Box width="80%" maxWidth="280px" px="3" py="3" style={{ borderRadius: '16px', backgroundColor: 'white' }}>
+        <Box width="80%" maxWidth="280px" px="3" py="3" style={{ borderRadius: '16px', backgroundColor: target.address ? 'white' : 'var(--color-panel)' }}>
           <AspectRatio ratio={1}>
             {
               target.address &&

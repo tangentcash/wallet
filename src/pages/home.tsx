@@ -1,5 +1,5 @@
-import { Box, Button, Dialog, DropdownMenu, Flex, Heading, TextField } from "@radix-ui/themes";
-import { Navigate, useLocation, useNavigate } from "react-router";
+import { Box, Button, Dialog, Flex, Heading, TextField } from "@radix-ui/themes";
+import { useNavigate } from "react-router";
 import { mdiMagnify, mdiMagnifyScan, mdiQrcodeScan } from "@mdi/js";
 import { KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
@@ -10,7 +10,6 @@ import Account from "../components/account";
 import Icon from "@mdi/react";
 
 export default function HomePage() {
-  const location = useLocation();
   const ownerAddress = AppData.getWalletAddress();
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
@@ -23,11 +22,14 @@ export default function HomePage() {
       return;
 
     setLoading(true);
+    const jump = (target: string) => {
+      setLoading(false);
+      navigate(target);
+    };
     const value = query.trim();
     const publicKeyHash = Signing.decodeAddress(value);
     if (publicKeyHash != null && publicKeyHash.data.length == 20) {
-      navigate('/account/' + value);
-      setLoading(false);
+      jump('/account/' + value);
       return;
     }
     
@@ -37,8 +39,7 @@ export default function HomePage() {
         try {
           const block = await RPC.getBlockByNumber(blockNumber);
           if (block != null) {
-            navigate('/block/' + value);
-            setLoading(false);
+            jump('/block/' + value);
             return;
           }
         } catch { }
@@ -49,8 +50,7 @@ export default function HomePage() {
       try {
         const transaction = await RPC.getTransactionByHash(value);
         if (transaction != null) {
-          navigate('/transaction/' + value);
-          setLoading(false);
+          jump('/transaction/' + value);
           return;
         }
       } catch { }
@@ -58,8 +58,7 @@ export default function HomePage() {
       try {
         const aliasTransaction = await RPC.getTransactionByHash(new Stream().writeString(value).hash().toHex());
         if (aliasTransaction != null) {
-          navigate('/transaction/' + value);
-          setLoading(false);
+          jump('/transaction/' + value);
           return;
         }
       } catch { }
@@ -67,15 +66,13 @@ export default function HomePage() {
       try {
         const mempoolTransaction = await RPC.getMempoolTransactionByHash(value);
         if (mempoolTransaction != null) {
-          navigate('/transaction/' + value);
-          setLoading(false);
+          jump('/transaction/' + value);
           return;
         }
       } catch { }
 
       if (awaitMode) {
-        navigate('/transaction/' + value);
-        setLoading(false);
+        jump('/transaction/' + value);
         return;
       }
     }
@@ -84,15 +81,13 @@ export default function HomePage() {
       try {
         const block = await RPC.getBlockByHash(value);
         if (block != null) {
-          navigate('/block/' + value);
-          setLoading(false);
+          jump('/block/' + value);
           return;
         }
       } catch { }
 
       if (awaitMode) {
-        navigate('/block/' + value);
-        setLoading(false);
+        jump('/block/' + value);
         return;
       }
     }
@@ -186,16 +181,12 @@ export default function HomePage() {
     };
   }, []);
 
-  if (!ownerAddress) {
-    return <Navigate replace={true} to="/restore" state={{ from: `${location.pathname}${location.search}` }} />;
-  }
-
   return (
     <Box px="2" pt="4" maxWidth="680px" mx="auto">
       <Flex gap="2" align="center" justify="between" px="2" mb="2">
         <Flex align="center" gap="2">
           <Heading size={document.body.clientWidth < 450 ? '4' : '6'}>Wallet</Heading>
-          <Button variant="surface" size="1" color={ AppData.isWalletReady() ? 'lime' : 'red' } onClick={() => AppData.isWalletReady() ? undefined : navigate('/restore')}>{ AppData.isWalletReady() ? '' : 'RO:' }{ ownerAddress.substring(ownerAddress.length - 6) }</Button>
+          <Button variant="surface" size="1" color={ AppData.isWalletReady() ? 'lime' : 'red' } onClick={() => AppData.isWalletReady() ? undefined : navigate('/restore')}>{ AppData.isWalletReady() ? '' : 'RO:' }{ ownerAddress ? ownerAddress.substring(ownerAddress.length - 6) : 'NONE' }</Button>
         </Flex>
         <Flex justify="end" gap="1">
           <Dialog.Root onOpenChange={(opened) => setSearching(opened)} open={searching}>
@@ -207,7 +198,7 @@ export default function HomePage() {
             <Dialog.Content maxWidth="450px">
               <form action="">
                 <Flex justify="between" align="center" mb="2">
-                  <Dialog.Title mb="0">Explorer</Dialog.Title>
+                  <Dialog.Title mb="0">Search</Dialog.Title>
                   <Button size="1" variant="soft" type="button" disabled={loading} onClick={() => searchLatest()}>Tip block</Button>
                 </Flex>
                 <TextField.Root placeholder="Address, hash or number…" size="3" variant="soft" value={query} onChange={(e) => setQuery(e.target.value)} readOnly={loading} ref={searchInput}>
@@ -215,19 +206,11 @@ export default function HomePage() {
                     <Icon path={mdiMagnify} size={0.9} color="var(--accent-8)"/>
                   </TextField.Slot>
                 </TextField.Root>
-                <Flex justify="center" mt="4">
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger disabled={!query.trim().length}>
-                      <Button variant="ghost" size="3" type="submit" loading={loading}>
-                        Search in…<DropdownMenu.TriggerIcon />
-                      </Button>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Content>
-                      <DropdownMenu.Item onClick={() => search(false)}>Everything</DropdownMenu.Item>
-                      <DropdownMenu.Item onClick={() => search('block')}>Blocks</DropdownMenu.Item>
-                      <DropdownMenu.Item onClick={() => search('transaction')}>Transactions</DropdownMenu.Item>
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Root>
+                <Flex justify="end" align="center" gap="2" mt="4">
+                  <Heading size="3" weight="regular">For</Heading>
+                  <Button variant="surface" size="2" type="submit" color="green" disabled={loading || !query.trim().length} onClick={() => search('transaction')}>Txn</Button>
+                  <Button variant="surface" size="2" type="submit" color="yellow" disabled={loading || !query.trim().length} onClick={() => search('block')}>Block</Button>
+                  <Button variant="surface" size="2" type="submit" color="red" disabled={loading || !query.trim().length} onClick={() => search(false)}>Any</Button>
                 </Flex>
               </form>
             </Dialog.Content>

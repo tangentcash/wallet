@@ -3,10 +3,9 @@ import { Avatar, Badge, Box, Button, Card, Flex, Heading, SegmentedControl, Sele
 import { RPC, EventResolver, SummaryState, AssetId, Readability, Chain, Whitelist } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiCoffin, mdiConsole, mdiOpenInNew, mdiRulerSquareCompass, mdiSetLeft, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTransitConnectionVariant } from "@mdi/js";
+import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiCoffin, mdiConsole, mdiDotsCircle, mdiOpenInNew, mdiSetLeft, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTransitConnectionVariant } from "@mdi/js";
 import { AppData } from "../core/app";
 import { Link, useNavigate } from "react-router";
-import { Exchange } from "../core/exchange";
 import { AssetImage, AssetName } from "./asset";
 import { AddressView } from "./address";
 import BigNumber from "bignumber.js";
@@ -15,7 +14,7 @@ import Icon from "@mdi/react";
 import Transaction from "../components/transaction";
 
 const TRANSACTION_COUNT = 16;
-export default function Account(props: { ownerAddress: string, self?: boolean, nonce?: number }) {
+export default function Account(props: { ownerAddress?: string | null, self?: boolean, nonce?: number }) {
   const ownerAddress = props.ownerAddress;
   const navigate = useNavigate();
   const prevState = useRef<{ control: any, ownerAddress: any, nonce: any }>({ control: undefined, ownerAddress: undefined, nonce: undefined });
@@ -66,6 +65,11 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
     return selectedAddress >= 0 && selectedAddress < filteredAddresses.length ? filteredAddresses[selectedAddress] : null;
   }, [filteredAddresses, selectedAddress]);
   const findTransactions = useCallback(async (refresh?: boolean) => {
+    if (!ownerAddress) {
+      setTransactions([]);
+      setMoreTransactions(false);
+      return false;
+    }
     try {
       const data = await RPC.getTransactionsByOwner(ownerAddress, refresh ? 0 : transactions.length, TRANSACTION_COUNT, 0, 2);
       if (!Array.isArray(data) || !data.length) {
@@ -88,6 +92,10 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
     }
   }, [ownerAddress, transactions]);
   const findMempoolTransactions = useCallback(async () => {
+    if (!ownerAddress) {
+      setMempoolTransactions([]);
+      return false;
+    }
     try {
       const data = await RPC.getMempoolTransactionsByOwner(ownerAddress, 0, TRANSACTION_COUNT, 0, 1);
       if (Array.isArray(data)) {
@@ -100,6 +108,9 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
     }
   }, [ownerAddress]);
   const updateAccountData = useCallback(async () => {
+    if (!ownerAddress)
+      return;
+
     const tasks: Promise<any>[] = [];
     switch (control) {
       case 'address':
@@ -481,7 +492,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
         </Tabs.Root>
       </Card>
       {
-        props.self &&
+        ownerAddress && props.self &&
         <Flex justify={mobile ? 'center' : 'end'} pt="3" gap="2">
           <Select.Root size="3" defaultValue="-1" onValueChange={(value) => {
             const index = parseInt(value);
@@ -489,16 +500,16 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               navigate(`/bridge?asset=${assets[index].asset.id}`);
             }
           }}>
-            <Select.Trigger variant="soft" color="blue">
+            <Select.Trigger variant="soft" color="bronze" className="shadow-rainbow-hover">
             </Select.Trigger>
             <Select.Content variant="soft">
               <Select.Group>
                 <Select.Item value="-1">
                   <Flex align="center" gap="2">
                     <Box style={{ transform: 'translateY(2px)' }}>
-                      <Icon path={mdiSetLeft} size={0.9} color="var(--blue-11)"></Icon>
+                      <Icon path={mdiSetLeft} size={0.9} color="var(--bronze-11)"></Icon>
                     </Box>
-                    <Text size="3" weight="light" color="blue">Bridge</Text>
+                    <Text size="3" weight="light" color="bronze">Bridge</Text>
                   </Flex>
                 </Select.Item>
                 {
@@ -514,18 +525,18 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               </Select.Group>
             </Select.Content>
           </Select.Root>
-          <Button color="lime" size="3" variant="soft" className="shadow-rainbow-hover" onClick={() => navigate(Exchange.subroute)}>
+          <Button color="gray" size="3" variant="soft" className="shadow-rainbow-hover" onClick={() => navigate('/configure')}>
             <Flex align="center" gap="2">
               <Box style={{ transform: 'translateY(2px)' }}>
-                <Icon path={mdiRulerSquareCompass} size={0.9} color="var(--lime-11)"></Icon>
+                <Icon path={mdiDotsCircle} size={0.9} color="var(--gray-11)"></Icon>
               </Box>
-              <Text size="3" weight="light" color="lime">Exchange</Text>
+              <Text size="3" weight="light" color="gray">Settings</Text>
             </Flex>
           </Button>
         </Flex>
       }
       {
-        (transactions.length > 0 || mempoolTransactions.length > 0) &&
+        ownerAddress && (transactions.length > 0 || mempoolTransactions.length > 0) &&
         <Box width="100%" my="8">
           <Box px="2">
             <Heading size={document.body.clientWidth < 450 ? '5' : '6'} mb="0">Transactions</Heading>
@@ -565,6 +576,20 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
             }
           </InfiniteScroll>
         </Box>
+      }
+      {
+        !ownerAddress && props.self &&
+        <Flex justify="center" align="center" direction="column" gap="6" pt="9">
+          <Button size="3" variant="surface" style={{ paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation" onClick={() => navigate('/restore')}>Create a new wallet</Button>
+          <Button color="gray" size="2" variant="soft" className="shadow-rainbow-hover" onClick={() => navigate('/configure')}>
+            <Flex align="center" gap="2">
+              <Box style={{ transform: 'translateY(3px)' }}>
+                <Icon path={mdiDotsCircle} size={0.8} color="var(--gray-11)"></Icon>
+              </Box>
+              <Text size="3" weight="light" color="gray">Settings</Text>
+            </Flex>
+          </Button>             
+        </Flex>
       }
     </Box>
   );

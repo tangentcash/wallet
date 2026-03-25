@@ -24,7 +24,6 @@ import ProgramPage from "./../pages/program";
 import InteractionPage from "./../pages/interaction";
 import BridgePage from "./../pages/bridge"
 import PortfolioPage from "../pages/exchange/portfolio";
-import ExplorerPage from "../pages/exchange/explorer";
 import OrderbookPage from "../pages/exchange/orderbook";
 
 export type DecodedTransaction = {
@@ -772,9 +771,8 @@ export function App() {
             <Route path="/program/:id" element={<ProgramPage />} />
             <Route path="/account/:id" element={<AccountPage />} />
             <Route path="/restore" element={<RestorePage />} />
-            <Route path="/exchange" element={<ExplorerPage />} />
-            <Route path="/exchange/:orderbook" element={<OrderbookPage />} />
-            <Route path="/exchange/portfolio/:account?" element={<PortfolioPage />} />
+            <Route path="/dex/:orderbook" element={<OrderbookPage />} />
+            <Route path="/dex/account/:account?" element={<PortfolioPage />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
           <Navbar></Navbar>

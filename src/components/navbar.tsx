@@ -1,13 +1,12 @@
 import { Box, Button, Flex, IconButton, Tooltip } from "@radix-ui/themes";
-import { mdiCardsOutline, mdiContactlessPaymentCircleOutline, mdiDotsCircle, mdiExitToApp, mdiMagnifyScan, mdiRulerSquareCompass, mdiSetRight, mdiSquareRoundedBadgeOutline } from "@mdi/js";
+import { mdiContactlessPaymentCircleOutline, mdiDotsCircle, mdiMagnifyScan, mdiRulerSquareCompass, mdiSetRight, mdiSquareRoundedBadgeOutline } from "@mdi/js";
 import { useLocation, useNavigate } from "react-router";
 import { AppData } from "../core/app";
-import { Exchange } from "../core/exchange";
 import { useMemo } from "react";
 import Icon from "@mdi/react";
 
 type Route = {
-  path: string,
+  path: string | string[],
   name: string,
   tip: string,
   icon: string,
@@ -15,22 +14,20 @@ type Route = {
   activeColor?: string,
   persistent?: boolean,
   deep?: boolean,
-  disabled?: (path: string) => boolean,
-  toPath?: () => string
+  disabled?: (path: string) => boolean
 };
 
 const types: Route[] = [
   { path: '/', name: 'Home', tip: 'My account', icon: mdiSquareRoundedBadgeOutline, persistent: true },
-  { path: '/bridge', name: 'Bridge', tip: 'Bridge transaction', icon: mdiSetRight, persistent: true },
-  { path: '/interaction', name: 'Pay', tip: 'Send transaction', icon: mdiContactlessPaymentCircleOutline, persistent: true, disabled: (path: string) => path.startsWith('/restore') && !AppData.isWalletReady() },
-  { path: '/configure', name: 'Configure', tip: 'App settings', icon: mdiDotsCircle, persistent: true },
+  { path: '/dex/account', name: 'Trade', tip: 'Trading account', icon: mdiRulerSquareCompass, persistent: true },
+  { path: ['/interaction', '/restore'], name: 'Pay', tip: 'Send transaction', icon: mdiContactlessPaymentCircleOutline, persistent: true, disabled: (path: string) => path.startsWith('/restore') && !AppData.isWalletReady() },
+  { path: '/bridge', name: 'Bridge', tip: 'Deposits and withdrawals', icon: mdiSetRight, persistent: true },
+  { path: '/configure', name: 'Configure', tip: 'App settings', icon: mdiDotsCircle },
   { path: '/block', name: 'Block', tip: 'Block details', icon: mdiMagnifyScan },
   { path: '/transaction', name: 'Txn', tip: 'Transaction details', icon: mdiMagnifyScan },
   { path: '/program', name: 'Program', tip: 'Program details', icon: mdiMagnifyScan },
   { path: '/account', name: 'Account', tip: 'Account details', icon: mdiMagnifyScan },
-  { path: `${Exchange.subroute}`, name: 'Trading', tip: 'Market trading', icon: mdiRulerSquareCompass, persistent: true, deep: true },
-  { path: `${Exchange.subroute}/portfolio`, name: 'Portfolio', tip: 'My portfolio', icon: mdiCardsOutline, persistent: true },
-  { path: `${Exchange.subroute}/exit`, name: 'Exit', tip: 'Exit exchange', icon: mdiExitToApp, baseColor: 'red', activeColor: 'red', persistent: true, toPath: () => '/' }
+  { path: '/dex/', name: 'Market', tip: 'Market terminal', icon: mdiMagnifyScan, deep: true }
 ]
 
 export function Navbar() {
@@ -38,12 +35,35 @@ export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
   const routes = useMemo((): (Route & { selected: boolean })[] => {
-    const exchange = location.pathname.startsWith(Exchange.subroute);
-    const subtypes = types.filter((item) => item.path.startsWith(Exchange.subroute) == exchange);
-    const sortedSubtypes = [...subtypes].sort((a, b) => b.path.length - a.path.length);
-    const locator = sortedSubtypes.filter((item) => location.pathname.startsWith(item.path))[0]?.path || null;
-    const selected = sortedSubtypes.find((item) => item.deep ? locator?.startsWith(item.path) : item.path == locator)?.path;
-    return subtypes.map((item) => ({
+    const sortedSubtypes = [...types].sort((a, b) => b.path.length - a.path.length);
+    const locator = sortedSubtypes.filter((item) => {
+      if (typeof item.path != 'string') {
+        for (let i = 0; i < item.path.length; i++) {
+          if (location.pathname.startsWith(item.path[i]))
+            return true;
+        }
+        return false;
+      } else {
+        return location.pathname.startsWith(item.path);
+      }
+    })[0]?.path || null;
+    const locators = locator ? (typeof locator == 'string' ? [locator] : locator) : null;
+    const selected = sortedSubtypes.find((item) => {
+      if (!locators)
+        return false;
+
+      const targets = typeof item.path == 'string' ? [item.path] : item.path;
+      for (let i = 0; i < targets.length; i++) {
+        const target = targets[i];
+        for (let j = 0; j < locators.length; j++) {
+          const sublocator = locators[j];
+          if (item.deep ? sublocator.startsWith(target) : target == sublocator)
+            return true;
+        }
+      }
+      return false;
+    })?.path;
+    return types.map((item) => ({
       ...item,
       selected: item.path == selected
     })).filter((item) => item.selected || item.persistent);
@@ -67,7 +87,7 @@ export function Navbar() {
             <Flex gap="2">
               {
                 routes.map((item) =>
-                  <Box key={item.path}>
+                  <Box key={typeof item.path == 'string' ? item.path : item.path[0]}>
                     <Tooltip content={item.tip}>
                       <Box>
                         {
@@ -79,7 +99,7 @@ export function Navbar() {
                         }
                         {
                           !item.selected &&
-                          <IconButton size={enlarge ? '3' : '2'} variant="soft" color={item.baseColor as any} disabled={item.disabled ? item.disabled(location.pathname) : false} onClick={() => navigate(item.toPath ? item.toPath() : item.path)}>
+                          <IconButton size={enlarge ? '3' : '2'} variant="soft" color={item.baseColor as any} disabled={item.disabled ? item.disabled(location.pathname) : false} onClick={() => navigate(typeof item.path == 'string' ? item.path : item.path[0])}>
                             <Icon path={item.icon} size={1} />
                           </IconButton>
                         }
