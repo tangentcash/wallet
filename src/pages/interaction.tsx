@@ -649,7 +649,7 @@ export default function InteractionPage() {
     if (!AppData.isWalletReady())
       return;
     
-    let requiresAllAssets = false;
+    let filter: string | null = null;
     switch (params.type) {
       case 'transfer':
       default: {
@@ -681,6 +681,7 @@ export default function InteractionPage() {
         const result = new ProgramWithdraw();
         try { result.fee = params.fee ? new BigNumber(params.fee) : null; } catch { result.fee = null; }
         try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
+        filter = params.asset ? new AssetId(params.asset).chain : null;
         setProgram(result);
         break;
       }
@@ -699,21 +700,14 @@ export default function InteractionPage() {
       } else {
         assetData = [];
       }
-
-      if (requiresAllAssets) {
-        const blockchains = await RPC.getBlockchains();
-        if (blockchains != null) {
-          for (let i = 0; i < blockchains.length; i++) {
-            const additional = new AssetId(blockchains[i].id);
-            if (assetData.findIndex((item) => item.asset.id == additional.id) == -1)
-              assetData.push({ asset: additional, balance: new BigNumber(0), reserve: new BigNumber(0), supply: new BigNumber(0) });
-          }
-        }
+      
+      if (filter != null) {
+        assetData = assetData.filter(x => x.asset.chain == filter);
       }
 
       const initial = { asset: new AssetId(), balance: new BigNumber(0), reserve: new BigNumber(0), supply: new BigNumber(0) }
       const target = params.asset != null ? { asset: new AssetId(params.asset), balance: new BigNumber(0), reserve: new BigNumber(0), supply: new BigNumber(0) } : null;
-      if (assetData.findIndex((item) => item.asset.chain == initial.asset.chain) == -1) {
+      if (assetData.findIndex((item) => item.asset.chain == initial.asset.chain) == -1 && (!filter || initial.asset.chain == filter)) {
         assetData = [initial, ...assetData];
       }
       let assetIndex = target ? assetData.findIndex((item) => item.asset.id == target.asset.id) : -1;
@@ -723,6 +717,7 @@ export default function InteractionPage() {
       } else if (!target && assetIndex == -1) {
         assetIndex = assetData.findIndex((item) => item.asset.chain == initial.asset.chain);
       }
+
       setAssets(assetData.map(x => ({ ...x, contractAddress: Whitelist.contractAddressOf(x.asset) })));
       setAsset(assetIndex);
     } catch { }

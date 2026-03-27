@@ -4,18 +4,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Exchange, Balance, Order, Pool, Cursor, AggregatedPair, Market } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { AppData } from "../..//core/app";
-import { mdiArrowLeftRight, mdiCheckDecagram, mdiCurrencyBtc, mdiCurrencyUsd, mdiMagnify, mdiMagnifyScan, mdiRefresh } from "@mdi/js";
+import { mdiCheckDecagram, mdiMagnify, mdiMagnifyScan, mdiRefresh } from "@mdi/js";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { Storage } from "../../core/storage";
+import { AlertBox, AlertType } from "../../components/alert";
+import { AssetImage } from "../../components/asset";
 import BigNumber from "bignumber.js";
 import BalanceView from "../../components/exchange/balance";
 import OrderView from "../../components/exchange/order";
 import PoolView from "../../components/exchange/pool";
 import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
-import { AlertBox, AlertType } from "../../components/alert";
 import AssetSelector from "../../components/exchange/selector";
-import { AssetImage } from "../../components/asset";
 
 function toAssetSymbol(asset: AssetId): string {
   return asset.chain == 'TAN' && asset.token ? (asset.token || '') : ((asset.token || '') + (asset.chain || ''));
@@ -256,7 +256,7 @@ export default function PortfolioPage() {
           }} open={searching}>
             <Dialog.Trigger>
               <Button variant="soft" size="2" color="gray">
-                <Icon path={mdiMagnifyScan} size={0.7} style={{ transform: 'translateY(-1px)' }} /> FIND
+                <Icon path={mdiMagnifyScan} size={0.9}/>
               </Button>
             </Dialog.Trigger>
             <Dialog.Content maxWidth="450px">
@@ -293,68 +293,60 @@ export default function PortfolioPage() {
         <Tabs.List>
           <Tabs.Trigger value="market">Market</Tabs.Trigger>
           <Tabs.Trigger value="assets">Assets</Tabs.Trigger>
-          <Tabs.Trigger value="orders">Orders</Tabs.Trigger>
           <Tabs.Trigger value="pools">Pools</Tabs.Trigger>
+          <Tabs.Trigger value="orders">Orders</Tabs.Trigger>
         </Tabs.List>
         <Box pt="3">
           <Tabs.Content value="market">
-            <Flex pt="2" gap="1" width="100%">
-              <AssetSelector title="token 1 to launch" value={marketLauncher.primary} onChange={(value) => setMarketLauncher(prev => ({ primary: value, secondary: prev?.secondary || null }))}>
-                <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--color-panel)', position: 'relative' }} color="red">
-                  <Flex justify="center" align="center">
-                    {
-                      marketLauncher.primary != null &&
-                      <Flex align="center" gap="2">
-                        <AssetImage asset={marketLauncher.primary} size="2" iconSize="32px"></AssetImage>
-                        <Text size="4">{ Readability.toAssetSymbol(marketLauncher.primary) }</Text>
-                      </Flex>
-                    }
-                    {
-                      marketLauncher.primary == null &&
-                      <Icon path={mdiCurrencyBtc} size={1.2} color="var(--gray-11)"></Icon>
-                    }
-                  </Flex>
-                  <Box style={{ zIndex: '1', borderRadius: '16px', backgroundColor: 'var(--color-panel)', padding: '4px', position: 'absolute', bottom: '50%', right: '-25px', transform: 'translateY(50%)', backdropFilter: 'blur(16px)' }}>
-                    <Flex justify="center" align="center" style={{ width: '40px', height: '40px' }}>
-                      <Icon path={mdiArrowLeftRight} size={1.2} color="var(--gray-11)"></Icon>
-                    </Flex>
-                  </Box>
-                </Button>
-              </AssetSelector>
-              <AssetSelector title="token 2 to launch" value={marketLauncher.secondary} onChange={(value) => setMarketLauncher(prev => ({ primary: prev?.primary || null, secondary: value }))}>
-                <Button style={{ width: '50%', height: '72px', display: 'block', borderRadius: '24px', backgroundColor: 'var(--color-panel)' }} color="red">
-                  <Flex justify="center" align="center">
-                    {
-                      marketLauncher.secondary != null &&
-                      <Flex align="center" gap="2">
-                        <AssetImage asset={marketLauncher.secondary} size="2" iconSize="32px"></AssetImage>
-                        <Text size="4">{ Readability.toAssetSymbol(marketLauncher.secondary) }</Text>
-                      </Flex>
-                    }
-                    {
-                      marketLauncher.secondary == null &&
-                      <Icon path={mdiCurrencyUsd} size={1.2} color="var(--gray-11)"></Icon>
-                    }
-                  </Flex>
-                </Button>
-              </AssetSelector>
-            </Flex>
-            <Flex pt="4" pb="4" px="1" align="center" justify="start">
-              <TextField.Root placeholder="Try ETH/USDT…" variant="soft" color="gray" size="2" value={query} style={{ width: '100%', borderTopRightRadius: '0', borderBottomRightRadius: '0' }} onInput={(e) => setQuery(e.currentTarget.value || '')}>
-                <TextField.Slot>
-                  <Icon path={mdiMagnify} size={0.8}></Icon>
-                </TextField.Slot>
-              </TextField.Root>
-              <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => setMarket(Exchange.contracts.find((v) => v.id.toString() == e) || null)} size="2">
-                <Select.Trigger variant="soft" color="gray" style={{ borderTopLeftRadius: '0', borderBottomLeftRadius: '0' }}>{ market ? Exchange.marketPolicyOf(market) + ' ' + (market.version || market.account.substring(market.account.length - 4)) : 'Market unset' }</Select.Trigger>
-                <Select.Content position="popper" side="bottom">
-                  <Select.Group>
-                    <Select.Label>Market contract</Select.Label>
-                    { Exchange.contracts.map((item) => <Select.Item key={item.id.toString()} value={item.id.toString()}>{ Exchange.marketPolicyOf(item) } contract — { item.version || item.account.substring(item.account.length - 4) }</Select.Item>) }
-                  </Select.Group>
-                </Select.Content>
-              </Select.Root>
-            </Flex>
+            <Box pt="2" pb="2">
+              <Flex px="1" align="center" justify="start">
+                <TextField.Root placeholder="Try ETH/USDT…" variant="soft" color="gray" size="2" value={query} style={{ width: '100%', borderTopRightRadius: '0', borderBottomRightRadius: '0', borderRight: '1px solid var(--gray-6)' }} onInput={(e) => setQuery(e.currentTarget.value || '')}>
+                  <TextField.Slot>
+                    <Icon path={mdiMagnify} size={0.8}></Icon>
+                  </TextField.Slot>
+                </TextField.Root>
+                <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => setMarket(Exchange.contracts.find((v) => v.id.toString() == e) || null)} size="2">
+                  <Select.Trigger variant="soft" color="gray" style={{ borderTopLeftRadius: '0', borderBottomLeftRadius: '0' }}>{ market ? Exchange.marketPolicyOf(market) + ' ' + (market.version || market.account.substring(market.account.length - 4)) : 'Market unset' }</Select.Trigger>
+                  <Select.Content position="popper" side="bottom">
+                    <Select.Group>
+                      <Select.Label>Market contract</Select.Label>
+                      { Exchange.contracts.map((item) => <Select.Item key={item.id.toString()} value={item.id.toString()}>{ Exchange.marketPolicyOf(item) } contract — { item.version || item.account.substring(item.account.length - 4) }</Select.Item>) }
+                    </Select.Group>
+                  </Select.Content>
+                </Select.Root>
+              </Flex>
+              <Flex justify="between" align="center" px="3" pt="4">
+                <Text>{ Readability.toCount('pair', pairsFilter.length) }</Text>
+                <Flex gap="2" justify="end">
+                  <Text color="gray">Add</Text>
+                  <AssetSelector title="token 1 to launch" value={marketLauncher.primary} onChange={(value) => setMarketLauncher(prev => ({ primary: value, secondary: prev?.secondary || null }))}>
+                    <Button variant="ghost" size="3">
+                      {
+                        marketLauncher.primary != null &&
+                        <Flex align="center" gap="2">
+                          <AssetImage asset={marketLauncher.primary} size="2" iconSize="16px"></AssetImage>
+                          <Text>{ Readability.toAssetSymbol(marketLauncher.primary) }</Text>
+                        </Flex>
+                      }
+                      { marketLauncher.primary == null && (assetQuery.primary?.toUpperCase() || 'A') }
+                    </Button>
+                  </AssetSelector>
+                  <Text>x</Text>
+                  <AssetSelector title="token 2 to launch" value={marketLauncher.secondary} onChange={(value) => setMarketLauncher(prev => ({ primary: prev?.primary || null, secondary: value }))}>
+                    <Button variant="ghost" size="3">
+                      {
+                        marketLauncher.secondary != null &&
+                        <Flex align="center" gap="2">
+                          <AssetImage asset={marketLauncher.secondary} size="2" iconSize="16px"></AssetImage>
+                          <Text>{ Readability.toAssetSymbol(marketLauncher.secondary) }</Text>
+                        </Flex>
+                      }
+                      { marketLauncher.secondary == null && (assetQuery.secondary?.toUpperCase() || 'B') }
+                    </Button>
+                  </AssetSelector>
+                </Flex>
+              </Flex>
+            </Box>
             {
               market != null && pairsFilter.map((item, index) =>
                 <Button variant="ghost" color="gray" radius="none" style={{ display: 'block', width: '100%', borderRadius: '24px' }} mb={index < pairsFilter.length - 1 ? '4' : undefined} key={item.pair.id.toString()} onClick={() => navigate(`/dex/${Exchange.toOrderbookQuery(market.id, item.pair.primaryAsset, item.pair.secondaryAsset)}`)}>
@@ -415,6 +407,24 @@ export default function PortfolioPage() {
               }
             </Box>
           </Tabs.Content>
+          <Tabs.Content value="pools">
+            <Box pt="4">
+              <InfiniteScroll dataLength={pools.length} hasMore={morePools} next={findPools} loader={<div></div>}>
+                {
+                  pools.map((item) =>
+                    <Box key={item.poolId.toString()} mb="4">
+                      <PoolView item={item} readOnly={readOnly}></PoolView>
+                    </Box>)
+                }
+              </InfiniteScroll>
+              {
+                !pools.length &&
+                <Box px="4">
+                  <Text size="2" align="center">Pools created from this account will appear here.</Text>
+                </Box>
+              }
+            </Box>
+          </Tabs.Content>
           <Tabs.Content value="orders">
             <Box pt="4">
               <InfiniteScroll dataLength={orders.length} hasMore={moreOrders} next={findOrders} loader={<div></div>}>
@@ -430,24 +440,6 @@ export default function PortfolioPage() {
                 !orders.length &&
                 <Box px="4">
                   <Text size="2" align="center">Orders created from this account will appear here.</Text>
-                </Box>
-              }
-            </Box>
-          </Tabs.Content>
-          <Tabs.Content value="pools">
-            <Box pt="4">
-              <InfiniteScroll dataLength={pools.length} hasMore={morePools} next={findPools} loader={<div></div>}>
-                {
-                  pools.map((item) =>
-                    <Box key={item.poolId.toString()} mb="4">
-                      <PoolView item={item} readOnly={readOnly}></PoolView>
-                    </Box>)
-                }
-              </InfiniteScroll>
-              {
-                !pools.length &&
-                <Box px="4">
-                  <Text size="2" align="center">Pools created from this account will appear here.</Text>
                 </Box>
               }
             </Box>

@@ -18,16 +18,16 @@ type Route = {
 };
 
 const types: Route[] = [
-  { path: '/', name: 'Home', tip: 'My account', icon: mdiSquareRoundedBadgeOutline, persistent: true },
-  { path: '/dex/account', name: 'Trade', tip: 'Trading account', icon: mdiRulerSquareCompass, persistent: true },
-  { path: ['/interaction', '/restore'], name: 'Pay', tip: 'Send transaction', icon: mdiContactlessPaymentCircleOutline, persistent: true, disabled: (path: string) => path.startsWith('/restore') && !AppData.isWalletReady() },
-  { path: '/bridge', name: 'Bridge', tip: 'Deposits and withdrawals', icon: mdiSetRight, persistent: true },
-  { path: '/configure', name: 'Configure', tip: 'App settings', icon: mdiDotsCircle },
-  { path: '/block', name: 'Block', tip: 'Block details', icon: mdiMagnifyScan },
-  { path: '/transaction', name: 'Txn', tip: 'Transaction details', icon: mdiMagnifyScan },
-  { path: '/program', name: 'Program', tip: 'Program details', icon: mdiMagnifyScan },
-  { path: '/account', name: 'Account', tip: 'Account details', icon: mdiMagnifyScan },
-  { path: '/dex/', name: 'Market', tip: 'Market terminal', icon: mdiMagnifyScan, deep: true }
+  { path: '/', name: 'Home', tip: 'Account & Balances', icon: mdiSquareRoundedBadgeOutline, persistent: true },
+  { path: '/dex/account', name: 'Trade', tip: 'Trade & Analyze', icon: mdiRulerSquareCompass, persistent: true },
+  { path: '/bridge', name: 'Bridge', tip: 'Mint & Redeem', icon: mdiSetRight, persistent: true },
+  { path: ['/interaction', '/restore'], name: 'Pay', tip: 'Pay & Interact', icon: mdiContactlessPaymentCircleOutline, persistent: true, disabled: (path: string) => path.startsWith('/restore') && !AppData.isWalletReady() },
+  { path: '/configure', name: 'Configure', tip: 'Settings & Statistics', icon: mdiDotsCircle },
+  { path: '/block', name: 'Block', tip: 'Block explorer', icon: mdiMagnifyScan, activeColor: 'blue' },
+  { path: '/transaction', name: 'Txn', tip: 'Transaction explorer', icon: mdiMagnifyScan, activeColor: 'blue' },
+  { path: '/program', name: 'Program', tip: 'Program explorer', icon: mdiMagnifyScan, activeColor: 'blue' },
+  { path: '/account', name: 'Account', tip: 'Account explorer', icon: mdiMagnifyScan, activeColor: 'blue' },
+  { path: '/dex/', name: 'Market', tip: 'Market explorer', icon: mdiMagnifyScan, activeColor: 'blue', deep: true }
 ]
 
 export function Navbar() {

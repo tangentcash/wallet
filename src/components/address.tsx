@@ -20,12 +20,12 @@ function toAddressType(type: string): string {
 }
 function toAddressPurpose(address: any) {
   if (!address || !address.purpose)
-    return <>Tangent wallet with cross-chain capabilities.</>;
+    return <>Tangent wallet → on-chain account.</>;
   else if (address.purpose == 'routing')
-    return <>Routing wallet → receive/pay to bridge wallets.</>;
+    return <>Routing wallet → token reedemer.</>;
   else if (address.purpose == 'bridge')
-    return <>Bridge wallet → receive/pay to routing wallets.</>;
-  return <>Witness wallet → dismissed.</>;
+    return <>Bridge wallet → token minter.</>;
+  return <>Witness wallet → discarded.</>;
 }
 
 export function AddressView(props: { address: any, onExit?: () => any }) {

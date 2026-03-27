@@ -1,10 +1,10 @@
 import { mdiBackburger, mdiOpenInNew } from "@mdi/js";
-import { Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Heading, Text, Tooltip } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Heading, Spinner, Text, Tooltip } from "@radix-ui/themes";
 import { useNavigate, useSearchParams } from "react-router";
 import { useCallback, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { AssetId, Chain, RPC, Readability } from "tangentsdk";
+import { AssetId, Chain, RPC, Readability, Whitelist } from "tangentsdk";
 import { AppData } from "../core/app";
 import { AssetImage, AssetName } from "../components/asset";
 import Icon from "@mdi/react";
@@ -147,6 +147,7 @@ export default function BridgePage() {
   const [addresses, setAddresses] = useState<any[]>([]);
   const [bridges, setBridges] = useState<any[]>([]);
   const [moreBridges, setMoreBridges] = useState(true);
+  const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const asset = useMemo(() => {
     const target = new AssetId(query.get('asset') || '');
@@ -223,6 +224,18 @@ export default function BridgePage() {
       setBridges(result.map((x) => {
         const balance: BigNumber | null = x.balances.find((v: any) => v.asset.id == asset.id)?.supply || null;
         x.withdrawable = balance ? balance.gte(x.instance.fee_rate) : false;
+        x.balances = x.balances.map((y: any) => ({ ...y, whitelist: Whitelist.has(y.asset) })).sort((a: any, b: any) => {
+          if ((a.whitelist && !b.whitelist) || (!a.asset.token && b.asset.token)) {
+            return -1;
+          } else if ((!a.whitelist && b.whitelist) || (a.asset.token && !b.asset.token)) {
+            return 1;
+          } else {
+            const nameA = a.asset.token || a.asset.chain || a.asset.handle;
+            const nameB = b.asset.token || b.asset.chain || b.asset.handle;
+            const comparison = nameA.localeCompare(nameB);
+            return comparison == 0 ? new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle) : comparison;
+          }
+        });
         return x;
       }));
       setMoreBridges(data.length >= BRIDGE_COUNT);
@@ -239,22 +252,6 @@ export default function BridgePage() {
     return target && target.chain == asset.chain ? target : asset;
   }, [query]);
   useEffectAsync(async () => {
-    if (!asset)
-      return;
-
-    try {
-      let [addressData] = await Promise.all([RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count)), findBridges(true)]);
-      if (Array.isArray(addressData)) {
-        addressData = addressData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle)).map((item) => ({ ...item, addresses: item.addresses.map((address: string) => Readability.toTaggedAddress(address)) }));
-        setAddresses(addressData);
-      } else {
-        setAddresses([]);
-      }
-    } catch {
-      setAddresses([]);
-    }
-  }, [asset]);
-  useEffectAsync(async () => {
     try {
       if (!blockchains.length) {
         const blockchainData = await RPC.getBlockchains();
@@ -269,7 +266,27 @@ export default function BridgePage() {
         }
       }
     } catch { }
-  }, []);
+
+    if (asset) {
+      setLoading(true);
+      try {
+        let addressData = await RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count));
+        if (Array.isArray(addressData)) {
+          addressData = addressData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle)).map((item) => ({ ...item, addresses: item.addresses.map((address: string) => Readability.toTaggedAddress(address)) }));
+          setAddresses(addressData);
+        } else {
+          setAddresses([]);
+        }
+      } catch {
+        setAddresses([]);
+      }
+      await findBridges(true);
+      setLoading(false);
+    } else {
+      setBridges([]);
+      setMoreBridges(false);
+    }
+  }, [asset]);
 
   return (
     <Box px="4" pt="4" mx="auto" maxWidth="640px">
@@ -341,13 +358,13 @@ export default function BridgePage() {
                 }
                 {
                   asset.routing_policy == 'account' && senderAddresses.map((address: string, index: number) =>
-                    <>
+                    <Flex key={address.toString() + index.toString()} align="center" gap="2">
                       <Button size="2" variant="soft" color="yellow" onClick={() => {
                         navigator.clipboard.writeText(address);
                         AlertBox.open(AlertType.Info, 'Address copied!')
                       }}>{ Readability.toAddress(address) }</Button>
                       { index < senderAddresses.length - 1 && <Text color="red">or</Text> }
-                    </>
+                    </Flex>
                   )
                 }
               </Flex>
@@ -356,7 +373,8 @@ export default function BridgePage() {
           {
             !bridges.length &&
             <Flex justify="center" mt="5">
-              <Text color="red">{Readability.toAssetName(asset)} blockchain has no bridges</Text>
+              { !loading && <Text color="red">{Readability.toAssetName(asset)} blockchain has no bridges</Text> }
+              { loading && <Spinner size="3">Loading bridges</Spinner>}
             </Flex>
           }
           <InfiniteScroll dataLength={bridges.length} hasMore={moreBridges} next={findBridges} loader={<div></div>}>
@@ -372,16 +390,18 @@ export default function BridgePage() {
                         </Flex>
                           <DropdownMenu.Root>
                             <DropdownMenu.Trigger>
-                              <Button size="2" variant="soft" color="yellow">Engage <Icon path={mdiOpenInNew} size={0.6}></Icon></Button>
+                              <Button size="2" variant="soft" color="yellow">Mint/redeem <Icon path={mdiOpenInNew} size={0.6}></Icon></Button>
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Content side="left">
-                              <DropdownMenu.Item shortcut="↙" onClick={() => navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=register&bridge=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`)}>Claim an address</DropdownMenu.Item>
+                              <Tooltip content="Claim a deposit address and/or sender address">
+                                <DropdownMenu.Item shortcut="↙" onClick={() => navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=register&bridge=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`)}>Mint tokens</DropdownMenu.Item>
+                              </Tooltip>
                               <Tooltip content={(item.withdrawable ? 'Enough ' : 'Not enough ') + Readability.toAssetSymbol(asset) + ' for a withdrawal'}>
                                 <DropdownMenu.Item shortcut="↗" disabled={!item.withdrawable} onClick={() => {
                                   if (item.withdrawable) {
                                     navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=withdraw&bridge=${item.instance.bridge_hash}&fee=${item.instance.fee_rate.toString()}&back=${encodeURIComponent(location.pathname + location.search)}`);
                                   }
-                                }}>Queue a withdrawal</DropdownMenu.Item>
+                                }}>Reedem tokens</DropdownMenu.Item>
                               </Tooltip>
                             </DropdownMenu.Content>
                           </DropdownMenu.Root>
@@ -390,7 +410,7 @@ export default function BridgePage() {
                         {
                           item.master != null && item.master.addresses && filteredAddresses.routing != null &&
                           <DataList.Item>
-                            <DataList.Label>Deposit address:</DataList.Label>
+                            <DataList.Label>Bridge address:</DataList.Label>
                             <DataList.Value>
                               <Tooltip content="This is a deposit address shared by all users (master deposit address), send only from addresses you explicitly registered">
                                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
@@ -402,7 +422,7 @@ export default function BridgePage() {
                           </DataList.Item>
                         }
                         <DataList.Item>
-                          <DataList.Label>Bridge ref hash:</DataList.Label>
+                          <DataList.Label>Bridge hash:</DataList.Label>
                           <DataList.Value>
                             <Button size="2" variant="ghost" color="indigo" onClick={() => {
                               navigator.clipboard.writeText(item.instance.bridge_hash);
@@ -410,39 +430,32 @@ export default function BridgePage() {
                             }}>{ Readability.toAddress(item.instance.bridge_hash) }</Button>
                           </DataList.Value>
                         </DataList.Item>
-                        <Tooltip content="Amount of accounts linked to this bridge">
+                        <Tooltip content={'Participants to involve in each created account but no less than ' + Chain.policy.PARTICIPATION_COMMITTEE[0] + ' and no more than ' + Chain.policy.PARTICIPATION_COMMITTEE[1] + ' per account, txn/account nonces'}>
                           <DataList.Item>
-                            <DataList.Label>Bridge accounts:</DataList.Label>
-                            {
-                              (asset.routing_policy == 'account') &&
-                              <DataList.Value>
-                                <Badge size="1" color="blue">Master account only</Badge>
-                              </DataList.Value>
-                            }
-                            {
-                              (asset.routing_policy != 'account') &&
-                              <DataList.Value>
+                            <DataList.Label>Public params:</DataList.Label>
+                            <DataList.Value>
+                              <Flex gap="1" wrap="wrap">
+                                <Badge size="1" color={speedOverSecurity(item.instance) ? 'red' : 'lime'}>{ Readability.toCount('participant', item.instance.security_level) }</Badge>
+                                <Badge size="1" color="blue">{ Readability.toCount('txn', item.instance.transaction_nonce) }</Badge>
                                 <Badge size="1" color="blue">{ Readability.toCount('account', item.instance.account_nonce) }</Badge>
-                              </DataList.Value>
-                            }
+                              </Flex>
+                            </DataList.Value>
                           </DataList.Item>
                         </Tooltip>
-                        <Tooltip content="Amount of transactions made from this bridge">
+                        <Tooltip content="This amount of fee will be deduced from each withdrawal to cover off-chain network fees and to pay to bridge attesters and participants">
                           <DataList.Item>
-                            <DataList.Label>Bridge transactions:</DataList.Label>
-                            <DataList.Value>
-                              <Badge size="1" color="blue">{ Readability.toCount('transaction', item.instance.transaction_nonce) }</Badge>
-                            </DataList.Value>
+                            <DataList.Label>Redeem fee:</DataList.Label>
+                            <DataList.Value>{ Readability.toMoney(new AssetId(asset.id), item.instance.fee_rate) }</DataList.Value>
                           </DataList.Item>
                         </Tooltip>
                         <Tooltip content="Unspent balance of a bridge usable as withdrawal liquidity">
                           <DataList.Item>
-                            <DataList.Label>Total value locked:</DataList.Label>
+                            <DataList.Label>Asset TVL:</DataList.Label>
                             <DataList.Value>
                               <Flex wrap="wrap" gap="1">
                                 {
                                   item.balances && item.balances.map((next: any) =>
-                                    <Badge key={item.instance.hash + index + next.asset.id} size="1" color="lime">{ Readability.toMoney(next.asset, next.supply) }</Badge>)
+                                    <Badge key={item.instance.hash + index + next.asset.id} size="1" color={next.whitelist ? 'jade' : 'gray'}>{ Readability.toMoney(next.asset, next.supply) }</Badge>)
                                 }
                                 {
                                   (!item.balances || !item.balances.length) &&
@@ -450,20 +463,6 @@ export default function BridgePage() {
                                 }
                               </Flex>
                             </DataList.Value>
-                          </DataList.Item>
-                        </Tooltip>
-                        <Tooltip content={'Defines how many randomly chosen participants to involve in each created account but no less than ' + Chain.policy.PARTICIPATION_COMMITTEE[0] + ' and no more than ' + Chain.policy.PARTICIPATION_COMMITTEE[1] + ' per account'}>
-                          <DataList.Item>
-                            <DataList.Label>Participation size:</DataList.Label>
-                            <DataList.Value>
-                              <Badge size="1" color={speedOverSecurity(item.instance) ? 'red' : 'lime'}>{ Readability.toCount('participant', item.instance.security_level) }</Badge>
-                            </DataList.Value>
-                          </DataList.Item>
-                        </Tooltip>
-                        <Tooltip content="This amount of fee will be deduced from each withdrawal to cover off-chain network fees and to pay to bridge attesters and participants">
-                          <DataList.Item>
-                            <DataList.Label>Transactional cost:</DataList.Label>
-                            <DataList.Value>{ Readability.toMoney(new AssetId(asset.id), item.instance.fee_rate) }</DataList.Value>
                           </DataList.Item>
                         </Tooltip>
                       </DataList.Root>

@@ -1,6 +1,6 @@
 import { Box, Button, Dialog, Flex, Heading, TextField } from "@radix-ui/themes";
 import { useNavigate } from "react-router";
-import { mdiMagnify, mdiMagnifyScan, mdiQrcodeScan } from "@mdi/js";
+import { mdiDotsCircle, mdiMagnify, mdiMagnifyScan, mdiQrcodeScan } from "@mdi/js";
 import { KeyboardEvent, useCallback, useEffect, useRef, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData } from "../core/app";
@@ -189,10 +189,16 @@ export default function HomePage() {
           <Button variant="surface" size="1" color={ AppData.isWalletReady() ? 'lime' : 'red' } onClick={() => AppData.isWalletReady() ? undefined : navigate('/restore')}>{ AppData.isWalletReady() ? '' : 'RO:' }{ ownerAddress ? ownerAddress.substring(ownerAddress.length - 6) : 'NONE' }</Button>
         </Flex>
         <Flex justify="end" gap="1">
+          {
+            AppData.platform == 'mobile' &&
+            <Button variant="soft" size="2" color="gray" onClick={() => tryPrompt()}>
+              <Icon path={mdiQrcodeScan} size={0.9} />
+            </Button>
+          }
           <Dialog.Root onOpenChange={(opened) => setSearching(opened)} open={searching}>
             <Dialog.Trigger>
               <Button variant="soft" size="2" color="gray">
-                <Icon path={mdiMagnifyScan} size={0.7} style={{ transform: 'translateY(-1px)' }} /> FIND
+                <Icon path={mdiMagnifyScan} size={0.9} />
               </Button>
             </Dialog.Trigger>
             <Dialog.Content maxWidth="450px">
@@ -215,12 +221,9 @@ export default function HomePage() {
               </form>
             </Dialog.Content>
           </Dialog.Root>
-          {
-            AppData.platform == 'mobile' &&
-            <Button variant="soft" size="2" color="bronze" onClick={() => tryPrompt()}>
-              <Icon path={mdiQrcodeScan} size={0.7} style={{ transform: 'translateY(-1px)' }} /> SCAN
-            </Button>
-          }
+          <Button variant="soft" size="2" color="amber" onClick={() => navigate('/configure')}>
+            <Icon path={mdiDotsCircle} size={0.9} />
+          </Button>
         </Flex>
       </Flex>
       <Account ownerAddress={ownerAddress} self={true} nonce={nonce}></Account>

@@ -1,9 +1,9 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Avatar, Badge, Box, Button, Card, Flex, Heading, SegmentedControl, Select, Spinner, Tabs, Text, Tooltip } from "@radix-ui/themes";
+import { Avatar, Badge, Box, Button, Card, Flex, Heading, SegmentedControl, Spinner, Tabs, Text, Tooltip } from "@radix-ui/themes";
 import { RPC, EventResolver, SummaryState, AssetId, Readability, Chain, Whitelist } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiCoffin, mdiConsole, mdiDotsCircle, mdiOpenInNew, mdiSetLeft, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTransitConnectionVariant } from "@mdi/js";
+import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiCoffin, mdiConsole, mdiOpenInNew, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTransitConnectionVariant } from "@mdi/js";
 import { AppData } from "../core/app";
 import { Link, useNavigate } from "react-router";
 import { AssetImage, AssetName } from "./asset";
@@ -492,50 +492,6 @@ export default function Account(props: { ownerAddress?: string | null, self?: bo
         </Tabs.Root>
       </Card>
       {
-        ownerAddress && props.self &&
-        <Flex justify={mobile ? 'center' : 'end'} pt="3" gap="2">
-          <Select.Root size="3" defaultValue="-1" onValueChange={(value) => {
-            const index = parseInt(value);
-            if (index >= 0) {
-              navigate(`/bridge?asset=${assets[index].asset.id}`);
-            }
-          }}>
-            <Select.Trigger variant="soft" color="bronze" className="shadow-rainbow-hover">
-            </Select.Trigger>
-            <Select.Content variant="soft">
-              <Select.Group>
-                <Select.Item value="-1">
-                  <Flex align="center" gap="2">
-                    <Box style={{ transform: 'translateY(2px)' }}>
-                      <Icon path={mdiSetLeft} size={0.9} color="var(--bronze-11)"></Icon>
-                    </Box>
-                    <Text size="3" weight="light" color="bronze">Bridge</Text>
-                  </Flex>
-                </Select.Item>
-                {
-                  assets.filter((v) => v.asset.chain != new AssetId().chain).map((item, index) =>
-                    <Select.Item key={item.asset.id + '_select'} value={index.toString()} disabled={item.asset.chain == new AssetId().chain}>
-                      <Flex align="center" gap="1">
-                        <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
-                        <AssetName asset={item.asset} size="2"></AssetName>
-                      </Flex>
-                    </Select.Item>
-                  )
-                }
-              </Select.Group>
-            </Select.Content>
-          </Select.Root>
-          <Button color="gray" size="3" variant="soft" className="shadow-rainbow-hover" onClick={() => navigate('/configure')}>
-            <Flex align="center" gap="2">
-              <Box style={{ transform: 'translateY(2px)' }}>
-                <Icon path={mdiDotsCircle} size={0.9} color="var(--gray-11)"></Icon>
-              </Box>
-              <Text size="3" weight="light" color="gray">Settings</Text>
-            </Flex>
-          </Button>
-        </Flex>
-      }
-      {
         ownerAddress && (transactions.length > 0 || mempoolTransactions.length > 0) &&
         <Box width="100%" my="8">
           <Box px="2">
@@ -579,16 +535,8 @@ export default function Account(props: { ownerAddress?: string | null, self?: bo
       }
       {
         !ownerAddress && props.self &&
-        <Flex justify="center" align="center" direction="column" gap="6" pt="9">
-          <Button size="3" variant="surface" style={{ paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation" onClick={() => navigate('/restore')}>Create a new wallet</Button>
-          <Button color="gray" size="2" variant="soft" className="shadow-rainbow-hover" onClick={() => navigate('/configure')}>
-            <Flex align="center" gap="2">
-              <Box style={{ transform: 'translateY(3px)' }}>
-                <Icon path={mdiDotsCircle} size={0.8} color="var(--gray-11)"></Icon>
-              </Box>
-              <Text size="3" weight="light" color="gray">Settings</Text>
-            </Flex>
-          </Button>             
+        <Flex justify="center" align="center" direction="column" pt="9">
+          <Button size="3" variant="surface" style={{ paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation" onClick={() => navigate('/restore')}>Create a new wallet</Button>     
         </Flex>
       }
     </Box>

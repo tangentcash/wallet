@@ -35,9 +35,9 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
         try {
           const result = await Exchange.assetQuery(value);
           setAssets(result.map((x) => ({ asset: x, contractAddress: Whitelist.contractAddressOf(x) })).sort((a, b) => {
-            if (a.contractAddress && !b.contractAddress) {
+            if ((a.contractAddress && !b.contractAddress) || (!a.asset.token && b.asset.token)) {
               return -1;
-            } else if (!a.contractAddress && b.contractAddress) {
+            } else if ((!a.contractAddress && b.contractAddress) || (a.asset.token && !b.asset.token)) {
               return 1;
             } else {
               const nameA = a.asset.token || a.asset.chain || a.asset.handle;
