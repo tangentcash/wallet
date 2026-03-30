@@ -188,7 +188,7 @@ export default function PortfolioPage() {
   useEffect(() => {
     if (viewer == 'market') {
       if (!market) {
-        Exchange.acquireDeferred().then(() => {
+        Exchange.connectSocket().then(() => {
           if (Exchange.contracts.length > 0)
             setMarket(Exchange.contracts[0]);
         });

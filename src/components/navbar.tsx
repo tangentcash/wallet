@@ -19,18 +19,18 @@ type Route = {
 
 const types: Route[] = [
   { path: '/', name: 'Home', tip: 'Account & Balances', icon: mdiSquareRoundedBadgeOutline, persistent: true },
-  { path: '/portfolio', name: 'Trade', tip: 'Trade & Analyze', icon: mdiRulerSquareCompass, persistent: true },
+  { path: '/portfolio', name: 'Trade', tip: 'Trade & Analyze', icon: mdiRulerSquareCompass, persistent: true, deep: true },
   { path: '/bridge', name: 'Bridge', tip: 'Mint & Redeem', icon: mdiSetRight, persistent: true },
   { path: ['/interaction', '/restore'], name: 'Pay', tip: 'Pay & Interact', icon: mdiContactlessPaymentCircleOutline, persistent: true, disabled: (path: string) => path.startsWith('/restore') && !AppData.isWalletReady() },
   { path: '/configure', name: 'Configure', tip: 'Settings & Statistics', icon: mdiDotsCircle },
   { path: '/legal', name: 'Legal', tip: 'Legal documents', icon: mdiScaleBalance, activeColor: 'yellow' },
   { path: '/app', name: 'App', tip: 'Get the app', icon: mdiDownload, activeColor: 'yellow' },
-  { path: '/block', name: 'Block', tip: 'Block explorer', icon: mdiMagnifyScan, activeColor: 'blue' },
-  { path: '/transaction', name: 'Txn', tip: 'Transaction explorer', icon: mdiMagnifyScan, activeColor: 'blue' },
-  { path: '/program', name: 'Program', tip: 'Program explorer', icon: mdiMagnifyScan, activeColor: 'blue' },
-  { path: '/account', name: 'Account', tip: 'Account explorer', icon: mdiMagnifyScan, activeColor: 'blue' },
+  { path: '/block', name: 'Block', tip: 'Block explorer', icon: mdiMagnifyScan, activeColor: 'blue', deep: true },
+  { path: '/transaction', name: 'Txn', tip: 'Transaction explorer', icon: mdiMagnifyScan, activeColor: 'blue', deep: true },
+  { path: '/program', name: 'Program', tip: 'Program explorer', icon: mdiMagnifyScan, activeColor: 'blue', deep: true },
+  { path: '/account', name: 'Account', tip: 'Account explorer', icon: mdiMagnifyScan, activeColor: 'blue', deep: true },
   { path: '/orderbook/', name: 'Market', tip: 'Market explorer', icon: mdiMagnifyScan, activeColor: 'blue', deep: true },
-  { path: '*', name: 'Error', tip: 'Unknown place', icon: mdiAlertDecagramOutline, activeColor: 'red' }
+  { path: '*', name: 'Error', tip: 'Unknown place', icon: mdiAlertDecagramOutline, activeColor: 'red', deep: true }
 ]
 
 export function Navbar() {

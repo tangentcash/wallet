@@ -46,12 +46,8 @@ export type ConnectionState = {
   receivedBytes: number;
   requests: number;
   responses: number;
-  time: Date;
+  time: Date | null;
   active: boolean;
-};
-
-export type ServerState = {
-  connections: Record<string, ConnectionState>
 };
 
 export type AppState = {
@@ -67,7 +63,6 @@ export type AppDefs = {
 };
 
 export type AppProps = {
-  seeder: string | null,
   validator: string | null,
   account: string | null,
   appearance: 'dark' | 'light'
@@ -81,9 +76,7 @@ export enum AppPermission {
 
 export class AppData {
   static root: Root | null = null;
-  static server: ServerState = {
-    connections: { }
-  };
+  static server: ConnectionState | null = null;
   static state: AppState = {
     count: 0,
     setState: null,
@@ -95,7 +88,6 @@ export class AppData {
     authorizer: false,
   };
   static props: AppProps = {
-    seeder: null,
     validator: null,
     account: null,
     appearance: 'dark'
@@ -149,51 +141,48 @@ export class AppData {
     this.save();
     return true;
   }
-  private static nodeRequest(address: string, method: string, message: any, size: number): void {
+  private static nodeRequest(method: string, message: any, size: number): void {
     const bytes = 40 + size;
-    const server = AppData.server.connections[address];
-    if (server != null) {
-      server.sentBytes += bytes;
-      server.time = new Date();
-      server.active = true;
-      ++server.requests;
+    if (AppData.server != null) {
+      AppData.server.sentBytes += bytes;
+      AppData.server.time = new Date();
+      AppData.server.active = true;
+      ++AppData.server.requests;
     } else {
-      AppData.server.connections[address] = { sentBytes: bytes, receivedBytes: 0, requests: 1, responses: 0, time: new Date(), active: true };
+      AppData.server = { sentBytes: bytes, receivedBytes: 0, requests: 1, responses: 0, time: new Date(), active: true };
     }
     
-    console.log('[rpc]', `${address}${address.endsWith('/') ? '' : '/'}${method} call:`, message);
+    console.log('[rpc]', `${method} call:`, message);
   }
-  private static nodeResponse(address: string, method: string, message: any, size: number): void {
+  private static nodeResponse(method: string, message: any, size: number): void {
     const bytes = 40 + size;
-    const server = AppData.server.connections[address];
-    if (server != null) {
-      server.receivedBytes += bytes;
-      server.time = new Date();
-      server.active = message != null && size > 0;
-      ++server.responses;
+    if (AppData.server != null) {
+      AppData.server.receivedBytes += bytes;
+      AppData.server.time = new Date();
+      AppData.server.active = message != null && size > 0;
+      ++AppData.server.responses;
     } else {
-      AppData.server.connections[address] = { sentBytes: 0, receivedBytes: bytes, requests: 0, responses: 1, time: new Date(), active: true };
+      AppData.server = { sentBytes: 0, receivedBytes: bytes, requests: 0, responses: 1, time: new Date(), active: true };
     }
 
-    console.log('[rpc]', `${address}${address.endsWith('/') ? '' : '/'}${method} return:`, message);
+    console.log('[rpc]', `${method} return:`, message);
   }
-  private static nodeError(address: string, method: string, error: unknown): void {
+  private static nodeError(method: string, error: unknown): void {
     const bytes = 40 + (error as any)?.message?.length || 0;
-    const server = AppData.server.connections[address];
     const message: string = ((error as any)?.message?.toString() || error?.toString()) || '';
     const networkError = !message.includes('layer_exception');
-    if (server != null) {
-      server.receivedBytes += bytes;
-      server.time = new Date();
-      server.active = !networkError;
+    if (AppData.server != null) {
+      AppData.server.receivedBytes += bytes;
+      AppData.server.time = new Date();
+      AppData.server.active = !networkError;
       if (!networkError)
-        ++server.responses;
+        ++AppData.server.responses;
     } else {
-      AppData.server.connections[address] = { sentBytes: 0, receivedBytes: bytes, requests: 0, responses: networkError ? 0 : 1, time: new Date(), active: !networkError };
+      AppData.server = { sentBytes: 0, receivedBytes: bytes, requests: 0, responses: networkError ? 0 : 1, time: new Date(), active: !networkError };
     }
 
-    console.log('[rpc]', `${address}${address.endsWith('/') ? '' : '/'}${method} return:`, (error as any)?.message || error);
-    AlertBox.open(AlertType.Error, `${address}${address.endsWith('/') ? '' : '/'}${method} error: ${(error as any)?.message || error}`);
+    console.log('[rpc]', `${method} return:`, (error as any)?.message || error);
+    AlertBox.open(AlertType.Error, `${method} error: ${(error as any)?.message || error}`);
   }
   private static async authorizerEvent(request: { event: string, id: number, payload: any}): Promise<boolean> {
     if (!this.defs.authorizer || PrompterBox.isOpen() || this.approveTransaction)
@@ -572,9 +561,7 @@ export class AppData {
       onNodeError: this.nodeError,
       onCacheStore: (path: string, value: any): boolean => Storage.set((this.defs.cachePrefix || 'V') + ':' + path, value),
       onCacheLoad: (path: string): any | null => Storage.get((this.defs.cachePrefix || 'V') + ':' + path),
-      onCacheKeys: (): string[] => Storage.keys().filter((v) => v.startsWith((this.defs.cachePrefix || 'V'))).map((v) => v.substring((this.defs.cachePrefix || 'V').length + 1)),
-      onIpsetLoad: (): { servers: string[] } => Storage.get(StorageField.Ipset),
-      onIpsetStore: (ipset: { servers: string[] }) => Storage.set(StorageField.Ipset, ipset)
+      onCacheKeys: (): string[] => Storage.keys().filter((v) => v.startsWith((this.defs.cachePrefix || 'V'))).map((v) => v.substring((this.defs.cachePrefix || 'V').length + 1))
     });
     this.reconfigure(null, AppPermission.ReadOnly);
     
@@ -604,7 +591,7 @@ export class AppData {
       Storage.set(StorageField.Network, network);
     } 
       
-    const config: { seederUrl: string | null, validatorUrl: string | null, exchangeUrl: string | null, cachePrefix: string | null, authorizer: boolean } = (() => {
+    const config: { validatorUrl: string | null, exchangeUrl: string | null, cachePrefix: string | null, authorizer: boolean } = (() => {
       switch (network) {
         case NetworkType.Regtest:
           return Regtest;
@@ -619,19 +606,16 @@ export class AppData {
     this.defs.cachePrefix = config.cachePrefix;
     this.defs.exchangeUrl = config.exchangeUrl;
     this.defs.authorizer = config.authorizer;
-    if (resetNetwork || !this.props.seeder)
-      this.props.seeder = config.seederUrl;
-    if (resetNetwork || (!this.props.seeder && !this.props.validator) || !Storage.get(StorageField.App))
+    if (resetNetwork || !this.props.validator || !Storage.get(StorageField.App))
       this.props.validator = config.validatorUrl;
     if (resetNetwork)
       RPC.clearCache();
     
     const address = this.getWalletAddress();
     RPC.applyTopics(address ? [address] : []);
-    RPC.applyResolver(this.props.seeder);
-    RPC.applyServer(this.props.validator);
+    RPC.applyValidator(this.props.validator);
     if (resetNetwork) {
-      Storage.set(StorageField.Ipset);
+      Storage.set(StorageField.Validator);
     }
   }
   static openDevTools(): void {
@@ -673,14 +657,9 @@ export class AppData {
     window.URL.revokeObjectURL(target);
     document.body.removeChild(link);
   }
-  static setSeeder(value: string | null): void {
-    this.props.seeder = value;
-    RPC.applyResolver(this.props.seeder);
-    this.save();
-  }
   static setValidator(value: string | null): void {
     this.props.validator = value;
-    RPC.applyServer(this.props.validator);
+    RPC.applyValidator(this.props.validator);
     this.save();
   }
   static setAppearance(value: 'dark' | 'light'): void {
@@ -748,7 +727,7 @@ export class AppData {
     return result;
   }
   static defaultNetwork(): NetworkType {
-    return this.isDev() ? NetworkType.Regtest : NetworkType.Mainnet;
+    return this.isDev() ? NetworkType.Mainnet : NetworkType.Mainnet;
   }
 }
 

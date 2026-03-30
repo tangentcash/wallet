@@ -1,92 +1,28 @@
 import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiRefresh, mdiReloadAlert } from "@mdi/js";
-import { Badge, Box, Button, Card, DataList, Flex, Heading, Table, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, DataList, Flex, Heading, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { SafeStorage, StorageField } from "../core/storage";
-import { AppData, AppPermission } from "../core/app";
+import { AppData, AppPermission, ConnectionState } from "../core/app";
 import { ByteUtil, RPC, Signing, Readability } from "tangentsdk";
 import Icon from "@mdi/react";
 import License from "../components/license";
 
-function toServerInfo(url: string): string {
-  try {
-    const info = new URL(url);
-    switch (info.protocol) {
-      case 'http:':
-        return info.hostname + ':' + (info.port || '80');
-      case 'https:':
-        return info.hostname + ':' + (info.port || '443');
-      case 'ws:':
-        return info.hostname + ':' + (info.port || '80');
-      case 'wss:':
-        return info.hostname + ':' + (info.port || '443');
-      default:
-        throw false;
-    }
-  } catch {
-    return url;
-  }
-}
-
 export default function ConfigurePage() {
   const [counter, setCounter] = useState(0);
-  const [seederAddress, setSeederAddress] = useState(AppData.props.seeder || '');
   const [validatorAddress, setValidatorAddress] = useState(AppData.props.validator || '');
   const [loadingProps, setLoadingProps] = useState(false);
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
-  const networkInfo = useMemo<{ connections: number, sentBytes: number, receivedBytes: number, requests: number, responses: number, minTime: Date | null, maxTime: Date | null }>(() => {
-    const indices = Object.entries(AppData.server.connections);
-    let minTime: Date | null = null;
-    let maxTime: Date | null = null;
-    let sentBytes: number = 0;
-    let receivedBytes: number = 0;
-    let requests: number = 0;
-    let responses: number = 0;
-    let connections: number = 0;
-    indices.map((item) => {
-      const connection = item[1];
-      sentBytes += connection.sentBytes;
-      receivedBytes += connection.receivedBytes;
-      requests += connection.requests;
-      responses += connection.responses;
-      connections += connection.active ? 1 : 0;
-      if (minTime == null || minTime.getTime() > connection.time.getTime())
-        minTime = connection.time;
-      if (maxTime == null || maxTime.getTime() < connection.time.getTime())
-        maxTime = connection.time;
-    });
-    return {
-      connections: connections,
-      sentBytes: sentBytes,
-      receivedBytes: receivedBytes,
-      requests: requests,
-      responses: responses,
-      minTime: minTime,
-      maxTime: maxTime
+  const networkInfo = useMemo<ConnectionState>(() => {
+    return AppData.server || {
+      sentBytes: 0,
+      receivedBytes: 0,
+      requests: 0,
+      responses: 0,
+      time: null,
+      active: false
     };
   }, [counter]);
-  const setSeederServer = useCallback((address: string) => {
-    if (loadingProps)
-      return false;
-
-    setLoadingProps(true);
-    try {
-      const target = address || null;
-      if (target != null)
-        new URL(target);
-      
-      AppData.setSeeder(target);
-      if (target != null)
-        AlertBox.open(AlertType.Info, 'Using ' + target + ' as seeder server');
-      else
-        AlertBox.open(AlertType.Warning, 'Seeder server disabled');
-    } catch {
-      AlertBox.open(AlertType.Error, 'Seeder address must be a valid URL');
-    }
-
-    setLoadingProps(false);
-    return true;
-  }, [loadingProps]);
   const setValidatorServer = useCallback(async (address: string) => {
     if (loadingProps)
       return false;
@@ -212,14 +148,6 @@ export default function ConfigurePage() {
         <Box px="2" py="2">
           <Heading size="5" mb="1">Server options</Heading>
           <Flex gap="1" mt="2">
-            <Tooltip content="This seeder server helps the client to find validator servers">
-              <TextField.Root style={{ width: '100%' }} size="2" placeholder="Seeder server address" type="text" value={seederAddress} onChange={(e) => setSeederAddress(e.target.value.trim())} />
-            </Tooltip>
-            <Button size="2" variant="soft" color="yellow" onClick={() => setSeederServer(seederAddress)}>
-              <Icon path={mdiRefresh} size={0.85} />
-            </Button>
-          </Flex>
-          <Flex gap="1" mt="2">
             <Tooltip content="This validator server is the only one used to interact with Tangent (if present)">
               <TextField.Root style={{ width: '100%' }} size="2" placeholder="Validator server address" type="text" value={validatorAddress} onChange={(e) => setValidatorAddress(e.target.value.trim())} />
             </Tooltip>
@@ -233,78 +161,40 @@ export default function ConfigurePage() {
               <Icon path={mdiReloadAlert} size={0.85} />
             </Button>
           </Flex>
-        </Box>
-      </Card>
-      <Card mt="4">
-        <Box px="2" py="2">
-          <Heading size="5" mb="3">Network statistics</Heading>
-          <DataList.Root size="2" orientation={orientation}>
-            <DataList.Item>
-              <DataList.Label>Channel</DataList.Label>
-              <DataList.Value>
-                { networkInfo.connections > 0 && <Badge size="2" color="lime">{ Readability.toCount('connection', networkInfo.connections) }</Badge> }
-                { !networkInfo.connections && <Badge size="2" color="red">OFFLINE</Badge> }
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Quality</DataList.Label>
-              <DataList.Value>
-                <Badge size="2" color={(networkInfo.requests ? networkInfo.responses / networkInfo.requests < 0.9 : false) ? 'red' : 'lime'} variant="soft" radius="full">{ (100 * Math.min(1, networkInfo.requests > 0 ? networkInfo.responses / networkInfo.requests : 1)).toFixed(2) }%</Badge>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Bandwidth</DataList.Label>
-              <DataList.Value>
-                <Text size="2">{ Readability.toCount('byte', networkInfo.sentBytes + networkInfo.receivedBytes) }</Text>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Requests</DataList.Label>
-              <DataList.Value>
-                <Text size="2">{ Readability.toCount('request', networkInfo.requests) } — { Readability.toCount('byte', networkInfo.sentBytes) }</Text>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Responses</DataList.Label>
-              <DataList.Value>
-                <Text size="2">{ Readability.toCount('response', networkInfo.responses) } — { Readability.toCount('byte', networkInfo.receivedBytes) }</Text>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Oldest use</DataList.Label>
-              <DataList.Value>
-                <Text size="2">{ networkInfo.minTime ? networkInfo.minTime.toLocaleString() : 'never' }</Text>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Latest use</DataList.Label>
-              <DataList.Value>
-                <Text size="2">{ networkInfo.maxTime ? networkInfo.maxTime.toLocaleString() : 'never' }</Text>
-              </DataList.Value>
-            </DataList.Item>
-          </DataList.Root>
-          {
-            Object.entries(AppData.server.connections).length > 0 &&
-            <Table.Root variant="surface" mt="4">
-              <Table.Header>
-                <Table.Row>
-                  <Table.ColumnHeaderCell>Server</Table.ColumnHeaderCell>
-                  <Table.ColumnHeaderCell>Score</Table.ColumnHeaderCell>
-                </Table.Row>
-              </Table.Header>
-              <Table.Body>
-                {
-                  Object.entries(AppData.server.connections).map((item) =>
-                    <Table.Row key={item[0]}>
-                      <Table.RowHeaderCell>{ toServerInfo(item[0]) }</Table.RowHeaderCell>
-                      <Table.Cell>
-                        <Badge size="2" color={(item[1].requests ? item[1].responses / item[1].requests < 0.9 : false) ? 'red' : 'lime'} variant="soft" radius="full">{ (100 * Math.min(1, item[1].requests > 0 ? item[1].responses / item[1].requests : 1)).toFixed(2) }%</Badge>
-                      </Table.Cell>
-                    </Table.Row>)
-                }
-              </Table.Body>
-            </Table.Root>
-          }
+          <Box width="100%" mt="3">
+            <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+          </Box>
+          <Box px="1" pt="4">
+            <DataList.Root size="2" orientation={orientation}>
+              <DataList.Item>
+                <DataList.Label>Server status</DataList.Label>
+                <DataList.Value>
+                  <Flex gap="1" wrap="wrap">
+                    <Badge size="2" color={networkInfo.active ? 'lime' : 'red'}>{ networkInfo.active ? 'ONLINE' : 'OFFLINE' }</Badge>
+                    <Badge size="2" color={(networkInfo.requests ? networkInfo.responses / networkInfo.requests < 0.9 : false) ? 'red' : 'lime'} variant="soft" radius="full">{ (100 * Math.min(1, networkInfo.requests > 0 ? networkInfo.responses / networkInfo.requests : 1)).toFixed(2) }%</Badge>
+                  </Flex>
+                </DataList.Value>
+              </DataList.Item>
+              <DataList.Item>
+                <DataList.Label>Server test</DataList.Label>
+                <DataList.Value>
+                  <Text size="2">{ networkInfo.time ? networkInfo.time.toLocaleString() : 'never' }</Text>
+                </DataList.Value>
+              </DataList.Item>
+              <DataList.Item>
+                <DataList.Label>Server pings</DataList.Label>
+                <DataList.Value>
+                  <Text size="2">{ Readability.toCount('ping', networkInfo.requests) } — { Readability.toCount('byte', networkInfo.sentBytes) }</Text>
+                </DataList.Value>
+              </DataList.Item>
+              <DataList.Item>
+                <DataList.Label>Server pongs</DataList.Label>
+                <DataList.Value>
+                  <Text size="2">{ Readability.toCount('pong', networkInfo.responses) } — { Readability.toCount('byte', networkInfo.receivedBytes) }</Text>
+                </DataList.Value>
+              </DataList.Item>
+            </DataList.Root>
+          </Box>
         </Box>
       </Card>
       <License style={{ marginTop: '60px' }} app={true}></License>

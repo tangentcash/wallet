@@ -9,7 +9,7 @@ export enum StorageField {
   SecretKey = '__secretkey__',
   PublicKey = '__publickey__',
   Address = '__address__',
-  Ipset = '__ipset__',
+  Validator = '__validator__',
   App = '__app__'
 }
 

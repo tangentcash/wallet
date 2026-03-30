@@ -214,7 +214,7 @@ export class Exchange {
   static orderbook:  string | null = null;
   static socket: WebSocket | null = null;
   static channelId: string | null = null;
-  static awaitables: (() => void)[] | null = [];
+  static awaitables: (() => void)[] = [];
   static requests = {
     pending: new Map<string, { resolve: PromiseCallback } >(),
     count: 0
@@ -303,7 +303,18 @@ export class Exchange {
   static getOrderbook(): string | null {
     return this.orderbook;
   }
-  static async acquire(): Promise<void> {
+  static connectSocket(): Promise<void> {
+    return new Promise<void>((resolve) => {
+      if (!this.socket) {
+        this.awaitables.push(resolve);
+        if (this.awaitables.length == 1)
+          this.connectSocketInternal();
+      } else {
+        resolve();
+      }
+    });
+  }
+  private static async connectSocketInternal(): Promise<void> {
     try {
       const address = AppData.getWalletAddress();
       this.location = AppData.defs.exchangeUrl || '';
@@ -328,26 +339,15 @@ export class Exchange {
         for (let i = 0; i < this.awaitables.length; i++) {
           this.awaitables[i]();
         }
-        this.awaitables = null;
+        this.awaitables = [];
       }
     } catch (exception: any) {
       AlertBox.open(AlertType.Error, 'Exchange server error: ' + exception.message);
     }
   }
-  static acquireDeferred(): Promise<void> {
-    return new Promise<void>((resolve) => {
-      if (this.awaitables != null) {
-        this.awaitables.push(resolve);
-        if (this.awaitables.length == 1)
-          this.acquire();
-      } else {
-        resolve();
-      }
-    });
-  }
   static async fetch(method: 'GET' | 'POST' | 'DELETE', location: string, args: Record<string, any>, awaitable: boolean = true) {
     if (awaitable)
-      await this.acquireDeferred();
+      await this.connectSocket();
 
     if (this.socket) {
       console.log('[exchange-rpc]', `${this.location.replace('http', 'ws')}/${location}`, 'call', args);

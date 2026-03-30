@@ -1,5 +1,4 @@
 {
-  "seederUrl": "https://p2pt.tangent.cash:18420",
   "validatorUrl": "p2pt.tangent.cash:18419",
   "exchangeUrl": "https://p2pt.tangent.cash:19420",
   "cachePrefix": "VTN",
