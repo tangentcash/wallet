@@ -1,0 +1,30 @@
+site_name: Tangent Cash
+site_url: https://tangent.cash/docs
+site_description: Documentation for Tangent Cash
+site_dir: 'dist/docs'
+repo_url: https://github.com/tangentcash/
+extra_css:
+  - docs.css
+theme:
+  name: material
+  palette:
+    - scheme: default
+      primary: black
+      accent: teal
+      toggle:
+        icon: material/lightbulb
+        name: Switch to light mode
+    - scheme: slate
+      primary: black
+      accent: teal
+      toggle:
+        icon: material/lightbulb-outline
+        name: Switch to dark mode
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences

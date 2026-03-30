@@ -125,7 +125,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
                 AlertBox.open(AlertType.Info, 'Address copied!')
               }}>{ Readability.toAddress(item.marketAccount || 'NULL') }</Button>
               <Box ml="2">
-                <Link className="router-link" to={'/dex/account/' + item.marketAccount}>▒▒</Link>
+                <Link className="router-link" to={'/portfolio/' + item.marketAccount}>▒▒</Link>
               </Box>
             </DataList.Value>
           </DataList.Item>

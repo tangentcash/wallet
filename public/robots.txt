@@ -1,2 +1,5 @@
 User-agent: *
-Disallow: /
+Sitemap: https://tangent.cash/sitemap.xml
+Disallow: /configure
+Disallow: /interaction
+Disallow: /restore

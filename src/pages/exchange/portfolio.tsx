@@ -247,7 +247,7 @@ export default function PortfolioPage() {
       <Flex gap="2" align="center" justify="between" px="2" mb="2">
         <Flex align="center" gap="2">
           <Heading size={document.body.clientWidth < 450 ? '4' : '6'}>Portfolio</Heading>
-          <Button variant="surface" size="1" color={ readOnly ? 'red' : 'lime' }>{ baseAddress ? baseAddress.substring(baseAddress.length - 6) : 'NONE' }</Button>
+          <Button variant="surface" size="1" color={ readOnly ? 'red' : 'lime' }>{ baseAddress ? baseAddress.substring(baseAddress.length - 6) : 'Preview' }</Button>
         </Flex>
         <Flex justify="end" gap="1">
           <Dialog.Root onOpenChange={(opened) => {
@@ -268,7 +268,7 @@ export default function PortfolioPage() {
                   </TextField.Slot>
                 </TextField.Root>
                 <Flex justify="center" mt="4">
-                  <Button variant="ghost" size="3" type="submit" loading={loading} disabled={!query.trim().length || !Signing.verifyAddress(query.trim()) } onClick={(e) => { e.preventDefault(); navigate(`/dex/account/${query.trim()}`); }}>Find portfolio</Button>
+                  <Button variant="ghost" size="3" type="submit" loading={loading} disabled={!query.trim().length || !Signing.verifyAddress(query.trim()) } onClick={(e) => { e.preventDefault(); navigate(`/portfolio/${query.trim()}`); }}>Find portfolio</Button>
                 </Flex>
               </form>
             </Dialog.Content>
@@ -349,7 +349,7 @@ export default function PortfolioPage() {
             </Box>
             {
               market != null && pairsFilter.map((item, index) =>
-                <Button variant="ghost" color="gray" radius="none" style={{ display: 'block', width: '100%', borderRadius: '24px' }} mb={index < pairsFilter.length - 1 ? '4' : undefined} key={item.pair.id.toString()} onClick={() => navigate(`/dex/${Exchange.toOrderbookQuery(market.id, item.pair.primaryAsset, item.pair.secondaryAsset)}`)}>
+                <Button variant="ghost" color="gray" radius="none" style={{ display: 'block', width: '100%', borderRadius: '24px' }} mb={index < pairsFilter.length - 1 ? '4' : undefined} key={item.pair.id.toString()} onClick={() => navigate(`/orderbook/${Exchange.toOrderbookQuery(market.id, item.pair.primaryAsset, item.pair.secondaryAsset)}`)}>
                   <Box px="2" py="2">
                     <Flex justify="start" align="center" gap="3">
                       <Box style={{ position: 'relative' }}>

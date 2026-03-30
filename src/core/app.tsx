@@ -1,6 +1,6 @@
-import { StrictMode, useEffect, useState } from "react";
+import { lazy, StrictMode, useEffect, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
-import { BrowserRouter, Navigate, NavigateFunction, Route, Routes } from "react-router";
+import { BrowserRouter, NavigateFunction, Route, Routes } from "react-router";
 import { Box, Theme } from "@radix-ui/themes";
 import { core } from '@tauri-apps/api';
 import { listen } from "@tauri-apps/api/event";
@@ -14,17 +14,21 @@ import Regtest from './../configs/regtest.json';
 import Testnet from './../configs/testnet.json';
 import Mainnet from './../configs/mainnet.json';
 import BigNumber from "bignumber.js";
-import RestorePage from "./../pages/restore";
-import HomePage from "./../pages/home";
-import ConfigurePage from "./../pages/configure";
-import AccountPage from "./../pages/account";
-import BlockPage from "./../pages/block";
-import TransactionPage from "./../pages/transaction";
-import ProgramPage from "./../pages/program";
-import InteractionPage from "./../pages/interaction";
-import BridgePage from "./../pages/bridge"
-import PortfolioPage from "../pages/exchange/portfolio";
-import OrderbookPage from "../pages/exchange/orderbook";
+
+const RestorePage = lazy(() => import("./../pages/restore"));
+const HomePage = lazy(() => import("./../pages/home"));
+const HypePage = lazy(() => import("./../pages/hype"));
+const LegalPage = lazy(() => import("./../pages/legal"));
+const ErrorPage = lazy(() => import("./../pages/error"));
+const ConfigurePage = lazy(() => import("./../pages/configure"));
+const AccountPage = lazy(() => import("./../pages/account"));
+const BlockPage = lazy(() => import("./../pages/block"));
+const TransactionPage = lazy(() => import("./../pages/transaction"));
+const ProgramPage = lazy(() => import("./../pages/program"));
+const InteractionPage = lazy(() => import("./../pages/interaction"));
+const BridgePage = lazy(() => import("./../pages/bridge"));
+const PortfolioPage = lazy(() => import("../pages/exchange/portfolio"));
+const OrderbookPage = lazy(() => import("../pages/exchange/orderbook"));
 
 export type DecodedTransaction = {
   typename: string,
@@ -762,7 +766,7 @@ export function App() {
       <Box minWidth="285px" style={{ paddingBottom: '96px' }}>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<HomePage />} />
+            <Route path="/" element={AppData.isWalletExists() ? <HomePage /> : <HypePage />} />
             <Route path="/configure" element={<ConfigurePage />} />
             <Route path="/bridge" element={<BridgePage />} />
             <Route path="/interaction" element={<InteractionPage />} />
@@ -771,9 +775,11 @@ export function App() {
             <Route path="/program/:id" element={<ProgramPage />} />
             <Route path="/account/:id" element={<AccountPage />} />
             <Route path="/restore" element={<RestorePage />} />
-            <Route path="/dex/:orderbook" element={<OrderbookPage />} />
-            <Route path="/dex/account/:account?" element={<PortfolioPage />} />
-            <Route path="*" element={<Navigate to="/" replace />} />
+            <Route path="/app" element={<HypePage />} />
+            <Route path="/legal" element={<LegalPage />} />
+            <Route path="/orderbook/:orderbook" element={<OrderbookPage />} />
+            <Route path="/portfolio/:account?" element={<PortfolioPage />} />
+            <Route path="*" element={<ErrorPage />} />
           </Routes>
           <Navbar></Navbar>
         </BrowserRouter>

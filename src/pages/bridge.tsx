@@ -293,7 +293,7 @@ export default function BridgePage() {
       {
         asset == null &&
         <Box mt="4" maxWidth="480px" mx="auto">
-          <Heading align="center" mb="4" size="8">Bridge network</Heading>
+          <Heading align="center" mb="4" size="8">Mint & Redeem</Heading>
           {
             blockchains.map((item, index) =>
               <Button variant="surface" color="gray" mb="4" radius="large" style={{ display: 'block', color: 'initial', width: '100%', height: 'auto', borderRadius: '20px' }} key={item.chain + index} onClick={() => navigate(`/bridge?asset=${item.id}`)}>

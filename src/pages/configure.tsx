@@ -1,4 +1,4 @@
-import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiOpenInNew, mdiRefresh, mdiReloadAlert } from "@mdi/js";
+import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiRefresh, mdiReloadAlert } from "@mdi/js";
 import { Badge, Box, Button, Card, DataList, Flex, Heading, Table, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
@@ -6,6 +6,7 @@ import { SafeStorage, StorageField } from "../core/storage";
 import { AppData, AppPermission } from "../core/app";
 import { ByteUtil, RPC, Signing, Readability } from "tangentsdk";
 import Icon from "@mdi/react";
+import License from "../components/license";
 
 function toServerInfo(url: string): string {
   try {
@@ -171,14 +172,6 @@ export default function ConfigurePage() {
               <Icon path={mdiBugOutline} size={0.85} />
             </Button>
           </Flex>
-          <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Project page</Text>
-            <a href={`https://tangent.cash`} target="_blank" style={{ textDecoration: 'none', color: 'var(--gray-12)' }}>
-              <Button size="2" variant="soft" color="blue">
-                <Icon path={mdiOpenInNew} size={0.85} />
-              </Button>
-            </a>
-          </Flex>
         </Box>
       </Card>
       <Card mt="4">
@@ -314,6 +307,7 @@ export default function ConfigurePage() {
           }
         </Box>
       </Card>
+      <License style={{ marginTop: '60px' }} app={true}></License>
     </Box>
   );
 }

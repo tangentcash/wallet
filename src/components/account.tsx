@@ -14,7 +14,7 @@ import Icon from "@mdi/react";
 import Transaction from "../components/transaction";
 
 const TRANSACTION_COUNT = 16;
-export default function Account(props: { ownerAddress?: string | null, self?: boolean, nonce?: number }) {
+export default function Account(props: { ownerAddress: string, self?: boolean, nonce?: number }) {
   const ownerAddress = props.ownerAddress;
   const navigate = useNavigate();
   const prevState = useRef<{ control: any, ownerAddress: any, nonce: any }>({ control: undefined, ownerAddress: undefined, nonce: undefined });
@@ -65,11 +65,6 @@ export default function Account(props: { ownerAddress?: string | null, self?: bo
     return selectedAddress >= 0 && selectedAddress < filteredAddresses.length ? filteredAddresses[selectedAddress] : null;
   }, [filteredAddresses, selectedAddress]);
   const findTransactions = useCallback(async (refresh?: boolean) => {
-    if (!ownerAddress) {
-      setTransactions([]);
-      setMoreTransactions(false);
-      return false;
-    }
     try {
       const data = await RPC.getTransactionsByOwner(ownerAddress, refresh ? 0 : transactions.length, TRANSACTION_COUNT, 0, 2);
       if (!Array.isArray(data) || !data.length) {
@@ -92,10 +87,6 @@ export default function Account(props: { ownerAddress?: string | null, self?: bo
     }
   }, [ownerAddress, transactions]);
   const findMempoolTransactions = useCallback(async () => {
-    if (!ownerAddress) {
-      setMempoolTransactions([]);
-      return false;
-    }
     try {
       const data = await RPC.getMempoolTransactionsByOwner(ownerAddress, 0, TRANSACTION_COUNT, 0, 1);
       if (Array.isArray(data)) {
@@ -108,9 +99,6 @@ export default function Account(props: { ownerAddress?: string | null, self?: bo
     }
   }, [ownerAddress]);
   const updateAccountData = useCallback(async () => {
-    if (!ownerAddress)
-      return;
-
     const tasks: Promise<any>[] = [];
     switch (control) {
       case 'address':
@@ -492,7 +480,7 @@ export default function Account(props: { ownerAddress?: string | null, self?: bo
         </Tabs.Root>
       </Card>
       {
-        ownerAddress && (transactions.length > 0 || mempoolTransactions.length > 0) &&
+        (transactions.length > 0 || mempoolTransactions.length > 0) &&
         <Box width="100%" my="8">
           <Box px="2">
             <Heading size={document.body.clientWidth < 450 ? '5' : '6'} mb="0">Transactions</Heading>
@@ -532,12 +520,6 @@ export default function Account(props: { ownerAddress?: string | null, self?: bo
             }
           </InfiniteScroll>
         </Box>
-      }
-      {
-        !ownerAddress && props.self &&
-        <Flex justify="center" align="center" direction="column" pt="9">
-          <Button size="3" variant="surface" style={{ paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation" onClick={() => navigate('/restore')}>Create a new wallet</Button>     
-        </Flex>
       }
     </Box>
   );

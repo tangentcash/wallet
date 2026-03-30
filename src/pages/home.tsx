@@ -10,7 +10,7 @@ import Account from "../components/account";
 import Icon from "@mdi/react";
 
 export default function HomePage() {
-  const ownerAddress = AppData.getWalletAddress();
+  const ownerAddress = AppData.getWalletAddress() || '';
   const [loading, setLoading] = useState(false);
   const [searching, setSearching] = useState(false);
   const [query, setQuery] = useState('');
@@ -146,34 +146,32 @@ export default function HomePage() {
   }, [loading]);
   useEffect(() => {
     const state: { blockId: any, transactionId: any } = { blockId: null, transactionId: null };
-    if (ownerAddress != null) {
-      RPC.onNodeMessage = (event) => {
-        switch (event.type) {
-          case 'block': {
-            if (state.blockId != null)
-              clearTimeout(state.blockId);
-            state.blockId = setTimeout(() => {
-              AppData.sync().then(() => setNonce(prev => prev + 1));
-              state.blockId = null;
-            }, 1000);
-            break;
-          }
-          case 'transaction': {
-            if (state.transactionId != null)
-              clearTimeout(state.transactionId);
-            state.transactionId = setTimeout(() => {
-              AppData.sync().then(() => setNonce(prev => prev + 1));
-              state.transactionId = null;
-            }, 1000);
-            break;
-          }
-          default:
-            break;
+    RPC.onNodeMessage = (event) => {
+      switch (event.type) {
+        case 'block': {
+          if (state.blockId != null)
+            clearTimeout(state.blockId);
+          state.blockId = setTimeout(() => {
+            AppData.sync().then(() => setNonce(prev => prev + 1));
+            state.blockId = null;
+          }, 1000);
+          break;
         }
-      };
-      document.addEventListener('keydown', searchKeydownEvent as any);
-      document.addEventListener('paste', searchPasteEvent);
-    }
+        case 'transaction': {
+          if (state.transactionId != null)
+            clearTimeout(state.transactionId);
+          state.transactionId = setTimeout(() => {
+            AppData.sync().then(() => setNonce(prev => prev + 1));
+            state.transactionId = null;
+          }, 1000);
+          break;
+        }
+        default:
+          break;
+      }
+    };
+    document.addEventListener('keydown', searchKeydownEvent as any);
+    document.addEventListener('paste', searchPasteEvent);
     return () => {
       document.removeEventListener('keydown', searchKeydownEvent as any);
       document.removeEventListener('paste', searchPasteEvent);
@@ -186,7 +184,7 @@ export default function HomePage() {
       <Flex gap="2" align="center" justify="between" px="2" mb="2">
         <Flex align="center" gap="2">
           <Heading size={document.body.clientWidth < 450 ? '4' : '6'}>Wallet</Heading>
-          <Button variant="surface" size="1" color={ AppData.isWalletReady() ? 'lime' : 'red' } onClick={() => AppData.isWalletReady() ? undefined : navigate('/restore')}>{ AppData.isWalletReady() ? '' : 'RO:' }{ ownerAddress ? ownerAddress.substring(ownerAddress.length - 6) : 'NONE' }</Button>
+          <Button variant="surface" size="1" color={ AppData.isWalletReady() ? 'lime' : 'red' } onClick={() => AppData.isWalletReady() ? undefined : navigate('/restore')}>{ AppData.isWalletReady() ? '' : 'RO:' }{ ownerAddress.substring(ownerAddress.length - 6) }</Button>
         </Flex>
         <Flex justify="end" gap="1">
           {

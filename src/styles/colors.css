@@ -28,6 +28,10 @@
   color: var(--indigo-11);
 }
 
+.router-text-link {
+  color: unset;
+}
+
 .radix-themes {
 	--default-font-family: "PT Mono", monospace;
 }

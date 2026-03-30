@@ -922,7 +922,7 @@ export default function OrderbookPage() {
                                   AlertBox.open(AlertType.Info, 'Program account address copied!')
                                 }}>{ Readability.toAddress(market?.account || 'NULL', 5) }</Button>
                                 <Box ml="2">
-                                  <Link className="router-link" to={'/dex/account/' + market?.account}>▒▒</Link>
+                                  <Link className="router-link" to={'/portfolio/' + market?.account}>▒▒</Link>
                                 </Box>
                               </Flex>
                             </Flex>
@@ -1138,7 +1138,7 @@ export default function OrderbookPage() {
                                   AlertBox.open(AlertType.Info, 'Account address copied!')
                                 }}>{ Readability.toAddress(item.account || 'NULL', 5) }</Button>
                                 <Box ml="2">
-                                  <Link className="router-link" to={'/dex/account/' + item.account}>▒▒</Link>
+                                  <Link className="router-link" to={'/portfolio/' + item.account}>▒▒</Link>
                                 </Box>
                               </Flex>
                             </Flex>
