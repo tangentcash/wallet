@@ -357,6 +357,7 @@ export class AppData {
 
     const address = this.getWalletAddress();
     RPC.applyTopics(address ? [address] : []);
+    this.setState();
     return true;
   }
   static async resetWallet(secret: string | string[], type: WalletType, network?: NetworkType): Promise<boolean> {
@@ -396,6 +397,7 @@ export class AppData {
         return false;
     }
     
+    this.setState();
     return true;
   }
   static clearWallet(callback?: ClearCallback): void {
