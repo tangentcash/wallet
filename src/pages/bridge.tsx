@@ -287,8 +287,8 @@ export default function BridgePage() {
 
           const testBridges = await findBridges(true);
           if (testBridges != null && testBridges.length > 0) {
-            const testAddresses = addressData && !balanceData ? addressData.filter((x) => x.asset.chain == asset.chain && (x.purpose == 'routing' || x.purpose == 'bridge')) : [];
-            if (!testAddresses.length) {
+            const testAddresses = addressData ? addressData.filter((x) => x.asset.chain == asset.chain && (x.purpose == 'routing' || x.purpose == 'bridge')) : [];
+            if (!balanceData && !testAddresses.length) {
               setRedirecting(true);
               setTimeout(() => {
                 navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=register&bridge=${testBridges[0].instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`);
