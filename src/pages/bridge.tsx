@@ -7,9 +7,9 @@ import { AlertBox, AlertType } from "../components/alert";
 import { AssetId, Chain, RPC, Readability, Whitelist } from "tangentsdk";
 import { AppData } from "../core/app";
 import { AssetImage, AssetName } from "../components/asset";
+import { AddressView } from "../components/address";
 import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
-import { AddressView } from "../components/address";
 
 const BRIDGE_COUNT = 48;
 const ASSET_INFORMATION: Record<string, { depositTime: number, tokenStandard: string | null }> = {
@@ -143,11 +143,13 @@ export default function BridgePage() {
   const ownerAddress = AppData.getWalletAddress() || '';
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [query] = useSearchParams();
+  const [balance, setBalance] = useState<{ supply: BigNumber, reserve: BigNumber, balance: BigNumber } | null>(null);
   const [blockchains, setBlockchains] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [bridges, setBridges] = useState<any[]>([]);
   const [moreBridges, setMoreBridges] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [redirecting, setRedirecting] = useState<boolean>(false);
   const navigate = useNavigate();
   const asset = useMemo(() => {
     const target = new AssetId(query.get('asset') || '');
@@ -265,22 +267,43 @@ export default function BridgePage() {
           setBlockchains(blockchainData.sort((a, b) => new AssetId(a.id).handle.localeCompare(new AssetId(b.id).handle)));
         }
       }
+      if (!asset)
+        setLoading(false);
     } catch { }
 
     if (asset) {
+      setRedirecting(false);
       setLoading(true);
       try {
-        let addressData = await RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count));
-        if (Array.isArray(addressData)) {
-          addressData = addressData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle)).map((item) => ({ ...item, addresses: item.addresses.map((address: string) => Readability.toTaggedAddress(address)) }));
-          setAddresses(addressData);
+        if (ownerAddress) {
+          let [addressData, balanceData] = await Promise.all([RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count)), RPC.getAccountBalance(ownerAddress, new AssetId(asset.id))]);
+          if (Array.isArray(addressData)) {
+            addressData = addressData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle)).map((item) => ({ ...item, addresses: item.addresses.map((address: string) => Readability.toTaggedAddress(address)) }));
+            setAddresses(addressData);
+          } else {
+            setAddresses([]);
+          }
+          setBalance(balanceData);
+
+          const testBridges = await findBridges(true);
+          if (testBridges != null && testBridges.length > 0) {
+            const testAddresses = addressData && !balanceData ? addressData.filter((x) => x.asset.chain == asset.chain && (x.purpose == 'routing' || x.purpose == 'bridge')) : [];
+            if (!testAddresses.length) {
+              setRedirecting(true);
+              setTimeout(() => {
+                navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=register&bridge=${testBridges[0].instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`);
+              }, 500);
+            }
+          }
         } else {
+          await findBridges(true);
           setAddresses([]);
+          setBalance(null);
         }
       } catch {
         setAddresses([]);
+        setBalance(null);
       }
-      await findBridges(true);
       setLoading(false);
     } else {
       setBridges([]);
@@ -293,7 +316,13 @@ export default function BridgePage() {
       {
         asset == null &&
         <Box mt="4" maxWidth="480px" mx="auto">
-          <Heading align="center" mb="4" size="8">Mint & Redeem</Heading>
+          <Heading align="center" size="8" mb="4">Mint & Redeem</Heading>
+          {
+            loading &&
+            <Flex justify="center" mb="4">
+              <Spinner size="3"></Spinner>
+            </Flex>
+          }
           {
             blockchains.map((item, index) =>
               <Button variant="surface" color="gray" mb="4" radius="large" style={{ display: 'block', color: 'initial', width: '100%', height: 'auto', borderRadius: '20px' }} key={item.chain + index} onClick={() => navigate(`/bridge?asset=${item.id}`)}>
@@ -344,7 +373,7 @@ export default function BridgePage() {
             <Card mb="4" variant="surface" style={{ borderRadius: '28px' }}>
               <AddressView address={filteredAddresses.bridge}></AddressView>
               <Flex px="4" mt="2" gap="2" align="center" wrap="wrap">
-                <Text size="3" color="red">Deposit from</Text>
+                <Text size="3" color="red">Send from</Text>
                 {
                   asset.routing_policy == 'utxo' &&
                   <Badge color="lime" size="3">any address</Badge>
@@ -372,14 +401,27 @@ export default function BridgePage() {
           }
           {
             !bridges.length &&
-            <Flex justify="center" mt="5">
+            <Flex justify="center" align="center" gap="1" mt="5">
               { !loading && <Text color="red">{Readability.toAssetName(asset)} blockchain has no bridges</Text> }
-              { loading && <Spinner size="3">Loading bridges</Spinner>}
+              {
+                loading &&
+                <>
+                  <Spinner size="3"></Spinner>
+                  <Text size="4">Loading bridges...</Text>
+                </>
+              }
+            </Flex>
+          }
+          {
+            redirecting && 
+            <Flex justify="center" align="center" my="5" gap="1">
+              <Spinner size="3"></Spinner>
+              <Text size="4">Found { Readability.toCount('bridge', bridges.length) }...</Text>
             </Flex>
           }
           <InfiniteScroll dataLength={bridges.length} hasMore={moreBridges} next={findBridges} loader={<div></div>}>
             {
-              bridges.map((item, index) =>
+              !redirecting && bridges.map((item, index) =>
                 <Box width="100%" key={item.instance.hash + index} mb="4">
                   <Card variant="surface" style={{ borderRadius: '28px' }}>
                     <Box px="2" py="2">
@@ -390,15 +432,15 @@ export default function BridgePage() {
                         </Flex>
                           <DropdownMenu.Root>
                             <DropdownMenu.Trigger>
-                              <Button size="2" variant="soft" color="yellow">Mint/redeem <Icon path={mdiOpenInNew} size={0.6}></Icon></Button>
+                              <Button size="2" variant="soft" color="yellow" className={index == 0 ? 'shadow-rainbow-animation' : undefined}>Mint/redeem <Icon path={mdiOpenInNew} size={0.6}></Icon></Button>
                             </DropdownMenu.Trigger>
                             <DropdownMenu.Content side="left">
                               <Tooltip content="Claim a deposit address and/or sender address">
                                 <DropdownMenu.Item shortcut="↙" onClick={() => navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=register&bridge=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`)}>Mint tokens</DropdownMenu.Item>
                               </Tooltip>
-                              <Tooltip content={(item.withdrawable ? 'Enough ' : 'Not enough ') + Readability.toAssetSymbol(asset) + ' for a withdrawal'}>
-                                <DropdownMenu.Item shortcut="↗" disabled={!item.withdrawable} onClick={() => {
-                                  if (item.withdrawable) {
+                              <Tooltip content={(item.withdrawable ? (balance && balance.balance.gte(item.instance.fee_rate) ? 'Bridge has enough ' : 'Not enough ') : 'Bridge doesn\'t have enough ') + Readability.toAssetSymbol(asset) + ' for a withdrawal'}>
+                                <DropdownMenu.Item shortcut="↗" disabled={!item.withdrawable || !balance || balance.balance.lt(item.instance.fee_rate)} onClick={() => {
+                                  if (item.withdrawable && balance && balance.balance.gte(item.instance.fee_rate)) {
                                     navigate(`/interaction?asset=${toTargetAsset(asset).id}&type=withdraw&bridge=${item.instance.bridge_hash}&fee=${item.instance.fee_rate.toString()}&back=${encodeURIComponent(location.pathname + location.search)}`);
                                   }
                                 }}>Reedem tokens</DropdownMenu.Item>

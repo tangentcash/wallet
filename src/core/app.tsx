@@ -744,7 +744,7 @@ export function App() {
 
   return (
     <Theme appearance={AppData.props.appearance} accentColor="lime" radius="full" id={state.toString()}>
-      <Box minWidth="285px" style={{ paddingBottom: '96px' }}>
+      <Box minHeight="100vh" minWidth="285px" style={{ paddingBottom: '96px' }}>
         <BrowserRouter>
           <Routes>
             <Route path="/" element={AppData.isWalletExists() ? <HomePage /> : <HypePage />} />

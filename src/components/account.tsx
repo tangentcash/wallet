@@ -452,7 +452,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                       <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                         <AssetImage asset={new AssetId()} size="2"></AssetImage>
                         <Box width="100%" style={{ marginLeft: '2px' }}>
-                          <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by bridge attestation as a deposit/withdrawal transaction notifications and participant coordination"}>
+                          <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by bridge attestation as a mint/redeem transaction notifications and participant coordination"}>
                             <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), attestation.stake) }</Text>
                           </Tooltip>
                         </Box>
@@ -464,7 +464,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                           <Flex key={item.asset.id + '_attestation'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                             <AssetImage asset={item.asset} size="2"></AssetImage>
                             <Box width="100%" style={{ marginLeft: '2px' }}>
-                              <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by bridge attestation as a deposit/withdrawal transaction notifications and participant coordination'}>
+                              <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by bridge attestation as a mint/redeem transaction notifications and participant coordination'}>
                                 <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
                               </Tooltip>
                             </Box>
@@ -479,6 +479,14 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
           </Tabs.Content>
         </Tabs.Root>
       </Card>
+      {
+        props.self && !assets.length &&
+        <Flex justify="center" align="center" direction="column" mt="8">
+          <Button size="3" variant="surface" style={{ paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation" onClick={() => navigate('/bridge')}>
+            Mint tokens ↙
+          </Button>
+        </Flex>
+      }
       {
         (transactions.length > 0 || mempoolTransactions.length > 0) &&
         <Box width="100%" my="8">

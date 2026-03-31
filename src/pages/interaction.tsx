@@ -1,5 +1,5 @@
-import { mdiCodeJson, mdiMinus, mdiPlus } from "@mdi/js";
-import { Badge, Box, Button, Card, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { mdiCodeJson, mdiMinus, mdiPlus, mdiProfessionalHexagon } from "@mdi/js";
+import { Badge, Box, Button, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
@@ -99,6 +99,7 @@ export default function InteractionPage() {
   const [asset, setAsset] = useState(-1);
   const [nonce, setNonce] = useState<BigNumber | null>();
   const [simulation, setSimulation] = useState<{ receipt: any, state: SummaryState } | null>(null);
+  const [proMode, setProMode] = useState(false);
   const [paidGas, setPaidGas] = useState(false);
   const [gasPrice, setGasPrice] = useState('');
   const [gasLimit, setGasLimit] = useState('');
@@ -740,28 +741,37 @@ export default function InteractionPage() {
       <Box width="100%" mt="3" mb="4">
         <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
       </Box>
-      <Card>
+      <Box style={{
+        backgroundColor: 'var(--color-panel)',
+        borderRadius: '24px',
+        padding: '12px 16px'
+      }}>
         <Flex justify="between" align="center" mb="2" px="1">
-          <Heading size="4">Paying account</Heading>
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
-              <Button variant="ghost" size="3" color="gray" disabled={readOnlyApproval}>⨎⨎</Button>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content side="left">
-              <Tooltip content="Transfer/pay asset to one or more accounts">
-                <DropdownMenu.Item onClick={() => navigate(`/interaction?type=transfer${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Transfer</DropdownMenu.Item>
-              </Tooltip>
-              <Tooltip content="Approve and submit transaction from unverified source">
-                <DropdownMenu.Item onClick={() => navigate(`/interaction?type=approve${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Approve</DropdownMenu.Item>
-              </Tooltip>
-              <Tooltip content="Protest a withdrawal broadcast transaction to get a refund">
-                <DropdownMenu.Item onClick={() => navigate(`/interaction?type=protest${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Protest</DropdownMenu.Item>
-              </Tooltip>
-              <Tooltip content="For validator: change block production and/or participation/attestation stake(s)">
-                <DropdownMenu.Item onClick={() => navigate(`/interaction?type=configure${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Setup</DropdownMenu.Item>
-              </Tooltip>
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
+          <Heading size="4">From account</Heading>
+          <Flex gap="2" align="center">
+            <Button variant="ghost" size="3" color={proMode ? 'lime' : 'gray'} onClick={() => setProMode(!proMode)}>
+              <Icon path={mdiProfessionalHexagon} size={0.9}></Icon>
+            </Button>
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger>
+                <Button variant="ghost" size="3" color="gray" disabled={readOnlyApproval}>⨎⨎</Button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content side="left">
+                <Tooltip content="Transfer/pay asset to one or more accounts">
+                  <DropdownMenu.Item onClick={() => navigate(`/interaction?type=transfer${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Transfer</DropdownMenu.Item>
+                </Tooltip>
+                <Tooltip content="Approve and submit transaction from unverified source">
+                  <DropdownMenu.Item onClick={() => navigate(`/interaction?type=approve${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Approve</DropdownMenu.Item>
+                </Tooltip>
+                <Tooltip content="Protest a withdrawal broadcast transaction to get a refund">
+                  <DropdownMenu.Item onClick={() => navigate(`/interaction?type=protest${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Protest</DropdownMenu.Item>
+                </Tooltip>
+                <Tooltip content="For validator: change block production and/or participation/attestation stake(s)">
+                  <DropdownMenu.Item onClick={() => navigate(`/interaction?type=configure${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Setup</DropdownMenu.Item>
+                </Tooltip>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
+          </Flex>
         </Flex>
         <Select.Root size="3" value={asset.toString()} onValueChange={(value) => setAsset(parseInt(value))}>
           <Select.Trigger variant="surface" placeholder="Select account" style={{ width: '100%' }} className={asset >= 0 || !assets.length ? undefined : 'shadow-rainbow-animation'}>
@@ -786,7 +796,7 @@ export default function InteractionPage() {
           </Select.Content>
         </Select.Root>
         {
-          asset != -1 && typeof assets[asset].contractAddress == 'string' &&
+          proMode && asset != -1 && typeof assets[asset].contractAddress == 'string' &&
           <Box width="100%" mt="3">
             <Tooltip content="Contract address of a token that was matched against public whitelist">
               <TextField.Root size="3" type="text" color="red" value={Readability.toAddress(assets[asset].contractAddress, 16)} readOnly={true} />
@@ -794,7 +804,7 @@ export default function InteractionPage() {
           </Box>
         }
         {
-          asset != -1 && params.bridge != null &&
+          proMode && asset != -1 && params.bridge != null &&
           <Box width="100%" mt="3">
             <Tooltip content="Bridge that will process the withdrawal">
               <TextField.Root size="3" type="text" color="red" value={Readability.toAddress(params.bridge, 16)} readOnly={true} />
@@ -820,464 +830,472 @@ export default function InteractionPage() {
             }}>Browse</Button>
           </Flex>
         }
-      </Card>
-      {
-        asset != -1 && program instanceof ProgramTransfer && program.to.map((item, index) =>
-          <Card mt="4" key={index}>
-            <Heading size="4" mb="2">Send to account{ program.to.length > 1 ? ' #' + (index + 1) : ''}</Heading>
-            <Flex gap="2" mb="3">
-              <Box width="100%">
-                <Tooltip content="Send to account address">
-                  <TextField.Root size="3" placeholder="Send to account" type="text" value={item.address} onChange={(e) => {
-                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                    copy.to[index].address = e.target.value;
-                    setProgram(copy);
-                  }} />
-                </Tooltip>
-              </Box>
-              {
-                programReady &&
-                <Button size="3" variant="outline" color="gray" disabled={!programReady}>
-                  <Link className="router-link" to={'/account/' + item.address}>▒▒</Link>
-                </Button>
-              }
-            </Flex>
-            <Flex gap="2">
-              <Box width="100%">
-                <Tooltip content="Payment value received by account">
-                  <TextField.Root mb="3" size="3" placeholder={'Payment value in ' + Readability.toAssetSymbol(assets[asset].asset)} type="number" value={item.value} onChange={(e) => {
-                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                    copy.to[index].value = e.target.value;
-                    setProgram(copy);
-                  }} />
-                </Tooltip>
-              </Box>
-              {
-                omniTransaction &&
-                <Flex justify="between" gap="1">
+        {
+          asset != -1 && program instanceof ProgramTransfer && program.to.map((item, index) =>
+            <Box mt="4" key={index} style={program.to.length > 1 ? {
+              backgroundColor: 'var(--color-panel)',
+              borderRadius: '32px',
+              padding: '12px 16px'
+            } : undefined}>
+              <Flex gap="2" mb="3">
+                <Box width="100%">
+                  <Tooltip content="Send to account address">
+                    <TextField.Root size="3" placeholder={'Send to account' + (program.to.length > 1 ? ' #' + (index + 1) : '')} type="text" value={item.address} onChange={(e) => {
+                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                      copy.to[index].address = e.target.value;
+                      setProgram(copy);
+                    }} />
+                  </Tooltip>
+                </Box>
+                {
+                  programReady &&
+                  <Button size="3" variant="outline" color="gray" disabled={!programReady}>
+                    <Link className="router-link" to={'/account/' + item.address}>▒▒</Link>
+                  </Button>
+                }
+              </Flex>
+              <Flex gap="2">
+                <Box width="100%">
+                  <Tooltip content="Payment value received by account">
+                    <TextField.Root size="3" placeholder={'Payment value in ' + Readability.toAssetSymbol(assets[asset].asset)} type="number" value={item.value} onChange={(e) => {
+                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                      copy.to[index].value = e.target.value;
+                      setProgram(copy);
+                    }} />
+                  </Tooltip>
+                </Box>
+                {
+                  omniTransaction &&
+                  <Flex justify="between" gap="1">
+                    <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
+                    <IconButton variant="soft" size="3" color={index != 0 ? 'red' : 'lime'} disabled={!omniTransaction && index == 0} onClick={() => {
+                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                      if (index == 0) {
+                        copy.to.push({ address: '', derivation: null, value: '' });
+                      } else {
+                        copy.to.splice(index, 1);
+                      }
+                      setProgram(copy);
+                    }}>
+                      <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
+                    </IconButton>
+                  </Flex>
+                }
+                {
+                  !omniTransaction &&
                   <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
-                  <IconButton variant="soft" size="3" color={index != 0 ? 'red' : 'lime'} disabled={!omniTransaction && index == 0} onClick={() => {
-                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                    if (index == 0) {
-                      copy.to.push({ address: '', derivation: null, value: '' });
-                    } else {
-                      copy.to.splice(index, 1);
-                    }
-                    setProgram(copy);
-                  }}>
-                    <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
-                  </IconButton>
-                </Flex>
-              }
-              {
-                !omniTransaction &&
-                <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
-              }
-            </Flex>
-          </Card>
-        )
-      }
-      {
-        asset != -1 && program instanceof ProgramSetup &&
-        <Card mt="4">
-          <Heading size="4" mb="2">Validation setup</Heading>
-          <Select.Root size="3" value={program.blockProduction} onValueChange={(value) => {
-            const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-            copy.blockProduction = value as any;
-            copy.blockProductionStake = '';
-            setProgram(copy);
-          }}>
-            <Select.Trigger variant="surface" placeholder="Select block production" style={{ width: '100%' }}>
-            </Select.Trigger>
-            <Select.Content color="gray">
-              <Select.Item value="standby">Block production unchanged</Select.Item>
-              <Select.Item value="enable">
-                <Text color="lime">ENABLE</Text> block production
-              </Select.Item>
-              <Select.Item value="disable">
-                <Text color="red">DISABLE</Text> block production
-              </Select.Item>
-            </Select.Content>
-          </Select.Root>
-          {
-            program.blockProduction == 'enable' &&
-            <Box width="100%" mt="4">
-              <Tooltip content="Locking value to activate block production staking">
-                <TextField.Root mb="3" size="3" placeholder={'Block production stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={program.blockProductionStake} onChange={(e) => {
-                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                  copy.blockProductionStake = e.target.value;
-                  setProgram(copy);
-                }} />
-              </Tooltip>
+                }
+              </Flex>
             </Box>
-          }
+          )
+        }
+        {
+          asset != -1 && program instanceof ProgramSetup &&
           <Box mt="4">
-            <Select.Root size="3" value={program.bridgeParticipation} onValueChange={(value) => {
+            <Select.Root size="3" value={program.blockProduction} onValueChange={(value) => {
               const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-              copy.bridgeParticipation = value as any;
-              copy.bridgeParticipationStake = '';
+              copy.blockProduction = value as any;
+              copy.blockProductionStake = '';
               setProgram(copy);
             }}>
-              <Select.Trigger variant="surface" placeholder="Select bridge participation" style={{ width: '100%' }}>
+              <Select.Trigger variant="surface" placeholder="Select block production" style={{ width: '100%' }}>
               </Select.Trigger>
               <Select.Content color="gray">
-                <Select.Item value="standby">Bridge participation unchanged</Select.Item>
+                <Select.Item value="standby">Block production unchanged</Select.Item>
                 <Select.Item value="enable">
-                  <Text color="lime">ENABLE</Text> bridge participation
+                  <Text color="lime">ENABLE</Text> block production
                 </Select.Item>
                 <Select.Item value="disable">
-                  <Text color="red">DISABLE</Text> bridge participation
+                  <Text color="red">DISABLE</Text> block production
                 </Select.Item>
               </Select.Content>
             </Select.Root>
-          </Box>
-          {
-            program.bridgeParticipation == 'enable' &&
-            <Box width="100%" mt="4">
-              <Tooltip content="Locking value to activate bridge participation staking">
-                <TextField.Root mb="3" size="3" placeholder={'Bride participation stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={program.bridgeParticipationStake} onChange={(e) => {
-                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                  copy.bridgeParticipationStake = e.target.value;
-                  setProgram(copy);
-                }} />
-              </Tooltip>
-            </Box>
-          }
-          {
-            program.attestations.map((item, index) =>
-              <Box mt="4" key={index}>
-                <Card>
-                  <Heading size="4" mb="2">
-                    <Flex align="center" gap="3">
-                      <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
-                      <Text>{ item.asset.chain || '' } attestation</Text>
-                    </Flex>
-                  </Heading>
-                  <Box width="100%">
-                    <Tooltip content="Locking value to activate/increase bridge attestation staking">
-                      <TextField.Root mb="3" size="3" placeholder={'Attestation stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
-                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                        copy.attestations[index].stake = e.target.value;
-                        setProgram(copy);
-                      }} />
-                    </Tooltip>
-                  </Box>
-                  <Box width="100%">
-                    <Tooltip content="Minimal fee value to coordinate a bridge (absolute value)">
-                      <TextField.Root size="3" placeholder="Absolute fee 0.0-∞" type="text" value={item.minFee} onChange={(e) => {
-                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                        copy.attestations[index].minFee = e.target.value;
-                        setProgram(copy);
-                      }} />
-                    </Tooltip>
-                  </Box>
-                  <Box width="100%" mt="3">
-                    <Flex align="center" justify="between">
-                      <Button variant="soft" color="red" onClick={() => {
-                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                        copy.attestationReservations.delete(item.asset.chain || '');
-                        copy.attestations.splice(index, 1);
-                        setProgram(copy);
-                      }}>Cancel changes</Button>
-                      <Tooltip content="Unlock stake">
-                        <Text as="label" size="2" color={item.stake != null ? 'lime' : 'red'}>
-                          <Flex gap="2" justify="end">
-                            <Checkbox size="3" checked={item.stake == null} onCheckedChange={(value) => {
-                              const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                              copy.attestations[index].stake = value ? null : '';
-                              setProgram(copy);
-                            }} />
-                            <Text>Unlock stake</Text>
-                          </Flex>
-                        </Text>
-                      </Tooltip>
-                    </Flex>
-                  </Box>
-                </Card>
+            {
+              program.blockProduction == 'enable' &&
+              <Box width="100%" mt="4">
+                <Tooltip content="Locking value to activate block production staking">
+                  <TextField.Root mb="3" size="3" placeholder={'Block production stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={program.blockProductionStake} onChange={(e) => {
+                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                    copy.blockProductionStake = e.target.value;
+                    setProgram(copy);
+                  }} />
+                </Tooltip>
               </Box>
-            )
-          }
-          {
-            program.attestations.length > 0 && 
-            <Box width="100%" mt="3" mb="4">
-              <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+            }
+            <Box mt="4">
+              <Select.Root size="3" value={program.bridgeParticipation} onValueChange={(value) => {
+                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                copy.bridgeParticipation = value as any;
+                copy.bridgeParticipationStake = '';
+                setProgram(copy);
+              }}>
+                <Select.Trigger variant="surface" placeholder="Select bridge participation" style={{ width: '100%' }}>
+                </Select.Trigger>
+                <Select.Content color="gray">
+                  <Select.Item value="standby">Bridge participation unchanged</Select.Item>
+                  <Select.Item value="enable">
+                    <Text color="lime">ENABLE</Text> bridge participation
+                  </Select.Item>
+                  <Select.Item value="disable">
+                    <Text color="red">DISABLE</Text> bridge participation
+                  </Select.Item>
+                </Select.Content>
+              </Select.Root>
             </Box>
-          }
-          <Box mt="4">
-            <Select.Root size="3" onValueChange={(value) => {
-              const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-              copy.attestations.push({
-                asset: AssetId.fromHandle(value),
-                stake: '',
-                minFee: ''
-              });
-              copy.attestationReservations.add(copy.attestations[copy.attestations.length - 1].asset.chain || '');
-              setProgram(copy);
-            }}>
-              <Select.Trigger variant="surface" placeholder="Change bridge attestation stake" style={{ width: '100%' }}>
-              </Select.Trigger>
-              <Select.Content variant="soft">
-                <Select.Group>
-                  <Select.Item value="0" disabled={true}>Select attestation blockchain</Select.Item>
-                  {
-                    program.assets.map((item) =>
-                      <Select.Item key={item.asset.chain + '_select'} value={item.asset.chain || ''} disabled={program.attestationReservations.has(item.asset.chain || '')}>
-                        <Flex align="center" gap="3">
-                          <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
-                          <Text size="4">{ item.asset.chain || '' } attestation change</Text>
-                        </Flex>
-                      </Select.Item>
-                    )
-                  }
-                </Select.Group>
-              </Select.Content>
-            </Select.Root>
-          </Box>
-          {
-            program.bridges.map((item, index) =>
-              <Box mt="4" key={index}>
-                <Card>
-                  <Heading size="4" mb="2">
-                    <Flex align="center" gap="3">
-                      <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
-                      <Text>{ item.asset.chain || '' } bridge</Text>
-                    </Flex>
-                  </Heading>
-                  <Box width="100%" mt="3">
-                    <Tooltip content="Determines how many participants must be present to sign transactions">
-                      <TextField.Root size="3" placeholder={`Security level (${Chain.policy.PARTICIPATION_COMMITTEE[0]}-${Chain.policy.PARTICIPATION_COMMITTEE[1]})`} type="text" value={item.securityLevel} onChange={(e) => {
-                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                        copy.bridges[index].securityLevel = e.target.value;
-                        setProgram(copy);
-                      }} />
-                    </Tooltip>
-                  </Box>
-                  <Box width="100%" mt="3">
-                    <Tooltip content="Fee charged for withdrawals (absolute value)">
-                      <TextField.Root size="3" placeholder="Absolute fee 0.0-∞" type="text" value={item.feeRate} onChange={(e) => {
-                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                        copy.bridges[index].feeRate = e.target.value;
-                        setProgram(copy);
-                      }} />
-                    </Tooltip>
-                  </Box>
-                  <Box width="100%" mt="3">
-                    <Button variant="soft" color="red" onClick={() => {
-                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                      copy.bridgeReservations.delete(item.asset.chain || '');
-                      copy.bridges.splice(index, 1);
-                      setProgram(copy);
-                    }}>Cancel bridge allocation</Button>
-                  </Box>
-                </Card>
+            {
+              program.bridgeParticipation == 'enable' &&
+              <Box width="100%" mt="4">
+                <Tooltip content="Locking value to activate bridge participation staking">
+                  <TextField.Root mb="3" size="3" placeholder={'Bride participation stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={program.bridgeParticipationStake} onChange={(e) => {
+                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                    copy.bridgeParticipationStake = e.target.value;
+                    setProgram(copy);
+                  }} />
+                </Tooltip>
               </Box>
-            )
-          }
-          {
-            program.bridges.length > 0 && 
-            <Box width="100%" mt="3" mb="4">
-              <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-            </Box>
-          }
-          <Box mt="4">
-            <Select.Root size="3" onValueChange={(value) => {
-              const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-              copy.bridges.push({
-                asset: AssetId.fromHandle(value),
-                securityLevel: '',
-                feeRate: ''
-              });
-              copy.bridgeReservations.add(copy.bridges[copy.bridges.length - 1].asset.chain || '');
-              setProgram(copy);
-            }}>
-              <Select.Trigger variant="surface" placeholder="Allocate a bridge" style={{ width: '100%' }}>
-              </Select.Trigger>
-              <Select.Content variant="soft">
-                <Select.Group>
-                  <Select.Item value="0" disabled={true}>Select bridge blockchain</Select.Item>
-                  {
-                    program.assets.map((item) =>
-                      <Select.Item key={item.asset.chain + '_select'} value={item.asset.chain || ''} disabled={program.bridgeReservations.has(item.asset.chain || '')}>
-                        <Flex align="center" gap="3">
-                          <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
-                          <Text size="4">{ item.asset.chain || '' } bridge allocation</Text>
-                        </Flex>
-                      </Select.Item>
-                    )
-                  }
-                </Select.Group>
-              </Select.Content>
-            </Select.Root>
-          </Box>
-          {
-            program.migrations.map((item, index) =>
-              <Box mt="4" key={index}>
-                <Card>
-                  <Heading size="4" mb="2">Participant migration{ program.migrations.length > 1 ? ' #' + (index + 1) : ''}</Heading>
-                  <Box width="100%">
-                    <Tooltip content="Transaction hash of broadcast transaction that has off-chain relay fault and was initiated by this validator">
-                      <TextField.Root mb="3" size="3" placeholder={'Failed transaction hash'} type="text" value={item.broadcastHash || ''} onChange={(e) => {
-                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                        copy.migrations[index].broadcastHash = e.target.value;
-                        setProgram(copy);
-                      }} />
-                    </Tooltip>
-                  </Box>
-                  <Flex mt="3" gap="2">
+            }
+            {
+              program.attestations.map((item, index) =>
+                <Box mt="4" key={index}>
+                  <Box style={{
+                      backgroundColor: 'var(--color-panel)',
+                      borderRadius: '32px',
+                      padding: '12px 16px'
+                    }}>
+                    <Heading size="4" mb="2">
+                      <Flex align="center" gap="3">
+                        <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
+                        <Text>{ item.asset.chain || '' } attestation</Text>
+                      </Flex>
+                    </Heading>
                     <Box width="100%">
-                      <Tooltip content="Account address of participant that must be replaced (migrated) by new randomly chosen participant">
-                        <TextField.Root mb="3" size="3" placeholder={'Participant to replace'} type="text" value={item.participant || ''} onChange={(e) => {
+                      <Tooltip content="Locking value to activate/increase bridge attestation staking">
+                        <TextField.Root mb="3" size="3" placeholder={'Attestation stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
                           const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                          copy.migrations[index].participant = e.target.value;
+                          copy.attestations[index].stake = e.target.value;
                           setProgram(copy);
                         }} />
                       </Tooltip>
                     </Box>
-                    <IconButton variant="soft" size="3" color="lime" onClick={() => {
-                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                      copy.migrations.splice(index, 1);
-                      setProgram(copy);
+                    <Box width="100%">
+                      <Tooltip content="Minimal fee value to coordinate a bridge (absolute value)">
+                        <TextField.Root size="3" placeholder="Absolute fee 0.0-∞" type="text" value={item.minFee} onChange={(e) => {
+                          const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                          copy.attestations[index].minFee = e.target.value;
+                          setProgram(copy);
+                        }} />
+                      </Tooltip>
+                    </Box>
+                    <Box width="100%" mt="3">
+                      <Flex align="center" justify="between">
+                        <Button variant="soft" color="red" onClick={() => {
+                          const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                          copy.attestationReservations.delete(item.asset.chain || '');
+                          copy.attestations.splice(index, 1);
+                          setProgram(copy);
+                        }}>Cancel changes</Button>
+                        <Tooltip content="Unlock stake">
+                          <Text as="label" size="2" color={item.stake != null ? 'lime' : 'red'}>
+                            <Flex gap="2" justify="end">
+                              <Checkbox size="3" checked={item.stake == null} onCheckedChange={(value) => {
+                                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                                copy.attestations[index].stake = value ? null : '';
+                                setProgram(copy);
+                              }} />
+                              <Text>Unlock stake</Text>
+                            </Flex>
+                          </Text>
+                        </Tooltip>
+                      </Flex>
+                    </Box>
+                  </Box>
+                </Box>
+              )
+            }
+            {
+              program.attestations.length > 0 && 
+              <Box width="100%" mt="3" mb="4">
+                <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+              </Box>
+            }
+            <Box mt="4">
+              <Select.Root size="3" onValueChange={(value) => {
+                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                copy.attestations.push({
+                  asset: AssetId.fromHandle(value),
+                  stake: '',
+                  minFee: ''
+                });
+                copy.attestationReservations.add(copy.attestations[copy.attestations.length - 1].asset.chain || '');
+                setProgram(copy);
+              }}>
+                <Select.Trigger variant="surface" placeholder="Change bridge attestation stake" style={{ width: '100%' }}>
+                </Select.Trigger>
+                <Select.Content variant="soft">
+                  <Select.Group>
+                    <Select.Item value="0" disabled={true}>Select attestation blockchain</Select.Item>
+                    {
+                      program.assets.map((item) =>
+                        <Select.Item key={item.asset.chain + '_select'} value={item.asset.chain || ''} disabled={program.attestationReservations.has(item.asset.chain || '')}>
+                          <Flex align="center" gap="3">
+                            <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
+                            <Text size="4">{ item.asset.chain || '' } attestation change</Text>
+                          </Flex>
+                        </Select.Item>
+                      )
+                    }
+                  </Select.Group>
+                </Select.Content>
+              </Select.Root>
+            </Box>
+            {
+              program.bridges.map((item, index) =>
+                <Box mt="4" key={index}>
+                  <Box style={{
+                      backgroundColor: 'var(--color-panel)',
+                      borderRadius: '32px',
+                      padding: '12px 16px'
                     }}>
-                      <Icon path={mdiMinus} size={0.7} />
-                    </IconButton>
-                  </Flex>
-                </Card>
+                    <Heading size="4" mb="2">
+                      <Flex align="center" gap="3">
+                        <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
+                        <Text>{ item.asset.chain || '' } bridge</Text>
+                      </Flex>
+                    </Heading>
+                    <Box width="100%" mt="3">
+                      <Tooltip content="Determines how many participants must be present to sign transactions">
+                        <TextField.Root size="3" placeholder={`Security level (${Chain.policy.PARTICIPATION_COMMITTEE[0]}-${Chain.policy.PARTICIPATION_COMMITTEE[1]})`} type="text" value={item.securityLevel} onChange={(e) => {
+                          const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                          copy.bridges[index].securityLevel = e.target.value;
+                          setProgram(copy);
+                        }} />
+                      </Tooltip>
+                    </Box>
+                    <Box width="100%" mt="3">
+                      <Tooltip content="Fee charged for withdrawals (absolute value)">
+                        <TextField.Root size="3" placeholder="Absolute fee 0.0-∞" type="text" value={item.feeRate} onChange={(e) => {
+                          const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                          copy.bridges[index].feeRate = e.target.value;
+                          setProgram(copy);
+                        }} />
+                      </Tooltip>
+                    </Box>
+                    <Box width="100%" mt="3">
+                      <Button variant="soft" color="red" onClick={() => {
+                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                        copy.bridgeReservations.delete(item.asset.chain || '');
+                        copy.bridges.splice(index, 1);
+                        setProgram(copy);
+                      }}>Cancel bridge allocation</Button>
+                    </Box>
+                  </Box>
+                </Box>
+              )
+            }
+            {
+              program.bridges.length > 0 && 
+              <Box width="100%" mt="3" mb="4">
+                <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
               </Box>
-            )
-          }
-          <Box mt="4" width="100%">
-            <Button variant="surface" color="gray" size="2" style={{ width: '100%', height: 'auto', justifyContent: 'start' }} onClick={() => {
-              const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-              copy.migrations.push({ transactionHash: '', participant: '' });
-              setProgram(copy);
-            }}>
-              <Box px="2" py="2">
-                <Text size="3">Migrate bridge participant</Text>
-              </Box>
-            </Button>
+            }
+            <Box mt="4">
+              <Select.Root size="3" onValueChange={(value) => {
+                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                copy.bridges.push({
+                  asset: AssetId.fromHandle(value),
+                  securityLevel: '',
+                  feeRate: ''
+                });
+                copy.bridgeReservations.add(copy.bridges[copy.bridges.length - 1].asset.chain || '');
+                setProgram(copy);
+              }}>
+                <Select.Trigger variant="surface" placeholder="Allocate a bridge" style={{ width: '100%' }}>
+                </Select.Trigger>
+                <Select.Content variant="soft">
+                  <Select.Group>
+                    <Select.Item value="0" disabled={true}>Select bridge blockchain</Select.Item>
+                    {
+                      program.assets.map((item) =>
+                        <Select.Item key={item.asset.chain + '_select'} value={item.asset.chain || ''} disabled={program.bridgeReservations.has(item.asset.chain || '')}>
+                          <Flex align="center" gap="3">
+                            <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
+                            <Text size="4">{ item.asset.chain || '' } bridge allocation</Text>
+                          </Flex>
+                        </Select.Item>
+                      )
+                    }
+                  </Select.Group>
+                </Select.Content>
+              </Select.Root>
+            </Box>
+            {
+              program.migrations.map((item, index) =>
+                <Box mt="4" key={index}>
+                  <Box style={{
+                      backgroundColor: 'var(--color-panel)',
+                      borderRadius: '32px',
+                      padding: '12px 16px'
+                    }}>
+                    <Box width="100%">
+                      <Tooltip content="Transaction hash of broadcast transaction that has off-chain relay fault and was initiated by this validator">
+                        <TextField.Root mb="3" size="3" placeholder={'Failed transaction hash'} type="text" value={item.broadcastHash || ''} onChange={(e) => {
+                          const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                          copy.migrations[index].broadcastHash = e.target.value;
+                          setProgram(copy);
+                        }} />
+                      </Tooltip>
+                    </Box>
+                    <Flex mt="3" gap="2">
+                      <Box width="100%">
+                        <Tooltip content="Account address of participant that must be replaced (migrated) by new randomly chosen participant">
+                          <TextField.Root size="3" placeholder={'Participant to replace' + (program.migrations.length > 1 ? ' #' + (index + 1) : '')} type="text" value={item.participant || ''} onChange={(e) => {
+                            const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                            copy.migrations[index].participant = e.target.value;
+                            setProgram(copy);
+                          }} />
+                        </Tooltip>
+                      </Box>
+                      <IconButton variant="soft" size="3" color="lime" onClick={() => {
+                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                        copy.migrations.splice(index, 1);
+                        setProgram(copy);
+                      }}>
+                        <Icon path={mdiMinus} size={0.7} />
+                      </IconButton>
+                    </Flex>
+                  </Box>
+                </Box>
+              )
+            }
+            <Box mt="4" width="100%">
+              <Button variant="surface" color="gray" size="2" style={{ width: '100%', height: 'auto', justifyContent: 'start' }} onClick={() => {
+                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                copy.migrations.push({ transactionHash: '', participant: '' });
+                setProgram(copy);
+              }}>
+                <Box px="2" py="2">
+                  <Text size="3">Migrate bridge participant</Text>
+                </Box>
+              </Button>
+            </Box>
           </Box>
-        </Card>
-      }
-      {
-        asset != -1 && program instanceof ProgramRoute &&
-        <Card mt="4">
-          <Heading size="4" mb="2">{program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'Sender' : 'Routing'} wallet address</Heading>
-          <Box width="100%">
+        }
+        {
+          asset != -1 && program instanceof ProgramRoute &&
+          <Box mt="4" width="100%">
             <Tooltip content={'Register ' + assets[asset].asset.chain + ' wallet address that you own to ' + (program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'deposit assets from or ' : '') + 'withdraw assets to'}>
-              <TextField.Root size="3" placeholder={assets[asset].asset.chain + " routing address"} type="text" value={program.routingAddress} onChange={(e) => {
+              <TextField.Root size="3" placeholder={(program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'Sender ' : 'Your opt. ') + assets[asset].asset.chain + " address"} type="text" value={program.routingAddress} onChange={(e) => {
                 const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                 copy.routingAddress = e.target.value;
                 setProgram(copy);
               }} />
             </Tooltip>
           </Box>
-        </Card>
-      }
-      {
-        asset != -1 && program instanceof ProgramWithdraw &&  
-        <Card mt="4">
-          <Heading size="4" mb="2">Withdrawal destination</Heading>
-          <Box width="100%" mb="3">
-            <Tooltip content="Withdraw to off-chain address">
-              <TextField.Root size="3" placeholder="Withdraw to address" type="text" value={program.address} onChange={(e) => {
-                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                copy.address = e.target.value;
-                setProgram(copy);
-              }} />
-            </Tooltip>
-          </Box>
-          <Flex gap="2">
-            <Box width="100%">
-              <Tooltip content="Payment value received by account">
-                <TextField.Root mb="3" size="3" placeholder={'Payment value in ' + Readability.toAssetSymbol(assets[asset].asset)} type="number" value={program.value} onChange={(e) => {
+        }
+        {
+          asset != -1 && program instanceof ProgramWithdraw &&  
+          <Box mt="4">
+            <Box width="100%" mb="3">
+              <Tooltip content="Withdraw to off-chain address">
+                <TextField.Root size="3" placeholder="Withdraw to address" type="text" value={program.address} onChange={(e) => {
                   const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                  copy.value = e.target.value;
+                  copy.address = e.target.value;
                   setProgram(copy);
                 }} />
               </Tooltip>
             </Box>
-            <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(0) }>Remaining</Button>
-          </Flex>
-        </Card>
-      }
-      {
-        asset != -1 && program instanceof ProgramAnticast &&
-        <Card mt="4">
-          <Heading size="4" mb="2">Bridge broadcast transaction hash</Heading>
-          <Box width="100%">
+            <Flex gap="2">
+              <Box width="100%">
+                <Tooltip content="Payment value received by account">
+                  <TextField.Root size="3" placeholder={'Payment value in ' + Readability.toAssetSymbol(assets[asset].asset)} type="number" value={program.value} onChange={(e) => {
+                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                    copy.value = e.target.value;
+                    setProgram(copy);
+                  }} />
+                </Tooltip>
+              </Box>
+              <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(0) }>Remaining</Button>
+            </Flex>
+          </Box>
+        }
+        {
+          asset != -1 && program instanceof ProgramAnticast &&
+          <Box mt="4" width="100%">
             <Tooltip content="Transaction hash of broadcast transaction that has off-chain relay success but no off-chain withdrawal received">
-              <TextField.Root size="3" placeholder={'Successful transaction hash'} type="text" value={program.broadcastHash || ''} onChange={(e) => {
+              <TextField.Root size="3" placeholder={'Bridge broadcast transaction hash'} type="text" value={program.broadcastHash || ''} onChange={(e) => {
                 const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                 copy.broadcastHash = e.target.value;
                 setProgram(copy);
               }} />
             </Tooltip>
           </Box>
-        </Card>
-      }
-      {
-        (program instanceof ApproveTransaction) && program.transaction != null &&
-        <Box>
-          <Transaction ownerAddress={ownerAddress} transaction={program.transaction} receipt={simulation?.receipt || undefined} state={simulation?.state || undefined} preview={true}></Transaction>
-          {
-            Array.isArray(program.transaction.transactions) && program.transaction.transactions.map((subtransaction: any, index: number) =>
-              <Box mt="4" key={subtransaction.action.hash + index.toString()}>
-                <Transaction ownerAddress={ownerAddress} transaction={subtransaction.action} preview={'Internal transaction #' + (index + 1).toString() + ' preview!'}></Transaction>
-              </Box>
-            )
-          }
-        </Box>
-      }
-      {
-        programReady &&
-        <Card mt="4">
-          <Heading size="4" mb="2">Priority & cost</Heading>
-          <Tooltip content="Higher gas price increases transaction priority">
-            <TextField.Root mt="3" mb="3" size="3" placeholder={"Custom gas price " + Readability.toAssetSymbol(gasAsset || new AssetId())} type="number" disabled={loadingGasPriceAndPrice} value={gasPrice} onChange={(e) => setGasPrice(e.target.value)} />
-          </Tooltip>
-          <Tooltip content="Gas limit caps max transaction cost">
-            <TextField.Root mb="3" size="3" placeholder="Custom gas limit" type="number" disabled={loadingGasPriceAndPrice} value={gasLimit} onChange={(e) => setGasLimit(e.target.value)} />
-          </Tooltip>
-          <Flex gap="2">
-            <Box width="100%">
-              <Tooltip content="Max possible transaction fee">
-                <TextField.Root size="3" placeholder="Max fee value" readOnly={true} value={gasPrice.length > 0 && gasLimit.length > 0 ? 'Pay up to ' + Readability.toMoney(gasAsset, maxFeeValue) + ' in fees' : 'Fee to be estimated'} onClick={() => {
-                  navigator.clipboard.writeText(maxFeeValue.toString());
-                  AlertBox.open(AlertType.Info, 'Value copied!')
-                }}/>
-              </Tooltip>
+        }
+        {
+          (program instanceof ApproveTransaction) && program.transaction != null &&
+          <Box>
+            <Transaction ownerAddress={ownerAddress} transaction={program.transaction} receipt={simulation?.receipt || undefined} state={simulation?.state || undefined} preview={true}></Transaction>
+            {
+              Array.isArray(program.transaction.transactions) && program.transaction.transactions.map((subtransaction: any, index: number) =>
+                <Box mt="4" key={subtransaction.action.hash + index.toString()}>
+                  <Transaction ownerAddress={ownerAddress} transaction={subtransaction.action} preview={'Internal transaction #' + (index + 1).toString() + ' preview!'}></Transaction>
+                </Box>
+              )
+            }
+          </Box>
+        }
+        {
+          programReady && proMode &&
+          <Box mt="6">
+            <Box px="1">
+              <Heading size="4" mb="2">Priority & cost</Heading>
             </Box>
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger>
-                <Button size="3" variant="outline" color="gray" style={{ outlineColor: 'red' }} disabled={loadingTransaction || loadingGasPriceAndPrice} loading={loadingGasPriceAndPrice}>
-                  Auto
-                  <DropdownMenu.TriggerIcon />
-                </Button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content>
-                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.95)} shortcut="> 95%">Fastest</DropdownMenu.Item>
-                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.75)} shortcut="> 75%">Fast</DropdownMenu.Item>
-                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.50)} shortcut="> 50%">Medium</DropdownMenu.Item>
-                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.25)} shortcut="> 25%">Slow</DropdownMenu.Item>
-                <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.10)} shortcut="> 10%">Slowest</DropdownMenu.Item>
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
-          </Flex>
-          {
-            sendingValue.gt(0) && gasAsset?.id == assets[asset].asset.id && maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber() > 40.0 &&
-            <Flex justify="center" pt="4">
-              <Text color="yellow" size="2" weight="medium">Warning: transaction fee may cost up to {maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber().toFixed(2)}% of paying value</Text>
+            <Tooltip content="Higher gas price increases transaction priority">
+              <TextField.Root mt="3" mb="3" size="3" placeholder={"Custom gas price " + Readability.toAssetSymbol(gasAsset || new AssetId())} type="number" disabled={loadingGasPriceAndPrice} value={gasPrice} onChange={(e) => setGasPrice(e.target.value)} />
+            </Tooltip>
+            <Tooltip content="Gas limit caps max transaction cost">
+              <TextField.Root mb="3" size="3" placeholder="Custom gas limit" type="number" disabled={loadingGasPriceAndPrice} value={gasLimit} onChange={(e) => setGasLimit(e.target.value)} />
+            </Tooltip>
+            <Flex gap="2">
+              <Box width="100%">
+                <Tooltip content="Max possible transaction fee">
+                  <TextField.Root size="3" placeholder="Max fee value" readOnly={true} value={gasPrice.length > 0 && gasLimit.length > 0 ? 'Pay up to ' + Readability.toMoney(gasAsset, maxFeeValue) + ' in fees' : 'Fee to be estimated'} onClick={() => {
+                    navigator.clipboard.writeText(maxFeeValue.toString());
+                    AlertBox.open(AlertType.Info, 'Value copied!')
+                  }}/>
+                </Tooltip>
+              </Box>
+              <DropdownMenu.Root>
+                <DropdownMenu.Trigger>
+                  <Button size="3" variant="outline" color="gray" style={{ outlineColor: 'red' }} disabled={loadingTransaction || loadingGasPriceAndPrice} loading={loadingGasPriceAndPrice}>
+                    Auto
+                    <DropdownMenu.TriggerIcon />
+                  </Button>
+                </DropdownMenu.Trigger>
+                <DropdownMenu.Content>
+                  <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.95)} shortcut="> 95%">Fastest</DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.75)} shortcut="> 75%">Fast</DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.50)} shortcut="> 50%">Medium</DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.25)} shortcut="> 25%">Slow</DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.10)} shortcut="> 10%">Slowest</DropdownMenu.Item>
+                </DropdownMenu.Content>
+              </DropdownMenu.Root>
             </Flex>
-          }
-        </Card>
-      }
+            {
+              sendingValue.gt(0) && gasAsset?.id == assets[asset].asset.id && maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber() > 40.0 &&
+              <Flex justify="center" pt="4">
+                <Text color="yellow" size="2" weight="medium">Warning: transaction fee may cost up to {maxFeeValue.dividedBy(sendingValue).multipliedBy(100).toNumber().toFixed(2)}% of paying value</Text>
+              </Flex>
+            }
+          </Box>
+        }
+      </Box>
       {
         programReady &&
         <Box mt="4">
           <Flex justify="center" mt="4">
             <Dialog.Root>
               <Dialog.Trigger>
-                <Button variant="outline" size="3" color="lime" className="shadow-rainbow-animation" loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => transactionReady ? buildTransaction() : calculateTransactionGas(0.95)}>Review transaction</Button>
+                <Button variant="outline" size="3" color="lime" className="shadow-rainbow-animation" loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => transactionReady ? buildTransaction() : calculateTransactionGas(0.95)}>Review action</Button>
               </Dialog.Trigger>
               <Dialog.Content maxWidth="500px">
                 <Flex justify="between" align="center">
@@ -1287,7 +1305,7 @@ export default function InteractionPage() {
                     AlertBox.open(AlertType.Info, 'Transaction dump copied!')
                   }}>
                     <Icon path={mdiCodeJson} size={0.6}></Icon>
-                    Dump
+                    JSON
                   </Button>
                 </Flex>
                 <Dialog.Description mb="3" size="2" color="gray">Side effects:</Dialog.Description>

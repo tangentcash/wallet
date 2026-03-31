@@ -9,11 +9,11 @@ import QRCode from "react-qr-code";
 function toAddressType(type: string): string {
   switch (type) {
     case 'routing':
-      return 'Withdrawal receiver / deposit sender';
+      return 'Deposit sender / withdrawal receiver';
     case 'bridge':
       return 'Deposit receiver';
     case 'witness':
-      return 'Dismissed witness';
+      return 'Archive';
     default:
       return 'Tangent wallet';
   }
