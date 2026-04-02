@@ -1,5 +1,5 @@
-import { mdiCodeJson, mdiMinus, mdiPlus, mdiProfessionalHexagon } from "@mdi/js";
-import { Badge, Box, Button, Checkbox, Dialog, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { mdiCancel, mdiCodeJson, mdiMinus, mdiPlus, mdiProfessionalHexagon } from "@mdi/js";
+import { Box, Button, Checkbox, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
@@ -98,7 +98,7 @@ export default function InteractionPage() {
   const [assets, setAssets] = useState<any[]>([]);
   const [asset, setAsset] = useState(-1);
   const [nonce, setNonce] = useState<BigNumber | null>();
-  const [simulation, setSimulation] = useState<{ receipt: any, state: SummaryState } | null>(null);
+  const [simulation, setSimulation] = useState<{ transaction: any, receipt: any, state: SummaryState } | null>(null);
   const [proMode, setProMode] = useState(false);
   const [paidGas, setPaidGas] = useState(false);
   const [gasPrice, setGasPrice] = useState('');
@@ -108,6 +108,12 @@ export default function InteractionPage() {
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
   const [program, setProgram] = useState<ProgramTransfer | ProgramSetup | ProgramRoute | ProgramWithdraw | ProgramAnticast | ApproveTransaction | null>(null);
   const navigate = useNavigate();
+  const previewTransaction = useMemo((): any | null => {
+    if ((program instanceof ApproveTransaction) && program.transaction != null)
+      return program.transaction;
+
+    return simulation?.transaction || null;
+  }, [program, simulation])
   const gasAsset = useMemo((): AssetId | null => {
     if (asset == -1)
       return null;
@@ -570,7 +576,14 @@ export default function InteractionPage() {
         if (presetGasLimit.lt(0)) {
           AlertBox.open(AlertType.Error, 'Failed to fetch transaction gas limit');
         } else if (receipt != null && receipt.events != null) {
-          setSimulation({ receipt: receipt, state: EventResolver.calculateSummaryState(receipt.events) })
+          let transaction: any = null;
+          try {
+            const preview = await RPC.decodeTransaction(output.data);
+            transaction = preview.transaction || null;
+          } catch (exception) {    
+            AlertBox.open(AlertType.Error, 'Failed to decode transaction: ' + (exception as Error).message);
+          }
+          setSimulation({ transaction: transaction, receipt: receipt, state: EventResolver.calculateSummaryState(receipt.events) });
         }
       } catch (exception) {
         const message = (exception as Error).message;
@@ -622,7 +635,11 @@ export default function InteractionPage() {
         AlertBox.open(AlertType.Error, 'Failed to send transaction!');
       }  
     } catch (exception) {
-      AlertBox.open(AlertType.Error, 'Failed to send transaction: ' + (exception as Error).message);
+      const message = (exception as Error).message;
+      AlertBox.open(AlertType.Error, 'Failed to send transaction: ' + message);
+      if (message.toLowerCase().indexOf('anti-spam')) {
+        setProMode(true);
+      }
     }
     setLoadingTransaction(false);
     return true;
@@ -1231,21 +1248,8 @@ export default function InteractionPage() {
           </Box>
         }
         {
-          (program instanceof ApproveTransaction) && program.transaction != null &&
-          <Box>
-            <Transaction ownerAddress={ownerAddress} transaction={program.transaction} receipt={simulation?.receipt || undefined} state={simulation?.state || undefined} preview={true}></Transaction>
-            {
-              Array.isArray(program.transaction.transactions) && program.transaction.transactions.map((subtransaction: any, index: number) =>
-                <Box mt="4" key={subtransaction.action.hash + index.toString()}>
-                  <Transaction ownerAddress={ownerAddress} transaction={subtransaction.action} preview={'Internal transaction #' + (index + 1).toString() + ' preview!'}></Transaction>
-                </Box>
-              )
-            }
-          </Box>
-        }
-        {
           programReady && proMode &&
-          <Box mt="6">
+          <Box mt="5">
             <Box px="1">
               <Heading size="4" mb="2">Priority & cost</Heading>
             </Box>
@@ -1290,108 +1294,38 @@ export default function InteractionPage() {
         }
       </Box>
       {
-        programReady &&
-        <Box mt="4">
-          <Flex justify="center" mt="4">
-            <Dialog.Root>
-              <Dialog.Trigger>
-                <Button variant="outline" size="3" color="lime" className="shadow-rainbow-animation" loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => transactionReady ? buildTransaction() : calculateTransactionGas(0.95)}>Review action</Button>
-              </Dialog.Trigger>
-              <Dialog.Content maxWidth="500px">
-                <Flex justify="between" align="center">
-                  <Dialog.Title mb="0">Review</Dialog.Title>
-                  <Button variant="surface" color="indigo" size="1" onClick={() => {
-                    navigator.clipboard.writeText(JSON.stringify(toSimpleTransaction(transactionData), null, 4));
-                    AlertBox.open(AlertType.Info, 'Transaction dump copied!')
-                  }}>
-                    <Icon path={mdiCodeJson} size={0.6}></Icon>
-                    JSON
-                  </Button>
-                </Flex>
-                <Dialog.Description mb="3" size="2" color="gray">Side effects:</Dialog.Description>
-                <Box>
-                  {
-                    asset != -1 && program instanceof ProgramTransfer &&
-                    <Text as="div" weight="light" size="4" mb="1">— Send <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">{ Readability.toCount('account', program.to.length) }</Text></Text>        
-                  }
-                  {
-                    asset != -1 && program instanceof ProgramSetup &&
-                    <>
-                      {
-                        program.blockProduction != 'standby' &&
-                        <Text as="div" weight="light" size="4" mb="1">— { program.blockProduction == 'enable' ? 'Enable' : 'Disable' } <Text color="red">block production</Text> of a validator node</Text>
-                      }
-                      {
-                        program.bridgeParticipation != 'standby' &&
-                        <Text as="div" weight="light" size="4" mb="1">— { program.bridgeParticipation == 'enable' ? 'Enable' : 'Disable' } <Text color="red">bridge participation</Text> of a validator node</Text>
-                      }
-                      {
-                        program.attestations.length > 0 &&
-                        <Text as="div" weight="light" size="4" mb="1">— Update <Text color="red">{ Readability.toCount('attestation', program.attestations.length) }</Text> of a validator node</Text>
-                      }
-                      {
-                        program.bridges.length > 0 &&
-                        <Text as="div" weight="light" size="4" mb="1">— Allocate <Text color="red">{ Readability.toCount('bridge', program.bridges.length) }</Text> with a validator node</Text>
-                      }
-                      {
-                        program.migrations.length > 0 &&
-                        <Text as="div" weight="light" size="4" mb="1">— Migrate <Text color="red">{ Readability.toCount('participant', program.migrations.length) }</Text> of a validator node</Text>
-                      }
-                    </>
-                  }
-                  {
-                    asset != -1 && program instanceof ProgramRoute &&
-                    <>
-                      <Text as="div" weight="light" size="4" mb="1">— Claim { Readability.toAssetName(assets[asset].asset) } deposit address</Text>
-                      { program.routingAddress.length > 0 && <Text as="div" weight="light" size="4" mb="1">— Claim <Text color="red">{ Readability.toAddress(program.routingAddress) }</Text> { Readability.toAssetName(assets[asset].asset) } {program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'sender/withdrawal' : 'withdrawal'} address</Text> }
-                      <Text as="div" weight="light" size="4" mb="1">— Register through <Badge variant="surface" size="2">{ 
-                          (params.bridge || 'NULL').substring((params.bridge || 'NULL').length - 6)
-                      }</Badge> bridge</Text>
-                    </>
-                  }
-                  {
-                    asset != -1 && program instanceof ProgramWithdraw &&
-                    <>
-                      <Text as="div" weight="light" size="4" mb="1">— Withdraw <Text color="red">{ Readability.toMoney(assets[asset].asset, sendingValue) }</Text> to <Text color="sky">1 account</Text></Text>
-                      <Text as="div" weight="light" size="4" mb="1">— Withdraw through <Badge variant="surface" size="2">{ 
-                          (params.bridge || 'NULL').substring((params.bridge || 'NULL').length - 6)
-                      }</Badge> bridge</Text>
-                      {
-                        program.fee != null &&
-                        <Text as="div" weight="light" size="4" mb="1">— Pay <Text color="yellow">{ Readability.toMoney(gasAsset, program.fee) }</Text> to <Text color="sky">bridging as fee</Text></Text>
-                      }
-                    </>
-                  }
-                  {
-                    asset != -1 && program instanceof ProgramAnticast &&
-                    <Text as="div" weight="light" size="4" mb="1">— Protest <Badge variant="surface" size="2" color="red">{ Readability.toHash(program.broadcastHash, 4) }</Badge> withdrawal broadcast to get a refund</Text>
-                  }
-                  {
-                    asset != -1 && program instanceof ApproveTransaction &&
-                    <>
-                      <Text as="div" weight="light" size="4" mb="1">— From unverified data (careful!)</Text>
-                      <Text as="div" weight="light" size="4" mb="1">— Execute <Badge variant="surface" size="2" color="red">{ program.typename || 'unknown' } transaction</Badge></Text>
-                      {
-                        Array.isArray(program.transaction.transactions) && program.transaction.transactions.map((subtransaction: any, index: number) =>
-                          <Text as="div" weight="light" size="4" mb="1" key={subtransaction.action.hash + 'x' + index.toString()}>— Execute internal <Badge variant="surface" size="2" color="red">{ Readability.toTransactionType(subtransaction.action.type) } transaction</Badge></Text>
-                        )
-                      }
-                    </>
-                  }
-                  <Text as="div" weight="light" size="4" mb="1">— Pay up to <Text color="yellow">{ Readability.toMoney(gasAsset, maxFeeValue) }</Text> to <Text color="sky">miner as fee</Text></Text>
-                </Box>
-                <Flex gap="3" mt="4" justify="between">
-                  <Dialog.Close>
-                    <Button variant="soft" color="gray">Cancel</Button>
-                  </Dialog.Close>
-                  <Dialog.Close>
-                    <Button color="red" disabled={!transactionReady} loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => submitTransaction()}>Submit</Button>
-                  </Dialog.Close>
-                </Flex>
-              </Dialog.Content>
-            </Dialog.Root>
-          </Flex>
+        previewTransaction != null &&
+        <Box mt="2">
+          <Transaction ownerAddress={ownerAddress} transaction={previewTransaction} receipt={simulation?.receipt || undefined} state={simulation?.state || undefined} preview={true}></Transaction>
+          {
+            Array.isArray(previewTransaction.transactions) && previewTransaction.transactions.map((subtransaction: any, index: number) =>
+              <Box mt="4" key={subtransaction.action.hash + index.toString()}>
+                <Transaction ownerAddress={ownerAddress} transaction={subtransaction.action} preview={'Internal transaction #' + (index + 1).toString() + ' preview!'}></Transaction>
+              </Box>
+            )
+          }
         </Box>
+      }
+      {
+        programReady &&
+        <Flex direction="column" align="center" gap="2" mt="6">
+          <Button variant="surface" size="4" color="lime" className="shadow-rainbow-animation" loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => transactionReady ? submitTransaction() : calculateTransactionGas(0.95)}>{transactionReady ? 'Submit' : 'Review'} action</Button>
+          <Flex gap="3" mt="4">
+            <IconButton variant="soft" color="indigo" size="3" onClick={() => {
+              navigator.clipboard.writeText(JSON.stringify(toSimpleTransaction(transactionData), null, 4));
+              AlertBox.open(AlertType.Info, 'JSON data copied!')
+            }}>
+              <Icon path={mdiCodeJson} size={1}></Icon>
+            </IconButton>
+            <IconButton variant="soft" color="brown" size="3" disabled={!transactionReady} onClick={() => {
+              setSimulation(null);
+              setGasLimit('');
+              AlertBox.open(AlertType.Info, 'Back to review!')
+            }}>
+              <Icon path={mdiCancel} size={1}></Icon>
+            </IconButton>
+          </Flex>
+        </Flex>
       }
     </Box>
   )

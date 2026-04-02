@@ -22,9 +22,9 @@ function toAddressPurpose(address: any) {
   if (!address || !address.purpose)
     return <>Tangent wallet → on-chain account.</>;
   else if (address.purpose == 'routing')
-    return <>Routing wallet → token reedemer.</>;
+    return <>Routing wallet → off-chain account.</>;
   else if (address.purpose == 'bridge')
-    return <>Bridge wallet → token minter.</>;
+    return <>Bridge wallet → off-chain vault.</>;
   return <>Witness wallet → discarded.</>;
 }
 

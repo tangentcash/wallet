@@ -180,6 +180,17 @@ export type BlockchainInfo = AssetId & {
     bulkTransfer: boolean
 }
 
+export type RouterPath = {
+    pair: {
+        id: BigNumber,
+        primaryAsset: { id: BigNumber, hash: AssetId } | null,
+        secondaryAsset: { id: BigNumber, hash: AssetId } | null
+    },
+    side: OrderSide,
+    input: { min: BigNumber, max: BigNumber },
+    output: { min: BigNumber, max: BigNumber }
+}[];
+
 export type PriceDescriptors = Record<string, { whitelist: boolean, base: string | null, price: { open: BigNumber | null, close: BigNumber | null } }>;
 export type PromiseCallback = (data: any) => void;
 
@@ -499,6 +510,26 @@ export class Exchange {
     const result = await this.fetch('GET', `market/pool`, { id: poolId.toString() });
     return this.toPool(result);
   }
+  static async marketAssets(marketId: number | string | BigNumber, asset: AssetId): Promise<AssetId[]> {
+    const result = await this.fetch('GET', `market/assets`, {
+      marketId: marketId.toString(),
+      assetHash: asset.id.toString()
+    });
+    return result.map((item: any) => new AssetId(item.id));
+  }
+  static async marketPaths(marketId: number | string | BigNumber, assetIn: AssetId, assetOut: AssetId, amountIn: number | string | BigNumber, slippage: number | string | BigNumber): Promise<RouterPath[]> {
+    const result = await this.fetch('GET', `market/paths`, { marketId: marketId.toString(), assetHashIn: assetIn.id.toString(), assetHashOut: assetOut.id.toString(), amountIn: amountIn.toString(), slippage: slippage.toString() });
+    for (let i = 0; i < result.length; i++) {
+      const path = result[i];
+      for (let j = 0; j < path.length; j++) {
+        const item = path[j];
+        item.pair.primaryAsset.hash = new AssetId(item.pair.primaryAsset.hash.id);
+        item.pair.secondaryAsset.hash = new AssetId(item.pair.secondaryAsset.hash.id);
+        item.side = new BigNumber(item.side).toNumber();
+      }
+    }
+    return result;
+  }
   static async marketPairs(marketId: number | string | BigNumber): Promise<AggregatedPair[]> {
     const result = await this.fetch('GET', `market/pairs`, { id: marketId.toString() });
     for (let key in result) {
@@ -514,8 +545,8 @@ export class Exchange {
     result.secondaryAsset = new AssetId(result.secondaryAsset);
     return result;
   }
-  static async marketPriceSeries(pairId: number | string | BigNumber, interval: string | number | BigNumber, page: string | number | BigNumber): Promise<{ time: number, sentiment: number, volume: BigNumber, open: BigNumber, low: BigNumber, high: BigNumber, close: BigNumber }[]> {
-    const result = await this.fetch('GET', `market/price/series`, { pairId: pairId.toString(), interval: interval.toString(), page: page.toString() });
+  static async marketPairPriceSeries(pairId: number | string | BigNumber, interval: string | number | BigNumber, page: string | number | BigNumber): Promise<{ time: number, sentiment: number, volume: BigNumber, open: BigNumber, low: BigNumber, high: BigNumber, close: BigNumber }[]> {
+    const result = await this.fetch('GET', `market/pair/price/series`, { pairId: pairId.toString(), interval: interval.toString(), page: page.toString() });
     return result.map((v: any[]) => ({
       time: v[0].toNumber(),
       sentiment: v[1].toNumber(),
@@ -526,20 +557,20 @@ export class Exchange {
       close: v[6]
     }));
   }
-  static async marketPriceLevels(marketId: number | string | BigNumber, pairId: number | string | BigNumber): Promise<{ ask: AggregatedLevel[], bid: AggregatedLevel[] }> {
+  static async marketPairPriceLevels(marketId: number | string | BigNumber, pairId: number | string | BigNumber, levels: number): Promise<{ ask: AggregatedLevel[], bid: AggregatedLevel[] }> {
     const toAggregatedLevel = (v: any[]) => ({
       id: v[0].toNumber(),
       price: v[1],
       quantity: v[2]
     });
-    const result = await this.fetch('GET', `market/price/levels`, { marketId: marketId.toString(), pairId: pairId.toString() });
+    const result = await this.fetch('GET', `market/pair/price/levels`, { marketId: marketId.toString(), pairId: pairId.toString(), levels: levels });
     return {
       ask: result.ask.map(toAggregatedLevel),
       bid: result.bid.map(toAggregatedLevel)
     };
   }
-  static async marketAssets(marketId: number | string | BigNumber, pairId: number | string | BigNumber): Promise<{ primary: AssetId[], secondary: AssetId[] }> {
-    const result = await this.fetch('GET', `market/assets`, {
+  static async marketPairAssets(marketId: number | string | BigNumber, pairId: number | string | BigNumber): Promise<{ primary: AssetId[], secondary: AssetId[] }> {
+    const result = await this.fetch('GET', `market/pair/assets`, {
       marketId: marketId?.toString(),
       pairId: pairId?.toString()
     });
@@ -548,8 +579,8 @@ export class Exchange {
       secondary: result.secondary.map((item: any) => new AssetId(item.id)),
     };
   }
-  static async marketTrades(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber } & PageQuery): Promise<AggregatedMatch[]> {
-    const result = await this.fetch('GET', `market/trades`, {
+  static async marketPairTrades(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber } & PageQuery): Promise<AggregatedMatch[]> {
+    const result = await this.fetch('GET', `market/pair/trades`, {
       marketId: account.marketId?.toString(),
       pairId: account.pairId?.toString(),
       page: account.page

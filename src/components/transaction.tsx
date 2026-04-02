@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Card, Code, DataList, Flex, Spinner, Text } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, Code, DataList, Flex, Spinner, Text, Tooltip } from "@radix-ui/themes";
 import { EventResolver, SummaryState, AssetId, Readability, EventType } from 'tangentsdk';
 import { AlertBox, AlertType } from "./alert";
 import { Link } from "react-router";
@@ -81,7 +81,9 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
       )
     }
     case 'call': {
-      const method = transaction.function.match(/[\(\)]/) != null ? transaction.function : ('address_of(@' + transaction.function + ')');
+      const flags = Readability.toFunctionFlags(transaction.function);
+      const origin = flags.pipelinePay ? transaction.function.substring(1) : transaction.function;
+      const method = origin.match(/[\(\)]/) != null ? origin : ('address_of(@' + origin + ')');
       const args = JSON.stringify(transaction.args);
       return (
         <DataList.Root orientation={props.orientation}>
@@ -101,7 +103,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             <DataList.Label>Callable:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="lime" onClick={() => {
-                navigator.clipboard.writeText(method);
+                navigator.clipboard.writeText(origin);
                 AlertBox.open(AlertType.Info, 'Program function copied!')
               }}>{ Readability.toHash(method, 20) }</Button>
             </DataList.Value>
@@ -122,6 +124,14 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
                 <DataList.Value>{ Readability.toMoney(item.asset, item.value) }</DataList.Value>
               </DataList.Item>)
           }
+          <DataList.Item>
+            <DataList.Label>Pay mode:</DataList.Label>
+            <DataList.Value>
+              <Tooltip content={flags.pipelinePay ? 'Value is paid in fully or partially from account balance delta' : 'Value is paid in full account balance directly'}>
+                <Badge>{ flags.pipelinePay ? 'Pipeline pays' : 'Account pays' }</Badge>
+              </Tooltip>
+            </DataList.Value>
+          </DataList.Item>
         </DataList.Root>
       )
     }
@@ -1203,7 +1213,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               <DataList.Item>
                 <DataList.Label>Status:</DataList.Label>
                 <DataList.Value>
-                  <Badge color="yellow">Not included a in block</Badge>
+                  <Badge color="yellow">Not included in a block</Badge>
                 </DataList.Value>
               </DataList.Item>
             }

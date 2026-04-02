@@ -1,8 +1,8 @@
 import { Box, Button, Dialog, Flex, IconButton, Spinner, Text, Tooltip } from "@radix-ui/themes";
 import { CSSProperties, useCallback, useEffect, useState } from "react";
-import { OrderCondition, OrderPolicy, OrderSide, Exchange } from "../../core/exchange";
+import { OrderCondition, OrderPolicy, OrderSide, Exchange, RouterPath } from "../../core/exchange";
 import { AlertBox, AlertType } from "./../alert";
-import { mdiArrowRight, mdiBlur, mdiBlurOff, mdiCancel, mdiCashRefund, mdiClose, mdiCollage, mdiWater, mdiWaterOff } from "@mdi/js";
+import { mdiArrowRight, mdiBlur, mdiBlurOff, mdiCancel, mdiCashRefund, mdiClose, mdiCollage, mdiSwapHorizontalVariant, mdiWater, mdiWaterOff } from "@mdi/js";
 import { AssetId, DEX, Hashsig, Readability, SchemaUtil, Signing, Stream, Transactions, Uint256 } from "tangentsdk";
 import { useNavigate, useSearchParams } from "react-router";
 import BigNumber from "bignumber.js";
@@ -14,7 +14,70 @@ export type BuilderResult = {
   body: Record<string, any>
 };
 
+export type BuilderQueueItem = {
+  result: BuilderResult,
+  recent: boolean
+}
+
 export class Builder {
+    static async swap(args: {
+      tokenIn: AssetId | null,
+      tokenOut: AssetId | null,
+      amountIn: string,
+      amountOut: string,
+      slippage: string,
+      path: RouterPath,
+      pays: Record<string, string>
+      marketId: string,
+    }): Promise<BuilderResult[]> {
+        let totalIn = new BigNumber(0);
+        const pays: { asset: AssetId, value: BigNumber }[] = [];
+        for (let assetId of Object.keys(args.pays)) {
+            const asset = new AssetId(assetId);
+            const paying = args.pays[assetId];
+            const value = typeof paying == 'string' || typeof paying == 'number' ? new BigNumber(paying) : null;
+            if (!value || !value.gt(0) || !asset.isValid())
+                throw new Error('Token in value must be positive');
+
+            pays.push({ asset: asset, value: value });
+            totalIn = totalIn.plus(value);
+        }
+
+        if (totalIn.lt(args.amountIn))
+            throw new Error('Not enough balance to build a swap');
+        
+        const market = await Exchange.market(args.marketId);
+        if (!market || !market.account)
+            throw new Error('Market ' + args.marketId.toString() + ' account cannot be found');
+
+        const marketAccount = Signing.decodeAddress(market.account || '');
+        if (!marketAccount)
+            throw new Error('Market ' + market.id.toString() + ' account cannot be found');
+
+        return args.path.map((swap, swapIndex) => {
+            const tokenIn = (swap.side == OrderSide.Buy ? swap.pair.secondaryAsset?.hash : swap.pair.primaryAsset?.hash) || null;
+            if (!tokenIn)
+                throw new Error('Token in must be set');
+
+            const tokenOut = (swap.side == OrderSide.Buy ? swap.pair.primaryAsset?.hash : swap.pair.secondaryAsset?.hash) || null;
+            if (!tokenOut)
+                throw new Error('Token out must be set');
+
+            const slippagePrice = (swap.side == OrderSide.Buy ? swap.input.max.dividedBy(swap.output.min) : swap.output.min.dividedBy(swap.input.max));
+            const primaryAsset = (swap.side == OrderSide.Buy ? tokenOut : tokenIn);
+            const secondaryAsset = (swap.side == OrderSide.Buy ? tokenIn : tokenOut);
+            return {
+                icon: mdiSwapHorizontalVariant,
+                text: `Swap ${Readability.toMoney(tokenIn, swap.input.max)} and receive between [${Readability.toMoney(tokenOut, swap.output.min)}; ${Readability.toMoney(tokenOut, swap.output.max)}]`,
+                body: {
+                    callable: marketAccount,
+                    pays: swapIndex == 0 ? pays : [{ asset: tokenIn, value: swap.input.max }],
+                    function: (swapIndex > 0 ? '>' : '') + Readability.toFunction(DEX.Spot.marketOrder),
+                    args: [primaryAsset?.toUint256(), secondaryAsset?.toUint256(), swap.side, OrderPolicy.Immediate, slippagePrice]
+                }
+            }
+        });
+    }
     static async depositOrder(args: {
         pays: Record<string, string>, 
         marketId: string,
@@ -75,11 +138,16 @@ export class Builder {
         if (!pair)
             throw new Error('Pair cannot be found');
 
+        let levelPrice: BigNumber | null = null;
+        try {
+          const levels = await Exchange.marketPairPriceLevels(market.id, pair.id, 1);
+          levelPrice = levels[side == OrderSide.Buy ? 'ask' : 'bid'][0]?.price || null;
+        } catch { }
+        
         let text: string, method: string, parameters: any[];
         const price = typeof args.price == 'string' || typeof args.price == 'number' ? new BigNumber(args.price) : null;
         const stopPrice = typeof args.stopPrice == 'string' || typeof args.stopPrice == 'number' ? new BigNumber(args.stopPrice) : null;
-        const closePrice = Exchange.priceOf(pair.primaryAsset, pair.secondaryAsset).close;
-        const targetPrice = price || stopPrice || closePrice;
+        const targetPrice = price || stopPrice || levelPrice;
         const targetValue = pays.reduce((t, i) => t.plus(i.value), new BigNumber(0));
         const toText = (order: { primaryAsset: AssetId, secondaryAsset: AssetId, condition: OrderCondition, side: OrderSide, slippage?: BigNumber, stopPrice?: BigNumber, trailingStep?: BigNumber, trailingDistance?: BigNumber, price?: BigNumber, value: BigNumber }, targetPrice?: BigNumber | null) => {
             const toPercentile = (asset: AssetId, value?: BigNumber | null) => value ? (value.gte(0) ? value.toString() + ' ' + asset.handle : value.negated().multipliedBy(100).toFixed(2) + '%') : 'N/A';
@@ -114,11 +182,11 @@ export class Builder {
                 if (!slippage)
                     throw new Error('Order slippage must be set');
 
-                if (!closePrice?.gt(0))
+                if (!levelPrice?.gt(0))
                     throw new Error('No last price to calculate slippage price from');
 
-                const distance = slippage.lt(0) ? slippage.multipliedBy(closePrice.negated()) : slippage;
-                const slippagePrice = side == OrderSide.Buy ? closePrice.plus(distance) : BigNumber.max(closePrice.minus(distance), 0);
+                const distance = slippage.lt(0) ? slippage.multipliedBy(levelPrice.negated()) : slippage;
+                const slippagePrice = side == OrderSide.Buy ? levelPrice.plus(distance) : BigNumber.max(levelPrice.minus(distance), 0);
                 method = DEX.Spot.marketOrder;
                 parameters = [primaryAsset.toUint256(), secondaryAsset.toUint256(), side, policy, slippagePrice];
                 text = toText({
@@ -299,7 +367,6 @@ export class Builder {
         minPrice?: string;
         maxPrice?: string;
     }): Promise<BuilderResult> {
-      console.log(args);
         if (typeof args.primaryPays != 'object' || typeof args.secondaryPays != 'object')
             throw new Error('Pool value must be set');
 
@@ -442,13 +509,13 @@ export class Builder {
 }
 
 export class BuilderQueue {
-  static internal: BuilderResult[] = [];
+  static internal: BuilderQueueItem[] = [];
 
-  static set(newQueue: BuilderResult[]) {
+  static set(newQueue: BuilderQueueItem[]) {
     this.internal = newQueue;
     window.dispatchEvent(new CustomEvent('update:builder'));
   }
-  static get(): BuilderResult[] {
+  static get(): BuilderQueueItem[] {
     return this.internal;
   }
 }
@@ -468,10 +535,14 @@ export function PerformerButton(props: { title: string, description: string, dis
       if (!result)
         throw new Error('Failed to receive action data');
 
+      const prev = BuilderQueue.get();
+      for (let i = 0; i < prev.length; i++)
+        prev[i].recent = false;
+
       if (Array.isArray(result)) {
-        BuilderQueue.set([...BuilderQueue.get(), ...result]);
+        BuilderQueue.set([...prev, ...result.map(x => ({ result: x, recent: true }))]);
       } else {
-        BuilderQueue.set([...BuilderQueue.get(), result]);
+        BuilderQueue.set([...prev, { result: result, recent: true }]);
       }
     } catch (exception: any) {
       AlertBox.open(AlertType.Error, 'Build failed: ' + exception.message);
@@ -491,22 +562,22 @@ export function PerformerButton(props: { title: string, description: string, dis
             nonce: new Uint256(0),
             gasPrice: new BigNumber(0),
             gasLimit: new Uint256(0)
-        }, new Transactions.Rollup(), BuilderQueue.get().map((result) => ({
+        }, new Transactions.Rollup(), BuilderQueue.get().map((item) => ({
           schema: new Transactions.Call(),
           args: {
             asset: new AssetId(),
-            ...result.body
+            ...item.result.body
           }
         })));
       } else {
-        const result = BuilderQueue.get()[0];
+        const item = BuilderQueue.get()[0];
         SchemaUtil.store(stream, {
             signature: new Hashsig(),
             asset: new AssetId(),
             nonce: new Uint256(0),
             gasPrice: new BigNumber(0),
             gasLimit: new Uint256(0),
-            ...result.body
+            ...item.result.body
         }, new Transactions.Call());
       }
 
@@ -551,12 +622,12 @@ export function PerformerButton(props: { title: string, description: string, dis
             <Box key={state.toString()}>
               {
                 BuilderQueue.get().map((item, index) =>
-                  <Box px="2" py="2" position="relative" style={{ backgroundColor: 'var(--color-panel)', borderRadius: '22px' }} mb={index == BuilderQueue.get().length - 1 ? undefined : '3'} key={item.text + index}>
+                  <Box px="2" py="2" position="relative" style={{ backgroundColor: item.recent ? 'var(--lime-a3)' : 'var(--color-panel)', borderRadius: '22px' }} mb={index == BuilderQueue.get().length - 1 ? undefined : '3'} key={item.result.text + index}>
                     <Flex gap="2">
                       <Flex px="4" py="4" justify="center">
-                        <Icon path={item.icon} size={1.5}></Icon>
+                        <Icon path={item.result.icon} size={1.5}></Icon>
                       </Flex>
-                      <Box py="1">{ item.text }</Box>
+                      <Box py="1">{ item.result.text }</Box>
                     </Flex>
                     <Box position="absolute" style={{ top: '-12px', right: '-12px' }}>
                       <IconButton variant="soft" size="3" color="red" onClick={() => {

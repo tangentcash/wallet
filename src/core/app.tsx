@@ -17,6 +17,7 @@ import BigNumber from "bignumber.js";
 
 const RestorePage = lazy(() => import("./../pages/restore"));
 const HomePage = lazy(() => import("./../pages/home"));
+const ExplorerPage = lazy(() => import("./../pages/explorer"));
 const HypePage = lazy(() => import("./../pages/hype"));
 const LegalPage = lazy(() => import("./../pages/legal"));
 const ErrorPage = lazy(() => import("./../pages/error"));
@@ -727,7 +728,7 @@ export class AppData {
     return result;
   }
   static defaultNetwork(): NetworkType {
-    return this.isDev() ? NetworkType.Mainnet : NetworkType.Mainnet;
+    return this.isDev() ? NetworkType.Regtest : NetworkType.Mainnet;
   }
 }
 
@@ -749,6 +750,7 @@ export function App() {
           <Routes>
             <Route path="/" element={AppData.isWalletExists() ? <HomePage /> : <HypePage />} />
             <Route path="/configure" element={<ConfigurePage />} />
+            <Route path="/explorer" element={<ExplorerPage />} />
             <Route path="/bridge" element={<BridgePage />} />
             <Route path="/interaction" element={<InteractionPage />} />
             <Route path="/block/:id" element={<BlockPage />} />

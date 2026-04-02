@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Exchange, Balance, Order, Pool, Cursor, AggregatedPair, Market } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { AppData } from "../..//core/app";
-import { mdiCheckDecagram, mdiMagnify, mdiMagnifyScan, mdiRefresh } from "@mdi/js";
+import { mdiCheckDecagram, mdiMagnify, mdiMagnifyScan, mdiMapMarkerPath, mdiPaletteSwatchVariant, mdiRefresh, mdiShimmer, mdiShoppingSearch, mdiWater } from "@mdi/js";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { Storage } from "../../core/storage";
 import { AlertBox, AlertType } from "../../components/alert";
@@ -16,6 +16,7 @@ import PoolView from "../../components/exchange/pool";
 import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
 import AssetSelector from "../../components/exchange/selector";
+import SwapMaker from "../../components/exchange/swap";
 
 function toAssetSymbol(asset: AssetId): string {
   return asset.chain == 'TAN' && asset.token ? (asset.token || '') : ((asset.token || '') + (asset.chain || ''));
@@ -23,17 +24,18 @@ function toAssetSymbol(asset: AssetId): string {
 
 export default function PortfolioPage() {
   const params = useParams();
-  const [search, setSearch] = useSearchParams();
   const ownerAddress = AppData.getWalletAddress();
   const baseAddress = params.account || ownerAddress;
   const readOnly = baseAddress != ownerAddress;
   const searchInput = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
+  const mobile = document.body.clientWidth <= 600;
+  const [search, setSearch] = useSearchParams();
   const [market, setMarket] = useState<Market | null>(null);
   const [pairs, setPairs] = useState<{ pair: AggregatedPair, whitelisted: boolean }[]>([]);
   const [launchablePair, setLaunchablePair] = useState<AggregatedPair | null>(null);
   const [marketLauncher, setMarketLauncher] = useState<{ primary: AssetId | null, secondary: AssetId | null }>({ primary: null, secondary: null });
-  const [viewer, setViewer] = useState<'market' | 'assets' | 'orders' | 'pools'>(readOnly ? 'assets' : 'market');
+  const [viewer, setViewer] = useState<'swap' | 'trade' | 'assets' | 'orders' | 'pools'>(readOnly ? 'assets' : 'swap');
   const [assetUpdates, setAssetUpdates] = useState(0);
   const [dashboardUpdates, setDashboardUpdates] = useState(0);
   const [todayProfits, setTodayProfits] = useState(true);
@@ -132,7 +134,7 @@ export default function PortfolioPage() {
       setMorePools(data.length >= cursor.count);
       return data.length > 0;
     } catch (exception) {
-      AlertBox.open(AlertType.Error, 'Failed to fetch pools: ' + (exception as Error).message);
+      AlertBox.open(AlertType.Error, 'Failed to fetch LPs: ' + (exception as Error).message);
       if (refresh)
         setPools([]);
       setMorePools(false);
@@ -186,7 +188,7 @@ export default function PortfolioPage() {
     }
   }, [marketLauncher]);
   useEffect(() => {
-    if (viewer == 'market') {
+    if (viewer == 'swap' || viewer == 'trade') {
       if (!market) {
         Exchange.connectSocket().then(() => {
           if (Exchange.contracts.length > 0)
@@ -237,9 +239,13 @@ export default function PortfolioPage() {
     };
   }, [params.account]); 
   useEffect(() => {
-    const view = search.get('view');
-    if (view != null && ['market', 'assets', 'orders', 'pools'].includes(view))
+    const view = search.get('view') || Storage.get('__portfolio_view__') || null;
+    if (view != null && ['swap', 'trade', 'assets', 'orders', 'pools'].includes(view)) {
+      Storage.set('__portfolio_view__', view);
       setViewer(view as any);
+    } else {
+      Storage.set('__portfolio_view__');
+    }
   }, [search]);
 
   return (
@@ -289,23 +295,62 @@ export default function PortfolioPage() {
           <Button variant="soft" size="2" color={ equity.previous.gt(equity.current) ? 'red' : (equity.previous.eq(equity.current) ? 'gray' : 'lime') } onClick={() => setTodayProfits(!todayProfits)}>{ Readability.toMoney(Exchange.equityAsset, equity.current.minus(equity.previous), true) } ({ Readability.toPercentageDelta(equity.previous, equity.current) }) - { todayProfits ? 'Today' : 'Total' }</Button>
         </Box>
       </Card>
-      <Tabs.Root value={viewer} onValueChange={(x) => setSearch({ view: x })} mt="4">
-        <Tabs.List>
-          <Tabs.Trigger value="market">Market</Tabs.Trigger>
-          <Tabs.Trigger value="assets">Assets</Tabs.Trigger>
-          <Tabs.Trigger value="pools">Pools</Tabs.Trigger>
-          <Tabs.Trigger value="orders">Orders</Tabs.Trigger>
-        </Tabs.List>
-        <Box pt="3">
-          <Tabs.Content value="market">
-            <Box pt="2" pb="2">
+      <Box px="2" pt="2">
+        <Tabs.Root value={viewer} onValueChange={(x) => setSearch({ view: x })} mt="4">
+          <Tabs.List size="2" color="lime" justify={mobile ? undefined : 'center'}>
+            <Tabs.Trigger value="swap" className="tab-padding-erase">
+              <Badge size="3" radius="large">
+                <Flex align="center" gap="1">
+                  <Icon path={mdiMapMarkerPath} size={0.6}></Icon>
+                  <Text>Swap</Text>
+                </Flex>
+              </Badge>
+            </Tabs.Trigger>
+            <Tabs.Trigger value="trade" className="tab-padding-erase">
+              <Badge size="3" radius="large">
+                <Flex align="center" gap="1">
+                  <Icon path={mdiShoppingSearch} size={0.6}></Icon>
+                  <Text>Trade</Text>
+                </Flex>
+              </Badge>
+            </Tabs.Trigger>
+            <Tabs.Trigger value="assets" className="tab-padding-erase">
+              <Badge size="3" radius="large">
+                <Flex align="center" gap="1">
+                  <Icon path={mdiPaletteSwatchVariant} size={0.6}></Icon>
+                  <Text>Balance</Text>
+                </Flex>
+              </Badge>
+            </Tabs.Trigger>
+            <Tabs.Trigger value="pools" className="tab-padding-erase">
+              <Badge size="3" radius="large">
+                <Flex align="center" gap="1">
+                  <Icon path={mdiWater} size={0.6}></Icon>
+                  <Text>LPs</Text>
+                </Flex>
+              </Badge>
+            </Tabs.Trigger>
+            <Tabs.Trigger value="orders" className="tab-padding-erase">
+              <Badge size="3" radius="large">
+                <Flex align="center" gap="1">
+                  <Icon path={mdiShimmer} size={0.6}></Icon>
+                  <Text>Orders</Text>
+                </Flex>
+              </Badge>
+            </Tabs.Trigger>
+          </Tabs.List>
+          <Tabs.Content value="swap">
+            <SwapMaker assets={assets} market={market} onMarketChange={setMarket}></SwapMaker>
+          </Tabs.Content>
+          <Tabs.Content value="trade">
+            <Box pt="5" pb="3">
               <Flex px="1" align="center" justify="start">
-                <TextField.Root placeholder="Try ETH/USDT…" variant="soft" color="gray" size="2" value={query} style={{ width: '100%', borderTopRightRadius: '0', borderBottomRightRadius: '0', borderRight: '1px solid var(--gray-6)' }} onInput={(e) => setQuery(e.currentTarget.value || '')}>
+                <TextField.Root placeholder="Try ETH/USDT…" variant="soft" color="gray" size="3" value={query} style={{ width: '100%', borderTopRightRadius: '0', borderBottomRightRadius: '0', borderRight: '1px solid var(--gray-6)' }} onInput={(e) => setQuery(e.currentTarget.value || '')}>
                   <TextField.Slot>
                     <Icon path={mdiMagnify} size={0.8}></Icon>
                   </TextField.Slot>
                 </TextField.Root>
-                <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => setMarket(Exchange.contracts.find((v) => v.id.toString() == e) || null)} size="2">
+                <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => setMarket(Exchange.contracts.find((v) => v.id.toString() == e) || null)} size="3">
                   <Select.Trigger variant="soft" color="gray" style={{ borderTopLeftRadius: '0', borderBottomLeftRadius: '0' }}>{ market ? Exchange.marketPolicyOf(market) + ' ' + (market.version || market.account.substring(market.account.length - 4)) : 'Market unset' }</Select.Trigger>
                   <Select.Content position="popper" side="bottom">
                     <Select.Group>
@@ -318,7 +363,7 @@ export default function PortfolioPage() {
               <Flex justify="between" align="center" px="3" pt="4">
                 <Text>{ Readability.toCount('pair', pairsFilter.length) }</Text>
                 <Flex gap="2" justify="end">
-                  <Text color="gray">Add</Text>
+                  <Text>Launch</Text>
                   <AssetSelector title="token 1 to launch" value={marketLauncher.primary} onChange={(value) => setMarketLauncher(prev => ({ primary: value, secondary: prev?.secondary || null }))}>
                     <Button variant="ghost" size="3">
                       {
@@ -328,7 +373,7 @@ export default function PortfolioPage() {
                           <Text>{ Readability.toAssetSymbol(marketLauncher.primary) }</Text>
                         </Flex>
                       }
-                      { marketLauncher.primary == null && (assetQuery.primary?.toUpperCase() || 'A') }
+                      { marketLauncher.primary == null && (assetQuery.primary?.toUpperCase() || 'AAA') }
                     </Button>
                   </AssetSelector>
                   <Text>x</Text>
@@ -341,7 +386,7 @@ export default function PortfolioPage() {
                           <Text>{ Readability.toAssetSymbol(marketLauncher.secondary) }</Text>
                         </Flex>
                       }
-                      { marketLauncher.secondary == null && (assetQuery.secondary?.toUpperCase() || 'B') }
+                      { marketLauncher.secondary == null && (assetQuery.secondary?.toUpperCase() || 'BBB') }
                     </Button>
                   </AssetSelector>
                 </Flex>
@@ -401,9 +446,9 @@ export default function PortfolioPage() {
               { equityAssets.map((item) => <BalanceView key={item.asset.id} item={item} readOnly={readOnly}></BalanceView>) }
               {
                 !assets.length && 
-                <Box px="4">
-                  <Text size="2" align="center">Assets funded to this account will appear here.</Text>
-                </Box>
+                <Flex px="4" justify="center">
+                  <Text size="2" align="center">No assets to show.</Text>
+                </Flex>
               }
             </Box>
           </Tabs.Content>
@@ -419,9 +464,9 @@ export default function PortfolioPage() {
               </InfiniteScroll>
               {
                 !pools.length &&
-                <Box px="4">
-                  <Text size="2" align="center">Pools created from this account will appear here.</Text>
-                </Box>
+                <Flex px="4" justify="center">
+                  <Text size="2" align="center">No LPs to show.</Text>
+                </Flex>
               }
             </Box>
           </Tabs.Content>
@@ -438,14 +483,14 @@ export default function PortfolioPage() {
               </InfiniteScroll>
               {
                 !orders.length &&
-                <Box px="4">
-                  <Text size="2" align="center">Orders created from this account will appear here.</Text>
-                </Box>
+                <Flex px="4" justify="center">
+                  <Text size="2" align="center">No orders to show.</Text>
+                </Flex>
               }
             </Box>
           </Tabs.Content>
-        </Box>
-      </Tabs.Root>
+        </Tabs.Root>
+      </Box>
     </Box>
   );
 }

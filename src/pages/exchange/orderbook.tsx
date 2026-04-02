@@ -311,7 +311,7 @@ export default function OrderbookPage() {
     const reset = !seriesState.ready;
     setSeriesState(prev => ({ ...prev, ready: true, loading: true }));
     try {
-      const result = await Exchange.marketPriceSeries(pair.id, seriesOptions.interval, Math.floor(from / seriesOptions.interval));
+      const result = await Exchange.marketPairPriceSeries(pair.id, seriesOptions.interval, Math.floor(from / seriesOptions.interval));
       const price: PriceBar[] = [], volume: VolumeBar[] = [];
       let min = result.length > 0 ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER;
       let max = Number.MIN_SAFE_INTEGER;
@@ -454,9 +454,9 @@ export default function OrderbookPage() {
         } catch { }
       };
       const marketResult = Exchange.market(orderbook.marketId);
-      const levelsResult = Exchange.marketPriceLevels(orderbook.marketId, result.id);
-      const assetsResult = Exchange.marketAssets(orderbook.marketId, result.id);
-      const tradesResult = Exchange.marketTrades({ marketId: orderbook.marketId, pairId: result.id });
+      const levelsResult = Exchange.marketPairPriceLevels(orderbook.marketId, result.id, 128);
+      const assetsResult = Exchange.marketPairAssets(orderbook.marketId, result.id);
+      const tradesResult = Exchange.marketPairTrades({ marketId: orderbook.marketId, pairId: result.id });
       try {
         setMarket(await marketResult);
       } catch (exception: any) {

@@ -23,3 +23,15 @@
   border-radius: 22px;
   pointer-events: none;
 }
+
+.text-input-custom {
+  height: auto;
+  font-size: 1.5rem;
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+}
+
+.text-input-custom input {
+  padding: 6px 8px;
+  height: auto;
+}
