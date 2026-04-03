@@ -1,18 +1,16 @@
 import { Box, Button, Flex, Heading, Text, TextField } from "@radix-ui/themes";
 import { useNavigate } from "react-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData } from "../core/app";
 import { EventResolver, Readability, RPC, Signing, Stream, SummaryState } from "tangentsdk";
 import { mdiMagnify } from "@mdi/js";
-import { useEffectAsync } from "../core/react";
 import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
 import Transaction from "../components/transaction";
 
 const TRANSACTION_COUNT = 16;
 export default function ExplorerPage() {
-  const ownerAddress = AppData.getWalletAddress();
   const [counter, setCounter] = useState(0);
   const [loading, setLoading] = useState(false);
   const [query, setQuery] = useState('');
@@ -123,21 +121,19 @@ export default function ExplorerPage() {
       return false;
     }
   }, [transactions]);
-  useEffectAsync(async () => {
-    if (!AppData.tip)
-      await AppData.sync();
-    
-    await findTransactions(true);
-    setCounter(1);
-
-    const timeout = setInterval(() => setCounter(new Date().getTime()), 3000);
-    return () => clearInterval(timeout);
+  useEffect(() => {
+    AppData.sync().then(() => setCounter(new Date().getTime()));
+    findTransactions(true);
   }, []);
 
   return (
     <Box px="4" pt="4" maxWidth="680px" mx="auto">
-      <Box px="1">
-        <Heading mb="2" size="5">Block height { Readability.toValue(null, blockNumber, false, false) }</Heading>
+      <Box px="1" py="2">
+        <Flex justify="center" align="center" mb="3">
+          <Button size="4" variant="ghost" onClick={() => {
+            setQuery(blockNumber?.toString() || '');
+          }}>Height { Readability.toValue(null, blockNumber, false, false) }</Button>
+        </Flex>
         <TextField.Root style={{ width: '100%' }} placeholder="Address, hash or number…" size="3" variant="soft" value={query} onChange={(e) => setQuery(e.target.value)} readOnly={loading} ref={searchInput}>
           <TextField.Slot>
             <Icon path={mdiMagnify} size={0.9} color="var(--accent-8)"/>
@@ -152,6 +148,9 @@ export default function ExplorerPage() {
           <Button size="2" variant="soft" disabled={loading} onClick={() => search('block')}>In block</Button>
         </Flex>
       }
+      <Flex justify="center" align="center" mt="9">
+        <Heading size="5">History</Heading>
+      </Flex>
       <Box width="100%">
         <InfiniteScroll dataLength={transactions.length} hasMore={moreTransactions} next={findTransactions} loader={<div></div>}>
           {
@@ -168,7 +167,7 @@ export default function ExplorerPage() {
                   </Box>
                 }
                 <Box mb="4">
-                  <Transaction ownerAddress={ownerAddress || ''} transaction={item.transaction} receipt={item.receipt} state={item.state}></Transaction>
+                  <Transaction ownerAddress={''} transaction={item.transaction} receipt={item.receipt} state={item.state}></Transaction>
                 </Box>
               </Box>
             )
