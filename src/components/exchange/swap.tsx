@@ -319,7 +319,7 @@ export default function SwapMaker(props: {
                   }
                 </Flex>
                 <Flex justify="between" align="center" gap="2">
-                  <Badge size="3" color={(amountOut || new BigNumber(0)).gte(amountIn || new BigNumber(0)) ? 'gray' : 'red'}>{ convervative ? 'Max loss' : 'Loss' } { amountIn && amountOut ? amountOut.minus(amountIn).dividedBy(amountIn).multipliedBy(100).toFixed(2) : '0.00' }%</Badge>
+                  <Badge size="3" color={(amountOut || new BigNumber(0)).gte(amountIn || new BigNumber(0)) ? 'gray' : 'red'}>{ (amountOut || new BigNumber(0)).gte(amountIn || new BigNumber(0)) ? (convervative ? 'Min gain' : 'Gain') : (convervative ? 'Max loss' : 'Loss') } { amountIn && amountOut ? amountOut.minus(amountIn).dividedBy(amountIn).multipliedBy(100).toFixed(2) : '0.00' }%</Badge>
                   <PerformerButton title="Execute" description={`Swap involves paying ${Readability.toAssetSymbol(state.tokenIn || new AssetId())} to smart contract and placing one or more market orders in a row to receive ${Readability.toAssetSymbol(state.tokenOut || new AssetId())} as a result`} color={pathIndex == 0 ? 'lime' : 'gray'} onBuild={async () => {
                     let leftover = new BigNumber(swapInfo.amountIn);
                     const pays: Record<string, string> = { };
