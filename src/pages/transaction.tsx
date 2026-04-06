@@ -134,7 +134,8 @@ export default function TransactionPage() {
               <Text>1. If you have just submitted a transaction then it will appear here shortly.</Text>
               <Text>2. It could still be in the mempool of a different node, waiting to be broadcasted.</Text>
               <Text>3. When the network is busy it can take a while for your transaction to propagate through the network.</Text>
-              <Text>4. If it still does not show up after 1 hour then this transaction either got dropped or was not sent.</Text>
+              <Text>4. Off-chain transactions will show up here after confirmed finality (e.g. 60-70 minutes for Bitcoin).</Text>
+              <Text>5. If it still does not show up after 1 hour then this transaction either got dropped or was not sent.</Text>
             </Flex>
           </Callout.Text>
         </Callout.Root>

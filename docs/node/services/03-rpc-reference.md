@@ -169,16 +169,6 @@ public view function getbridgebalance( string asset, uint256 hash) const returns
 public view function getbestbridgeinstancesbybalance(string asset, uint64 offset, uint64 count) const returns { instance: multiform?, balance: multiform }[]
 ```
 *Get best bridge instance based on total value locked*
-### getwitnessaccounttagged
-```c#
-public view function getwitnessaccounttagged(string asset, string wallet_address, uint64 offset) const returns multiform
-```
-*Get witness address by asset and wallet address*
-### getbestbridgeinstances
-```c#
-public view function getbestbridgeinstances(string asset, uint64 offset, uint64 count) const returns multiform[]
-```
-*Get best bridge balances by asset*
 ### getbridgeinstances
 ```c#
 public view function getbridgeinstances(string asset, uint64 offset, uint64 count) const returns multiform[]
@@ -254,6 +244,11 @@ public view function getvalidatorparticipations(string address, uint64 offset, u
 public view function getvalidatorparticipationwithrewards(string address) const returns multiform
 ```
 *Get validator participation with rewards by address*
+### getvalidatorproductionreward
+```c#
+public view function getvalidatorproductionreward(string address, string asset) const returns multiform
+```
+*Get validator production reward by address and asset*
 ### getbestbridgeinstancesbysecurity
 ```c#
 public view function getbestbridgeinstancesbysecurity(string asset, uint64 offset, uint64 count) const returns { instance: multiform, balance: multiform? }[]
@@ -279,6 +274,16 @@ public view function getblockgaspricebynumber(uint64 number, string asset, doubl
 public view function getwitnessaccounts(string address, uint64 offset, uint64 count) const returns multiform[]
 ```
 *Get witness addresses by owner address*
+### getwitnessaccounttagged
+```c#
+public view function getwitnessaccounttagged(string asset, string wallet_address, uint64 offset) const returns multiform
+```
+*Get witness address by asset and wallet address*
+### getbestbridgeinstances
+```c#
+public view function getbestbridgeinstances(string asset, uint64 offset, uint64 count) const returns multiform[]
+```
+*Get best bridge balances by asset*
 ### getvalidatorattestationswithrewards
 ```c#
 public view function getvalidatorattestationswithrewards(string address) const returns multiform[]
@@ -309,11 +314,6 @@ public view function getvalidatorparticipationref(string owner_address, string r
 public view function getbridgebalances(uint256 hash, uint64 offset, uint64 count) const returns multiform[]
 ```
 *Get bridge balances by hash*
-### getvalidatorproductionreward
-```c#
-public view function getvalidatorproductionreward(string address, string asset) const returns multiform
-```
-*Get validator production reward by address and asset*
 ### getmultiformsbyrowfilter
 ```c#
 public view function getmultiformsbyrowfilter(string type, any row, string rank_condition = '>' | '>=' | '=' | '<>' | '<=' | '<', uint256 rank_value, int8 rank_order, uint64 offset, uint64 count) const returns multiform[]
@@ -456,11 +456,11 @@ public view function getvalidatorproductionwithrewards(string address) const ret
 public view function getpendingtransactionsbynumber(uint64 number, uint8? unrolling = 0) const returns (uint256[] | txn[] | block::txn[])
 ```
 *Get block transactions by number*
-### gettransactionbyhash
+### getfinalizedtransactions
 ```c#
-public view function gettransactionbyhash(uint256 hash, uint8? unrolling = 0) const returns (txn | block::txn)
+public view function getfinalizedtransactions(uint64 offset, uint64 count, uint8? unrolling = 0) const returns (uint256[] | txn[] | block::txn[])
 ```
-*Get transaction by hash including aliases*
+*Get latest finalized transactions*
 ### getblocktransactionsbyhash
 ```c#
 public view function getblocktransactionsbyhash(uint256 hash, uint8? unrolling = 0) const returns (uint256[] | txn[] | block::txn[])
@@ -486,6 +486,11 @@ public view function getblockreceiptsbyhash(uint256 hash, uint8? unrolling = 0) 
 public view function gettransactionsbyhash(uint256 hash, uint8? unrolling = 0) const returns (txn | block::txn)
 ```
 *Get transactions by hash including aliases*
+### gettransactionbyhash
+```c#
+public view function gettransactionbyhash(uint256 hash, uint8? unrolling = 0) const returns (txn | block::txn)
+```
+*Get transaction by hash including aliases*
 ### getrawtransactionbyhash
 ```c#
 public view function getrawtransactionbyhash(uint256 hash) const returns string
@@ -518,6 +523,11 @@ public view function getblockproofbynumber(uint64 number, bool? transactions, bo
 public view function getrawblockbynumber(uint64 number) const returns string
 ```
 *Get block by number*
+### getblockbynumber
+```c#
+public view function getblockbynumber(uint64 number, uint8? unrolling = 0) const returns block
+```
+*Get block by number*
 ### getblockhashbynumber
 ```c#
 public view function getblockhashbynumber(uint64 number) const returns uint256
@@ -533,11 +543,6 @@ public view function getblockproofbyhash(uint256 hash, bool? transactions, bool?
 public view function getrawblockbyhash(uint256 hash) const returns string
 ```
 *Get block by hash*
-### getblockbynumber
-```c#
-public view function getblockbynumber(uint64 number, uint8? unrolling = 0) const returns block
-```
-*Get block by number*
 ### getblockbyhash
 ```c#
 public view function getblockbyhash(uint256 hash, uint8? unrolling = 0) const returns block

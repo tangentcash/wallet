@@ -340,7 +340,7 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
         <Box>
           <Flex gap="1" mt="2">
             <Select.Root size="3" value={routingAddressIndex.toString()} onValueChange={(e) => setRoutingAddressIndex(parseInt(e))}>
-              <Select.Trigger style={routingAddressIndex == -1 ? undefined : { width: '100%' }} />
+              <Select.Trigger />
               <Select.Content>
                 {
                   loading &&
@@ -360,17 +360,23 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
                     <Select.Item value={index.toString()} key={x.address}>
                       <Flex gap="2" align="center">
                         <AssetImage asset={blockchain} size="1"></AssetImage>
-                        <Text>{ Readability.toAddress(x.address, 6) }</Text>
+                        <Text>{ Readability.toAddress(x.address, 4) }</Text>
                       </Flex>
                     </Select.Item>
                   )
                 }
               </Select.Content>
             </Select.Root>
-            {
-              routingAddressIndex == -1 &&
-              <TextField.Root style={{ width: '100%' }} size="3" placeholder="Your address" type="text" readOnly={loading} value={routingAddressValue} onChange={(e) => setRoutingAddressValue(e.target.value)} />
-            }
+            <TextField.Root style={{ width: '100%' }} size="3" placeholder="Your address" type="text" readOnly={loading || routingAddressIndex != -1} value={blockchainAddress || ''} onChange={(e) => {
+              if (routingAddressIndex == -1) {
+                setRoutingAddressValue(e.target.value);
+              }
+            }} onClick={() => {
+              if (routingAddressIndex != -1) {
+                navigator.clipboard.writeText(blockchainAddress || '');
+                AlertBox.open(AlertType.Info, 'Your address copied!')
+              }
+            }} />
           </Flex>
           <Flex gap="2" mt="2" px="2" wrap="wrap">
             <Badge size="2" color="red">From { blockchain.routing_policy != 'account' ? 'any' : 'this' } address</Badge>
@@ -396,7 +402,7 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
               }
               {
                 blockchainAddress &&
-                <Box mt="4">
+                <Box mt="2">
                   <Select.Root size="3" value="-1" onValueChange={(value) => withdraw(parseInt(value))}>
                     <Select.Trigger variant="surface" placeholder="Token to withdraw" style={{ width: '100%' }}>
                     </Select.Trigger>

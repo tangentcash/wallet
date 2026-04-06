@@ -172,16 +172,6 @@ const help = {
             "description": "get best bridge instance based on total value locked"
         },
         {
-            "function": "getwitnessaccounttagged",
-            "declaration": "public view function chainstate::getwitnessaccounttagged(string asset, string wallet_address, uint64 offset) const returns multiform",
-            "description": "get witness address by asset and wallet address"
-        },
-        {
-            "function": "getbestbridgeinstances",
-            "declaration": "public view function chainstate::getbestbridgeinstances(string asset, uint64 offset, uint64 count) const returns multiform[]",
-            "description": "get best bridge balances by asset"
-        },
-        {
             "function": "getbridgeinstances",
             "declaration": "public view function chainstate::getbridgeinstances(string asset, uint64 offset, uint64 count) const returns multiform[]",
             "description": "get bridge balances by asset"
@@ -257,6 +247,11 @@ const help = {
             "description": "get validator participation with rewards by address"
         },
         {
+            "function": "getvalidatorproductionreward",
+            "declaration": "public view function chainstate::getvalidatorproductionreward(string address, string asset) const returns multiform",
+            "description": "get validator production reward by address and asset"
+        },
+        {
             "function": "getbestbridgeinstancesbysecurity",
             "declaration": "public view function chainstate::getbestbridgeinstancesbysecurity(string asset, uint64 offset, uint64 count) const returns { instance: multiform, balance: multiform? }[]",
             "description": "get best bridge instance based on security level"
@@ -280,6 +275,16 @@ const help = {
             "function": "getwitnessaccounts",
             "declaration": "public view function chainstate::getwitnessaccounts(string address, uint64 offset, uint64 count) const returns multiform[]",
             "description": "get witness addresses by owner address"
+        },
+        {
+            "function": "getwitnessaccounttagged",
+            "declaration": "public view function chainstate::getwitnessaccounttagged(string asset, string wallet_address, uint64 offset) const returns multiform",
+            "description": "get witness address by asset and wallet address"
+        },
+        {
+            "function": "getbestbridgeinstances",
+            "declaration": "public view function chainstate::getbestbridgeinstances(string asset, uint64 offset, uint64 count) const returns multiform[]",
+            "description": "get best bridge balances by asset"
         },
         {
             "function": "getvalidatorattestationswithrewards",
@@ -310,11 +315,6 @@ const help = {
             "function": "getbridgebalances",
             "declaration": "public view function chainstate::getbridgebalances(uint256 hash, uint64 offset, uint64 count) const returns multiform[]",
             "description": "get bridge balances by hash"
-        },
-        {
-            "function": "getvalidatorproductionreward",
-            "declaration": "public view function chainstate::getvalidatorproductionreward(string address, string asset) const returns multiform",
-            "description": "get validator production reward by address and asset"
         },
         {
             "function": "getmultiformsbyrowfilter",
@@ -459,9 +459,9 @@ const help = {
             "description": "get block transactions by number"
         },
         {
-            "function": "gettransactionbyhash",
-            "declaration": "public view function txnstate::gettransactionbyhash(uint256 hash, uint8? unrolling = 0) const returns (txn | block::txn)",
-            "description": "get transaction by hash including aliases"
+            "function": "getfinalizedtransactions",
+            "declaration": "public view function txnstate::getfinalizedtransactions(uint64 offset, uint64 count, uint8? unrolling = 0) const returns (uint256[] | txn[] | block::txn[])",
+            "description": "get latest finalized transactions"
         },
         {
             "function": "getblocktransactionsbyhash",
@@ -487,6 +487,11 @@ const help = {
             "function": "gettransactionsbyhash",
             "declaration": "public view function txnstate::gettransactionsbyhash(uint256 hash, uint8? unrolling = 0) const returns (txn | block::txn)",
             "description": "get transactions by hash including aliases"
+        },
+        {
+            "function": "gettransactionbyhash",
+            "declaration": "public view function txnstate::gettransactionbyhash(uint256 hash, uint8? unrolling = 0) const returns (txn | block::txn)",
+            "description": "get transaction by hash including aliases"
         },
         {
             "function": "getrawtransactionbyhash",
@@ -521,6 +526,11 @@ const help = {
             "description": "get block by number"
         },
         {
+            "function": "getblockbynumber",
+            "declaration": "public view function blockstate::getblockbynumber(uint64 number, uint8? unrolling = 0) const returns block",
+            "description": "get block by number"
+        },
+        {
             "function": "getblockhashbynumber",
             "declaration": "public view function blockstate::getblockhashbynumber(uint64 number) const returns uint256",
             "description": "get block hash by number"
@@ -534,11 +544,6 @@ const help = {
             "function": "getrawblockbyhash",
             "declaration": "public view function blockstate::getrawblockbyhash(uint256 hash) const returns string",
             "description": "get block by hash"
-        },
-        {
-            "function": "getblockbynumber",
-            "declaration": "public view function blockstate::getblockbynumber(uint64 number, uint8? unrolling = 0) const returns block",
-            "description": "get block by number"
         },
         {
             "function": "getblockbyhash",

@@ -9,8 +9,8 @@
          <changefreq>always</changefreq>
     </url>
     <url>
-         <loc>https://tangent.cash/bridge</loc>
-         <changefreq>monthly</changefreq>
+         <loc>https://tangent.cash/explorer</loc>
+         <changefreq>always</changefreq>
     </url>
     <url>
          <loc>https://tangent.cash/block</loc>
