@@ -819,7 +819,7 @@ export default function InteractionPage() {
           proMode && asset != -1 && typeof assets[asset].contractAddress == 'string' &&
           <Box width="100%" mt="3">
             <Tooltip content="Contract address of a token that was matched against public whitelist">
-              <TextField.Root size="3" type="text" color="red" value={Readability.toAddress(assets[asset].contractAddress, 16)} readOnly={true} />
+              <TextField.Root size="3" type="text" color="red" value={'Token: ' + Readability.toAddress(assets[asset].contractAddress, 12)} readOnly={true} />
             </Tooltip>
           </Box>
         }
@@ -827,7 +827,7 @@ export default function InteractionPage() {
           proMode && asset != -1 && params.bridge != null &&
           <Box width="100%" mt="3">
             <Tooltip content="Bridge that will process the withdrawal">
-              <TextField.Root size="3" type="text" color="red" value={Readability.toAddress(params.bridge, 16)} readOnly={true} />
+              <TextField.Root size="3" type="text" color="red" value={'Bridge: ' + Readability.toAddress(params.bridge, 16)} readOnly={true} />
             </Tooltip>
           </Box>
         }
@@ -836,7 +836,7 @@ export default function InteractionPage() {
           <Flex justify="between" mt="3" gap="1">
             <Box width="100%">
               <Tooltip content="Original approval transaction data (hex or binary)">
-                <TextField.Root size="3" placeholder="Raw transaction data" type="text" value={Readability.toAddress(program.hexMessage, 16)} readOnly={true} />
+                <TextField.Root size="3" placeholder="Raw transaction data" type="text" value={'Data: ' + Readability.toAddress(program.hexMessage, 12)} readOnly={true} />
               </Tooltip>
             </Box>
             <Button size="3" variant="surface" disabled={readOnlyApproval} onClick={async () => {
@@ -1215,6 +1215,11 @@ export default function InteractionPage() {
         {
           asset != -1 && program instanceof ProgramWithdraw &&  
           <Box mt="4">
+            <Box width="100%" mb="3">
+              <Tooltip content="Withdrawal fee to be deducted from account balance">
+                <TextField.Root size="3" type="text" color="red" value={'Cost: ' + Readability.toMoney(assets[asset].asset, params.fee)} readOnly={true} />
+              </Tooltip>
+            </Box>
             <Box width="100%" mb="3">
               <Tooltip content="Withdraw to off-chain address">
                 <TextField.Root size="3" placeholder="Withdraw to address" type="text" value={program.address} onChange={(e) => {
