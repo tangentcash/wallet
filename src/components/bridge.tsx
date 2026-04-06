@@ -260,7 +260,7 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
       return;
     }
     
-    navigate(`/interaction?asset=${token.asset.id}&type=withdraw&bridge=${bridge.instance.hash}&address=${blockchainAddress}&fee=${bridge.instance.fee_rate.toString()}&back=/`);
+    navigate(`/interaction?asset=${token.asset.id}&type=withdraw&bridge=${bridge.instance.bridge_hash}&address=${blockchainAddress}&fee=${bridge.instance.fee_rate.toString()}&back=/`);
   }, [blockchain, bridges, blockchainAssets, blockchainAddress]);
   useEffectAsync(async () => {
     setLoading(true);
