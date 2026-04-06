@@ -4,7 +4,7 @@ import { BrowserRouter, NavigateFunction, Route, Routes } from "react-router";
 import { Box, Theme } from "@radix-ui/themes";
 import { core } from '@tauri-apps/api';
 import { listen } from "@tauri-apps/api/event";
-import { Chain, ClearCallback, Messages, NetworkType, Pubkey, Pubkeyhash, Hashsig, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType, Authorizer, Viewable, Hashing, ByteUtil, AssetId, Approving, AuthEntity, AuthApproval, Readability } from "tangentsdk";
+import { Chain, Messages, NetworkType, Pubkey, Pubkeyhash, Hashsig, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType, Authorizer, Viewable, Hashing, ByteUtil, AssetId, Approving, AuthEntity, AuthApproval, Readability } from "tangentsdk";
 import { SafeStorage, Storage, StorageField } from "./storage";
 import { Alert, AlertBox, AlertType } from "./../components/alert";
 import { Prompter, PrompterBox } from "../components/prompter";
@@ -27,7 +27,6 @@ const BlockPage = lazy(() => import("./../pages/block"));
 const TransactionPage = lazy(() => import("./../pages/transaction"));
 const ProgramPage = lazy(() => import("./../pages/program"));
 const InteractionPage = lazy(() => import("./../pages/interaction"));
-const BridgePage = lazy(() => import("./../pages/bridge"));
 const PortfolioPage = lazy(() => import("../pages/exchange/portfolio"));
 const OrderbookPage = lazy(() => import("../pages/exchange/orderbook"));
 
@@ -390,11 +389,16 @@ export class AppData {
     this.setState();
     return true;
   }
-  static clearWallet(callback?: ClearCallback): void {
+  static clearWallet(): void {
     SafeStorage.clear();
     this.wallet = null;
-    if (callback)
-      callback();
+    this.setState();
+  }
+  static destroyWallet(): void {
+    SafeStorage.wipe();
+    this.wallet = null;
+    this.props.account = null;
+    this.setState();
   }
   static decodeTransaction(data: string | Uint8Array): DecodedTransaction {
     const message = typeof data == 'string' ? Stream.decode(data) : new Stream(data);
@@ -751,7 +755,6 @@ export function App() {
             <Route path="/" element={AppData.isWalletExists() ? <HomePage /> : <HypePage />} />
             <Route path="/configure" element={<ConfigurePage />} />
             <Route path="/explorer" element={<ExplorerPage />} />
-            <Route path="/bridge" element={<BridgePage />} />
             <Route path="/interaction" element={<InteractionPage />} />
             <Route path="/block/:id" element={<BlockPage />} />
             <Route path="/transaction/:id" element={<TransactionPage />} />

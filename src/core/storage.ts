@@ -144,6 +144,10 @@ export class SafeStorage {
   static clear(): void {
     this.key = null;
   }
+  static wipe(): void {
+    this.clear();
+    localStorage.clear();
+  }
   static hasEncryptedKey(): boolean {
     return localStorage.getItem(StorageField.Passphrase) != null;
   }

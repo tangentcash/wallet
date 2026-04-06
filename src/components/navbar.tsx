@@ -1,5 +1,5 @@
 import { Box, Button, Flex, IconButton, Tooltip } from "@radix-ui/themes";
-import { mdiAlertDecagramOutline, mdiContactlessPaymentCircleOutline, mdiDotsCircle, mdiDownload, mdiMagnifyScan, mdiRulerSquareCompass, mdiScaleBalance, mdiSetRight, mdiSquareRoundedBadgeOutline } from "@mdi/js";
+import { mdiAlertDecagramOutline, mdiContactlessPaymentCircleOutline, mdiDotsCircle, mdiDownload, mdiMagnifyScan, mdiRulerSquareCompass, mdiScaleBalance, mdiSquareRoundedBadgeOutline } from "@mdi/js";
 import { useLocation, useNavigate } from "react-router";
 import { AppData } from "../core/app";
 import { useMemo } from "react";
@@ -20,9 +20,8 @@ type Route = {
 const types: Route[] = [
   { path: '/', name: 'Home', tip: 'Account & Balances', icon: mdiSquareRoundedBadgeOutline, persistent: true },
   { path: '/portfolio', name: 'Trade', tip: 'Trade & Analyze', icon: mdiRulerSquareCompass, persistent: true, deep: true },
-  { path: '/bridge', name: 'Bridge', tip: 'Deposit & Withdraw', icon: mdiSetRight, persistent: true },
   { path: ['/interaction', '/restore'], name: 'Pay', tip: 'Pay & Interact', icon: mdiContactlessPaymentCircleOutline, persistent: true, disabled: (path: string) => path.startsWith('/restore') && !AppData.isWalletReady() },
-  { path: '/configure', name: 'Configure', tip: 'Settings & Statistics', icon: mdiDotsCircle },
+  { path: '/configure', name: 'Configure', tip: 'Settings & Statistics', icon: mdiDotsCircle, persistent: true },
   { path: '/legal', name: 'Legal', tip: 'Legal documents', icon: mdiScaleBalance, activeColor: 'yellow' },
   { path: '/app', name: 'App', tip: 'Get the app', icon: mdiDownload, activeColor: 'yellow' },
   { path: '/explorer', name: 'Explorer', tip: 'Explorer', icon: mdiMagnifyScan, activeColor: 'blue' },

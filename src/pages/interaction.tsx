@@ -91,6 +91,7 @@ export default function InteractionPage() {
     type: query.get('type'),
     asset: query.get('asset'),
     bridge: query.get('bridge'),
+    address: query.get('address'),
     fee: query.get('fee'),
     transaction: query.get('transaction'),
     back: query.get('back')
@@ -692,6 +693,7 @@ export default function InteractionPage() {
       case 'register': {
         const result = new ProgramRoute();
         try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
+        result.routingAddress = params.address || '';
         setProgram(result);
         break;
       }
@@ -699,6 +701,7 @@ export default function InteractionPage() {
         const result = new ProgramWithdraw();
         try { result.fee = params.fee ? new BigNumber(params.fee) : null; } catch { result.fee = null; }
         try { result.routing = ((await RPC.getBlockchains()) || []).map((v) => { return { chain: v.chain, policy: v.routing_policy }}); } catch { }
+        result.address = params.address || '';
         filter = params.asset ? new AssetId(params.asset).chain : null;
         setProgram(result);
         break;

@@ -1,6 +1,6 @@
 import { Box, Button, Flex, Heading } from "@radix-ui/themes";
 import { useNavigate } from "react-router";
-import { mdiDotsCircle, mdiMagnifyScan, mdiQrcodeScan } from "@mdi/js";
+import { mdiMagnifyScan, mdiQrcodeScan } from "@mdi/js";
 import { useCallback, useEffect, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData } from "../core/app";
@@ -82,9 +82,6 @@ export default function HomePage() {
           }
           <Button variant="soft" size="2" color="gray" onClick={() => navigate('/explorer')}>
             <Icon path={mdiMagnifyScan} size={0.9} />
-          </Button>
-          <Button variant="soft" size="2" color="amber" onClick={() => navigate('/configure')}>
-            <Icon path={mdiDotsCircle} size={0.9} />
           </Button>
         </Flex>
       </Flex>

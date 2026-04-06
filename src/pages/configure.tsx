@@ -1,5 +1,5 @@
-import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiRefresh, mdiReloadAlert } from "@mdi/js";
-import { Badge, Box, Button, Card, DataList, Flex, Heading, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiRefresh, mdiReloadAlert, mdiTrashCan } from "@mdi/js";
+import { AlertDialog, Badge, Box, Button, Card, DataList, Flex, Heading, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { SafeStorage, StorageField } from "../core/storage";
@@ -7,12 +7,14 @@ import { AppData, AppPermission, ConnectionState } from "../core/app";
 import { ByteUtil, RPC, Signing, Readability } from "tangentsdk";
 import Icon from "@mdi/react";
 import License from "../components/license";
+import { useNavigate } from "react-router";
 
 export default function ConfigurePage() {
+  const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
+  const navigate = useNavigate();
   const [counter, setCounter] = useState(0);
   const [validatorAddress, setValidatorAddress] = useState(AppData.props.validator || '');
   const [loadingProps, setLoadingProps] = useState(false);
-  const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const networkInfo = useMemo<ConnectionState>(() => {
     return AppData.server || {
       sentBytes: 0,
@@ -102,12 +104,15 @@ export default function ConfigurePage() {
               <Icon path={mdiReloadAlert} size={0.85} />
             </Button>
           </Flex>
-          <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Show debugger</Text>
-            <Button size="2" variant="soft" color="yellow" onClick={() => AppData.openDevTools()}>
-              <Icon path={mdiBugOutline} size={0.85} />
-            </Button>
-          </Flex>
+          {
+            AppData.isApp() &&
+            <Flex justify="between" align="center" mt="2">
+              <Text size="2" color="gray">Show debugger</Text>
+              <Button size="2" variant="soft" color="yellow" onClick={() => AppData.openDevTools()}>
+                <Icon path={mdiBugOutline} size={0.85} />
+              </Button>
+            </Flex>
+          }
         </Box>
       </Card>
       <Card mt="4">
@@ -115,17 +120,17 @@ export default function ConfigurePage() {
           <Heading size="5" mb="2">Wallet options</Heading>
           <Flex justify="between" align="center" mt="2">
             <Text size="2" color="gray">Wallet status</Text>
-            <Badge size="3" color="lime">{ AppData.getWalletSecretKey() != null ? 'Read/write' : 'Read-only' }</Badge>
+            <Badge size="3" color="lime">{ AppData.isWalletExists() ? (AppData.getWalletSecretKey() != null ? 'Read/write' : 'Read-only') : 'TBC' }</Badge>
           </Flex>
           <Flex justify="between" align="center" mt="2">
             <Text size="2" color="gray">Close wallet</Text>
-            <Button size="2" variant="soft" color="lime" disabled={!AppData.isWalletReady()} onClick={() => AppData.clearWallet()}>
+            <Button size="2" variant="soft" color="lime" disabled={!AppData.isWalletExists() || !AppData.isWalletReady()} onClick={() => AppData.clearWallet()}>
               <Icon path={mdiLocationExit} size={0.85} />
             </Button>
           </Flex>
           <Flex justify="between" align="center" mt="2">
             <Text size="2" color="gray">Export wallet</Text>
-            <Button size="2" variant="soft" color="red" onClick={async () => {
+            <Button size="2" variant="soft" color="yellow" disabled={!AppData.isWalletExists()} onClick={async () => {
                 const mnemonic = await SafeStorage.get(StorageField.Mnemonic);
                 const secretKey = AppData.getWalletSecretKey(); 
                 const publicKey = AppData.getWalletPublicKey();
@@ -141,6 +146,33 @@ export default function ConfigurePage() {
               }}>
               <Icon path={mdiAlertOctagram} size={0.85} />
             </Button>
+          </Flex>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" color="gray">Destroy wallet</Text>
+            <AlertDialog.Root>
+              <AlertDialog.Trigger disabled={!AppData.isWalletExists()}>
+                <Button size="2" variant="soft" color="red">
+                  <Icon path={mdiTrashCan} size={0.85} />
+                </Button>
+              </AlertDialog.Trigger>
+              <AlertDialog.Content maxWidth="450px">
+                <AlertDialog.Title>Wipe the wallet</AlertDialog.Title>
+                <AlertDialog.Description size="2">
+                  Are you sure? You will not be able to recover the access without your recovery phrase or private key.
+                </AlertDialog.Description>
+                <Flex gap="3" mt="4" justify="end">
+                  <AlertDialog.Cancel>
+                    <Button variant="soft" color="gray">Cancel</Button>
+                  </AlertDialog.Cancel>
+                  <AlertDialog.Action>
+                    <Button variant="solid" color="red" onClick={() => {
+                      AppData.destroyWallet();
+                      navigate('/');
+                    }}>Destroy wallet</Button>
+                  </AlertDialog.Action>
+                </Flex>
+              </AlertDialog.Content>
+            </AlertDialog.Root>
           </Flex>
         </Box>
       </Card>

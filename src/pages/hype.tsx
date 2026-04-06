@@ -1,4 +1,4 @@
-import { mdiArrowBottomLeft, mdiArrowBottomRight, mdiArrowDown, mdiContactlessPayment, mdiCreation, mdiDotsCircle, mdiFire, mdiLightbulbOn, mdiLightbulbOutline, mdiLogin, mdiMenu, mdiScaleBalance, mdiSchool } from "@mdi/js";
+import { mdiArrowBottomLeft, mdiArrowBottomRight, mdiArrowDown, mdiContactlessPayment, mdiCreation, mdiFire, mdiLightbulbOn, mdiLightbulbOutline, mdiLogin, mdiMenu, mdiScaleBalance, mdiSchool } from "@mdi/js";
 import { Avatar, Box, Button, DropdownMenu, Flex, Heading, IconButton, Text } from "@radix-ui/themes";
 import { Link, useNavigate } from "react-router";
 import { useState } from "react";
@@ -77,14 +77,6 @@ export default function HypePage() {
                     <Flex align="center" gap="2">
                       <Icon path={mdiScaleBalance} size={0.6} /> 
                       <Text size="2">Documents</Text>
-                    </Flex>
-                  </Link>
-                </DropdownMenu.Item>
-                <DropdownMenu.Item>
-                  <Link className="router-text-link" to="/configure" style={{ textDecoration: 'none' }}>
-                    <Flex align="center" gap="2">
-                      <Icon path={mdiDotsCircle} size={0.6} /> 
-                      <Text size="2">Settings</Text>
                     </Flex>
                   </Link>
                 </DropdownMenu.Item>

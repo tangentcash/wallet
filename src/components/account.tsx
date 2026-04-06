@@ -12,6 +12,7 @@ import BigNumber from "bignumber.js";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import Icon from "@mdi/react";
 import Transaction from "../components/transaction";
+import Bridge from "./bridge";
 
 const TRANSACTION_COUNT = 16;
 export default function Account(props: { ownerAddress: string, self?: boolean, nonce?: number }) {
@@ -228,7 +229,9 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
           <Tabs.Content value="address">
             {
               filteredAddress != null &&
-              <AddressView address={filteredAddress} onExit={() => setSelectedAddress(-1)}></AddressView>
+              <Box px="2" pt="4" pb="2">
+                <AddressView address={filteredAddress} onExit={() => setSelectedAddress(-1)}></AddressView>
+              </Box>
             }
             {
               !filteredAddress &&
@@ -331,6 +334,15 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                   </Box>
                 </Flex>
               )
+            }
+            {
+              props.self &&
+              <Box mt="2">
+                <Box px="2" mb="4">
+                  <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+                </Box>
+                <Bridge blockchains={blockchains} assets={assets}></Bridge>
+              </Box>
             }
           </Tabs.Content>
           <Tabs.Content value="storage">
@@ -479,14 +491,6 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
           </Tabs.Content>
         </Tabs.Root>
       </Card>
-      {
-        props.self && !loading && !assets.length &&
-        <Flex justify="center" align="center" direction="column" mt="8">
-          <Button size="3" variant="surface" style={{ paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation" onClick={() => navigate('/bridge')}>
-            Deposit tokens ↙
-          </Button>
-        </Flex>
-      }
       {
         (transactions.length > 0 || mempoolTransactions.length > 0) &&
         <Box width="100%" my="8">
