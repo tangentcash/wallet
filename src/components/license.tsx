@@ -9,7 +9,7 @@ export default function License(props: { style?: CSSProperties, app?: boolean })
   return (   
     <Box style={props.style}>
       <Flex align="center" justify="center" gap="6">
-        <a href="https://discord.gg/TyubmucCTB" target="_blank">
+        <a href="https://discord.gg/tangentcash" target="_blank">
           <IconButton variant="ghost" color="gray" size="2">
             <img src="/social/discord.svg" width="38px" height="38px" />
           </IconButton>
