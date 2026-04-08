@@ -88,14 +88,14 @@ export default function PortfolioPage() {
     }
   }, [equityAssets]);
   const findOrders = useCallback(async (refresh?: boolean) => {
-    if (!ownerAddress) {
+    if (!baseAddress) {
       setOrders([]);
       setMoreOrders(false);
       return false;
     }
     try {
       const cursor = Cursor.offset(refresh ? 0 : orders.length);
-      const data = await Exchange.accountOrders({ address: ownerAddress, page: cursor.offset * cursor.count });
+      const data = await Exchange.accountOrders({ address: baseAddress, page: cursor.offset * cursor.count });
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setOrders([]);
@@ -113,16 +113,16 @@ export default function PortfolioPage() {
       setMoreOrders(false);
       return false;
     }
-  }, [ownerAddress, pools]);
+  }, [baseAddress, pools]);
   const findPools = useCallback(async (refresh?: boolean) => {
-    if (!ownerAddress) {
+    if (!baseAddress) {
       setPools([]);
       setMorePools(false);
       return false;
     }
     try {
       const cursor = Cursor.offset(refresh ? 0 : pools.length);
-      const data = await Exchange.accountPools({ address: ownerAddress, page: cursor.offset * cursor.count });
+      const data = await Exchange.accountPools({ address: baseAddress, page: cursor.offset * cursor.count });
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setPools([]);
@@ -140,18 +140,17 @@ export default function PortfolioPage() {
       setMorePools(false);
       return false;
     }
-  }, [ownerAddress, pools]);
+  }, [baseAddress, pools]);
   useEffectAsync(async () => {
     try {
-      const pullAddress = params.account || ownerAddress;
-      if (!pullAddress)
+      if (!baseAddress)
         throw false;
 
-      const assets = await Exchange.accountBalances({ address: pullAddress, resync: dashboardUpdates == -1 });
+      const assets = await Exchange.accountBalances({ address: baseAddress, resync: dashboardUpdates == -1 });
       if (!assets)
         throw false;
       
-      Storage.set(`__assets:${pullAddress}__`, assets);
+      Storage.set(`__assets:${baseAddress}__`, assets);
       setAssets(assets);
     } catch {
       setAssets([]);
@@ -202,7 +201,6 @@ export default function PortfolioPage() {
     }
   }, [viewer, market]);
   useEffect(() => {
-    const pullAddress = params.account || ownerAddress;
     const updatePairs = () => {
       setPairs(prev => {
         const copy = [...prev];
@@ -224,7 +222,7 @@ export default function PortfolioPage() {
       }
       return x;
     }));
-    setAssets(RPC.fetchObject(Storage.get(`__assets:${pullAddress}__`)) || []);
+    setAssets(RPC.fetchObject(Storage.get(`__assets:${baseAddress}__`)) || []);
     window.addEventListener('update:trade', updatePairs);
     window.addEventListener('update:order', updateDashboard);
     window.addEventListener('update:pool', updateDashboard);
