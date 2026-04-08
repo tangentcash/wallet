@@ -1,29 +1,22 @@
-import { AspectRatio, Badge, Box, Button, Card, Dialog, Flex, Heading, IconButton, SegmentedControl, Select, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, Flex, Heading, SegmentedControl, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { Link, useNavigate, useParams } from "react-router";
 import { AppData } from "../../core/app";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Exchange, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide, Balance, Pool } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
-import { SeriesApiRef } from "lightweight-charts-react-components";
-import { BarPrice, ChartOptions, CrosshairMode, DeepPartial, IChartApi, LogicalRange, MouseEventParams, PriceScaleMode, Time } from "lightweight-charts";
-import { mdiAlert, mdiArrowRightThin, mdiCheck, mdiCheckDecagram, mdiCog, mdiCubeOutline, mdiCurrencyUsd, mdiTimelapse } from "@mdi/js";
-import { GenericBar, PriceBar, VolumeBar, ChartViewType, ChartView } from "../../components/exchange/chart";
+import { CrosshairMode, PriceScaleMode } from "lightweight-charts";
+import { mdiAlert, mdiArrowRightThin, mdiCheck, mdiCurrencyUsd } from "@mdi/js";
 import { AlertBox, AlertType } from "../../components/alert";
 import { AssetId, Readability, Whitelist } from "tangentsdk";
 import { Storage } from "../../core/storage";
 import { Maker } from "../../components/exchange/maker";
 import { AssetImage } from "../../components/asset";
+import { ChartViewType, ChartWidget, SeriesOptions, PriceScope } from "../../components/exchange/chart";
 import BigNumber from "bignumber.js";
 import OrderView from "../../components/exchange/order";
 import Icon from "@mdi/react";
 import Clock from "../../components/exchange/clock";
 import PoolView from "../../components/exchange/pool";
-
-enum PriceScope {
-  Bid,
-  All,
-  Ask
-}
 
 type AggregatedGroupedLevel = {
   ids: number[],
@@ -31,58 +24,6 @@ type AggregatedGroupedLevel = {
   quantity: BigNumber
 }
 
-function mergeSeries(a: GenericBar[], b: GenericBar[], merge: (a: GenericBar, b: GenericBar) => GenericBar): GenericBar[] {
-  const c: GenericBar[] = []; let i = 0, j = 0;  
-  while (i < a.length && j < b.length) {
-    const ax = a[i], bx = b[j], cx = c[c.length - 1];
-    const t1 = ax.time as number;
-    const t2 = bx.time as number;
-    const t3 = cx ? cx.time as number : null;
-    if (t1 < t2) {
-      c.push(t3 == t1 ? merge(cx, ax) : ax);
-      i++;
-    } else if (t1 > t2) {
-      c.push(t3 == t2 ? merge(cx, bx) : bx);
-      j++;
-    } else {
-      c.push(t3 == t1 ? merge(cx, merge(ax, bx)) : merge(ax, bx));
-      i++; j++;
-    }
-  }
-  while (i < a.length) {
-    const ax = a[i++], cx = c[c.length - 1];
-    c.push(cx && cx.time == ax.time ? merge(cx, ax) : ax);
-  }
-  while (j < b.length) {
-    const bx = b[j++], cx = c[c.length - 1];
-    c.push(cx && cx.time == bx.time ? merge(cx, bx) : bx);
-  }
-  return c;
-}
-function mergePriceSeries(a: PriceBar[], b: PriceBar[]): PriceBar[] {
-  return mergeSeries(a, b, (ax: GenericBar, bx: GenericBar) => {
-    const ay = ax as PriceBar;
-    const by = bx as PriceBar;
-    return {
-      time: ay.time,
-      open: (ay.open + by.open) / 2,
-      low: Math.min(ay.low, by.low),
-      high: Math.max(ay.high, by.high),
-      close: (ay.close + by.close) / 2,
-      value: (ay.value + by.value) / 2
-    } as GenericBar;
-  }) as PriceBar[];
-}
-function mergeVolumeSeries(a: VolumeBar[], b: VolumeBar[]): VolumeBar[] {
-  return mergeSeries(a, b, (ax: GenericBar, bx: GenericBar) => {
-    const ay = ax as VolumeBar;
-    const by = bx as VolumeBar;
-    return {
-      time: ay.time,
-      value: ay.value + by.value
-    } as GenericBar;
-  }) as VolumeBar[];
-}
 function reduceLevels(levels: (AggregatedGroupedLevel | AggregatedLevel)[], range: number): AggregatedGroupedLevel[] {
   const groups: Record<string, AggregatedGroupedLevel> = { };
   levels.forEach((level) => {
@@ -103,12 +44,6 @@ function reduceLevels(levels: (AggregatedGroupedLevel | AggregatedLevel)[], rang
   });
   return Object.values(groups);
 }
-function upperTimeSlot(interval: number, timepoint: number): number {
-    return Math.ceil(timepoint / interval) * interval;
-}
-function lowerTimeSlot(interval: number, timepoint: number): number {
-    return Math.floor(timepoint / interval) * interval;
-}
 function policyOf(market: Market | null): string {
     switch (market ? market.marketPolicy.toNumber() : -1) {
       case MarketPolicy.Spot:
@@ -126,17 +61,12 @@ function pathOfOrder(orderbook: string): string {
   return `__order:${orderbook}__`;
 }
 
-const UP_COLOR = '#22ab94';
-const DOWN_COLOR = '#f7525f';
 let accountUpdateId: any = null;
 
 export default function OrderbookPage() {
   const params = useParams();
   const navigate = useNavigate();
   const mobile = document.body.clientWidth <= 800;
-  const seriesRef = useRef<IChartApi>(null);
-  const priceSeriesRef = useRef<SeriesApiRef<'Candlestick' | 'Bar' | 'Area' | 'Line'>>(null);
-  const volumeSeriesRef = useRef<SeriesApiRef<'Histogram'>>(null);
   const [blockNumber, setBlockNumber] = useState<number>(AppData.tip?.toNumber() || 0)
   const [whitelisted, setWhitelisted] = useState<boolean | null>(null);
   const [showingPools, setShowingPools] = useState<boolean>(false);
@@ -148,14 +78,13 @@ export default function OrderbookPage() {
   const [levels, setLevels] = useState<{ ask: AggregatedGroupedLevel[], bid: AggregatedGroupedLevel[] }>({ ask: [], bid: [] })
   const [polyBalances, setPolyBalances] = useState<{ primary: Balance[], secondary: Balance[] }>({ primary: [], secondary: [] });
   const [tiers, setTiers] = useState<AccountTier | null>(null);
-  const [legendBar, setLegendBar] = useState<{ price?: PriceBar | null, volume?: VolumeBar | null }>({ });
   const [pair, setPair] = useState<AggregatedPair | null>(null);
   const [market, setMarket] = useState<Market | null>(null);
   const [trades, setTrades] = useState<AggregatedMatch[]>([]);
   const [_, setPolyAssets] = useState<{ primary: AssetId[], secondary: AssetId[] }>({ primary: [], secondary: [] });
   const [incomingTrades, setIncomingTrades] = useState<CustomEvent<any>[]>([]);
   const [incomingLevels, setIncomingLevels] = useState<CustomEvent<any>[]>([]);
-  const [seriesOptions, setSeriesOptions] = useState({
+  const [seriesOptions, setSeriesOptions] = useState<SeriesOptions>({
     intervals: [
       [2628000, "1M"],
       [604800, "1W"],
@@ -178,17 +107,6 @@ export default function OrderbookPage() {
     volume: false,
     inverted: false,
     showPrimary: true
-  });
-  const [seriesState, setSeriesState] = useState({
-    launch: Number.MIN_SAFE_INTEGER,
-    from: Number.MAX_SAFE_INTEGER,
-    to: Number.MIN_SAFE_INTEGER,
-    ready: false,
-    loading: false
-  });
-  const [seriesData, setSeriesData] = useState<{ price: PriceBar[], volume: VolumeBar[] }>({
-    price: [],
-    volume: []
   });
   const orderbook = useMemo(() => {
     if (!params.orderbook)
@@ -248,137 +166,6 @@ export default function OrderbookPage() {
       bid: reduceLevels(levels.bid, range).sort((a, b) => b.price.minus(a.price).toNumber())
     }
   }, [seriesOptions.priceLevel, levels]);
-  const seriesInterval = useMemo((): string => {
-    const target = seriesOptions.intervals.find((item) => item[0] == seriesOptions.interval);
-    return target ? target[1].toString() : '?';
-  }, [seriesOptions.intervals, seriesOptions.interval]);
-  const seriesChartOptions = useMemo((): DeepPartial<ChartOptions> => {
-    return {
-      crosshair: {
-        mode: seriesOptions.crosshair,
-        horzLine: {
-          labelBackgroundColor: AppData.styleOf('--accent-3'),
-        },
-        vertLine: {
-          labelBackgroundColor: AppData.styleOf('--accent-3')
-        }
-      },
-      layout: {
-          background: { color: 'transparent' },
-          textColor: AppData.styleOf('--gray-12')
-      },
-      grid: {
-        vertLines: { color: AppData.styleOf('--gray-5'), visible: seriesOptions.view == ChartViewType.Candles || seriesOptions.view == ChartViewType.Bars },
-        horzLines: { color: AppData.styleOf('--gray-5'), visible: seriesOptions.view == ChartViewType.Candles || seriesOptions.view == ChartViewType.Bars }
-      },
-      rightPriceScale: {
-        borderColor: AppData.styleOf('--gray-5'),
-        autoScale: true,
-        ticksVisible: true,
-        invertScale: seriesOptions.inverted,
-        mode: seriesOptions.price
-      },
-      timeScale: {
-        borderColor: AppData.styleOf('--gray-5'),
-        timeVisible: true,
-        secondsVisible: true
-      },
-      localization: {
-          priceFormatter: (price: BarPrice): string => Readability.toValue(null, price, false, true)
-      }
-    };
-  }, [pair?.id, seriesOptions.crosshair, seriesOptions.view, seriesOptions.inverted, seriesOptions.price]);
-  const fetchSeries = useCallback(async (range: LogicalRange | null) => {
-    if (!pair || !priceSeriesRef.current || seriesState.loading)
-      return;
-
-    if (seriesState.ready) {
-      if (seriesState.from <= seriesState.launch)
-        return;
-
-      const bars = range != null ? priceSeriesRef.current.api()?.barsInLogicalRange(range) || null : null;
-      if (!bars || bars.barsBefore > -seriesOptions.bars * 0.25)
-        return;
-    }
-    
-    const to = upperTimeSlot(seriesOptions.interval, seriesState.ready && seriesState.from != Number.MAX_SAFE_INTEGER ? seriesState.from : Math.floor(new Date().getTime() / 1000));
-    const from = Math.max(seriesState.launch, lowerTimeSlot(seriesOptions.interval, to - seriesOptions.bars * seriesOptions.interval));
-    if (isNaN(from) || isNaN(to) || to <= from)
-      return;
-    else if (seriesState.ready && from >= seriesState.from && to <= seriesState.to)
-      return;
-      
-    const reset = !seriesState.ready;
-    setSeriesState(prev => ({ ...prev, ready: true, loading: true }));
-    try {
-      const result = await Exchange.marketPairPriceSeries(pair.id, seriesOptions.interval, Math.floor(from / seriesOptions.interval));
-      const price: PriceBar[] = [], volume: VolumeBar[] = [];
-      let min = result.length > 0 ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER;
-      let max = Number.MIN_SAFE_INTEGER;
-      for (let i = 0; i < result.length; i++) {
-        const bar = result[i];
-        const time = Math.floor(bar.time / 1000) as Time;
-        price.push({
-            time: time,
-            open: bar.open.toNumber(),
-            low: bar.low.toNumber(),
-            high: bar.high.toNumber(),
-            close: bar.close.toNumber(),
-            value: bar.close.toNumber()
-        });
-        volume.push({
-          time: time,
-          value: bar.volume.toNumber(),
-          color: bar.sentiment >= 0 ? UP_COLOR : DOWN_COLOR
-        });
-        min = Math.min(min, time as any);
-        max = Math.max(max, time as any);
-      }
-      
-      priceSeriesRef.current?.api()?.setData([]);
-      volumeSeriesRef.current?.api()?.setData([]);
-      setSeriesData(prev => ({
-        price: reset ? price : mergePriceSeries(prev.price, price),
-        volume: reset ? volume : mergeVolumeSeries(prev.volume, volume)
-      }));
-      setTimeout(() => setSeriesState(prev => ({
-        ...prev,
-        loading: false,
-        from: reset ? min : Math.min(min, prev.from, from),
-        to: reset ? max : Math.max(max, prev.to)
-      })), 500);
-    } catch {
-      setSeriesState(prev => ({ ...prev, loading: false, from: Number.MIN_SAFE_INTEGER }));
-    }
-  }, [pair, seriesState, seriesOptions.bars, seriesOptions.interval]);
-  const fitSeries = useCallback((api?: IChartApi) => {
-    if (api != null) {
-      seriesRef.current = api;
-    }
-
-    const box = seriesRef.current?.chartElement().parentElement?.parentElement;
-    if (box != null) {
-      seriesRef.current?.resize(box.clientWidth, box.clientHeight);
-    }
-    
-    if (seriesOptions.volume) {
-      const fitVolume = () => {
-        const volumeSeriesApi = volumeSeriesRef.current?.api();
-        volumeSeriesApi?.priceScale().applyOptions({ scaleMargins: { top: 0.85, bottom: 0 } });
-        if (!volumeSeriesApi)
-          setTimeout(fitVolume, 50);
-      };
-      fitVolume();
-    }
-  }, [seriesOptions.volume]);
-  const fitLegend = useCallback((event: MouseEventParams) => {
-    const priceSeriesApi = priceSeriesRef.current?.api();
-    const priceBar = event && priceSeriesApi ? event.seriesData.get(priceSeriesApi) as PriceBar : undefined;
-    const volumeSeriesApi = volumeSeriesRef.current?.api();
-    const volumeBar = event && volumeSeriesApi ? event.seriesData.get(volumeSeriesApi) as VolumeBar : undefined;
-    if (priceBar || volumeBar)
-      setLegendBar({ price: priceBar, volume: volumeBar });
-  }, []);
   const updatePreset = useCallback((side: OrderSide, price: BigNumber) => {
     setPreset({
       id: (preset?.id || 0) + 1,
@@ -396,6 +183,11 @@ export default function OrderbookPage() {
       return result;
     });
   }, [params]);
+  const updateIncomingTrades = useCallback((trades: AggregatedMatch[]) => {
+    setIncomingTrades([]);
+    if (trades.length > 0)
+      setTrades(prev => ([...prev, ...trades]));
+  }, []);
   useEffectAsync(async () => {
     setLoading(true);
     try {
@@ -407,12 +199,6 @@ export default function OrderbookPage() {
         throw false;
 
       setPair(result);
-      setSeriesState(prev => ({
-        ...prev,
-        launch: Math.floor(result.launchTime / 1000),
-        ready: false
-      }));
-
       if (typeof params.orderbook == 'string' && params.orderbook.length > 0) {
         const memorizedSeriesOptions = Storage.get(pathOfOrderbook(params.orderbook));
         if (memorizedSeriesOptions != null && typeof memorizedSeriesOptions == 'object') {
@@ -510,101 +296,6 @@ export default function OrderbookPage() {
       navigate(Exchange.location);
     }
   }, [orderbook]);
-  useEffectAsync(async () => {
-    if (!seriesState.ready) {
-      await fetchSeries(null);
-    }
-  }, [seriesState.ready, fetchSeries]);
-  useEffect(() => {
-    if (!pair || !seriesState.ready || !incomingTrades.length)
-      return;
-
-    const trades: AggregatedMatch[] = [];
-    const target = Exchange.priceOf(pair.primaryAsset, pair.secondaryAsset);
-    let sentiment = 0, price = target.close, quantity = new BigNumber(0);
-    for (let i = 0; i < incomingTrades.length; i++) {
-      const data = incomingTrades[i].detail || null;
-      const merge = data?.primaryAsset?.id == pair?.primaryAsset.id && data?.secondaryAsset?.id == pair?.secondaryAsset.id;
-      const nextAccount = data?.account || null;
-      const nextSide = (data?.side || OrderSide.Buy) as OrderSide;
-      const nextPrice = merge && data?.price ? new BigNumber(data?.price || 0) : null;
-      const nextQuantity = merge ? new BigNumber(data?.quantity || 0) : new BigNumber(0);
-      if (merge && nextPrice != null) {
-        sentiment += (nextSide == OrderSide.Buy ? 1 : -1) * (1 + nextQuantity.toNumber());
-        price = nextPrice;
-        quantity = quantity.plus(nextQuantity);
-        if (nextAccount != null) {
-          trades.push({
-            time: new Date(),
-            account: nextAccount,
-            side: nextSide,
-            price: nextPrice,
-            quantity: nextQuantity
-          });
-        }
-      }
-    }
-    
-    setIncomingTrades([]);
-    if (!price)
-      return;
-
-    setPair({
-      ...pair,
-      price: {
-        open: target.open,
-        low: BigNumber.min(pair.price?.low || new BigNumber(Number.MAX_SAFE_INTEGER), price || target.open || new BigNumber(Number.MAX_SAFE_INTEGER)), 
-        high: BigNumber.max(pair.price?.high || new BigNumber(Number.MIN_SAFE_INTEGER), price || target.open || new BigNumber(Number.MIN_SAFE_INTEGER)), 
-        close: price,
-        orderLiquidity: pair.price?.orderLiquidity || new BigNumber(0),
-        poolLiquidity: pair.price?.poolLiquidity || new BigNumber(0),
-        totalLiquidity: pair.price?.totalLiquidity || new BigNumber(0),
-        orderVolume: (pair.price?.orderVolume || new BigNumber(0)).plus(quantity),
-        poolVolume: pair.price?.poolVolume || new BigNumber(0),
-        totalVolume: (pair.price?.totalVolume || new BigNumber(0)).plus(quantity),
-      }
-    });
-    if (trades.length > 0)
-      setTrades(prev => ([...trades, ...prev]));
-    setSeriesData(prev => {
-      if (!price)
-        return prev;
-      
-      const priceSeries = [...prev.price], volumeSeries = [...prev.volume];
-      const time = lowerTimeSlot(seriesOptions.interval, Math.floor(new Date().getTime() / 1000)); 
-      const prevPrice: PriceBar | null = priceSeries.length > 0 ? priceSeries[priceSeries.length - 1] : null;
-      const prevVolume: VolumeBar | null = volumeSeries.length > 0 ? volumeSeries[volumeSeries.length - 1] : null;
-      const mergePrice = prevPrice && (prevPrice.time as number) >= time;
-      const mergeVolume = prevVolume && (prevVolume.time as number) >= time;
-      const nextPrice: PriceBar = {
-          time: mergePrice ? prevPrice.time : time as Time,
-          open: mergePrice ? prevPrice.open : price.toNumber(),
-          low: mergePrice ? Math.min(prevPrice.low, price.toNumber()) : price.toNumber(),
-          high: mergePrice ? Math.max(prevPrice.high, price.toNumber()) : price.toNumber(),
-          close: price.toNumber(),
-          value: price.toNumber()
-      };
-      const nextVolume: VolumeBar = {
-        time: mergeVolume ? prevVolume.time : time as Time,
-        value: mergeVolume ? prevVolume.value + quantity.toNumber() : quantity.toNumber(),
-        color: mergeVolume && prevVolume.value * 0.5 >= quantity.toNumber() ? prevVolume.color : (sentiment >= 0 ? UP_COLOR : DOWN_COLOR)
-      };
-      if (mergePrice) {
-        priceSeries[priceSeries.length - 1] = nextPrice;
-      } else {
-        priceSeries.push(nextPrice);
-      }
-      if (mergeVolume) {
-        volumeSeries[volumeSeries.length - 1] = nextVolume;
-      } else {
-        volumeSeries.push(nextVolume);
-      }
-      return {
-        price: priceSeries,
-        volume: volumeSeries
-      }
-    });
-  }, [incomingTrades, pair, seriesState.ready, seriesOptions.interval]);
   useEffect(() => {
     if (!incomingLevels.length)
       return;
@@ -655,11 +346,6 @@ export default function OrderbookPage() {
     });
   }, [incomingLevels]);
   useEffect(() => {
-    const resize = () => fitSeries(); resize();
-    window.addEventListener('resize', resize);
-    return () => window.removeEventListener('resize', resize);
-  }, [seriesOptions.volume]);
-  useEffect(() => {
     const updateChain = (event: any) => setBlockNumber(event.detail.tip);
     const updateTrades = (event: any) => setIncomingTrades(prev => ([...prev, event]));
     const updateLevels = (event: any) => setIncomingLevels(prev => ([...prev, event]));
@@ -673,162 +359,23 @@ export default function OrderbookPage() {
     };
   }, []);
 
-  const ChartWidget = () => (
-    <Box width="100%" mb={mobile ? undefined : '3'} style={mobile ? { } : { backgroundColor: 'var(--color-panel)', borderRadius: '22px', overflow: 'hidden' }}>
-      <Flex align="center" pt={mobile ? '4' : '3'} pb={mobile ? '4' : '3'} px="3">
-        <Box style={{ position: 'relative' }} mr="2">
-          <AssetImage asset={orderbook?.secondaryAsset || undefined} size="2" style={{ position: 'absolute', top: mobile ? '18px' : '24px', left: '-6px' }}></AssetImage>
-          <AssetImage asset={orderbook?.primaryAsset || undefined} size={mobile ? '3' : '4'}></AssetImage>
-        </Box>
-        <Flex direction="column" width="100%">
-          <Flex justify="between">
-            <Tooltip side="left" content={whitelisted === true ? 'Well-known trading pair — current price is possibly within reasonable market ranges' : (whitelisted === false ? 'One or both of assets in trading pair are unknown and are possibly malicious — current price is likely not representative of actual market conditions' : 'Loading...')}>
-              <Flex gap="1">
-                <Text size={mobile ? '3' : '4'} style={{ height: '18px', color: 'var(--gray-12)' }}>{ orderbook?.primaryAsset ? Readability.toAssetName(orderbook.primaryAsset) : '?' }</Text>
-                { <Icon path={whitelisted === true ? mdiCheckDecagram : (whitelisted === false ? mdiAlert : mdiTimelapse)} color={whitelisted === true ? 'var(--sky-9)' : (whitelisted === false ? 'var(--yellow-9)' : 'var(--gray-9)')} size={0.75} style={{ transform: 'translateY(3px)' }}></Icon> }
-              </Flex>
-            </Tooltip>
-            <Text size={mobile ? '3' : '4'} style={{ height: '18px' }}>{ Readability.toValue(null, pair?.price.close || null, false, true) }</Text>
-          </Flex>
-          <Flex justify="between" align="center" mt={mobile ? undefined : '1'}>
-            <Text size={mobile ? '1' : '2'} color="gray">{ (orderbook?.primaryAsset ? Readability.toAssetSymbol(orderbook.primaryAsset) : '?') + 'x' + (orderbook?.secondaryAsset ? Readability.toAssetSymbol(orderbook.secondaryAsset) : '?') }</Text>
-            <Box>
-              <Text size={mobile ? '1' : '2'}>{ Readability.toValue(null, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true, true) }</Text>
-              <Text size={mobile ? '1' : '2'} color="gray"> | </Text>
-              <Text size={mobile ? '1' : '2'} color={ (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'red' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'lime') }>{ Readability.toPercentageDelta(pair?.price.open || new BigNumber(0), pair?.price.close || new BigNumber(0)) }</Text>
-            </Box>
-          </Flex>
-        </Flex>
-      </Flex>
-      <AspectRatio ratio={mobile ? (7 / 9) : (16 / 9)}>
-        <ChartView
-          type={seriesOptions.view}
-          options={seriesChartOptions}
-          priceRef={priceSeriesRef}
-          priceData={seriesData.price}
-          volumeRef={seriesOptions.volume ? volumeSeriesRef : undefined}
-          volumeData={seriesData.volume}
-          onInit={(api) => fitSeries(api)}
-          onCrosshairMove={(e) => fitLegend(e)}
-          onVisibleLogicalRangeChange={fetchSeries}></ChartView>
-        <Box position="absolute" top="0" left="0" pl="3" pt="2" style={{ zIndex: 1 }}>
-          {
-            orderbook?.primaryAsset && orderbook?.secondaryAsset &&
-            <Text>{ Readability.toAssetSymbol(orderbook.primaryAsset) }/{ Readability.toAssetSymbol(orderbook.secondaryAsset) } { seriesInterval }</Text>
-          }
-          {
-            !mobile &&
-            <Flex direction="column">
-              <Text size="1"><Text color="gray" mr="1">O</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.open || null) }</Text>
-              <Text size="1"><Text color="gray" mr="1">H</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.high || null) }</Text>
-              <Text size="1"><Text color="gray" mr="1">L</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.low || null) }</Text>
-              <Text size="1"><Text color="gray" mr="1">C</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.close || null) }</Text>
-              <Text size="1"><Text color="gray" mr="1">V</Text>{ Readability.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text>
-            </Flex>
-          }
-        </Box>
-      </AspectRatio>
-      <Flex mt="2" px="3" pb="3" gap="2" justify="between" align="center">
-        <Badge size="3" color="gray" style={{ fontSize: '1.05rem', padding: '10px 15px' }}>
-          <Icon path={mdiCubeOutline} size={0.8}></Icon>
-          { blockNumber > 0 && Readability.toValue(null, blockNumber, false, false) }
-        </Badge>
-        <Flex gap="2">
-          <Select.Root size="3" value={seriesOptions.interval.toString()} onValueChange={(e) => {
-            updateSeriesOptions(prev => ({ ...prev, interval: parseInt(e) }));
-            setSeriesState(prev => ({ ...prev, ready: false }));
-          }}>
-            <Select.Trigger variant="soft" color="gray" />
-            <Select.Content>
-              <Select.Group>
-                <Select.Label>Interval</Select.Label>
-                {
-                  seriesOptions.intervals.map((item) =>
-                    <Select.Item key={item[0]} value={item[0].toString()}>{ item[1] }</Select.Item>)
-                }
-              </Select.Group>
-            </Select.Content>
-          </Select.Root>
-          <Dialog.Root>
-            <Dialog.Trigger>
-              <IconButton size="3" variant="surface" color="gray" loading={seriesState.loading}>
-                <Icon path={mdiCog} size={0.95}></Icon>
-              </IconButton>
-            </Dialog.Trigger>
-            <Dialog.Content maxWidth="450px">
-              <Dialog.Title>Configure chart</Dialog.Title>
-              <Flex direction="column" gap="2">
-                <Select.Root value={seriesOptions.view.toString()} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, view: parseInt(e) }))}>
-                  <Select.Trigger />
-                  <Select.Content>
-                    <Select.Group>
-                      <Select.Label>Chart view</Select.Label>
-                      <Select.Item value={ChartViewType.Candles.toString()}>Candles view</Select.Item>
-                      <Select.Item value={ChartViewType.Bars.toString()}>Bars view</Select.Item>
-                      <Select.Item value={ChartViewType.Mountain.toString()}>Mountain view</Select.Item>
-                      <Select.Item value={ChartViewType.Line.toString()}>Line view</Select.Item>
-                    </Select.Group>
-                  </Select.Content>
-                </Select.Root>
-                <Select.Root value={seriesOptions.inverted ? '1' : '0'} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, inverted: parseInt(e) > 0 }))}>
-                  <Select.Trigger />
-                  <Select.Content>
-                    <Select.Group>
-                      <Select.Label>Price view</Select.Label>
-                      <Select.Item value="0">Normal price</Select.Item>
-                      <Select.Item value="1">Inverted price</Select.Item>
-                    </Select.Group>
-                  </Select.Content>
-                </Select.Root>
-                <Select.Root value={seriesOptions.price.toString()} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, price: parseInt(e) }))}>
-                  <Select.Trigger />
-                  <Select.Content>
-                    <Select.Group>
-                      <Select.Label>Price scale</Select.Label>
-                      <Select.Item value={PriceScaleMode.Normal.toString()}>Normal scale</Select.Item>
-                      <Select.Item value={PriceScaleMode.Logarithmic.toString()}>Logarithmic scale</Select.Item>
-                      <Select.Item value={PriceScaleMode.Percentage.toString()}>Percentage scale</Select.Item>
-                      <Select.Item value={PriceScaleMode.IndexedTo100.toString()}>Index scale</Select.Item>
-                    </Select.Group>
-                  </Select.Content>
-                </Select.Root>
-                <Select.Root value={seriesOptions.volume ? '1' : '0'} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, volume: parseInt(e) > 0 }))}>
-                  <Select.Trigger />
-                  <Select.Content>
-                    <Select.Group>
-                      <Select.Label>Volume data</Select.Label>
-                      <Select.Item value="0">Volume hidden</Select.Item>
-                      <Select.Item value="1">Volume shown</Select.Item>
-                    </Select.Group>
-                  </Select.Content>
-                </Select.Root>
-                {
-                  !mobile &&
-                  <Select.Root value={seriesOptions.crosshair.toString()} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, crosshair: parseInt(e) }))}>
-                    <Select.Trigger />
-                    <Select.Content>
-                      <Select.Group>
-                        <Select.Label>Crosshair mode</Select.Label>
-                        <Select.Item value={CrosshairMode.Normal.toString()}>Normal crosshair</Select.Item>
-                        <Select.Item value={CrosshairMode.Magnet.toString()}>Magnet crosshair</Select.Item>
-                        <Select.Item value={CrosshairMode.Hidden.toString()}>Hidden crosshair</Select.Item>
-                        <Select.Item value={CrosshairMode.MagnetOHLC.toString()}>Magent OHLC crosshair</Select.Item>
-                      </Select.Group>
-                    </Select.Content>
-                  </Select.Root>
-                }
-              </Flex>
-            </Dialog.Content>
-          </Dialog.Root>
-        </Flex>
-      </Flex>
-    </Box>
-  );
   return (
     <Box minWidth={mobile ? undefined : '800px'}>
       <Box px={mobile ? undefined : '3'} py={mobile ? undefined : '4'} width="100%" maxWidth="1560px" mx="auto">
         <Flex gap="3" align="start">
-          { !mobile && ChartWidget() }
+          {
+            !mobile &&
+            <ChartWidget 
+              orderbook={orderbook}
+              pair={pair}
+              blockNumber={blockNumber}
+              whitelisted={whitelisted}
+              options={seriesOptions}
+              tradeEvents={incomingTrades}
+              onOptionsChange={updateSeriesOptions}
+              onTradesChange={updateIncomingTrades}
+              onPairChange={setPair}></ChartWidget>
+          }
           <Box width={ mobile ? '100%' : '460px'}>
             <Tabs.Root value={tab} onValueChange={(e) => {
               setTab(e as any);
@@ -852,7 +399,19 @@ export default function OrderbookPage() {
               <Clock></Clock>
               <Box pt={mobile ? '1' : '3'}>
                 <Tabs.Content value="info">
-                  { mobile && ChartWidget() }
+                  {
+                    mobile &&
+                    <ChartWidget 
+                      orderbook={orderbook}
+                      pair={pair}
+                      blockNumber={blockNumber}
+                      whitelisted={whitelisted}
+                      options={seriesOptions}
+                      tradeEvents={incomingTrades}
+                      onOptionsChange={updateSeriesOptions}
+                      onTradesChange={updateIncomingTrades}
+                      onPairChange={setPair}></ChartWidget>
+                  }
                   {
                     orderbook?.primaryAsset && orderbook.secondaryAsset && 
                     <Box px={mobile ? '3' : undefined} pt={mobile ? '2' : undefined}>
