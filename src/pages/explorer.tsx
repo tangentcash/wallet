@@ -115,7 +115,7 @@ export default function ExplorerPage() {
   const findBlocks = useCallback(async (refresh?: boolean) => {
     const tip = AppData.tip?.toNumber() || 0;
     try {
-      const data = await RPC.getBlocks(tip - (refresh ? BLOCK_COUNT : blocks.length), BLOCK_COUNT);
+      const data = await RPC.getBlocks(Math.max(1, tip - (refresh ? BLOCK_COUNT : blocks.length)), BLOCK_COUNT);
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setBlocks([]);

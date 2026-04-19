@@ -156,6 +156,117 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           </Card>
         </Box>
       )
+    case 'route':
+      return (
+        <DataList.Root orientation={props.orientation}>
+          <DataList.Item>
+            <DataList.Label>Bridge hash:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.bridge_hash);
+                AlertBox.open(AlertType.Info, 'Bridge hash copied!')
+              }}>{ Readability.toHash(transaction.bridge_hash) }</Button>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>Routing address:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.routing_address || 'NULL');
+                AlertBox.open(AlertType.Info, 'Address copied!')
+              }}>{ transaction.routing_address ? Readability.toAddress(transaction.routing_address) : 'NULL' }</Button>
+            </DataList.Value>
+          </DataList.Item>
+        </DataList.Root>
+      )
+    case 'bind':
+      return (
+        <DataList.Root orientation={props.orientation}>
+          <DataList.Item>
+            <DataList.Label>Parent hash:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.route_hash);
+                AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+              }}>{ Readability.toHash(transaction.route_hash) }</Button>
+              <Box ml="2">
+                <Link className="router-link" to={'/transaction/' + transaction.route_hash}>▒▒</Link>
+              </Box>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>Group public key:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.group_public_key || 'NULL');
+                AlertBox.open(AlertType.Info, 'Group public key copied!')
+              }}>{ Readability.toHash(transaction.group_public_key) }</Button>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>Group signature:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.group_signature || 'NULL');
+                AlertBox.open(AlertType.Info, 'Group signature copied!')
+              }}>{ Readability.toHash(transaction.group_signature) }</Button>
+            </DataList.Value>
+          </DataList.Item>
+        </DataList.Root>
+      )
+    case 'imbind':
+      return (
+        <DataList.Root orientation={props.orientation}>
+          <DataList.Item>
+            <DataList.Label>Parent hash:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.route_hash);
+                AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+              }}>{ Readability.toHash(transaction.route_hash) }</Button>
+              <Box ml="2">
+                <Link className="router-link" to={'/transaction/' + transaction.route_hash}>▒▒</Link>
+              </Box>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>Correction key:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.correction_key || 'NULL');
+                AlertBox.open(AlertType.Info, 'Correction key copied!')
+              }}>{ Readability.toHash(transaction.correction_key) }</Button>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>Imperfect key:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.imperfect_key || 'NULL');
+                AlertBox.open(AlertType.Info, 'Imperfect key copied!')
+              }}>{ Readability.toHash(transaction.imperfect_key) }</Button>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>Correction commitment:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.correction_commitment || 'NULL');
+                AlertBox.open(AlertType.Info, 'Correction commitment copied!')
+              }}>{ Readability.toHash(transaction.correction_commitment) }</Button>
+            </DataList.Value>
+          </DataList.Item>
+          <DataList.Item>
+            <DataList.Label>Key commitment:</DataList.Label>
+            <DataList.Value>
+              <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                navigator.clipboard.writeText(transaction.key_commitment || 'NULL');
+                AlertBox.open(AlertType.Info, 'Key commitment copied!')
+              }}>{ Readability.toHash(transaction.key_commitment) }</Button>
+            </DataList.Value>
+          </DataList.Item>
+        </DataList.Root>
+      )
     case 'setup':
       return (
         <>
@@ -259,89 +370,72 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           }
         </>
       )
-    case 'migrate':
+    case 'rebind':
       return (
-        <DataList.Root orientation={props.orientation}>
-          <DataList.Item>
-            <DataList.Label>Parent hash:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.setup_hash);
-                AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.setup_hash) }</Button>
-              <Box ml="2">
-                <Link className="router-link" to={'/transaction/' + transaction.setup_hash}>▒▒</Link>
-              </Box>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Proof signature:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.proof || 'NULL');
-                AlertBox.open(AlertType.Info, 'Proof signature copied!')
-              }}>{ Readability.toHash(transaction.proof) }</Button>
-            </DataList.Value>
-          </DataList.Item>
-        </DataList.Root>
-      )
-    case 'route':
-      return (
-        <DataList.Root orientation={props.orientation}>
-          <DataList.Item>
-            <DataList.Label>Bridge hash:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.bridge_hash);
-                AlertBox.open(AlertType.Info, 'Bridge hash copied!')
-              }}>{ Readability.toHash(transaction.bridge_hash) }</Button>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Routing address:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.routing_address || 'NULL');
-                AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ transaction.routing_address ? Readability.toAddress(transaction.routing_address) : 'NULL' }</Button>
-            </DataList.Value>
-          </DataList.Item>
-        </DataList.Root>
-      )
-    case 'bind':
-      return (
-        <DataList.Root orientation={props.orientation}>
-          <DataList.Item>
-            <DataList.Label>Parent hash:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.route_hash);
-                AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.route_hash) }</Button>
-              <Box ml="2">
-                <Link className="router-link" to={'/transaction/' + transaction.route_hash}>▒▒</Link>
-              </Box>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Group public key:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.group_public_key || 'NULL');
-                AlertBox.open(AlertType.Info, 'Group public key copied!')
-              }}>{ Readability.toHash(transaction.group_public_key) }</Button>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Group signature:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(transaction.group_signature || 'NULL');
-                AlertBox.open(AlertType.Info, 'Group signature copied!')
-              }}>{ Readability.toHash(transaction.group_signature) }</Button>
-            </DataList.Value>
-          </DataList.Item>
-        </DataList.Root>
+        <>
+          <DataList.Root orientation={props.orientation}>
+            <DataList.Item>
+              <DataList.Label>Parent hash:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(transaction.setup_hash);
+                  AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+                }}>{ Readability.toHash(transaction.setup_hash) }</Button>
+                <Box ml="2">
+                  <Link className="router-link" to={'/transaction/' + transaction.setup_hash}>▒▒</Link>
+                </Box>
+              </DataList.Value>
+            </DataList.Item>
+          </DataList.Root>
+          {
+            transaction.proofs && transaction.proofs.map((item: any, index: number) =>
+              <Card key={'IXF51' + item.correction_commitment + index} mt="4">
+                <DataList.Root orientation={props.orientation}>
+                  <DataList.Item>
+                    <DataList.Label>Renewal index:</DataList.Label>
+                    <DataList.Value>{ Readability.toValue(null, index, false, false) }</DataList.Value>
+                  </DataList.Item>
+                  <DataList.Item>
+                    <DataList.Label>Correction key:</DataList.Label>
+                    <DataList.Value>
+                      <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                        navigator.clipboard.writeText(item.correction_key || 'NULL');
+                        AlertBox.open(AlertType.Info, 'Correction key copied!')
+                      }}>{ Readability.toHash(item.correction_key) }</Button>
+                    </DataList.Value>
+                  </DataList.Item>
+                  <DataList.Item>
+                    <DataList.Label>Imperfect key:</DataList.Label>
+                    <DataList.Value>
+                      <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                        navigator.clipboard.writeText(item.imperfect_key || 'NULL');
+                        AlertBox.open(AlertType.Info, 'Imperfect key copied!')
+                      }}>{ Readability.toHash(item.imperfect_key) }</Button>
+                    </DataList.Value>
+                  </DataList.Item>
+                  <DataList.Item>
+                    <DataList.Label>Correction commitment:</DataList.Label>
+                    <DataList.Value>
+                      <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                        navigator.clipboard.writeText(item.correction_commitment || 'NULL');
+                        AlertBox.open(AlertType.Info, 'Correction commitment copied!')
+                      }}>{ Readability.toHash(item.correction_commitment) }</Button>
+                    </DataList.Value>
+                  </DataList.Item>
+                  <DataList.Item>
+                    <DataList.Label>Key commitment:</DataList.Label>
+                    <DataList.Value>
+                      <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                        navigator.clipboard.writeText(item.key_commitment || 'NULL');
+                        AlertBox.open(AlertType.Info, 'Key commitment copied!')
+                      }}>{ Readability.toHash(item.key_commitment) }</Button>
+                    </DataList.Value>
+                  </DataList.Item>
+                </DataList.Root>
+              </Card>
+            )
+          }
+        </>
       )
     case 'withdraw':
       return (
