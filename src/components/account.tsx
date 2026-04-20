@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Avatar, Badge, Box, Button, Card, Flex, Heading, SegmentedControl, Spinner, Tabs, Text, Tooltip } from "@radix-ui/themes";
+import { Avatar, Badge, Box, Button, Card, Flex, SegmentedControl, Spinner, Tabs, Text, Tooltip } from "@radix-ui/themes";
 import { RPC, EventResolver, SummaryState, AssetId, Readability, Chain, Whitelist } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
@@ -494,9 +494,6 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
       {
         (transactions.length > 0 || mempoolTransactions.length > 0) &&
         <Box width="100%" my="8">
-          <Box px="2">
-            <Heading size={document.body.clientWidth < 450 ? '5' : '6'} mb="0">Transactions</Heading>
-          </Box>
           {
             mempoolTransactions.length > 0 &&
             <Box width="100%">

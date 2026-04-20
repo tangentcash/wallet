@@ -275,6 +275,9 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
         RPC.fetchAll((offset, count) => RPC.getBestBridgeInstancesByBalance(new AssetId(asset.id), offset, count)),
         ownerAddress ? RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count)) : new Promise<any[]>((resolve) => resolve([]))
       ]);
+      if (!Array.isArray(bridgeData) || !bridgeData.length) {
+        bridgeData = await RPC.fetchAll((offset, count) => RPC.getBestBridgeInstancesBySecurity(new AssetId(asset.id), offset, count));
+      }
       if (asset && Array.isArray(bridgeData)) {
         setBridges(bridgeData.map((x) => {
           const balance: BigNumber | null = x.balances.find((v: any) => v.asset.id == asset.id)?.supply || null;
