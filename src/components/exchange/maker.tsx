@@ -103,6 +103,7 @@ export function Maker(props: {
   preset?: ({ id: number } & Partial<typeof defaultState>) | null,
   onStateChange?: (state: MakerState) => any
 }) {
+  const mobile = document.body.clientWidth <= 800;
   const [presetId, setPresetId] = useState<number>(0);
   const [state, setState] = useState<MakerState>(defaultState);
   const balances = useMemo((): { primary: BigNumber, secondary: BigNumber } | null => {
@@ -738,7 +739,7 @@ export function Maker(props: {
   );
   return (
     <Box>
-      <Card variant="surface" style={{ borderRadius: '22px' }}>
+      <Card variant="surface" style={{ borderRadius: '22px', border: mobile ? 'none' : undefined }}>
         <Box mb="2">
           <SegmentedControl.Root size="2" style={{ width: '100%' }} value={state.pool ? 'pool' : state.side.toString()} onValueChange={(e) => updateState(prev => ({ ...prev, side: e == 'pool' ? prev.side : parseInt(e), pool: e == 'pool' }))}>
             <SegmentedControl.Item value={OrderSide.Buy.toString()}>Buy</SegmentedControl.Item>

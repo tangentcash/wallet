@@ -571,115 +571,111 @@ export default function OrderbookPage() {
                   }
                 </Tabs.Content>
                 <Tabs.Content value="order">
-                  <Box px={mobile ? '3' : undefined} pt={mobile ? '4' : undefined}>
-                    <Maker
-                      path={orderPath}
-                      marketId={orderbook?.marketId || new BigNumber(0)}
-                      pairId={pair?.id || new BigNumber(0)}
-                      primaryAsset={orderbook?.primaryAsset || new AssetId()}
-                      secondaryAsset={orderbook?.secondaryAsset || new AssetId()}
-                      balances={loading ? undefined : polyBalances}
-                      prices={spreads}
-                      tiers={tiers || undefined}
-                      preset={preset}
-                      onStateChange={(state) => setShowingPools(state.pool)}></Maker>
-                    {
-                      !showingPools && orders.map((item) =>
-                        <Box mt="3" key={item.orderId.toString()}>
-                          <OrderView flash={true} item={item}></OrderView>
-                        </Box>)
-                    }
-                    {
-                      showingPools && pools.map((item) =>
-                        <Box mt="3" key={item.poolId.toString()}>
-                          <PoolView flash={true} item={item}></PoolView>
-                        </Box>)
-                    }
-                  </Box>
+                  <Maker
+                    path={orderPath}
+                    marketId={orderbook?.marketId || new BigNumber(0)}
+                    pairId={pair?.id || new BigNumber(0)}
+                    primaryAsset={orderbook?.primaryAsset || new AssetId()}
+                    secondaryAsset={orderbook?.secondaryAsset || new AssetId()}
+                    balances={loading ? undefined : polyBalances}
+                    prices={spreads}
+                    tiers={tiers || undefined}
+                    preset={preset}
+                    onStateChange={(state) => setShowingPools(state.pool)}></Maker>
+                  {
+                    !showingPools && orders.map((item) =>
+                      <Box mt="3" key={item.orderId.toString()}>
+                        <OrderView flash={true} item={item}></OrderView>
+                      </Box>)
+                  }
+                  {
+                    showingPools && pools.map((item) =>
+                      <Box mt="3" key={item.poolId.toString()}>
+                        <PoolView flash={true} item={item}></PoolView>
+                      </Box>)
+                  }
                 </Tabs.Content>
                 <Tabs.Content value="book">
-                  <Box px={mobile ? '3' : undefined} pt={mobile ? '4' : undefined}>
-                    <Card variant="surface" style={{ borderRadius: '22px' }}>
-                      <Box mb="2">
-                        <SegmentedControl.Root mb="2" style={{ width: '100%' }} value={seriesOptions.priceScope.toString()} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, priceScope: parseInt(e) }))}>
-                          <SegmentedControl.Item value={PriceScope.Bid.toString()}>Bid</SegmentedControl.Item>
-                          <SegmentedControl.Item value={PriceScope.All.toString()}>/</SegmentedControl.Item>
-                          <SegmentedControl.Item value={PriceScope.Ask.toString()}>Ask</SegmentedControl.Item>
-                        </SegmentedControl.Root>
-                        <TextField.Root type="number" placeholder="Price distance" value={seriesOptions.priceLevel} onChange={(e) => updateSeriesOptions(prev => ({ ...prev, priceLevel: e.target.value }))}>
-                          <TextField.Slot>
-                            <Icon path={mdiCurrencyUsd} />
-                          </TextField.Slot>
-                        </TextField.Root>
-                      </Box>
-                      <Flex justify={
-                        seriesOptions.priceScope == PriceScope.All ? 'between' : (seriesOptions.priceScope == PriceScope.Bid ? 'start' : 'end')
-                      } style={{ borderTopLeftRadius: '12px', borderTopRightRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--gray-3)' }} px="1" py="2" position="relative">
-                        {
-                          seriesOptions.priceScope != PriceScope.Ask &&
-                          <>
-                            <Box position="absolute" top="0" left="0" right={`${seriesOptions.priceScope == PriceScope.All ? liquidity.ask[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--lime-a5)' }}></Box>
-                            <Text size="2" style={{ zIndex: 1, color: 'var(--lime-11)' }}>{ Readability.toMoney(orderbook?.primaryAsset || null, liquidity.bid[0]) }</Text>
-                          </>
-                        }
-                        {
-                          seriesOptions.priceScope != PriceScope.Bid &&
-                          <>
-                            <Box position="absolute" top="0" left={`${seriesOptions.priceScope == PriceScope.All ? liquidity.bid[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--red-a5)' }}></Box>
-                            <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ Readability.toMoney(orderbook?.primaryAsset || null, liquidity.ask[0]) }</Text>
-                          </>
-                        }
-                      </Flex>
-                      <Flex style={{ borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--gray-3)' }}>
-                        {
-                          seriesOptions.priceScope != PriceScope.Ask &&
-                          <Box width={seriesOptions.priceScope == PriceScope.All ? '50%' : '100%'}>
-                            {
-                              groupedLevels.bid.map((item) =>
-                                <Tooltip side="left" key={item.price.toString()} content={`Buy ${Readability.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≤ ${Readability.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
-                                  <Button variant="ghost" radius="none" style={{ width: '100%', height: 'auto', padding: 0, margin: 0 }} onClick={() => updatePreset(OrderSide.Buy, item.price)}>
-                                    <Flex width="100%" justify="start" px="1" py="1" position="relative">
-                                      <Box position="absolute" top="0" left={`${100 - 100 * item.quantity.dividedBy(liquidity.bid[0]).toNumber()}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--lime-7)' }}></Box>
-                                      <Text size="2" style={{ zIndex: 1, color: 'var(--lime-11)' }}>{ Readability.toValue(null, item.price, false, true) }</Text>
-                                    </Flex>
-                                  </Button>
-                                </Tooltip>)
-                            }
-                            {
-                              !groupedLevels.bid.length &&
-                              <Box height="28px" style={{ backgroundColor: 'var(--gray-4)' }}></Box>
-                            }
-                          </Box>
-                        }
-                        {
-                          seriesOptions.priceScope != PriceScope.Bid &&
-                          <Box width={seriesOptions.priceScope == PriceScope.All ? '50%' : '100%'}>
-                            {
-                              groupedLevels.ask.map((item) =>
-                                <Tooltip side="left" key={item.price.toString()} content={`Sell ${Readability.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≥ ${Readability.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
-                                  <Button variant="ghost" radius="none" style={{ width: '100%', height: 'auto', padding: 0, margin: 0 }} onClick={() => updatePreset(OrderSide.Sell, item.price)}>
-                                    <Flex width="100%" justify="end" px="1" py="1" position="relative">
-                                      <Box position="absolute" top="0" left="0" right={`${100 - 100 * item.quantity.dividedBy(liquidity.ask[0]).toNumber()}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--red-7)' }}></Box>
-                                      <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ Readability.toValue(null, item.price, false, true) }</Text>
-                                    </Flex>
-                                  </Button>
-                                </Tooltip>)
-                            }
-                            {
-                              !groupedLevels.ask.length &&
-                              <Box height="28px" style={{ backgroundColor: 'var(--gray-5)' }}></Box>
-                            }
-                          </Box>
-                        }
-                      </Flex>
-                    </Card>
-                  </Box>
+                  <Card variant="surface" style={{ borderRadius: '22px', border: mobile ? 'none' : undefined }}>
+                    <Box mb="2">
+                      <SegmentedControl.Root mb="2" style={{ width: '100%' }} value={seriesOptions.priceScope.toString()} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, priceScope: parseInt(e) }))}>
+                        <SegmentedControl.Item value={PriceScope.Bid.toString()}>Bid</SegmentedControl.Item>
+                        <SegmentedControl.Item value={PriceScope.All.toString()}>/</SegmentedControl.Item>
+                        <SegmentedControl.Item value={PriceScope.Ask.toString()}>Ask</SegmentedControl.Item>
+                      </SegmentedControl.Root>
+                      <TextField.Root type="number" placeholder="Price distance" value={seriesOptions.priceLevel} onChange={(e) => updateSeriesOptions(prev => ({ ...prev, priceLevel: e.target.value }))}>
+                        <TextField.Slot>
+                          <Icon path={mdiCurrencyUsd} />
+                        </TextField.Slot>
+                      </TextField.Root>
+                    </Box>
+                    <Flex justify={
+                      seriesOptions.priceScope == PriceScope.All ? 'between' : (seriesOptions.priceScope == PriceScope.Bid ? 'start' : 'end')
+                    } style={{ borderTopLeftRadius: '12px', borderTopRightRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--gray-3)' }} px="1" py="2" position="relative">
+                      {
+                        seriesOptions.priceScope != PriceScope.Ask &&
+                        <>
+                          <Box position="absolute" top="0" left="0" right={`${seriesOptions.priceScope == PriceScope.All ? liquidity.ask[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--lime-a5)' }}></Box>
+                          <Text size="2" style={{ zIndex: 1, color: 'var(--lime-11)' }}>{ Readability.toMoney(orderbook?.primaryAsset || null, liquidity.bid[0]) }</Text>
+                        </>
+                      }
+                      {
+                        seriesOptions.priceScope != PriceScope.Bid &&
+                        <>
+                          <Box position="absolute" top="0" left={`${seriesOptions.priceScope == PriceScope.All ? liquidity.bid[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--red-a5)' }}></Box>
+                          <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ Readability.toMoney(orderbook?.primaryAsset || null, liquidity.ask[0]) }</Text>
+                        </>
+                      }
+                    </Flex>
+                    <Flex style={{ borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--gray-3)' }}>
+                      {
+                        seriesOptions.priceScope != PriceScope.Ask &&
+                        <Box width={seriesOptions.priceScope == PriceScope.All ? '50%' : '100%'}>
+                          {
+                            groupedLevels.bid.map((item) =>
+                              <Tooltip side="left" key={item.price.toString()} content={`Buy ${Readability.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≤ ${Readability.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
+                                <Button variant="ghost" radius="none" style={{ width: '100%', height: 'auto', padding: 0, margin: 0 }} onClick={() => updatePreset(OrderSide.Buy, item.price)}>
+                                  <Flex width="100%" justify="start" px="1" py="1" position="relative">
+                                    <Box position="absolute" top="0" left={`${100 - 100 * item.quantity.dividedBy(liquidity.bid[0]).toNumber()}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--lime-7)' }}></Box>
+                                    <Text size="2" style={{ zIndex: 1, color: 'var(--lime-11)' }}>{ Readability.toValue(null, item.price, false, true) }</Text>
+                                  </Flex>
+                                </Button>
+                              </Tooltip>)
+                          }
+                          {
+                            !groupedLevels.bid.length &&
+                            <Box height="28px" style={{ backgroundColor: 'var(--gray-4)' }}></Box>
+                          }
+                        </Box>
+                      }
+                      {
+                        seriesOptions.priceScope != PriceScope.Bid &&
+                        <Box width={seriesOptions.priceScope == PriceScope.All ? '50%' : '100%'}>
+                          {
+                            groupedLevels.ask.map((item) =>
+                              <Tooltip side="left" key={item.price.toString()} content={`Sell ${Readability.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≥ ${Readability.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
+                                <Button variant="ghost" radius="none" style={{ width: '100%', height: 'auto', padding: 0, margin: 0 }} onClick={() => updatePreset(OrderSide.Sell, item.price)}>
+                                  <Flex width="100%" justify="end" px="1" py="1" position="relative">
+                                    <Box position="absolute" top="0" left="0" right={`${100 - 100 * item.quantity.dividedBy(liquidity.ask[0]).toNumber()}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--red-7)' }}></Box>
+                                    <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ Readability.toValue(null, item.price, false, true) }</Text>
+                                  </Flex>
+                                </Button>
+                              </Tooltip>)
+                          }
+                          {
+                            !groupedLevels.ask.length &&
+                            <Box height="28px" style={{ backgroundColor: 'var(--gray-5)' }}></Box>
+                          }
+                        </Box>
+                      }
+                    </Flex>
+                  </Card>
                 </Tabs.Content>
                 <Tabs.Content value="trades">
                   <Box px={mobile ? '3' : undefined} pt={mobile ? '4' : undefined}>
                     {
                       trades.map((item) =>
-                        <Box key={item.account + item.time.getTime()} mb="3" style={{ width: '100%', height: 'auto', backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
+                        <Box key={item.account + item.time.getTime()} mb="3" className="rt-Card" style={{ width: '100%', height: 'auto', backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
                           <Flex direction="column" gap="2" style={{ padding: '12px' }}>
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">At</Text>
