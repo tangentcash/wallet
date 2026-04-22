@@ -34,7 +34,6 @@ const types: Route[] = [
 ]
 
 export function Navbar() {
-  const enlarge = document.body.clientWidth < 600;
   const location = useLocation();
   const navigate = useNavigate();
   const routes = useMemo((): (Route & { selected: boolean })[] => {
@@ -95,14 +94,14 @@ export function Navbar() {
                       <Box>
                         {
                           item.selected &&
-                          <Button size={enlarge ? '3' : '2'} variant="outline" style={{ boxShadow: `inset 0 0 0 1px var(--${item.activeColor || 'lime'}-a7)` }} color={item.activeColor as any} disabled={item.disabled ? item.disabled(location.pathname) : false}>
+                          <Button size="3" variant="outline" style={{ boxShadow: `inset 0 0 0 1px var(--${item.activeColor || 'lime'}-a7)` }} color={item.activeColor as any} disabled={item.disabled ? item.disabled(location.pathname) : false}>
                             <Icon path={item.icon} size={1} />
                             {item.name}
                           </Button>
                         }
                         {
                           !item.selected &&
-                          <IconButton size={enlarge ? '3' : '2'} variant="soft" color={item.baseColor as any} disabled={item.disabled ? item.disabled(location.pathname) : false} onClick={() => navigate(typeof item.path == 'string' ? item.path : item.path[0])}>
+                          <IconButton style={{ boxShadow: 'none' }} size="3" variant="soft" color={item.baseColor as any} disabled={item.disabled ? item.disabled(location.pathname) : false} onClick={() => navigate(typeof item.path == 'string' ? item.path : item.path[0])}>
                             <Icon path={item.icon} size={1} />
                           </IconButton>
                         }
