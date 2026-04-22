@@ -5,13 +5,11 @@
 
 .rt-Card {
   --card-border-width: 0px;
+  border: 1px solid var(--gray-6);
 }
 
-.rt-TextAreaRoot:not(:hover):not(:active):not(:focus),
-.rt-BaseButton:not(:hover):not(:active):not(:focus),
-.rt-SelectTrigger:not(:hover):not(:active):not(:focus),
-.rt-TextFieldRoot:not(:hover):not(:active):not(:focus) {
-  box-shadow: inset 0 0 0 1px transparent;
+.rt-SegmentedControlRoot {
+  background-image: none;
 }
 
 .rt-TextFieldRoot {
@@ -36,17 +34,21 @@
 	--default-font-family: "PT Mono", monospace;
 }
 
-.light .rt-TextAreaRoot:where(.rt-variant-soft):not(:hover):not(:active):not(:focus),
-.light .rt-BaseButton:where(.rt-variant-soft):not(:hover):not(:active):not(:focus),
-.light .rt-SelectTrigger:where(.rt-variant-soft):not(:hover):not(:active):not(:focus),
-.light .rt-TextFieldRoot:where(.rt-variant-soft):not(:hover):not(:active):not(:focus) {
-  background-color: #f0f4f0;
+.rt-TextAreaRoot:where(.rt-variant-soft):not(:hover):not(:active):not(:focus),
+.rt-BaseButton:where(.rt-variant-soft):not(:hover):not(:active):not(:focus),
+.rt-SelectTrigger:where(.rt-variant-soft):not(:hover):not(:active):not(:focus),
+.rt-TextFieldRoot:where(.rt-variant-soft):not(:hover):not(:active):not(:focus) {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--gray-a6);
 }
 
 :root, .light, .light-theme {
-  --color-surface: #f0f4f0;
-  --color-panel-translucent: #ffffffcc;
+  --gray-surface: #f0f4f0;
+  --color-panel: transparent;
+  --color-panel-solid: #f0f4f0;
+  --color-panel-translucent: transparent;
   --color-background: #f0f4f0;
+  --color-surface: transparent;
 
   --lime-1: #fcfdfa;
   --lime-2: #f7fbf1;
@@ -180,9 +182,12 @@
 }
 
 .dark, .dark-theme {
-  --gray-surface: var(--gray-a3);
-  --color-panel-translucent: var(--gray-a3);
-  --color-background: #171717;
+  --gray-surface: #000;
+  --color-panel: #00000000;
+  --color-panel-solid: #000;
+  --color-panel-translucent: #00000000;
+  --color-background: #000;
+  --color-surface: #00000000;
 
   --lime-1: #050702;
   --lime-2: #12180b;

@@ -460,7 +460,7 @@ export function ChartWidget({
   }, [options.volume]);
 
   return (
-    <Box width="100%" mb={mobile ? undefined : '3'} style={mobile ? { } : { backgroundColor: 'var(--color-panel)', borderRadius: '22px', overflow: 'hidden' }}>
+    <Box width="100%" className={mobile ? undefined : 'rt-Card'} mb={mobile ? undefined : '3'} style={mobile ? { } : { backgroundColor: 'var(--color-panel)', borderRadius: '22px', overflow: 'hidden' }}>
       <Flex align="center" pt={mobile ? '4' : '3'} pb={mobile ? '4' : '3'} px="3">
         <Box style={{ position: 'relative' }} mr="2">
           <AssetImage asset={orderbook?.secondaryAsset || undefined} size="2" style={{ position: 'absolute', top: mobile ? '18px' : '24px', left: '-6px' }}></AssetImage>

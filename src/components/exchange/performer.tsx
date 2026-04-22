@@ -612,7 +612,7 @@ export function PerformerButton(props: { title: string, description: string, dis
                   <Icon path={mdiArrowRight} size={0.75}></Icon>
                 </Spinner>
               </Button>
-              <Button style={{ borderLeft: '2px solid var(--gray-a5)', borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any} disabled={props.disabled || loading}>
+              <Button style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any} disabled={props.disabled || loading}>
                 <Icon path={mdiCollage} size={0.65}></Icon>
               </Button>
             </Flex>
@@ -643,7 +643,7 @@ export function PerformerButton(props: { title: string, description: string, dis
               }
               {
                 !BuilderQueue.get().length &&
-                <Flex px="2" py="2" width="100%" height="100px" justify="center" align="center" style={{ backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
+                <Flex px="2" py="2" width="100%" height="100px" justify="center" align="center" className="rt-Card" style={{ backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
                   <Text color="gray">Empty plan</Text>
                 </Flex>
               }

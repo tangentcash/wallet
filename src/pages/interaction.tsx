@@ -761,7 +761,7 @@ export default function InteractionPage() {
       <Box width="100%" mt="3" mb="4">
         <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
       </Box>
-      <Box style={{
+      <Box className="rt-Card" style={{
         backgroundColor: 'var(--color-panel)',
         borderRadius: '24px',
         padding: '12px 16px'
@@ -852,7 +852,7 @@ export default function InteractionPage() {
         }
         {
           asset != -1 && program instanceof ProgramTransfer && program.to.map((item, index) =>
-            <Box mt="4" key={index} style={program.to.length > 1 ? {
+            <Box mt="4" key={index} className={program.to.length > 1 ? 'rt-Card' : undefined} style={program.to.length > 1 ? {
               backgroundColor: 'var(--color-panel)',
               borderRadius: '32px',
               padding: '12px 16px'
@@ -1071,7 +1071,7 @@ export default function InteractionPage() {
             {
               program.bridges.map((item, index) =>
                 <Box mt="4" key={index}>
-                  <Box style={{
+                  <Box className="rt-Card" style={{
                       backgroundColor: 'var(--color-panel)',
                       borderRadius: '32px',
                       padding: '12px 16px'
@@ -1151,7 +1151,7 @@ export default function InteractionPage() {
             {
               program.migrations.map((item, index) =>
                 <Box mt="4" key={index}>
-                  <Box style={{
+                  <Box className="rt-Card" style={{
                       backgroundColor: 'var(--color-panel)',
                       borderRadius: '32px',
                       padding: '12px 16px'

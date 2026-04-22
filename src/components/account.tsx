@@ -239,7 +239,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                 {
                   filteredAddresses.map((item, index) =>
                     <Box key={item.hash + '_address_select'} mb={ index == filteredAddresses.length - 1 ? undefined : '4' }>
-                      <Button variant="soft" color="gray" size="3" style={{ display: 'block', height: 'auto', width: '100%' }} onClick={() => {
+                      <Button variant="surface" color="gray" size="3" style={{ display: 'block', height: 'auto', width: '100%' }} onClick={() => {
                         if (item.addresses != null) {
                           setSelectedAddress(index);
                         } else {

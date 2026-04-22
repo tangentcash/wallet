@@ -77,10 +77,10 @@ export function Navbar() {
     <Box position="fixed" bottom="0" left="0" right="0" style={{ zIndex: 10000 }}>
       <Flex justify="center">
         <Box maxWidth="640px" pb="4">
-          <Box style={{
+          <Box className="rt-Card" style={{
             display: 'inline-block',
             backgroundColor: 'var(--color-panel)',
-            border: '1px solid var(--gray-a5)',
+            border: '1px solid var(--gray-6)',
             borderRadius: "100px",
             filter: "saturate(0.7) brightness(1.1)",
             WebkitBackdropFilter: "blur(24px)",
