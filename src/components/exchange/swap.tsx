@@ -201,7 +201,7 @@ export default function SwapMaker(props: {
         <Flex justify="between" align="center">
           <TextField.Root style={{ width: '100%', backgroundColor: 'var(--color-background)' }} size="3" placeholder="Amount out" type="text" value={state.amountIn} onChange={(e) => setAmount('amount-in', e.target.value)} />
           <AssetSelector title="token to sell" value={state.tokenIn} onChange={(value) => updateState(prev => ({ ...prev, tokenIn: value }))}>
-            <Button variant="soft" size="4" style={{ backgroundColor: 'var(--color-background)' }}>
+            <Button variant="soft" size="4" style={{ backgroundColor: 'var(--color-background)', boxShadow: 'none' }}>
               {
                 state.tokenIn != null &&
                 <Flex align="center" gap="1">
@@ -243,7 +243,7 @@ export default function SwapMaker(props: {
           <Flex justify="between" align="center">
             <TextField.Root style={{ width: '100%', backgroundColor: 'var(--color-background)' }} size="3" placeholder="Amount in" type="text" value={state.amountOut} onChange={(e) => setAmount('amount-out', e.target.value)} />
             <AssetSelector title="token to buy" value={state.tokenOut} onChange={(value) => updateState(prev => ({ ...prev, tokenOut: value }))}>
-              <Button variant="soft" size="4" style={{ backgroundColor: 'var(--color-background)' }}>
+              <Button variant="soft" size="4" style={{ backgroundColor: 'var(--color-background)', boxShadow: 'none' }}>
                 {
                   state.tokenOut != null &&
                   <Flex align="center" gap="1">
@@ -269,7 +269,7 @@ export default function SwapMaker(props: {
             <Text size="2" color="gray">{ Readability.toMoney(state.tokenOut, swapInfo.balanceOut) }</Text>
           </Flex>
         </Card>
-        <Flex justify="center" px="3" py="3" align="center" position="absolute" className="rt-Card" style={{ backgroundColor: 'var(--gray-6)', border: '6px solid var(--color-background)', borderRadius: '16px', top: '-32px', left: '50%', transform: 'translateX(-50%)' }}>
+        <Flex justify="center" px="3" py="3" align="center" position="absolute" className="rt-Card" style={{ backgroundColor: 'var(--color-panel-solid)', borderRadius: '16px', top: '-32px', left: '50%', transform: 'translateX(-50%)' }}>
           <Button variant="ghost" style={{ height: 'auto' }} onClick={() => updateState(prev => ({
             tokenIn: prev.tokenOut,
             tokenOut: prev.tokenIn,

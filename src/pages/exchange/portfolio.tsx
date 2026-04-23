@@ -95,7 +95,7 @@ export default function PortfolioPage() {
     }
     try {
       const cursor = Cursor.offset(refresh ? 0 : orders.length);
-      const data = await Exchange.accountOrders({ address: baseAddress, page: cursor.offset * cursor.count });
+      const data = await Exchange.accountOrders({ address: baseAddress, page: Math.floor(cursor.offset / cursor.count) });
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setOrders([]);
@@ -122,7 +122,7 @@ export default function PortfolioPage() {
     }
     try {
       const cursor = Cursor.offset(refresh ? 0 : pools.length);
-      const data = await Exchange.accountPools({ address: baseAddress, page: cursor.offset * cursor.count });
+      const data = await Exchange.accountPools({ address: baseAddress, page: Math.floor(cursor.offset / cursor.count) });
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setPools([]);
@@ -159,22 +159,6 @@ export default function PortfolioPage() {
   }, [params.account, dashboardUpdates]);
   useEffectAsync(async () => {
     try {
-      if (market != null) {
-        const results = await Exchange.marketPairs(market.id);
-        if (Array.isArray(results)) {
-          const data = results.map((x) => ({ pair: x, whitelisted: !!Whitelist.contractAddressOf(x.primaryAsset) && !!Whitelist.contractAddressOf(x.secondaryAsset) }));
-          Storage.set('__explorer__', data);
-          setPairs(data);
-        }
-      } else {
-        setPairs([]);
-      }
-    } catch (exception: any) {
-      AlertBox.open(AlertType.Error, 'Failed to receive markets: ' + exception.message);
-    }
-  }, [market]);
-  useEffectAsync(async () => {
-    try {
       if (!market || !marketLauncher.primary || !marketLauncher.secondary)
         throw false;
 
@@ -186,20 +170,36 @@ export default function PortfolioPage() {
       setLaunchablePair(null);
     }
   }, [marketLauncher]);
-  useEffect(() => {
+  useEffectAsync(async () => {
     if (viewer == 'swap' || viewer == 'trade') {
       if (!market) {
-        Exchange.connectSocket().then(() => {
-          if (Exchange.contracts.length > 0)
+        await Exchange.connectSocket();
+        if (Exchange.contracts.length > 0) {
             setMarket(Exchange.contracts[0]);
-        });
+        }
       }
     } else if (viewer == 'orders') {
-      findOrders(true);
+      await findOrders(true);
     } else if (viewer == 'pools') {
-      findPools(true);
+      await findPools(true);
     }
   }, [viewer, market]);
+  useEffectAsync(async () => {
+    if (!market || pairs.length > 0 || viewer != 'trade') {
+      return;
+    }
+
+    try {
+      const results = await Exchange.marketPairs(market.id);
+      if (Array.isArray(results)) {
+        const data = results.map((x) => ({ pair: x, whitelisted: !!Whitelist.contractAddressOf(x.primaryAsset) && !!Whitelist.contractAddressOf(x.secondaryAsset) }));
+        Storage.set('__explorer__', data);
+        setPairs(data);
+      }
+    } catch (exception: any) {
+      AlertBox.open(AlertType.Error, 'Failed to receive pairs: ' + exception.message);
+    }
+  }, [viewer, market, pairs]);
   useEffect(() => {
     const updatePairs = () => {
       setPairs(prev => {
@@ -343,7 +343,7 @@ export default function PortfolioPage() {
           <Tabs.Content value="trade">
             <Box pt="5" pb="3">
               <Flex px="1" align="center" justify="start">
-                <TextField.Root placeholder="Try ETH/USDT…" variant="soft" color="gray" size="3" value={query} style={{ width: '100%', borderTopRightRadius: '0', borderBottomRightRadius: '0', borderRight: '1px solid var(--gray-6)' }} onInput={(e) => setQuery(e.currentTarget.value || '')}>
+                <TextField.Root placeholder="Try ETH/USDT…" variant="soft" color="gray" size="3" value={query} style={{ width: '100%', borderTopRightRadius: '0', borderBottomRightRadius: '0' }} onInput={(e) => setQuery(e.currentTarget.value || '')}>
                   <TextField.Slot>
                     <Icon path={mdiMagnify} size={0.8}></Icon>
                   </TextField.Slot>
