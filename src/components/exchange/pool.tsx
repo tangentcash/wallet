@@ -53,9 +53,9 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
         const account = AppData.getWalletAddress();
         if (account != null) {
           const [poly, balances] = await Promise.all([Exchange.marketPairAssets(item.marketId, item.pairId), Exchange.accountBalances({ address: account })]);
-          if (Array.isArray(poly) && Array.isArray(balances)) {
-            const primaryBalance = balances?.filter((v) => v.asset.id == item.primaryAsset.id || poly.primary.findIndex((i) => i.id == v.asset.id) != -1).reduce((p, c) => p.plus(c.available), new BigNumber(0));
-            const secondaryBalance = balances?.filter((v) => v.asset.id == item.secondaryAsset.id || poly.secondary.findIndex((i) => i.id == v.asset.id) != -1).reduce((p, c) => p.plus(c.available), new BigNumber(0));
+          if (Array.isArray(balances)) {
+            const primaryBalance = balances?.filter((v) => v.asset.id == item.primaryAsset.id || (poly?.primary ? poly.primary.findIndex((i) => i.id == v.asset.id) != -1 : false)).reduce((p, c) => p.plus(c.available), new BigNumber(0));
+            const secondaryBalance = balances?.filter((v) => v.asset.id == item.secondaryAsset.id || (poly?.secondary ? poly.secondary.findIndex((i) => i.id == v.asset.id) != -1 : false)).reduce((p, c) => p.plus(c.available), new BigNumber(0));
             maxPrimaryValue = maxPrimaryValue.plus(primaryBalance);
             maxSecondaryValue = maxSecondaryValue.plus(secondaryBalance);
           }
@@ -71,13 +71,10 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
 
     let primaryValue: BigNumber | null = maxPrimaryValue;
     if (secondaryValue.gt(maxSecondaryValue)) {
+      secondaryValue = maxSecondaryValue;
       primaryValue = LiquidityPool.toPrimaryValue(maxSecondaryValue, price, minPrice, maxPrice);
       if (!primaryValue)
         throw new Error('Failed to re-balance the pool because of insufficient secondary reserve');
-
-      secondaryValue = LiquidityPool.toSecondaryValue(primaryValue, price, minPrice, maxPrice);
-      if (!secondaryValue)
-        throw new Error('Failed to re-balance the pool because of insufficient primary reserve');
     }
 
     const primaryPays: Record<string, string> = { };

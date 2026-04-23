@@ -23,9 +23,9 @@ export default function HypePage() {
     <Box position="relative">
       <Box position="absolute" top="0" bottom="0" left="0" right="0" style={{
         zIndex: -1,
-        backgroundImage: 'linear-gradient(var(--bronze-a3) 1px, transparent 1px), linear-gradient(90deg, var(--bronze-a3) 1px, transparent 1px)',
+        backgroundImage: 'linear-gradient(var(--gray-a3) 1px, transparent 1px), linear-gradient(90deg, var(--gray-a3) 1px, transparent 1px)',
         backgroundSize: '64px 64px',
-        filter: 'drop-shadow(0px 0px 3px var(--bronze-a9))'
+        filter: 'drop-shadow(0px 0px 3px var(--gray-a9))'
       }}></Box>
       <Box position="absolute" top="0" left="0" right="0" height="300px" style={{
         zIndex: -1,
