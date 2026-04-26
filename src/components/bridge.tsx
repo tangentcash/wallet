@@ -245,12 +245,7 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
     }
 
     const feeToken = blockchainAssets.filter((x) => x.asset.id == blockchain.id)[0];
-    if (!feeToken) {
-      AlertBox.open(AlertType.Error, 'Must have ' + Readability.toAssetName(blockchain) + ' to pay network fees');
-      return;
-    }
-
-    const bridge = bridges.filter((x: any) => x.withdrawable && feeToken.balance.gte(x.instance.fee_rate)).sort((a: any, b: any) => {
+    const bridge = bridges.filter((x: any) => x.withdrawable && (feeToken && feeToken.balance.gt(0) ? feeToken.balance.gte(x.instance.fee_rate) : true)).sort((a: any, b: any) => {
       const balanceA: BigNumber = a.balances.find((x: any) => x.asset.id == token.asset.id)?.supply || new BigNumber(0);
       const balanceB: BigNumber = b.balances.find((x: any) => x.asset.id == token.asset.id)?.supply || new BigNumber(0);
       return balanceB.comparedTo(balanceA) || 0; 

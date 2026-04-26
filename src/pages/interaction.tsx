@@ -1216,11 +1216,6 @@ export default function InteractionPage() {
           asset != -1 && program instanceof ProgramWithdraw &&  
           <Box mt="4">
             <Box width="100%" mb="3">
-              <Tooltip content="Withdrawal fee to be deducted from account balance">
-                <TextField.Root size="3" type="text" color="red" value={'Cost: ' + Readability.toMoney(assets[asset].asset, params.fee)} readOnly={true} />
-              </Tooltip>
-            </Box>
-            <Box width="100%" mb="3">
               <Tooltip content="Withdraw to off-chain address">
                 <TextField.Root size="3" placeholder="Withdraw to address" type="text" value={program.address} onChange={(e) => {
                   const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
@@ -1229,7 +1224,7 @@ export default function InteractionPage() {
                 }} />
               </Tooltip>
             </Box>
-            <Flex gap="2">
+            <Flex gap="2" mb="3">
               <Box width="100%">
                 <Tooltip content="Payment value received by account">
                   <TextField.Root size="3" placeholder={'Payment value in ' + Readability.toAssetSymbol(assets[asset].asset)} type="number" value={program.value} onChange={(e) => {
@@ -1241,6 +1236,11 @@ export default function InteractionPage() {
               </Box>
               <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(0) }>Remaining</Button>
             </Flex>
+            <Box width="100%">
+              <Tooltip content="Withdrawal fee to be deducted from account balance">
+                <TextField.Root size="3" type="text" color="red" value={'Cost: ' + Readability.toMoney(AssetId.fromHandle(assets[asset].asset.chain), params.fee)} readOnly={true} />
+              </Tooltip>
+            </Box>
           </Box>
         }
         {
