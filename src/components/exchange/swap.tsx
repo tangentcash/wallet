@@ -70,7 +70,7 @@ export default function SwapMaker(props: {
       })
       return result;
     });
-  }, []);
+  }, [market, polyAssets]);
   const setAmount = useCallback((type: 'amount-in' | 'amount-out', value: string) => {
     if (type == 'amount-in') {
       const amountIn = TextUtil.toNumericValueOrPercent(value); let amountOut = '';
@@ -121,7 +121,7 @@ export default function SwapMaker(props: {
 
     const tokenIn = state.tokenIn, tokenOut = state.tokenOut;
     if (market != null && tokenIn != null && tokenOut != null) {
-      const balanceIn = assets.find((x) => x.asset.id == tokenIn.id)?.available || new BigNumber(0);
+      const balanceIn = assetsIn.reduce((a, b) => a.plus(b.available), new BigNumber(0));
       const finalAmountIn = TextUtil.toNumericValueOrPercent(state.amountIn);
       const amountIn = finalAmountIn.relative?.gt(0) ? finalAmountIn.relative.multipliedBy(balanceIn) : (finalAmountIn.absolute?.gt(0) ? finalAmountIn.absolute : new BigNumber(0));
       const slippage = BigNumber.min(1, BigNumber.max(0, TextUtil.toNumericValueOrPercent(state.slippage).relative || new BigNumber(0)))
