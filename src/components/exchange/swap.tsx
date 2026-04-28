@@ -70,7 +70,7 @@ export default function SwapMaker(props: {
       })
       return result;
     });
-  }, [market, polyAssets]);
+  }, []);
   const setAmount = useCallback((type: 'amount-in' | 'amount-out', value: string) => {
     if (type == 'amount-in') {
       const amountIn = TextUtil.toNumericValueOrPercent(value); let amountOut = '';
