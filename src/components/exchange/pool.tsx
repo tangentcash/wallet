@@ -97,7 +97,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
     const secondaryPays: Record<string, string> = { };
     if (crossPoly && crossBalances) {
       baseMaxPrimaryValue = BigNumber.min(baseMaxPrimaryValue, primaryValue);
-      const primaryBalances = crossBalances.filter((v) => v.asset.id == item.primaryAsset.id || crossPoly.primary.findIndex((i) => i.id == v.asset.id) != -1);
+      const primaryBalances = crossBalances.filter((v) => v.asset.id == item.primaryAsset.id || (crossPoly ? crossPoly.primary.findIndex((i) => i.id == v.asset.id) != -1 : false));
       let primaryLeftover = new BigNumber(primaryValue.minus(baseMaxPrimaryValue));
       primaryPays[item.primaryAsset.id] = ByteUtil.bigNumberToString(baseMaxPrimaryValue);
       if (primaryLeftover.gt(0)) {
@@ -112,7 +112,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
       }
 
       baseMaxSecondaryValue = BigNumber.min(baseMaxSecondaryValue, secondaryValue);
-      const secondaryBalances = crossBalances.filter((v) => v.asset.id == item.secondaryAsset.id || crossPoly.secondary.findIndex((i) => i.id == v.asset.id) != -1);
+      const secondaryBalances = crossBalances.filter((v) => v.asset.id == item.secondaryAsset.id || (crossPoly ? crossPoly.secondary.findIndex((i) => i.id == v.asset.id) != -1 : false));
       let secondaryLeftover = new BigNumber(secondaryValue.minus(baseMaxSecondaryValue));
       secondaryPays[item.secondaryAsset.id] = ByteUtil.bigNumberToString(baseMaxSecondaryValue);
       if (secondaryLeftover.gt(0)) {
