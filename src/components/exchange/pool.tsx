@@ -1,6 +1,6 @@
 import { Badge, Box, Button, Card, DataList, Dialog, Flex, Select, Text, Tooltip } from "@radix-ui/themes";
-import { ByteUtil, Readability } from "tangentsdk";
-import { Pool, Exchange } from "../../core/exchange";
+import { AssetId, ByteUtil, Readability } from "tangentsdk";
+import { Pool, Exchange, Balance } from "../../core/exchange";
 import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router";
 import { AlertBox, AlertType } from "../alert";
@@ -57,8 +57,11 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
       maxPrice = price.plus(range);
     }
     
+    let crossPoly: { primary: AssetId[], secondary: AssetId[] } | null = null, crossBalances: Balance[] | null = null;
     let maxSecondaryValue = item.secondaryValue.plus(item.secondaryRevenue);
     let maxPrimaryValue = item.primaryValue.plus(item.primaryRevenue);
+    let baseMaxSecondaryValue = maxSecondaryValue;
+    let baseMaxPrimaryValue = maxPrimaryValue;
     if (cross) {
       try {
         const account = AppData.getWalletAddress();
@@ -69,6 +72,8 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
             const secondaryBalance = balances?.filter((v) => v.asset.id == item.secondaryAsset.id || (poly?.secondary ? poly.secondary.findIndex((i) => i.id == v.asset.id) != -1 : false)).reduce((p, c) => p.plus(c.available), new BigNumber(0));
             maxPrimaryValue = maxPrimaryValue.plus(primaryBalance);
             maxSecondaryValue = maxSecondaryValue.plus(secondaryBalance);
+            crossBalances = balances;
+            crossPoly = poly;
           }
         }
       } catch (exception) {
@@ -90,8 +95,40 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
 
     const primaryPays: Record<string, string> = { };
     const secondaryPays: Record<string, string> = { };
-    primaryPays[item.primaryAsset.id] = ByteUtil.bigNumberToString(primaryValue);
-    secondaryPays[item.secondaryAsset.id] = ByteUtil.bigNumberToString(secondaryValue);
+    if (crossPoly && crossBalances) {
+      baseMaxPrimaryValue = BigNumber.min(baseMaxPrimaryValue, primaryValue);
+      const primaryBalances = crossBalances.filter((v) => v.asset.id == item.primaryAsset.id || crossPoly.primary.findIndex((i) => i.id == v.asset.id) != -1);
+      let primaryLeftover = new BigNumber(primaryValue.minus(baseMaxPrimaryValue));
+      primaryPays[item.primaryAsset.id] = ByteUtil.bigNumberToString(baseMaxPrimaryValue);
+      if (primaryLeftover.gt(0)) {
+        for (let i = 0; i < primaryBalances.length; i++) {
+          const balance = primaryBalances[i];
+          const change = BigNumber.min(balance.available, primaryLeftover);
+          primaryLeftover = primaryLeftover.minus(change);
+          primaryPays[balance.asset.id] = ByteUtil.bigNumberToString(primaryPays[balance.asset.id] ? new BigNumber(primaryPays[balance.asset.id]).plus(change) : change);
+          if (!primaryLeftover.gt(0))
+              break;
+        }
+      }
+
+      baseMaxSecondaryValue = BigNumber.min(baseMaxSecondaryValue, secondaryValue);
+      const secondaryBalances = crossBalances.filter((v) => v.asset.id == item.secondaryAsset.id || crossPoly.secondary.findIndex((i) => i.id == v.asset.id) != -1);
+      let secondaryLeftover = new BigNumber(secondaryValue.minus(baseMaxSecondaryValue));
+      secondaryPays[item.secondaryAsset.id] = ByteUtil.bigNumberToString(baseMaxSecondaryValue);
+      if (secondaryLeftover.gt(0)) {
+        for (let i = 0; i < secondaryBalances.length; i++) {
+          const balance = secondaryBalances[i];
+          const change = BigNumber.min(balance.available, secondaryLeftover);
+          secondaryLeftover = secondaryLeftover.minus(change);
+          secondaryPays[balance.asset.id] = ByteUtil.bigNumberToString(secondaryPays[balance.asset.id] ? new BigNumber(secondaryPays[balance.asset.id]).plus(change) : change);
+          if (!secondaryLeftover.gt(0))
+              break;
+        }
+      }
+    } else {
+      primaryPays[item.primaryAsset.id] = ByteUtil.bigNumberToString(primaryValue);
+      secondaryPays[item.secondaryAsset.id] = ByteUtil.bigNumberToString(secondaryValue);
+    }
     return [
       await Builder.withdrawPool({ poolId: item.id.toString() }),
       await Builder.depositPool({
