@@ -35,7 +35,7 @@ export default function PortfolioPage() {
   const [pairs, setPairs] = useState<{ pair: AggregatedPair, whitelisted: boolean }[]>([]);
   const [launchablePair, setLaunchablePair] = useState<AggregatedPair | null>(null);
   const [marketLauncher, setMarketLauncher] = useState<{ primary: AssetId | null, secondary: AssetId | null }>({ primary: null, secondary: null });
-  const [viewer, setViewer] = useState<'swap' | 'trade' | 'assets' | 'orders' | 'pools'>(readOnly ? 'assets' : 'swap');
+  const [viewer, setViewer] = useState<'swap' | 'trade' | 'assets' | 'open-orders' | 'closed-orders' | 'open-pools' | 'closed-pools'>(readOnly ? 'assets' : 'swap');
   const [assetUpdates, setAssetUpdates] = useState(0);
   const [dashboardUpdates, setDashboardUpdates] = useState(0);
   const [todayProfits, setTodayProfits] = useState(true);
@@ -95,7 +95,7 @@ export default function PortfolioPage() {
     }
     try {
       const cursor = Cursor.offset(refresh ? 0 : orders.length);
-      const data = await Exchange.accountOrders({ address: baseAddress, page: Math.floor(cursor.offset / cursor.count) });
+      const data = await Exchange.accountOrders({ address: baseAddress, page: Math.floor(cursor.offset / cursor.count), active: viewer == 'open-orders' });
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setOrders([]);
@@ -113,7 +113,7 @@ export default function PortfolioPage() {
       setMoreOrders(false);
       return false;
     }
-  }, [baseAddress, pools]);
+  }, [baseAddress, pools, viewer]);
   const findPools = useCallback(async (refresh?: boolean) => {
     if (!baseAddress) {
       setPools([]);
@@ -122,7 +122,7 @@ export default function PortfolioPage() {
     }
     try {
       const cursor = Cursor.offset(refresh ? 0 : pools.length);
-      const data = await Exchange.accountPools({ address: baseAddress, page: Math.floor(cursor.offset / cursor.count) });
+      const data = await Exchange.accountPools({ address: baseAddress, page: Math.floor(cursor.offset / cursor.count), active: viewer == 'open-pools' });
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setPools([]);
@@ -140,7 +140,7 @@ export default function PortfolioPage() {
       setMorePools(false);
       return false;
     }
-  }, [baseAddress, pools]);
+  }, [baseAddress, pools, viewer]);
   useEffectAsync(async () => {
     try {
       if (!baseAddress)
@@ -178,9 +178,9 @@ export default function PortfolioPage() {
             setMarket(Exchange.contracts[0]);
         }
       }
-    } else if (viewer == 'orders') {
+    } else if (viewer == 'open-orders' || viewer == 'closed-orders') {
       await findOrders(true);
-    } else if (viewer == 'pools') {
+    } else if (viewer == 'open-pools' || viewer == 'closed-pools') {
       await findPools(true);
     }
   }, [viewer, market]);
@@ -202,6 +202,7 @@ export default function PortfolioPage() {
   }, [viewer, market, pairs]);
   useEffect(() => {
     const updatePairs = () => {
+      setAssetUpdates(new Date().getTime());
       setPairs(prev => {
         const copy = [...prev];
         for (let i = 0; i < copy.length; i++) {
@@ -213,8 +214,7 @@ export default function PortfolioPage() {
         return copy;
       });
     };
-    const updateAssets = () => setAssetUpdates(new Date().getTime());
-    const updateDashboard = async () => setDashboardUpdates(new Date().getTime());
+    const updateDashboard = () => setDashboardUpdates(new Date().getTime());
     setPairs((RPC.fetchObject(Storage.get('__explorer__')) || []).map((x: any) => {
       if (x.pair != null && x.pair.primaryAsset != null && x.pair.secondaryAsset != null) {
         x.pair.primaryAsset = new AssetId(x.pair.primaryAsset.id);
@@ -226,19 +226,17 @@ export default function PortfolioPage() {
     window.addEventListener('update:trade', updatePairs);
     window.addEventListener('update:order', updateDashboard);
     window.addEventListener('update:pool', updateDashboard);
-    window.addEventListener('update:trade', updateAssets);
     window.addEventListener('exchange:ready', updateDashboard);
     return () => {
       window.removeEventListener('update:trade', updatePairs);
       window.removeEventListener('update:order', updateDashboard);
       window.removeEventListener('update:pool', updateDashboard);
-      window.removeEventListener('update:trade', updateAssets);
       window.removeEventListener('exchange:ready', updateDashboard);
     };
   }, [params.account]); 
   useEffect(() => {
     const view = search.get('view') || Storage.get('__portfolio_view__') || null;
-    if (view != null && ['swap', 'trade', 'assets', 'orders', 'pools'].includes(view)) {
+    if (view != null && ['swap', 'trade', 'assets', 'open-orders', 'closed-orders', 'open-pools', 'closed-pools'].includes(view)) {
       Storage.set('__portfolio_view__', view);
       setViewer(view as any);
     } else {
@@ -294,7 +292,9 @@ export default function PortfolioPage() {
         </Box>
       </Card>
       <Box px="2" pt="2">
-        <Tabs.Root value={viewer} onValueChange={(x) => setSearch({ view: x })} mt="4">
+        <Tabs.Root value={viewer.replace(/(open-)|(closed-)/g, '')} onValueChange={(x) => setSearch({
+          view: x == 'orders' || x == 'pools' ? 'open-' + x : x
+        })} mt="4">
           <Tabs.List size="2" color="lime" justify={mobile ? undefined : 'center'}>
             <Tabs.Trigger value="swap" className="tab-padding-erase">
               <Badge size="3" radius="large">
@@ -452,6 +452,19 @@ export default function PortfolioPage() {
           </Tabs.Content>
           <Tabs.Content value="pools">
             <Box pt="4">
+              <Flex justify="between" align="center" pb="4">
+                <Text>LP history</Text>
+                <Select.Root value={viewer.replace('-pools', '')} onValueChange={(e) => setSearch({ view: e + '-pools' })}>
+                  <Select.Trigger />
+                  <Select.Content>
+                    <Select.Group>
+                      <Select.Label>LP filter</Select.Label>
+                      <Select.Item value="open">Open LP</Select.Item>
+                      <Select.Item value="closed">Closed LP</Select.Item>
+                    </Select.Group>
+                  </Select.Content>
+                </Select.Root>
+              </Flex>
               <InfiniteScroll dataLength={pools.length} hasMore={morePools} next={findPools} loader={<div></div>}>
                 {
                   pools.map((item) =>
@@ -470,6 +483,19 @@ export default function PortfolioPage() {
           </Tabs.Content>
           <Tabs.Content value="orders">
             <Box pt="4">
+              <Flex justify="between" align="center" pb="4">
+                <Text>Order history</Text>
+                <Select.Root value={viewer.replace('-orders', '')} onValueChange={(e) => setSearch({ view: e + '-orders' })}>
+                  <Select.Trigger />
+                  <Select.Content>
+                    <Select.Group>
+                      <Select.Label>Order filter</Select.Label>
+                      <Select.Item value="open">Open orders</Select.Item>
+                      <Select.Item value="closed">Closed orders</Select.Item>
+                    </Select.Group>
+                  </Select.Content>
+                </Select.Root>
+              </Flex>
               <InfiniteScroll dataLength={orders.length} hasMore={moreOrders} next={findOrders} loader={<div></div>}>
                 {
                   orders.map((item) =>
