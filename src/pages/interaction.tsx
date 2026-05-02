@@ -1,5 +1,5 @@
-import { mdiCancel, mdiCodeJson, mdiMinus, mdiPlus, mdiProfessionalHexagon } from "@mdi/js";
-import { Box, Button, Checkbox, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { mdiAlertCircleOutline, mdiCancel, mdiCodeJson, mdiMinus, mdiPlus, mdiProfessionalHexagon } from "@mdi/js";
+import { Box, Button, Callout, Checkbox, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
@@ -87,15 +87,6 @@ export default function InteractionPage() {
   const location = useLocation();
   const ownerAddress = AppData.getWalletAddress() || '';
   const [query] = useSearchParams();
-  const params = {
-    type: query.get('type'),
-    asset: query.get('asset'),
-    bridge: query.get('bridge'),
-    address: query.get('address'),
-    fee: query.get('fee'),
-    transaction: query.get('transaction'),
-    back: query.get('back')
-  };
   const [assets, setAssets] = useState<any[]>([]);
   const [asset, setAsset] = useState(-1);
   const [nonce, setNonce] = useState<BigNumber | null>();
@@ -109,6 +100,16 @@ export default function InteractionPage() {
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
   const [program, setProgram] = useState<ProgramTransfer | ProgramSetup | ProgramRoute | ProgramWithdraw | ProgramAnticast | ApproveTransaction | null>(null);
   const navigate = useNavigate();
+  const params = useMemo(() => ({
+    type: query.get('type'),
+    asset: query.get('asset'),
+    bridge: query.get('bridge'),
+    address: query.get('address'),
+    fee: query.get('fee'),
+    transaction: query.get('transaction'),
+    back: query.get('back'),
+    note: query.get('note')
+  }), [query]);
   const previewTransaction = useMemo((): any | null => {
     if ((program instanceof ApproveTransaction) && program.transaction != null)
       return program.transaction;
@@ -1312,6 +1313,17 @@ export default function InteractionPage() {
               </Box>
             )
           }
+        </Box>
+      }
+      {
+        params.note != null &&
+        <Box px="3">
+          <Callout.Root size="1" variant="surface" mt="6" color="yellow" style={{ borderRadius: '24px' }}>
+            <Callout.Icon>
+              <Icon path={mdiAlertCircleOutline} size={1} />
+            </Callout.Icon>
+            <Callout.Text style={{ whiteSpace: 'pre-wrap' }}>Note: { params.note }</Callout.Text>
+          </Callout.Root>
         </Box>
       }
       {

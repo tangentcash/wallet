@@ -10,16 +10,23 @@ import { AlertBox, AlertType } from "../components/alert";
 import { mdiSetRight } from "@mdi/js";
 import Icon from "@mdi/react";
 
+type ExtendedField = {
+  depositTime: number,
+  tokenStandard: string | null,
+  nativeNote?: string,
+  tokenNote?: string
+};
+
 type ExtendedBlockchainInfo = AssetId & {
   divisibility: BigNumber,
   sync_latency: BigNumber,
   composition_policy: string,
   token_policy: string,
   routing_policy: string,
-  ext: { depositTime: number, tokenStandard: string | null }
+  ext: ExtendedField
 };
 
-const ASSET_INFORMATION: Record<string, { depositTime: number, tokenStandard: string | null }> = {
+const ASSET_INFORMATION: Record<string, ExtendedField> = {
   "ADA": {
     depositTime: 22,
     tokenStandard: 'Native'
@@ -110,7 +117,8 @@ const ASSET_INFORMATION: Record<string, { depositTime: number, tokenStandard: st
   },
   "SOL": {
     depositTime: 1,
-    tokenStandard: 'SPL'
+    tokenStandard: 'SPL',
+    tokenNote: 'Destination account must have received this token at least once in the past'
   },
   "TRX": {
     depositTime: 2,
@@ -235,7 +243,7 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
       return;
     }
 
-    navigate(`/interaction?asset=${blockchain.id}&type=register&bridge=${bridge.instance.bridge_hash}&address=${routingAddressValue}&back=/`);
+    navigate(`/interaction?asset=${blockchain.id}&type=register&bridge=${bridge.instance.bridge_hash}&address=${routingAddressValue}&back=/&note=${encodeURIComponent('The address claim transaction is free of charge')}`);
   }, [blockchain, bridges, routingAddressValue]);
   const withdraw = useCallback((assetIndex: number) => {
     const token = blockchainAssets[assetIndex];
@@ -245,17 +253,20 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
     }
 
     const feeToken = blockchainAssets.filter((x) => x.asset.id == blockchain.id)[0];
-    const bridge = bridges.filter((x: any) => x.withdrawable && (feeToken && feeToken.balance.gt(0) ? feeToken.balance.gte(x.instance.fee_rate) : true)).sort((a: any, b: any) => {
+    const targets = bridges.filter((x: any) => x.withdrawable).sort((a: any, b: any) => {
       const balanceA: BigNumber = a.balances.find((x: any) => x.asset.id == token.asset.id)?.supply || new BigNumber(0);
       const balanceB: BigNumber = b.balances.find((x: any) => x.asset.id == token.asset.id)?.supply || new BigNumber(0);
       return balanceB.comparedTo(balanceA) || 0; 
-    })[0];
+    });
+    const bridge = targets.filter((x: any) => feeToken && feeToken.balance.gt(0) ? feeToken.balance.gte(x.instance.fee_rate) : false)[0];
     if (!bridge) {
-      AlertBox.open(AlertType.Error, 'Failed to find a bridge to process this withdrawal');
+      AlertBox.open(AlertType.Error, targets.length > 0 ? `Not enough balance to cover network fees - ${Readability.toMoney(feeToken.asset, targets[0].instance.fee_rate)} required` : 'Failed to find a bridge to process this withdrawal');
       return;
     }
     
-    navigate(`/interaction?asset=${token.asset.id}&type=withdraw&bridge=${bridge.instance.bridge_hash}&address=${blockchainAddress}&fee=${bridge.instance.fee_rate.toString()}&back=/`);
+    const info = ASSET_INFORMATION[token.asset.chain];
+    const note = token.asset.token ? info.tokenNote : info.nativeNote;
+    navigate(`/interaction?asset=${token.asset.id}&type=withdraw&bridge=${bridge.instance.bridge_hash}&address=${blockchainAddress}&fee=${bridge.instance.fee_rate.toString()}&back=/${note ? '&note=' : ''}${note ? encodeURIComponent(note) : ''}`);
   }, [blockchain, bridges, blockchainAssets, blockchainAddress]);
   useEffectAsync(async () => {
     setLoading(true);
