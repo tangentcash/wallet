@@ -13,8 +13,6 @@ import Icon from "@mdi/react";
 type ExtendedField = {
   depositTime: number,
   tokenStandard: string | null,
-  nativeNote?: string,
-  tokenNote?: string
 };
 
 type ExtendedBlockchainInfo = AssetId & {
@@ -117,8 +115,7 @@ const ASSET_INFORMATION: Record<string, ExtendedField> = {
   },
   "SOL": {
     depositTime: 1,
-    tokenStandard: 'SPL',
-    tokenNote: 'Destination account must have received this token at least once in the past'
+    tokenStandard: 'SPL'
   },
   "TRX": {
     depositTime: 2,
@@ -264,9 +261,7 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
       return;
     }
     
-    const info = ASSET_INFORMATION[token.asset.chain];
-    const note = token.asset.token ? info.tokenNote : info.nativeNote;
-    navigate(`/interaction?asset=${token.asset.id}&type=withdraw&bridge=${bridge.instance.bridge_hash}&address=${blockchainAddress}&fee=${bridge.instance.fee_rate.toString()}&back=/${note ? '&note=' : ''}${note ? encodeURIComponent(note) : ''}`);
+    navigate(`/interaction?asset=${token.asset.id}&type=withdraw&bridge=${bridge.instance.bridge_hash}&address=${blockchainAddress}&fee=${bridge.instance.fee_rate.toString()}&back=/}`);
   }, [blockchain, bridges, blockchainAssets, blockchainAddress]);
   useEffectAsync(async () => {
     setLoading(true);
