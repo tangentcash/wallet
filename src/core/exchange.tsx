@@ -328,7 +328,7 @@ export class Exchange {
   private static async connectSocketInternal(): Promise<void> {
     try {
       const address = AppData.getWalletAddress();
-      this.location = AppData.defs.exchangeUrl || '';
+      this.location = AppData.props.exchange || '';
       
       const connection = await this.channel(address ? [address] : []);
       if (!connection)

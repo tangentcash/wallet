@@ -14,6 +14,7 @@ export default function ConfigurePage() {
   const navigate = useNavigate();
   const [counter, setCounter] = useState(0);
   const [validatorAddress, setValidatorAddress] = useState(AppData.props.validator || '');
+  const [exchangeAddress, setExchangeAddress] = useState(AppData.props.exchange || '');
   const [loadingProps, setLoadingProps] = useState(false);
   const networkInfo = useMemo<ConnectionState>(() => {
     return AppData.server || {
@@ -49,6 +50,30 @@ export default function ConfigurePage() {
       }
     } catch {
       AlertBox.open(AlertType.Error, 'Server must be in a hostname:port format');
+    }
+
+    setLoadingProps(false);
+    return true;
+  }, [loadingProps]);
+  const setExchangeServer = useCallback(async (address: string) => {
+    if (loadingProps)
+      return false;
+
+    setLoadingProps(true);
+    try {
+      const target = address || null;
+      if (target != null)
+        new URL(target);
+      
+      AppData.setExchange(target);
+      if (target != null) {
+        AppData.reconfigure(null, AppPermission.ReadOnly);
+        AlertBox.open(AlertType.Info, 'Using ' + target + ' as exchange server');
+      } else {
+        AlertBox.open(AlertType.Warning, 'Custom exchange server disabled');
+      }
+    } catch {
+      AlertBox.open(AlertType.Error, 'Server must be in a URL format');
     }
 
     setLoadingProps(false);
@@ -180,10 +205,18 @@ export default function ConfigurePage() {
         <Box px="2" py="2">
           <Heading size="5" mb="1">Server options</Heading>
           <Flex gap="1" mt="2">
-            <Tooltip content="This validator server is the only one used to interact with Tangent (if present)">
-              <TextField.Root style={{ width: '100%' }} size="2" placeholder="Validator server address" type="text" value={validatorAddress} onChange={(e) => setValidatorAddress(e.target.value.trim())} />
+            <Tooltip content="Specify the URL of Validator RPC server: read/write on-chain data">
+              <TextField.Root style={{ width: '100%' }} size="2" placeholder="Validator RPC server address" type="text" value={validatorAddress} onChange={(e) => setValidatorAddress(e.target.value.trim())} />
             </Tooltip>
             <Button size="2" variant="soft" color="yellow" onClick={() => setValidatorServer(validatorAddress)}>
+              <Icon path={mdiRefresh} size={0.85} />
+            </Button>
+          </Flex>
+          <Flex gap="1" mt="2">
+            <Tooltip content="Specify the URL of Exchange RPC server: read-only DEX data">
+              <TextField.Root style={{ width: '100%' }} size="2" placeholder="Exchange RPC server address" type="text" value={exchangeAddress} onChange={(e) => setExchangeAddress(e.target.value.trim())} />
+            </Tooltip>
+            <Button size="2" variant="soft" color="yellow" onClick={() => setExchangeServer(exchangeAddress)}>
               <Icon path={mdiRefresh} size={0.85} />
             </Button>
           </Flex>

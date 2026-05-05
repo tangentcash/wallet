@@ -58,12 +58,12 @@ export type AppState = {
 
 export type AppDefs = {
   cachePrefix: string | null,
-  exchangeUrl: string | null,
   authorizer: boolean,
 };
 
 export type AppProps = {
   validator: string | null,
+  exchange: string | null,
   account: string | null,
   appearance: 'dark' | 'light'
 }
@@ -84,11 +84,11 @@ export class AppData {
   };
   static defs: AppDefs = {
     cachePrefix: null,
-    exchangeUrl: null,
     authorizer: false,
   };
   static props: AppProps = {
     validator: null,
+    exchange: null,
     account: null,
     appearance: 'dark'
   };
@@ -608,11 +608,13 @@ export class AppData {
           throw new Error('invalid network');
       }
     })();
+    const mustReset = resetNetwork || !Storage.get(StorageField.App);
     this.defs.cachePrefix = config.cachePrefix;
-    this.defs.exchangeUrl = config.exchangeUrl;
     this.defs.authorizer = config.authorizer;
-    if (resetNetwork || !this.props.validator || !Storage.get(StorageField.App))
+    if (mustReset || !this.props.validator)
       this.props.validator = config.validatorUrl;
+    if (mustReset || !this.props.exchange)
+      this.props.exchange = config.exchangeUrl;
     if (resetNetwork)
       RPC.clearCache();
     
@@ -665,6 +667,10 @@ export class AppData {
   static setValidator(value: string | null): void {
     this.props.validator = value;
     RPC.applyValidator(this.props.validator);
+    this.save();
+  }
+  static setExchange(value: string | null): void {
+    this.props.exchange = value;
     this.save();
   }
   static setAppearance(value: 'dark' | 'light'): void {
