@@ -510,12 +510,18 @@ export class Exchange {
     const result = await this.fetch('GET', `market/pool`, { id: poolId.toString() });
     return this.toPool(result);
   }
-  static async marketAssets(marketId: number | string | BigNumber, asset: AssetId): Promise<AssetId[]> {
+  static async marketAssets(marketId: number | string | BigNumber, asset: AssetId, liquidity?: boolean): Promise<(AssetId & { liquidity?: BigNumber })[]> {
     const result = await this.fetch('GET', `market/assets`, {
       marketId: marketId.toString(),
-      assetHash: asset.id.toString()
+      assetHash: asset.id.toString(),
+      liquidity: typeof liquidity == 'boolean' ? liquidity : undefined
     });
-    return result.map((item: any) => new AssetId(item.id));
+    return result.map((item: any) => {
+      const updated: AssetId & { liquidity?: BigNumber } = new AssetId(item.id);
+      if (item.liquidity)
+        updated.liquidity = item.liquidity;
+      return updated;
+    });
   }
   static async marketPaths(marketId: number | string | BigNumber, assetIn: AssetId, assetOut: AssetId, amountIn: number | string | BigNumber, slippage: number | string | BigNumber): Promise<RouterPath[]> {
     const result = await this.fetch('GET', `market/paths`, { marketId: marketId.toString(), assetHashIn: assetIn.id.toString(), assetHashOut: assetOut.id.toString(), amountIn: amountIn.toString(), slippage: slippage.toString() });

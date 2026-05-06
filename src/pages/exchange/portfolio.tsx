@@ -32,11 +32,11 @@ type CachedBalance = Balance & { cached: boolean }
 let swapPathTimeoutId: number | null = null;
 let portfolioSyncTimeoutId: number | null = null;
 let toAssetSymbol = (asset: AssetId): string => asset.chain == 'TAN' && asset.token ? (asset.token || '') : ((asset.token || '') + (asset.chain || ''));
-let toEquityAssets = (assets: Balance[], todayProfits: boolean) => {
+let toEquityAssets = (assets: Balance[], todayProfits: boolean, available?: boolean) => {
   return (): (Balance & { value: BigNumber, equity: { current: BigNumber | null, previous: BigNumber | null } })[] => {
     return assets.map((v: Balance) => {
       const price = Exchange.priceOf(v.asset);
-      const value = v.available.plus(v.unavailable);
+      const value = available ? v.available : v.available.plus(v.unavailable);
       const previousEquity = todayProfits ? (price.open ? new BigNumber(price.open.multipliedBy(value).toFixed(2)) : null) : (v.price ? new BigNumber(v.price.multipliedBy(value).toFixed(2)) : null);
       const currentEquity = price.close ? new BigNumber(price.close.multipliedBy(value).toFixed(2)) : null;
       return {
@@ -676,10 +676,24 @@ function PortfolioAssets(props: {
   todayProfits: boolean,
   readOnly: boolean
 }) {
-  const equityAssets = useMemo(toEquityAssets(props.assets, props.todayProfits), [props.assets, props.todayProfits]);
+  const [available, setAvailable] = useState(false);
+  const equityAssets = useMemo(toEquityAssets(props.assets, props.todayProfits, available), [props.assets, props.todayProfits, available]);
   return (
     <Box pt="4">
-      { equityAssets.map((item) => <BalanceView key={item.asset.id} item={item} readOnly={props.readOnly}></BalanceView>) }
+      <Flex justify="between" align="center" pb="4">
+        <Text>Balance sheet</Text>
+        <Select.Root value={available ? '1' : '0'} onValueChange={(e) => setAvailable(parseInt(e) > 0)}>
+          <Select.Trigger />
+          <Select.Content>
+            <Select.Group>
+              <Select.Label>View mode</Select.Label>
+              <Select.Item value="1">Spendable</Select.Item>
+              <Select.Item value="0">Overall</Select.Item>
+            </Select.Group>
+          </Select.Content>
+        </Select.Root>
+      </Flex>
+      { equityAssets.map((item) => <BalanceView key={item.asset.id} item={item} readOnly={props.readOnly} available={available}></BalanceView>) }
       {
         !props.assets.length && 
         <Flex px="4" justify="center">
