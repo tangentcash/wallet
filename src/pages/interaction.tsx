@@ -1322,7 +1322,7 @@ export default function InteractionPage() {
             <Callout.Icon>
               <Icon path={mdiAlertCircleOutline} size={1} />
             </Callout.Icon>
-            <Callout.Text style={{ whiteSpace: 'pre-wrap' }}>Note: { params.note }</Callout.Text>
+            <Callout.Text style={{ whiteSpace: 'pre-wrap' }}>{ params.note }</Callout.Text>
           </Callout.Root>
         </Box>
       }
