@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Flex, Select, Spinner, Text, TextField } from "@radix-ui/themes";
+import { Badge, Box, Button, Checkbox, Flex, Select, Spinner, Text, TextField } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { AssetId, RPC, Readability, Whitelist } from "tangentsdk";
@@ -155,6 +155,7 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
   const [blockchainIndex, setBlockchainIndex] = useState<number>(-1);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [bridges, setBridges] = useState<any[]>([]);
+  const [disclaimer, setDisclaimer] = useState(false);
   const [loading, setLoading] = useState(false);
   const blockchains = useMemo((): ExtendedBlockchainInfo[] => {
     if (!Array.isArray(props.blockchains))
@@ -222,7 +223,7 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
       return blockchainAddresses.routing.addresses[routingAddressIndex].address
 
     return routingAddressValue || null;
-  }, [routingAddressIndex, routingAddressValue]);
+  }, [routingAddressIndex, routingAddressValue, blockchainAddresses]);
   const blockchainAssets = useMemo((): any[] => props.assets.filter(x => x.asset.chain == blockchain?.chain), [blockchain, props.assets]);
   const claim = useCallback(() => {
     if (!blockchain) {
@@ -319,7 +320,10 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
 
   return (
     <Box>
-      <Select.Root size="3" value={blockchainIndex.toString()} onValueChange={(e) => setBlockchainIndex(parseInt(e))}>
+      <Select.Root size="3" value={blockchainIndex.toString()} onValueChange={(e) => {
+        setBlockchainIndex(parseInt(e));
+        setDisclaimer(false);
+      }}>
         <Select.Trigger style={{ width: '100%' }} />
         <Select.Content>
           <Select.Item value="-1">
@@ -343,7 +347,10 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
         blockchain != null &&
         <Box>
           <Flex gap="1" mt="2">
-            <Select.Root size="3" value={routingAddressIndex.toString()} onValueChange={(e) => setRoutingAddressIndex(parseInt(e))}>
+            <Select.Root size="3" value={routingAddressIndex.toString()} onValueChange={(e) => {
+              setRoutingAddressIndex(parseInt(e));
+              setDisclaimer(false);
+            }}>
               <Select.Trigger />
               <Select.Content>
                 {
@@ -393,7 +400,18 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
               {
                 blockchainAddresses.bridge && (routingAddressIndex != -1 || blockchain.routing_policy != 'account') &&
                 <Box mt="6">
-                  <AddressView address={blockchainAddresses.bridge}></AddressView>
+                  { (disclaimer || blockchain.routing_policy != 'account') && <AddressView address={blockchainAddresses.bridge}></AddressView> }
+                  {
+                    (!disclaimer && blockchain.routing_policy == 'account') &&
+                    <Flex justify="center" align="center" direction="column" my="8">
+                      <Text as="label" size="2">
+                        <Flex gap="2">
+                          <Checkbox checked={disclaimer} onCheckedChange={(e) => setDisclaimer(!!e.valueOf())} />
+                          I will deposit only from <Badge>{ Readability.toAddress(blockchainAddress || '', 6) }</Badge>
+                        </Flex>
+                      </Text>
+                    </Flex>
+                  }
                 </Box>
               }
               {
