@@ -243,7 +243,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                         if (item.addresses != null) {
                           setSelectedAddress(index);
                         } else {
-                          navigate(`/bridge?asset=${item.asset.id}&bindings=1`);
+                          navigate(`/explorer?view=bridges&asset=${item.asset.id}`);
                         }
                       }}>
                         <Flex gap="3" align="center" py="3">

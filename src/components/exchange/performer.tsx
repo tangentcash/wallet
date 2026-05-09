@@ -581,7 +581,7 @@ export function PerformerButton(props: { title: string, description: string, dis
         }, new Transactions.Call());
       }
 
-      navigate(`/interaction?type=approve&transaction=${stream.encode()}&back=${encodeURIComponent(location.pathname + location.search + (location.search.indexOf('?') == -1 ? '?' : '') + 'cleanup=1')}`);
+      navigate(`/interaction?type=approve&transaction=${stream.encode()}&back=${encodeURIComponent(location.pathname + location.search + (location.search.startsWith('?') ? (location.search.length > 1 ? '&' : '') : '?') + 'cleanup=1')}`);
     } catch (exception: any) {
       AlertBox.open(AlertType.Error, 'Serialization failed: ' + exception.message);
     }

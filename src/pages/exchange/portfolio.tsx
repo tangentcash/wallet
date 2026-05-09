@@ -149,6 +149,7 @@ function PortfolioWorth(props: {
     </Card>
   )
 }
+
 function SwapRouter(props: {
   assets: CachedBalance[]
 }) {
@@ -478,6 +479,7 @@ function SwapRouter(props: {
     </Box>
   )
 }
+
 function TradingPairs() {
   const navigate = useNavigate();
   const [launchablePair, setLaunchablePair] = useState<AggregatedPair | null>(null);
@@ -671,6 +673,7 @@ function TradingPairs() {
     </>
   )
 }
+
 function PortfolioAssets(props: {
   assets: CachedBalance[]
   todayProfits: boolean,
@@ -703,6 +706,7 @@ function PortfolioAssets(props: {
     </Box>
   )
 }
+
 export default function PortfolioPage() {
   const params = useParams();
   const ownerAddress = AppData.getWalletAddress();

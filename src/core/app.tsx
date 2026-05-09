@@ -409,8 +409,9 @@ export class AppData {
     const type = message.readInteger(readType());
     const signature = message.readBinaryString(readType());
     const asset = message.readInteger(readType());
-    const gasPrice = message.readDecimal(readType());
-    const gasLimit = message.readInteger(readType());
+    const layout = readType();
+    const gasPrice = layout > Viewable.DecimalPos2 ? new BigNumber(0) : message.readDecimal(layout);
+    const gasLimit = message.readInteger(layout > Viewable.DecimalPos2 ? layout : readType());
     const nonce = message.readInteger(readType());
     if (type == null || signature == null || asset == null || gasPrice == null || gasLimit == null || nonce == null)
       throw new Error('Transaction data is malformed');

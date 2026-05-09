@@ -1,6 +1,6 @@
 import { Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Heading, Select, Tabs, TextField, Tooltip } from "@radix-ui/themes";
-import { Link, useNavigate } from "react-router";
-import { useCallback, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData } from "../core/app";
 import { AssetId, Chain, EventResolver, Readability, RPC, Signing, Stream, SummaryState, Whitelist } from "tangentsdk";
@@ -17,6 +17,7 @@ const BRIDGE_COUNT = 16;
 
 export default function ExplorerPage() {
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
+  const [search, setSearch] = useSearchParams();
   const [counter, setCounter] = useState(0);
   const [loading, setLoading] = useState(false);
   const [subject, setSubject] = useState('');
@@ -34,7 +35,7 @@ export default function ExplorerPage() {
   const blockNumber = useMemo((): BigNumber | null => {
     return AppData.tip;
   }, [counter]);
-  const search = useCallback(async (mode: 'block' | 'transaction' | false) => {
+  const find = useCallback(async (mode: 'block' | 'transaction' | false) => {
     if (loading)
       return;
 
@@ -228,6 +229,17 @@ export default function ExplorerPage() {
     if (Array.isArray(blockchainData))
       setBlockchains(blockchainData.sort((a, b) => new AssetId(a.id).handle.localeCompare(new AssetId(b.id).handle)));   
   }, []);
+  useEffect(() => {
+    const view = search.get('view');
+    if (view != null && ['blocks', 'transactions', 'bridges'].includes(view)) {
+      setTab(view as any);
+    }
+
+    const id = search.get('asset');
+    if (id != null) {
+      setAsset(new AssetId(id));
+    }
+  }, [search]);
 
   return (
     <Box px="4" pt="4" maxWidth="680px" mx="auto">
@@ -246,12 +258,12 @@ export default function ExplorerPage() {
       {
         subject.trim().length > 0 &&
         <Flex px="2" gap="1" mt="4" wrap="wrap">   
-          <Button size="2" variant="soft" disabled={loading} onClick={() => search(false)}>In anything</Button>
-          <Button size="2" variant="soft" disabled={loading} onClick={() => search('transaction')}>In transaction</Button>
-          <Button size="2" variant="soft" disabled={loading} onClick={() => search('block')}>In block</Button>
+          <Button size="2" variant="soft" disabled={loading} onClick={() => find(false)}>In anything</Button>
+          <Button size="2" variant="soft" disabled={loading} onClick={() => find('transaction')}>In transaction</Button>
+          <Button size="2" variant="soft" disabled={loading} onClick={() => find('block')}>In block</Button>
         </Flex>
       }
-      <Tabs.Root mt="4" value={tab} onValueChange={(e) => setTab(e as any)}>
+      <Tabs.Root mt="4" value={tab} onValueChange={(x) => setSearch({ view: x })}>
         <Tabs.List>
           <Tabs.Trigger value="blocks">Blocks</Tabs.Trigger>
           <Tabs.Trigger value="transactions">Transactions</Tabs.Trigger>
