@@ -570,16 +570,7 @@ export class AppData {
       onCacheKeys: (): string[] => Storage.keys().filter((v) => v.startsWith((this.defs.cachePrefix || 'V'))).map((v) => v.substring((this.defs.cachePrefix || 'V').length + 1))
     });
     this.reconfigure(null, AppPermission.ReadOnly);
-    
-    const splashscreen = document.getElementById('splashscreen-content');
-    if (splashscreen != null) {
-      splashscreen.style.transition = 'opacity 250ms linear';
-      splashscreen.style.opacity = '0';
-      setTimeout(() => this.render(), 250);
-    } else {
-      this.render();
-    }
-    
+    this.render();
     if (this.isApp())
       await listen('authorizer', (event) => this.authorizerEvent(event));
   }
@@ -652,6 +643,21 @@ export class AppData {
       };
       input.click();
     })
+  }
+  static removeSplashscreen(latency: number = 250): Promise<boolean> {
+    return new Promise<boolean>((resolve) => {
+      const splashscreen = document.getElementById('splashscreen');
+      if (splashscreen != null) {
+        splashscreen.style.transition = `opacity ${latency}ms linear`;
+        splashscreen.style.opacity = '0';
+        setTimeout(() => {
+          splashscreen.remove();
+          resolve(true);
+        }, latency);
+      } else {
+        resolve(false);
+      }
+    });
   }
   static saveFile(name: string, type: string, data: string): void {
     const link = document.createElement("a");
@@ -752,6 +758,7 @@ export function App() {
     if (forceAppearance == 'light' || forceAppearance == 'dark') {
       AppData.setAppearance(forceAppearance);
     }
+    AppData.removeSplashscreen();
   }, []);
 
   return (
