@@ -1,5 +1,5 @@
 import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiRefresh, mdiReloadAlert, mdiTrashCan } from "@mdi/js";
-import { AlertDialog, Badge, Box, Button, Card, DataList, Flex, Heading, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { AlertDialog, Badge, Box, Button, Card, DataList, Flex, Heading, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { SafeStorage, StorageField } from "../core/storage";
@@ -13,6 +13,7 @@ export default function ConfigurePage() {
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const navigate = useNavigate();
   const [counter, setCounter] = useState(0);
+  const [walletExportType, setWalletExportType] = useState<'wallet' | 'mnemonic' | 'secretkey' | 'publickey' | 'address'>('wallet');
   const [validatorAddress, setValidatorAddress] = useState(AppData.props.validator || '');
   const [exchangeAddress, setExchangeAddress] = useState(AppData.props.exchange || '');
   const [loadingProps, setLoadingProps] = useState(false);
@@ -79,6 +80,76 @@ export default function ConfigurePage() {
     setLoadingProps(false);
     return true;
   }, [loadingProps]);
+  const exportWallet = useCallback(async () => {
+    switch (walletExportType) {
+      case 'wallet': {
+        const mnemonic = await SafeStorage.get(StorageField.Mnemonic);
+        const secretKey = AppData.getWalletSecretKey();
+        const publicKey = AppData.getWalletPublicKey();
+        const publicKeyHash = AppData.getWalletPublicKeyHash();
+        const address = AppData.getWalletAddress();
+        if ((!mnemonic && !secretKey) || !publicKey || !publicKeyHash || !address) {
+          AlertBox.open(AlertType.Error, 'Walled is locked or has no recovery phase and/or no private key');
+          break;
+        }
+
+        AppData.saveFile('wallet.json', 'application/json', JSON.stringify({
+          mnemonic: mnemonic != null && Array.isArray(mnemonic) ? mnemonic.join(' ') : undefined,
+          secret_key: secretKey != null ? Signing.encodeSecretKey(secretKey) || undefined : undefined,
+          public_key: publicKey != null ? Signing.encodePublicKey(publicKey) || undefined : undefined,
+          public_key_hash: publicKeyHash != null ? ByteUtil.uint8ArrayToHexString(publicKeyHash.data) || undefined : undefined,
+          address: address
+        }, null, 2));
+        break;
+      }
+      case 'mnemonic': {
+        const mnemonic = await SafeStorage.get(StorageField.Mnemonic);
+        if (!mnemonic) {
+          AlertBox.open(AlertType.Error, 'Wallet is locked or has no recovery phrase');
+          break;
+        }
+
+        navigator.clipboard.writeText(mnemonic);
+        AlertBox.open(AlertType.Info, 'Recovery phrase copied!');
+        break;
+      }
+      case 'secretkey': {
+        const secretKey = AppData.getWalletSecretKey();
+        const encodedSecretKey = secretKey ? Signing.encodeSecretKey(secretKey) : null;
+        if (!encodedSecretKey) {
+          AlertBox.open(AlertType.Error, 'Wallet is locked or has no private key');
+          break;
+        }
+
+        navigator.clipboard.writeText(encodedSecretKey);
+        AlertBox.open(AlertType.Info, 'Private key copied!');
+        break;
+      }
+      case 'publickey': {
+        const publicKey = AppData.getWalletPublicKey();
+        const encodedPublicKey = publicKey ? Signing.encodePublicKey(publicKey) : null;
+        if (!encodedPublicKey) {
+          AlertBox.open(AlertType.Error, 'Wallet is locked or has no public key');
+          break;
+        }
+
+        navigator.clipboard.writeText(encodedPublicKey);
+        AlertBox.open(AlertType.Info, 'Public key copied!');
+        break;
+      }
+      case 'address': {
+        const address = AppData.getWalletAddress();
+        if (!address) {
+          AlertBox.open(AlertType.Error, 'Wallet has no address');
+          break;
+        }
+
+        navigator.clipboard.writeText(address);
+        AlertBox.open(AlertType.Info, 'Address copied!');
+        break;
+      }
+    }
+  }, [walletExportType]);
   const resetNetwork = useCallback(async () => {
     if (loadingProps)
       return false;
@@ -148,32 +219,27 @@ export default function ConfigurePage() {
             <Badge size="3" color="lime">{ AppData.isWalletExists() ? (AppData.getWalletSecretKey() != null ? 'Read/write' : 'Read-only') : 'TBC' }</Badge>
           </Flex>
           <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Close wallet</Text>
-            <Button size="2" variant="soft" color="lime" disabled={!AppData.isWalletExists() || !AppData.isWalletReady()} onClick={() => AppData.clearWallet()}>
-              <Icon path={mdiLocationExit} size={0.85} />
+            <Select.Root value={walletExportType} onValueChange={(e) => setWalletExportType(e as any)}>
+              <Select.Trigger variant="ghost" />
+              <Select.Content>
+                <Select.Group>
+                  <Select.Label>Wallet export type</Select.Label>
+                  <Select.Item value="wallet">Export file</Select.Item>
+                  <Select.Item value="mnemonic">Export recovery phrase</Select.Item>
+                  <Select.Item value="secretkey">Export private key</Select.Item>
+                  <Select.Item value="publickey">Export public key</Select.Item>
+                  <Select.Item value="address">Export address</Select.Item>
+                </Select.Group>
+              </Select.Content>
+            </Select.Root>
+            <Button size="2" variant="soft" color="yellow" disabled={!AppData.isWalletExists()} onClick={exportWallet}>
+              <Icon path={mdiAlertOctagram} size={0.85} />
             </Button>
           </Flex>
           <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Export wallet</Text>
-            <Button size="2" variant="soft" color="yellow" disabled={!AppData.isWalletExists()} onClick={async () => {
-                const mnemonic = await SafeStorage.get(StorageField.Mnemonic);
-                const secretKey = AppData.getWalletSecretKey(); 
-                if (secretKey || mnemonic) {
-                  const publicKey = AppData.getWalletPublicKey();
-                  const publicKeyHash = AppData.getWalletPublicKeyHash();
-                  const address = AppData.getWalletAddress();
-                  AppData.saveFile('wallet.json', 'application/json', JSON.stringify({
-                    mnemonic: mnemonic != null && Array.isArray(mnemonic) ? mnemonic.join(' ') : undefined,
-                    secret_key: secretKey != null ? Signing.encodeSecretKey(secretKey) || undefined : undefined,
-                    public_key: publicKey != null ? Signing.encodePublicKey(publicKey) || undefined : undefined,
-                    public_key_hash: publicKeyHash != null ? ByteUtil.uint8ArrayToHexString(publicKeyHash.data) || undefined : undefined,
-                    address: address
-                  }, null, 2));
-                } else {
-                  AlertBox.open(AlertType.Error, 'Failed to export: either must unlock the wallet or it is read-only');
-                }
-              }}>
-              <Icon path={mdiAlertOctagram} size={0.85} />
+            <Text size="2" color="gray">Close wallet</Text>
+            <Button size="2" variant="soft" color="lime" disabled={!AppData.isWalletExists() || !AppData.isWalletReady()} onClick={() => AppData.clearWallet()}>
+              <Icon path={mdiLocationExit} size={0.85} />
             </Button>
           </Flex>
           <Flex justify="between" align="center" mt="2">
