@@ -101,7 +101,7 @@ export default function HypePage() {
           </Flex>
           <Flex justify="center" align="center" direction="column" mb="3">
             <Button size="4" variant="surface" style={{ paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation shadow-blur" onClick={() => navigate('/restore')}>
-              Create a wallet <Icon path={mdiLogin} size={1}></Icon>
+              { AppData.isWalletExists() ? 'Back to app' : 'Create a wallet' } <Icon path={mdiLogin} size={1}></Icon>
             </Button>
           </Flex>
           <Flex justify="center" align="center" gap="1">

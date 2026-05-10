@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Card, Dialog, Flex, Heading, Select, Tabs, Slider, Spinner, Switch, Text, TextField, Tooltip} from "@radix-ui/themes";
+import { Badge, Box, Button, Card, Dialog, Flex, Heading, Select, Tabs, Slider, Spinner, Switch, Text, TextField, Tooltip, Separator} from "@radix-ui/themes";
 import { mdiArrowRight, mdiChevronDoubleRight, mdiCog, mdiPercent, mdiSwapVertical } from "@mdi/js";
 import { AssetId, Readability, ByteUtil, TextUtil, RPC, Signing, Whitelist } from "tangentsdk";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -58,6 +58,7 @@ function PortfolioWorth(props: {
   onTodayProfitsChange: (value: boolean) => any,
   onAssetsChange?: (value: CachedBalance[] | ((prev: CachedBalance[]) => CachedBalance[])) => any 
 }) {
+  const mobile = document.body.clientWidth <= 600;
   const [assets, setAssets] = useState<CachedBalance[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [sync, setSync] = useState(0);
@@ -132,12 +133,12 @@ function PortfolioWorth(props: {
       props.onAssetsChange([...assets]);
   }, [props.assetResync]);
   
-  return ( 
-    <Card mt="3" variant="surface" style={{ borderRadius: '28px' }}>
-      <Box px="2" py="1">
+  return (
+    <Card mt="3" variant={mobile ? 'ghost' : 'surface'} style={mobile ? { margin: 0, border: 'none', paddingTop: 0 } : { borderRadius: '28px' }}>
+      <Box px={mobile ? undefined : '2'} py={mobile ? undefined : '1'}>
         <Box mb="2">
           <Flex justify="between" align="center" mb="1">
-            <Text size="3" color="gray">Net worth</Text>
+            <Text size={mobile ? '4' : '3'} color="gray">Net worth</Text>
             <Button variant="soft" size="2" color="yellow" loading={loading} onClick={() => setSync(-1)}>
               <Icon path={mdiRefresh} size={0.8}></Icon> Re-sync
             </Button>
@@ -803,10 +804,10 @@ export default function PortfolioPage() {
   }, [search]);
 
   return (
-    <Box px="4" pt="4" minWidth="285px" maxWidth="680px" mx="auto">
-      <Flex gap="2" align="center" justify="between" px="2" mb="2">
+    <Box px={mobile ? undefined : '4'} pt="4" minWidth="285px" maxWidth="680px" mx="auto">
+      <Flex gap="2" align="center" justify="between" px="3" mb="2">
         <Flex align="center" gap="2">
-          <Heading size={document.body.clientWidth < 450 ? '4' : '6'}>Portfolio</Heading>
+          <Heading size={document.body.clientWidth < 450 ? '4' : '6'}>DEX</Heading>
           <Button variant="surface" size="1" color={ readOnly ? 'red' : 'lime' }>{ baseAddress ? baseAddress.substring(baseAddress.length - 6) : 'Preview' }</Button>
         </Flex>
         <Flex justify="end" gap="1">
@@ -835,6 +836,12 @@ export default function PortfolioPage() {
           </Dialog.Root>
         </Flex>
       </Flex>
+      {
+        mobile &&
+        <Box>
+          <Separator my="4" size="4"></Separator>
+        </Box>
+      }
       <PortfolioWorth address={baseAddress} assetResync={assetResync} todayProfits={todayProfits} onTodayProfitsChange={setTodayProfits} onAssetsChange={viewer == 'swap' || viewer == 'assets' ? setAssets : undefined}></PortfolioWorth>
       <Box px="2" pt="2">
         <Tabs.Root value={viewer.replace(/(open-)|(closed-)/g, '')} onValueChange={(x) => setSearch({

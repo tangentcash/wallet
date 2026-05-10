@@ -10,9 +10,9 @@ export default function AccountPage() {
     return <Navigate replace={true} to="/" state={{ from: `${location.pathname}${location.search}` }} />;
 
   return (
-    <Box px="4" pt="4" maxWidth="680px" mx="auto">
-      <Flex align="center" gap="2" px="2">
-        <Heading size="6">Account</Heading>
+    <Box pt="4" maxWidth="680px" mx="auto">
+      <Flex align="center" justify="center" gap="2" px="5">
+        <Heading size="5">Account</Heading>
         <Badge variant="surface" color="blue" size="2">{ baseAddress.substring(baseAddress.length - 6) }</Badge>
       </Flex>
       <Account ownerAddress={baseAddress}></Account>

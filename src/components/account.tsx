@@ -202,25 +202,25 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   const mobile = document.body.clientWidth < 500;
   return (
     <Box>
-      <Card mt="3" variant="surface" style={{ borderRadius: '28px' }}>
-        <Flex justify={mobile ? 'center' : 'start'} gap="2" py="1">
-          <SegmentedControl.Root value={control} radius="full" size={mobile ? '2' : '3'} mb="2" onValueChange={(value) => setControl(value as any)}>
+      <Card mt="3" variant={mobile ? 'ghost' : 'surface'} style={mobile ? { borderRadius: '0', border: 'none', borderBottom: 'none', margin: 0 } : { borderRadius: '28px' }}>
+        <Flex justify={mobile ? 'center' : 'start'} gap="2" pb="1" pt={mobile ? '0' : '1'}>
+          <SegmentedControl.Root value={control} radius="full" size="3" mb="2" onValueChange={(value) => setControl(value as any)}>
             <SegmentedControl.Item value="address">
               <Flex gap="2" align="center">
                 { loading && control == 'address' && <Spinner /> }
-                <Text>Fund</Text>
+                <Text size="4">Fund</Text>
               </Flex>
             </SegmentedControl.Item>
             <SegmentedControl.Item value="balance">
               <Flex gap="2" align="center">
                 { loading && control == 'balance' && <Spinner /> }
-                <Text>Balance</Text>
+                <Text size="4">Balance</Text>
               </Flex>
             </SegmentedControl.Item>
             <SegmentedControl.Item value="storage">
               <Flex gap="2" align="center">
                 { loading && control == 'storage' && <Spinner /> }
-                <Text>Data</Text>
+                <Text size="4">Data</Text>
               </Flex>
             </SegmentedControl.Item>
           </SegmentedControl.Root>
@@ -338,9 +338,6 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
             {
               props.self &&
               <Box mt="2">
-                <Box px="2" mb="4">
-                  <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-                </Box>
                 <Bridge blockchains={blockchains} assets={assets}></Bridge>
               </Box>
             }
@@ -493,7 +490,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
       </Card>
       {
         (transactions.length > 0 || mempoolTransactions.length > 0) &&
-        <Box width="100%" my="8">
+        <Box width="100%" my="8" px="2">
           {
             mempoolTransactions.length > 0 &&
             <Box width="100%">

@@ -9,7 +9,7 @@
 }
 
 .rt-SegmentedControlRoot {
-  background-image: none;
+  background-image: linear-gradient(var(--gray-a2), var(--gray-a2));
 }
 
 .rt-TextFieldRoot {

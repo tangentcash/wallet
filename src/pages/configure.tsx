@@ -1,5 +1,5 @@
 import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiRefresh, mdiReloadAlert, mdiTrashCan } from "@mdi/js";
-import { AlertDialog, Badge, Box, Button, Card, DataList, Flex, Heading, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { AlertDialog, Badge, Box, Button, Card, DataList, Flex, Heading, Select, Separator, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { SafeStorage, StorageField } from "../core/storage";
@@ -10,7 +10,8 @@ import License from "../components/license";
 import { useNavigate } from "react-router";
 
 export default function ConfigurePage() {
-  const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
+  const mobile = document.body.clientWidth <= 600;
+  const orientation = mobile ? 'vertical' : 'horizontal';
   const navigate = useNavigate();
   const [counter, setCounter] = useState(0);
   const [walletExportType, setWalletExportType] = useState<'wallet' | 'mnemonic' | 'secretkey' | 'publickey' | 'address'>('wallet');
@@ -171,50 +172,20 @@ export default function ConfigurePage() {
   }, []);
 
   return (
-    <Box px="4" pt="4" mx="auto" maxWidth="580px">
-      <Heading size="6">Configuration</Heading>
-      <Box width="100%" mt="4">
-        <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-      </Box>
-      <Card mt="4">
+    <Box px={mobile ? undefined : '4'} pt={mobile ? '2' : '4'} mx="auto" maxWidth="580px">
+      {
+        !mobile &&
+        <>
+          <Heading size="6">Setup</Heading>
+          <Box width="100%" mt="4">
+            <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+          </Box>
+        </>
+      }
+      <Card mt={mobile ? undefined : '4'} variant={mobile ? 'ghost' : 'surface'} style={mobile ? { margin: 0, border: 'none' } : undefined}>
         <Box px="2" py="2">
-          <Heading size="5" mb="2">Client options</Heading>
-          <Flex gap="2" align="center" justify="between">
-            <Text size="2" color="gray">Display theme</Text>
-            <Button size="2" variant="soft" color="lime" onClick={() => AppData.setAppearance(AppData.props.appearance == 'dark' ? 'light' : 'dark')}>
-              <Icon path={AppData.props.appearance == 'dark' ? mdiLightbulbOutline : mdiLightbulbOn} size={0.85} />
-            </Button>
-          </Flex>
-          <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Erase cache</Text>
-            <Button size="2" variant="soft" color="lime" onClick={() => {
-              RPC.clearCache();
-              AlertBox.open(AlertType.Info, 'Application cache erased');
-            }}>
-              <Icon path={mdiCached} size={0.85} />
-            </Button>
-          </Flex>
-          <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Reload app</Text>
-            <Button size="2" variant="soft" onClick={() => location.reload()}>
-              <Icon path={mdiReloadAlert} size={0.85} />
-            </Button>
-          </Flex>
-          {
-            AppData.isApp() &&
-            <Flex justify="between" align="center" mt="2">
-              <Text size="2" color="gray">Show debugger</Text>
-              <Button size="2" variant="soft" color="yellow" onClick={() => AppData.openDevTools()}>
-                <Icon path={mdiBugOutline} size={0.85} />
-              </Button>
-            </Flex>
-          }
-        </Box>
-      </Card>
-      <Card mt="4">
-        <Box px="2" py="2">
-          <Heading size="5" mb="2">Wallet options</Heading>
-          <Flex justify="between" align="center" mt="2">
+          <Heading size={mobile ? '6' : '5'} mb="2">Wallet</Heading>
+          <Flex justify="between" align="center" mt="3">
             <Text size="2" color="gray">Wallet status</Text>
             <Badge size="3" color="lime">{ AppData.isWalletExists() ? (AppData.getWalletSecretKey() != null ? 'Read/write' : 'Read-only') : 'TBC' }</Badge>
           </Flex>
@@ -271,9 +242,56 @@ export default function ConfigurePage() {
           </Flex>
         </Box>
       </Card>
-      <Card mt="4">
+      {
+        mobile &&
+        <Box width="100%">
+          <Separator my="0" size="4"></Separator>
+        </Box>
+      }
+      <Card mt="4" variant={mobile ? 'ghost' : 'surface'} style={mobile ? { margin: 0, border: 'none' } : undefined}>
         <Box px="2" py="2">
-          <Heading size="5" mb="1">Server options</Heading>
+          <Heading size={mobile ? '6' : '5'} mb="3">Client</Heading>
+          <Flex gap="2" align="center" justify="between">
+            <Text size="2" color="gray">Display theme</Text>
+            <Button size="2" variant="soft" color="lime" onClick={() => AppData.setAppearance(AppData.props.appearance == 'dark' ? 'light' : 'dark')}>
+              <Icon path={AppData.props.appearance == 'dark' ? mdiLightbulbOutline : mdiLightbulbOn} size={0.85} />
+            </Button>
+          </Flex>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" color="gray">Erase cache</Text>
+            <Button size="2" variant="soft" color="lime" onClick={() => {
+              RPC.clearCache();
+              AlertBox.open(AlertType.Info, 'Application cache erased');
+            }}>
+              <Icon path={mdiCached} size={0.85} />
+            </Button>
+          </Flex>
+          <Flex justify="between" align="center" mt="2">
+            <Text size="2" color="gray">Reload app</Text>
+            <Button size="2" variant="soft" onClick={() => location.reload()}>
+              <Icon path={mdiReloadAlert} size={0.85} />
+            </Button>
+          </Flex>
+          {
+            AppData.isApp() &&
+            <Flex justify="between" align="center" mt="2">
+              <Text size="2" color="gray">Show debugger</Text>
+              <Button size="2" variant="soft" color="yellow" onClick={() => AppData.openDevTools()}>
+                <Icon path={mdiBugOutline} size={0.85} />
+              </Button>
+            </Flex>
+          }
+        </Box>
+      </Card>
+      {
+        mobile &&
+        <Box width="100%">
+          <Separator my="0" size="4"></Separator>
+        </Box>
+      }
+      <Card mt="4" variant={mobile ? 'ghost' : 'surface'} style={mobile ? { margin: 0, border: 'none' } : undefined}>
+        <Box px="2" py="2">
+          <Heading size={mobile ? '6' : '5'} mb="3">Server</Heading>
           <Flex gap="1" mt="2">
             <Tooltip content="Specify the URL of Validator RPC server: read/write on-chain data">
               <TextField.Root style={{ width: '100%' }} size="2" placeholder="Validator RPC server address" type="text" value={validatorAddress} onChange={(e) => setValidatorAddress(e.target.value.trim())} />
@@ -296,10 +314,7 @@ export default function ConfigurePage() {
               <Icon path={mdiReloadAlert} size={0.85} />
             </Button>
           </Flex>
-          <Box width="100%" mt="3">
-            <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-          </Box>
-          <Box px="1" pt="4">
+          <Card mt="3" variant="surface">
             <DataList.Root size="2" orientation={orientation}>
               <DataList.Item>
                 <DataList.Label>Server status</DataList.Label>
@@ -329,7 +344,7 @@ export default function ConfigurePage() {
                 </DataList.Value>
               </DataList.Item>
             </DataList.Root>
-          </Box>
+          </Card>
         </Box>
       </Card>
       <License style={{ marginTop: '60px' }} app={true}></License>

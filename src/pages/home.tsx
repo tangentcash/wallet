@@ -67,10 +67,10 @@ export default function HomePage() {
   }, []);
 
   return (
-    <Box px="2" pt="4" maxWidth="680px" mx="auto">
-      <Flex gap="2" align="center" justify="between" px="2" mb="2">
+    <Box pt="4" maxWidth="680px" mx="auto">
+      <Flex gap="2" align="center" justify="between" pl="5" pr="4" mb="2">
         <Flex align="center" gap="2">
-          <Heading size={document.body.clientWidth < 450 ? '4' : '6'}>Wallet</Heading>
+          <Heading size={document.body.clientWidth < 450 ? '5' : '6'}>P2P</Heading>
           <Button variant="surface" size="1" color={ AppData.isWalletReady() ? 'lime' : 'red' } onClick={() => AppData.isWalletReady() ? undefined : navigate('/restore')}>{ AppData.isWalletReady() ? '' : 'RO:' }{ ownerAddress.substring(ownerAddress.length - 6) }</Button>
         </Flex>
         <Flex justify="end" gap="1">
