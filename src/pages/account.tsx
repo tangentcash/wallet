@@ -11,7 +11,7 @@ export default function AccountPage() {
 
   return (
     <Box pt="4" maxWidth="680px" mx="auto">
-      <Flex align="center" justify="center" gap="2" px="5">
+      <Flex align="center" gap="2" px="5">
         <Heading size="5">Account</Heading>
         <Badge variant="surface" color="blue" size="2">{ baseAddress.substring(baseAddress.length - 6) }</Badge>
       </Flex>

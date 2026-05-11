@@ -129,8 +129,10 @@ function PortfolioWorth(props: {
     };
   }, [props.address]);
   useEffect(() => {
-    if (props.assetResync > 0 && props.onAssetsChange)
+    if (props.assetResync > 0 && props.onAssetsChange) {
       props.onAssetsChange([...assets]);
+      setSync(0);
+    }
   }, [props.assetResync]);
   
   return (
@@ -754,7 +756,7 @@ export default function PortfolioPage() {
       setMoreOrders(false);
       return false;
     }
-  }, [baseAddress, pools, viewer]);
+  }, [params.account, pools, viewer]);
   const findPools = useCallback(async (refresh?: boolean) => {
     if (!baseAddress) {
       setPools([]);
@@ -781,7 +783,7 @@ export default function PortfolioPage() {
       setMorePools(false);
       return false;
     }
-  }, [baseAddress, pools, viewer]);
+  }, [params.account, pools, viewer]);
   useEffectAsync(async () => {
     setLoading(true);
     if (viewer == 'open-orders' || viewer == 'closed-orders') {
@@ -792,7 +794,7 @@ export default function PortfolioPage() {
       setAssetResync(new Date().getTime());
     }
     setLoading(false);
-  }, [viewer]);
+  }, [viewer, params.account]);
   useEffect(() => {
     const view = search.get('view') || Storage.get('__portfolio_view__') || null;
     if (view != null && ['swap', 'trade', 'assets', 'open-orders', 'closed-orders', 'open-pools', 'closed-pools'].includes(view)) {
@@ -829,7 +831,12 @@ export default function PortfolioPage() {
                   </TextField.Slot>
                 </TextField.Root>
                 <Flex justify="center" mt="4">
-                  <Button variant="ghost" size="3" type="submit" loading={loading} disabled={!query.trim().length || !Signing.verifyAddress(query.trim()) } onClick={(e) => { e.preventDefault(); navigate(`/portfolio/${query.trim()}`); }}>Find portfolio</Button>
+                  <Button variant="ghost" size="3" type="submit" loading={loading} disabled={!query.trim().length || !Signing.verifyAddress(query.trim()) } onClick={(e) => {
+                    e.preventDefault();
+                    navigate(`/portfolio/${query.trim()}?view=assets`);
+                    setAssetResync(new Date().getTime());
+                    setSearching(false);
+                  }}>Find portfolio</Button>
                 </Flex>
               </form>
             </Dialog.Content>
