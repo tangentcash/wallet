@@ -297,7 +297,7 @@ function SwapRouter(props: {
   }, []);
   
   return (
-    <Box>   
+    <Box>
       <Card mt="4" variant="surface" style={{ borderRadius: '28px' }}>
         <Flex justify="between" align="center" px="3" mb="2">
           <Text color="gray" size="2">Spending ↗</Text>
@@ -356,10 +356,6 @@ function SwapRouter(props: {
             </Button>
           </AssetSelector>
         </Flex>
-        <Flex align="center" gap="2" px="2" mt="2">
-          <Slider variant="soft" color={swapInfo.balanceIn.gte(swapInfo.amountIn) ? undefined : 'red'} step={5} size="3" value={[swapInfo.balanceIn.gt(0) ? Math.min(100, Math.max(0, swapInfo.amountIn.dividedBy(swapInfo.balanceIn).multipliedBy(100).toNumber())) : 0]} onValueChange={(e) => setAmount('amount-in', ByteUtil.bigNumberToString(swapInfo.balanceIn.multipliedBy(e[0] / 100)))} />
-          <Badge size="1" color={swapInfo.balanceIn.gte(swapInfo.amountIn) ? undefined : 'red'}>{ (swapInfo.balanceIn.gt(0) ? Math.min(100, Math.max(0, swapInfo.amountIn.dividedBy(swapInfo.balanceIn).multipliedBy(100).toNumber())) : 0).toFixed(2) }%{ swapInfo.balanceIn.lt(swapInfo.amountIn) ? '+' : '' }</Badge>
-        </Flex>
         <Flex justify="between" px="3" mt="2" mb="1">
           <Text size="2" color="gray">{ Readability.toMoney(Exchange.equityAsset, swapInfo.valuationIn) }</Text>
           <Flex align="center" gap="1">
@@ -367,54 +363,57 @@ function SwapRouter(props: {
             <Text size="2" color="gray">{ Readability.toMoney(state.tokenIn, swapInfo.balanceIn) }</Text>
           </Flex>
         </Flex>
-      </Card>
-      <Box mt="2" position="relative">
-        <Card variant="surface" style={{ borderRadius: '28px', position: 'relative' }}>
-          <Flex justify="between" align="center" px="3" mb="2">
-            <Text color="gray" size="2">Receiving ↙</Text>
-            { loadingPath && <Spinner size="3"></Spinner> }
-          </Flex>
-          <Flex justify="between" align="center">
-            <TextField.Root style={{ width: '100%', backgroundColor: 'var(--color-background)' }} size="3" placeholder="Amount in" type="text" value={state.amountOut} onChange={(e) => setAmount('amount-out', e.target.value)} />
-            <AssetSelector title="token to buy" value={state.tokenOut} onChange={(value) => updateState(prev => ({ ...prev, tokenOut: value }))}>
-              <Button variant="soft" size="4" style={{ backgroundColor: 'var(--color-background)', boxShadow: 'none' }}>
-                {
-                  state.tokenOut != null &&
-                  <Flex align="center" gap="1">
-                    <Box style={{ position: 'relative' }}>
-                      <AssetImage asset={state.tokenOut} size="2" iconSize="24px"></AssetImage>
-                      {
-                        state.tokenOut.token != null &&
-                        <AssetImage asset={AssetId.fromHandle(state.tokenOut.chain || '')} size="1" style={{ position: 'absolute', top: '16px', left: '-6px' }} iconSize="16px"></AssetImage>
-                      }
-                    </Box>
-                    <AssetName asset={state.tokenOut} symbol={true} tokenOnly={true} size="4" badgeOffset={0.1}></AssetName>
-                  </Flex>
-                }
-                {
-                  state.tokenOut == null &&
-                  <Text size="4">Token ↙</Text>
-                }
-              </Button>
-            </AssetSelector>
-          </Flex>
-          <Flex justify="between" px="3" mt="2" mb="1">
-            <Text size="2" color="gray">{ Readability.toMoney(Exchange.equityAsset, swapInfo.valuationOut) }</Text>
-            <Text size="2" color="gray">{ Readability.toMoney(state.tokenOut, swapInfo.balanceOut) }</Text>
-          </Flex>
-        </Card>
-        <Flex justify="center" px="3" py="3" align="center" position="absolute" className="rt-Card" style={{ backgroundColor: 'var(--color-panel-solid)', borderRadius: '16px', top: '-32px', left: '50%', transform: 'translateX(-50%)' }}>
-          <Button variant="ghost" style={{ height: 'auto' }} onClick={() => updateState(prev => ({
-            tokenIn: prev.tokenOut,
-            tokenOut: prev.tokenIn,
-            amountIn: prev.amountOut,
-            amountOut: prev.amountIn,
-            slippage: prev.slippage
-          }))}>
-            <Icon path={mdiSwapVertical} size={1}></Icon>
-          </Button>
+        <Flex align="center" gap="2" px="2" mt="2">
+          <Slider variant="soft" color={swapInfo.balanceIn.gte(swapInfo.amountIn) ? undefined : 'red'} step={5} size="3" value={[swapInfo.balanceIn.gt(0) ? Math.min(100, Math.max(0, swapInfo.amountIn.dividedBy(swapInfo.balanceIn).multipliedBy(100).toNumber())) : 0]} onValueChange={(e) => setAmount('amount-in', ByteUtil.bigNumberToString(swapInfo.balanceIn.multipliedBy(e[0] / 100)))} />
+          <Badge size="1" color={swapInfo.balanceIn.gte(swapInfo.amountIn) ? undefined : 'red'}>{ (swapInfo.balanceIn.gt(0) ? Math.min(100, Math.max(0, swapInfo.amountIn.dividedBy(swapInfo.balanceIn).multipliedBy(100).toNumber())) : 0).toFixed(2) }%{ swapInfo.balanceIn.lt(swapInfo.amountIn) ? '+' : '' }</Badge>
         </Flex>
-      </Box>
+        <Box position="relative">
+          <Separator my="6" size="4"></Separator>
+          <Flex justify="center" px="3" py="3" align="center" position="absolute" className="rt-Card" style={{ backgroundColor: 'var(--color-panel-solid)', borderRadius: '16px', top: '-24px', left: '50%', transform: 'translateX(-50%)' }}>
+            <Button variant="ghost" style={{ height: 'auto' }} onClick={() => updateState(prev => ({
+              tokenIn: prev.tokenOut,
+              tokenOut: prev.tokenIn,
+              amountIn: prev.amountOut,
+              amountOut: prev.amountIn,
+              slippage: prev.slippage
+            }))}>
+              <Icon path={mdiSwapVertical} size={1}></Icon>
+            </Button>
+          </Flex>
+        </Box>
+        <Flex justify="between" align="center" px="3" mb="2">
+          <Text color="gray" size="2">Receiving ↙</Text>
+          { loadingPath && <Spinner size="3"></Spinner> }
+        </Flex>
+        <Flex justify="between" align="center">
+          <TextField.Root style={{ width: '100%', backgroundColor: 'var(--color-background)' }} size="3" placeholder="Amount in" type="text" value={state.amountOut} onChange={(e) => setAmount('amount-out', e.target.value)} />
+          <AssetSelector title="token to buy" value={state.tokenOut} onChange={(value) => updateState(prev => ({ ...prev, tokenOut: value }))}>
+            <Button variant="soft" size="4" style={{ backgroundColor: 'var(--color-background)', boxShadow: 'none' }}>
+              {
+                state.tokenOut != null &&
+                <Flex align="center" gap="1">
+                  <Box style={{ position: 'relative' }}>
+                    <AssetImage asset={state.tokenOut} size="2" iconSize="24px"></AssetImage>
+                    {
+                      state.tokenOut.token != null &&
+                      <AssetImage asset={AssetId.fromHandle(state.tokenOut.chain || '')} size="1" style={{ position: 'absolute', top: '16px', left: '-6px' }} iconSize="16px"></AssetImage>
+                    }
+                  </Box>
+                  <AssetName asset={state.tokenOut} symbol={true} tokenOnly={true} size="4" badgeOffset={0.1}></AssetName>
+                </Flex>
+              }
+              {
+                state.tokenOut == null &&
+                <Text size="4">Token ↙</Text>
+              }
+            </Button>
+          </AssetSelector>
+        </Flex>
+        <Flex justify="between" px="3" mt="2" mb="1">
+          <Text size="2" color="gray">{ Readability.toMoney(Exchange.equityAsset, swapInfo.valuationOut) }</Text>
+          <Text size="2" color="gray">{ Readability.toMoney(state.tokenOut, swapInfo.balanceOut) }</Text>
+        </Flex>
+      </Card>
       {
         bestPaths.map((path: RouterPath, pathIndex: number) => {
           const last = path[path.length - 1];
@@ -422,7 +421,7 @@ function SwapRouter(props: {
           const amountIn = swapInfo.priceIn?.gt(0) && swapInfo.amountIn.gt(0) ? swapInfo.amountIn.multipliedBy(swapInfo.priceIn) : null;
           const amountOut = swapInfo.priceOut?.gt(0) && last.output[type].gt(0) ? last.output[type].multipliedBy(swapInfo.priceOut) : null;
           return (
-            <Card key={'swap_path_' + pathIndex} mt="2" style={{ borderRadius: '28px' }}>
+            <Card key={'swap_path_' + pathIndex} mt="4" style={{ borderRadius: '28px' }}>
               <Box px="2">
                 <Flex justify="between" align="center">
                   <Flex gap="2">
