@@ -1,6 +1,7 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { randomBytes } from '@ethersproject/random';
 import { ByteUtil } from 'tangentsdk';
+import { openDB, IDBPDatabase } from 'idb';
 
 export enum StorageField {
   Network = '__network__',
@@ -13,7 +14,7 @@ export enum StorageField {
   App = '__app__'
 }
 
-export class Storage {
+export class AppStorage {
   static set(path: string, value?: any): boolean {
     try {
       if (value != null)
@@ -28,7 +29,11 @@ export class Storage {
   static get(path: string): any | null {
     try {
       let value = localStorage.getItem(path);
-      return value ? JSON.parse(value) : null;
+      try {
+        return value ? JSON.parse(value) : null;
+      } catch {
+        return value || null;
+      }
     } catch {
       return null;
     }
@@ -43,6 +48,55 @@ export class Storage {
       }
     } catch { }
     return result;
+  }
+  static wipe(): void {
+    localStorage.clear();
+  }
+}
+
+export class BigStorage {
+  static handle: IDBPDatabase<any> | null = null;
+
+  static async set(path: string, value?: any): Promise<boolean> {
+    try {
+      const db = await this.db();
+      await db.put('kvm', value, path);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+  static async get(path: string): Promise<any | null> {
+    try {
+      const db = await this.db();
+      return await db.get('kvm', path);
+    } catch {
+      return null;
+    }
+  }
+  static async keys(): Promise<string[]> {
+    const result: string[] = [];
+    try {
+      const db = await this.db();
+      const keys = await db.getAllKeys('kvm');
+      for (let i = 0; i < keys.length; i++) {
+        result.push(keys[i].toString());
+      }
+    } catch {
+      return [];
+    }
+    return result;
+  }
+  private static async db(): Promise<IDBPDatabase<any>> {
+    if (!this.handle) {
+      this.handle = await openDB('kvms', 1, {
+        upgrade: (db) => db.createObjectStore('kvm')
+      });
+      if (!this.handle) {
+        throw false;
+      }
+    }
+    return this.handle;
   }
 }
 
@@ -66,14 +120,14 @@ export class SafeStorage {
       const iv = randomBytes(16);
       const key = await crypto.subtle.importKey('raw', derivedKey as any, { 'name': 'AES-CBC' }, false, ['encrypt']);
       const data = await crypto.subtle.encrypt({ name: 'AES-CBC', length: 256, iv: iv as any }, key, payload);
-      localStorage.setItem(StorageField.Passphrase, ByteUtil.uint8ArrayToHexString(Uint8Array.from([...iv, ...new Uint8Array(data)])));
+      AppStorage.set(StorageField.Passphrase, ByteUtil.uint8ArrayToHexString(Uint8Array.from([...iv, ...new Uint8Array(data)])));
       return true;
     } catch {
       return false;
     }
   }
   static async restore(passphrase: string): Promise<boolean> {
-    const value = localStorage.getItem(StorageField.Passphrase);
+    const value = AppStorage.get(StorageField.Passphrase);
     if (!value)
       return false;
 
@@ -101,7 +155,7 @@ export class SafeStorage {
       return false;
 
     if (!value) {
-      localStorage.removeItem(path);
+      AppStorage.set(path);
       return true;
     }
 
@@ -110,7 +164,7 @@ export class SafeStorage {
       const iv = randomBytes(16);
       const key = await crypto.subtle.importKey('raw', sha256(Uint8Array.from([...this.key, ...sha256(path)])) as any, { 'name': 'AES-CBC' }, false, ['encrypt']);
       const data = await crypto.subtle.encrypt({ name: 'AES-CBC', length: 256, iv: iv as any }, key, payload);
-      localStorage.setItem(path, ByteUtil.uint8ArrayToHexString(Uint8Array.from([...iv, ...new Uint8Array(data)])));
+      AppStorage.set(path, ByteUtil.uint8ArrayToHexString(Uint8Array.from([...iv, ...new Uint8Array(data)])));
       return true;
     } catch {
       return false;
@@ -120,7 +174,7 @@ export class SafeStorage {
     if (!this.key)
       return null;
 
-    const value = localStorage.getItem(path);
+    const value = AppStorage.get(path);
     if (value == null)
       return null;
 
@@ -146,10 +200,10 @@ export class SafeStorage {
   }
   static wipe(): void {
     this.clear();
-    localStorage.clear();
+    AppStorage.wipe();
   }
   static hasEncryptedKey(): boolean {
-    return localStorage.getItem(StorageField.Passphrase) != null;
+    return AppStorage.get(StorageField.Passphrase) != null;
   }
   static hasDecryptedKey(): boolean {
     return this.hasEncryptedKey() && this.key != null && this.key.length == 32;

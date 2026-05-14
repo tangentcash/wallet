@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { mdiCurrencyUsd } from "@mdi/js";
 import { AssetId, ByteUtil, Readability, TextUtil } from "tangentsdk";
 import { AssetImage, AssetName } from "../asset";
-import { Storage } from "../../core/storage";
+import { AppStorage } from "../../core/storage";
 import { PerformerButton, Builder } from "./performer";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
@@ -432,7 +432,7 @@ export function Maker(props: {
     setState(prev => {
       const result = change(prev);
       if (props.path != null)
-        Storage.set(props.path, result);
+        AppStorage.set(props.path, result);
       return result;
     });
   }, [props.path]);
@@ -489,7 +489,7 @@ export function Maker(props: {
         pool: props.preset?.pool || false
       }));
     } else if (props.path != null) {
-      const memorizedState = Storage.get(props.path);
+      const memorizedState = AppStorage.get(props.path);
       if (memorizedState != null && typeof memorizedState == 'object') {
         setState(prev => ({ ...prev, ...memorizedState }));
       }

@@ -4,13 +4,13 @@ import { Balance, Exchange, Market, OrderSide, RouterPath } from "../../core/exc
 import { AssetId, ByteUtil, Readability, TextUtil } from "tangentsdk";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AssetImage, AssetName } from "../asset";
-import { Storage } from "../../core/storage";
+import { AppStorage } from "../../core/storage";
 import { Builder, PerformerButton } from "./performer";
+import { useEffectAsync } from "../../core/react";
+import { AlertBox, AlertType } from "../alert";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 import AssetSelector from "./selector";
-import { useEffectAsync } from "../../core/react";
-import { AlertBox, AlertType } from "../alert";
 
 type SwapState = {
   tokenIn: AssetId | null,
@@ -61,7 +61,7 @@ export default function SwapMaker(props: {
   const updateState = useCallback((change: (prev: SwapState) => SwapState) => {
     setState(prev => {
       const result = change(prev);
-      Storage.set('__portfolio_swap__', {
+      AppStorage.set('__portfolio_swap__', {
         tokenIn: result.tokenIn?.id || null,
         tokenOut: result.tokenOut?.id || null,
         amountIn: result.amountIn,
@@ -150,7 +150,7 @@ export default function SwapMaker(props: {
     };
   }, [market, state.tokenIn, state.tokenOut, state.amountIn, state.slippage]);
   useEffect(() => {
-    const prev = Storage.get('__portfolio_swap__');
+    const prev = AppStorage.get('__portfolio_swap__');
     if (prev != null) {
       setState({
         tokenIn: prev.tokenIn ? new AssetId(prev.tokenIn) : null,

@@ -8,7 +8,7 @@ import { CrosshairMode, PriceScaleMode } from "lightweight-charts";
 import { mdiAlert, mdiArrowRightThin, mdiCheck, mdiCurrencyUsd } from "@mdi/js";
 import { AlertBox, AlertType } from "../../components/alert";
 import { AssetId, Readability, Whitelist } from "tangentsdk";
-import { Storage } from "../../core/storage";
+import { AppStorage } from "../../core/storage";
 import { Maker } from "../../components/exchange/maker";
 import { AssetImage } from "../../components/asset";
 import { ChartViewType, ChartWidget, SeriesOptions, PriceScope } from "../../components/exchange/chart";
@@ -179,7 +179,7 @@ export default function OrderbookPage() {
     setSeriesOptions(prev => {
       const result = change(prev);
       if (typeof params.orderbook == 'string' && params.orderbook.length > 0)
-        Storage.set(pathOfOrderbook(params.orderbook), result);
+        AppStorage.set(pathOfOrderbook(params.orderbook), result);
       return result;
     });
   }, [params]);
@@ -200,7 +200,7 @@ export default function OrderbookPage() {
 
       setPair(result);
       if (typeof params.orderbook == 'string' && params.orderbook.length > 0) {
-        const memorizedSeriesOptions = Storage.get(pathOfOrderbook(params.orderbook));
+        const memorizedSeriesOptions = AppStorage.get(pathOfOrderbook(params.orderbook));
         if (memorizedSeriesOptions != null && typeof memorizedSeriesOptions == 'object') {
           setSeriesOptions(prev => ({ ...prev, ...memorizedSeriesOptions }));
         }

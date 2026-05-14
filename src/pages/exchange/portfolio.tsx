@@ -7,7 +7,7 @@ import { useEffectAsync } from "../../core/react";
 import { AppData } from "../..//core/app";
 import { mdiCheckDecagram, mdiMagnify, mdiMagnifyScan, mdiMapMarkerPath, mdiPaletteSwatchVariant, mdiRefresh, mdiShimmer, mdiShoppingSearch, mdiWater } from "@mdi/js";
 import { useNavigate, useParams, useSearchParams } from "react-router";
-import { Storage } from "../../core/storage";
+import { AppStorage } from "../../core/storage";
 import { AlertBox, AlertType } from "../../components/alert";
 import { AssetImage, AssetName } from "../../components/asset";
 import { Builder, PerformerButton } from "./../../components/exchange/performer";
@@ -81,7 +81,7 @@ function PortfolioWorth(props: {
         if (prev.length > 0)
           return prev;
 
-        return (RPC.fetchObject(Storage.get(`__assets:${props.address}__`)) || []).map((x: any) => ({ ...x, cached: true }));
+        return (RPC.fetchObject(AppStorage.get(`__assets:${props.address}__`)) || []).map((x: any) => ({ ...x, cached: true }));
       };
       setLoading(true);
       setAssets(assetsFromCache);
@@ -90,7 +90,7 @@ function PortfolioWorth(props: {
       try {
         const results = await Exchange.accountBalances({ address: props.address, resync: sync == -1 });
         const assetsFromResults = () => (results || []).map((x) => ({ ...x, cached: false }));
-        Storage.set(`__assets:${props.address}__`, results || []);
+        AppStorage.set(`__assets:${props.address}__`, results || []);
         setAssets(assetsFromResults);
         if (props.onAssetsChange)
           props.onAssetsChange(assetsFromResults);
@@ -190,7 +190,7 @@ function SwapRouter(props: {
   const updateState = useCallback((change: (prev: SwapState) => SwapState) => {
     setState(prev => {
       const result = change(prev);
-      Storage.set('__portfolio_swap__', {
+      AppStorage.set('__portfolio_swap__', {
         tokenIn: result.tokenIn?.id || null,
         tokenOut: result.tokenOut?.id || null,
         amountIn: result.amountIn,
@@ -284,7 +284,7 @@ function SwapRouter(props: {
       setMarket(Exchange.contracts[0]);
     }
     
-    const prev = Storage.get('__portfolio_swap__');
+    const prev = AppStorage.get('__portfolio_swap__');
     if (prev != null) {
       setState({
         tokenIn: prev.tokenIn ? new AssetId(prev.tokenIn) : null,
@@ -532,7 +532,7 @@ function TradingPairs() {
       if (prev.length > 0)
         return prev;
 
-      return (RPC.fetchObject(Storage.get('__explorer__')) || []).map((x: any) => {
+      return (RPC.fetchObject(AppStorage.get('__explorer__')) || []).map((x: any) => {
         if (x.pair != null && x.pair.primaryAsset != null && x.pair.secondaryAsset != null) {
           x.pair.primaryAsset = new AssetId(x.pair.primaryAsset.id);
           x.pair.secondaryAsset = new AssetId(x.pair.secondaryAsset.id);
@@ -547,7 +547,7 @@ function TradingPairs() {
         whitelisted: !!Whitelist.contractAddressOf(x.primaryAsset) && !!Whitelist.contractAddressOf(x.secondaryAsset),
         cached: false
       }));
-      Storage.set('__explorer__', data);
+      AppStorage.set('__explorer__', data);
       setPairs(data);
     } catch { }
     setLoading(false);
@@ -795,12 +795,12 @@ export default function PortfolioPage() {
     setLoading(false);
   }, [viewer, params.account]);
   useEffect(() => {
-    const view = search.get('view') || Storage.get('__portfolio_view__') || null;
+    const view = search.get('view') || AppStorage.get('__portfolio_view__') || null;
     if (view != null && ['swap', 'trade', 'assets', 'open-orders', 'closed-orders', 'open-pools', 'closed-pools'].includes(view)) {
-      Storage.set('__portfolio_view__', view);
+      AppStorage.set('__portfolio_view__', view);
       setViewer(view as any);
     } else {
-      Storage.set('__portfolio_view__');
+      AppStorage.set('__portfolio_view__');
     }  
   }, [search]);
 

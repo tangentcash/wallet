@@ -1,6 +1,6 @@
 import { AssetId, ByteUtil, Hashing, Readability, RPC, Stream, Viewable, Whitelist } from "tangentsdk"
 import { AlertBox, AlertType } from "../components/alert"
-import { Storage } from "./storage"
+import { AppStorage } from "./storage"
 import { AppData } from "./app"
 import BigNumber from "bignumber.js"
 
@@ -309,7 +309,7 @@ export class Exchange {
     const target = this.fromOrderbookQuery(orderbook);
     const value = target.marketId && target.primaryAsset && target.secondaryAsset ? orderbook : null;
     if (value != this.orderbook)
-      Storage.set(ExchangeField.Orderbook, this.orderbook = value);
+      AppStorage.set(ExchangeField.Orderbook, this.orderbook = value);
   }
   static getOrderbook(): string | null {
     return this.orderbook;
@@ -344,7 +344,7 @@ export class Exchange {
         this.equityAsset = base ? AssetId.fromHandle(base) : this.equityAsset;
       } catch { }
 
-      this.orderbook = Storage.get(ExchangeField.Orderbook);
+      this.orderbook = AppStorage.get(ExchangeField.Orderbook);
       this.dispatchEvent('exchange:ready', { data: { } });
       if (this.awaitables != null) {
         for (let i = 0; i < this.awaitables.length; i++) {

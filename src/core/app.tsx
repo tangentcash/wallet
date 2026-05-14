@@ -5,7 +5,7 @@ import { Box, Theme } from "@radix-ui/themes";
 import { core } from '@tauri-apps/api';
 import { listen } from "@tauri-apps/api/event";
 import { Chain, Messages, NetworkType, Pubkey, Pubkeyhash, Hashsig, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType, Authorizer, Viewable, Hashing, ByteUtil, AssetId, Approving, AuthEntity, AuthApproval, Readability } from "tangentsdk";
-import { SafeStorage, Storage, StorageField } from "./storage";
+import { AppStorage, BigStorage, SafeStorage, StorageField } from "./storage";
 import { Alert, AlertBox, AlertType } from "./../components/alert";
 import { Prompter, PrompterBox } from "../components/prompter";
 import { Navbar } from "../components/navbar";
@@ -306,7 +306,7 @@ export class AppData {
     }
   }
   private static save(): void {
-    Storage.set(StorageField.App, this.props);
+    AppStorage.set(StorageField.App, this.props);
   }
   private static render(): void {
     const element = document.getElementById("root") as HTMLElement;
@@ -551,7 +551,7 @@ export class AppData {
     }
   }
   static async main(): Promise<void> {
-    const props: AppProps | null = Storage.get(StorageField.App);
+    const props: AppProps | null = AppStorage.get(StorageField.App);
     if (this.isApp())
       core.invoke('platform_type').then((value) => this.platform = value as 'desktop' | 'mobile' | 'unknown');
     if (props != null)
@@ -565,9 +565,9 @@ export class AppData {
       onNodeRequest: this.nodeRequest,
       onNodeResponse: this.nodeResponse,
       onNodeError: this.nodeError,
-      onCacheStore: (path: string, value: any): boolean => Storage.set((this.defs.cachePrefix || 'V') + ':' + path, value),
-      onCacheLoad: (path: string): any | null => Storage.get((this.defs.cachePrefix || 'V') + ':' + path),
-      onCacheKeys: (): string[] => Storage.keys().filter((v) => v.startsWith((this.defs.cachePrefix || 'V'))).map((v) => v.substring((this.defs.cachePrefix || 'V').length + 1))
+      onCacheStore: (path: string, value: any): Promise<boolean> => BigStorage.set((this.defs.cachePrefix || 'V') + ':' + path, value),
+      onCacheLoad: (path: string): Promise<any | null> => BigStorage.get((this.defs.cachePrefix || 'V') + ':' + path),
+      onCacheKeys: (): Promise<string[]> => BigStorage.keys().then(x => x.filter((v) => v.startsWith((this.defs.cachePrefix || 'V'))).map((v) => v.substring((this.defs.cachePrefix || 'V').length + 1)))
     });
     this.reconfigure(null, AppPermission.ReadOnly);
     this.render();
@@ -575,7 +575,7 @@ export class AppData {
       await listen('authorizer', (event) => this.authorizerEvent(event));
   }
   static reconfigure(network: NetworkType | null, type: AppPermission): void {
-    const prevNetwork = Storage.get(StorageField.Network) || this.defaultNetwork();
+    const prevNetwork = AppStorage.get(StorageField.Network) || this.defaultNetwork();
     network = network ? network : prevNetwork;
 
     let resetNetwork = type == AppPermission.Reset;
@@ -585,10 +585,12 @@ export class AppData {
         throw new Error('Must perform reset to change the network');
       }
       Chain.props = Chain[network];
-      Storage.set(StorageField.Network, network);
+      AppStorage.set(StorageField.Network, network);
     } 
       
     const config: { validatorUrl: string | null, exchangeUrl: string | null, cachePrefix: string | null, authorizer: boolean } = (() => {
+      if (network != NetworkType.Regtest && network != NetworkType.Testnet && network != NetworkType.Mainnet)
+        network = this.defaultNetwork();
       switch (network) {
         case NetworkType.Regtest:
           return Regtest;
@@ -597,10 +599,10 @@ export class AppData {
         case NetworkType.Mainnet:
           return Mainnet;
         default:
-          throw new Error('invalid network');
+          throw new Error('Invalid network');
       }
     })();
-    const mustReset = resetNetwork || !Storage.get(StorageField.App);
+    const mustReset = resetNetwork || !AppStorage.get(StorageField.App);
     this.defs.cachePrefix = config.cachePrefix;
     this.defs.authorizer = config.authorizer;
     if (mustReset || !this.props.validator)
@@ -614,7 +616,7 @@ export class AppData {
     RPC.applyTopics(address ? [address] : []);
     RPC.applyValidator(this.props.validator);
     if (resetNetwork) {
-      Storage.set(StorageField.Validator);
+      AppStorage.set(StorageField.Validator);
     }
   }
   static openDevTools(): void {

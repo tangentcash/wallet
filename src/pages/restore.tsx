@@ -4,7 +4,7 @@ import { mdiAlertCircleOutline } from '@mdi/js';
 import { AlertBox, AlertType } from "../components/alert";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
 import { wordlist } from '@scure/bip39/wordlists/english';
-import { SafeStorage, Storage, StorageField } from "../core/storage";
+import { SafeStorage, AppStorage, StorageField } from "../core/storage";
 import { ByteUtil, Chain, NetworkType, Pubkeyhash, Signing, WalletType } from "tangentsdk";
 import { AppData } from "../core/app";
 import Typed from 'typed.js';
@@ -42,7 +42,7 @@ export default function RestorePage() {
   const [status, setStatus] = useState<'reset' | 'restore' | 'import' | 'mnemonic'>(AppData.isWalletExists() ? 'restore' : 'reset');
   const [importType, setImportType] = useState<WalletType>(WalletType.Mnemonic);
   const [importCandidate, setImportCandidate] = useState('');
-  const [networkType, setNetworkType] = useState<NetworkType>(Storage.get(StorageField.Network) || AppData.defaultNetwork());
+  const [networkType, setNetworkType] = useState<NetworkType>(AppStorage.get(StorageField.Network) || AppData.defaultNetwork());
   const titleRef = useRef(null);
   const contentRef = useRef(null);
   const navigate = useNavigate();
