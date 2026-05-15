@@ -17,7 +17,10 @@ export default function HypePage() {
     'SOL',
     'TRX',
     'XRP',
-    'XLM'
+    'XLM',
+    'BCH',
+    'LTC',
+    'DOGE'
   ].sort());
   return (
     <Box position="relative">
