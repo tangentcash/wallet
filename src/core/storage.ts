@@ -60,7 +60,10 @@ export class BigStorage {
   static async set(path: string, value?: any): Promise<boolean> {
     try {
       const db = await this.db();
-      await db.put('kvm', value, path);
+      if (value != null)
+        await db.put('kvm', JSON.stringify(value), path);
+      else
+        await db.delete('kvm', path);
       return true;
     } catch {
       return false;
@@ -69,7 +72,12 @@ export class BigStorage {
   static async get(path: string): Promise<any | null> {
     try {
       const db = await this.db();
-      return await db.get('kvm', path);
+      const value = await db.get('kvm', path);
+      try {
+        return value ? JSON.parse(value) : null;
+      } catch {
+        return value || null;
+      }
     } catch {
       return null;
     }
