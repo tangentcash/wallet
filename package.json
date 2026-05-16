@@ -45,6 +45,7 @@
     "uint256": "1.0.8"
   },
   "devDependencies": {
+    "@aklinker1/rollup-plugin-visualizer": "^5.12.0",
     "@tauri-apps/cli": "2",
     "@types/react": "19.1.1",
     "@types/react-dom": "19.1.1",

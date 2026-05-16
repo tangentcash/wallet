@@ -1,5 +1,6 @@
 import { defineConfig } from "vite";
-import { resolve } from 'path'
+import { visualizer } from '@aklinker1/rollup-plugin-visualizer';
+import { resolve } from 'path';
 import react from "@vitejs/plugin-react";
 
 const host = process.env.TAURI_DEV_HOST;
@@ -10,6 +11,11 @@ export default defineConfig(async () => ({
       babel: {
         plugins: ['babel-plugin-react-compiler'],
       },
+    }),
+    visualizer({
+      filename: resolve(__dirname, './insights.html'),
+      gzipSize: true,
+      brotliSize: true,
     }),
   ],
   clearScreen: false,

@@ -8,6 +8,7 @@ import { LogicalRangeChangeEventHandler, MouseEventHandler, BarPrice, ChartOptio
 import { mdiAlert, mdiCheckDecagram, mdiCog, mdiCubeOutline, mdiTimelapse } from "@mdi/js";
 import { AssetId, Readability } from "tangentsdk";
 import { AssetImage } from "../../components/asset";
+import Color from 'colorjs.io';
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 
@@ -67,6 +68,14 @@ export type VolumeBar = GenericBar & {
   color: string
 };
 
+const UP_COLOR = '#22ab94';
+const DOWN_COLOR = '#f7525f';
+let colors: Record<string, string> = { };
+let styles: CSSStyleDeclaration | null = null;
+let appearance: string | null = null;
+let crosshairTimeout: number | null = null;
+let crosshairLogical: string | null = null;
+
 function mergeSeries(a: GenericBar[], b: GenericBar[], merge: (a: GenericBar, b: GenericBar) => GenericBar): GenericBar[] {
   const c: GenericBar[] = []; let i = 0, j = 0;  
   while (i < a.length && j < b.length) {
@@ -125,11 +134,39 @@ function upperTimeSlot(interval: number, timepoint: number): number {
 function lowerTimeSlot(interval: number, timepoint: number): number {
     return Math.floor(timepoint / interval) * interval;
 }
+function colorOf(property: string): string | undefined {
+  if (appearance != AppData.props.appearance) {
+    appearance = AppData.props.appearance;
+    colors = { };
+    styles = null;
+  }
 
-const UP_COLOR = '#22ab94';
-const DOWN_COLOR = '#f7525f';
-let crosshairTimeout: number | null = null;
-let crosshairLogical: string | null = null;
+  if (!styles) {
+    const element = document.querySelector('.radix-themes')
+    if (element != null) {
+      styles = getComputedStyle(element);
+    }
+  }
+
+  const cache = colors[property];
+  if (cache != null)
+    return cache;
+
+  let result = styles?.getPropertyValue(property) || undefined;
+  if (!result)
+    return undefined;
+
+  if (!result.startsWith('#') && !result.startsWith('rgb')) {
+    try {
+      result = new Color(result).to('srgb').toString();
+    } catch {
+      return undefined;
+    }
+  }
+
+  colors[property] = result;
+  return result;
+}
 
 export function ChartView(props: {
   type: ChartViewType,
@@ -170,15 +207,15 @@ export function ChartView(props: {
       {
         props.type == ChartViewType.Mountain &&
         <AreaSeries ref={props.priceRef as any} data={props.priceData} options={{
-          lineColor: AppData.styleOf('--accent-a11'),
-          topColor: AppData.styleOf('--accent-a3'),
-          bottomColor: AppData.styleOf('--gray-2')
+          lineColor: colorOf('--accent-a11'),
+          topColor: colorOf('--accent-a3'),
+          bottomColor: colorOf('--gray-2')
         }} />
       }
       {
         props.type == ChartViewType.Line &&
         <LineSeries ref={props.priceRef as any} data={props.priceData} options={{
-          color: AppData.styleOf('--accent-a11')
+          color: colorOf('--accent-a11')
         }} />
       }
       {
@@ -230,29 +267,29 @@ export function ChartWidget({
       crosshair: {
         mode: options.crosshair,
         horzLine: {
-          labelBackgroundColor: AppData.styleOf('--accent-3'),
+          labelBackgroundColor: colorOf('--accent-3'),
         },
         vertLine: {
-          labelBackgroundColor: AppData.styleOf('--accent-3')
+          labelBackgroundColor: colorOf('--accent-3')
         }
       },
       layout: {
           background: { color: 'transparent' },
-          textColor: AppData.styleOf('--gray-12')
+          textColor: colorOf('--gray-12')
       },
       grid: {
-        vertLines: { color: AppData.styleOf('--gray-5'), visible: options.view == ChartViewType.Candles || options.view == ChartViewType.Bars },
-        horzLines: { color: AppData.styleOf('--gray-5'), visible: options.view == ChartViewType.Candles || options.view == ChartViewType.Bars }
+        vertLines: { color: colorOf('--gray-5'), visible: options.view == ChartViewType.Candles || options.view == ChartViewType.Bars },
+        horzLines: { color: colorOf('--gray-5'), visible: options.view == ChartViewType.Candles || options.view == ChartViewType.Bars }
       },
       rightPriceScale: {
-        borderColor: AppData.styleOf('--gray-5'),
+        borderColor: colorOf('--gray-5'),
         autoScale: true,
         ticksVisible: true,
         invertScale: options.inverted,
         mode: options.price
       },
       timeScale: {
-        borderColor: AppData.styleOf('--gray-5'),
+        borderColor: colorOf('--gray-5'),
         timeVisible: true,
         secondsVisible: true
       },

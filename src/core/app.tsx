@@ -2,19 +2,17 @@ import { lazy, StrictMode, useEffect, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { BrowserRouter, NavigateFunction, Route, Routes } from "react-router";
 import { Box, Theme } from "@radix-ui/themes";
-import { core } from '@tauri-apps/api';
-import { listen } from "@tauri-apps/api/event";
 import { Chain, Messages, NetworkType, Pubkey, Pubkeyhash, Hashsig, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType, Authorizer, Viewable, Hashing, ByteUtil, AssetId, Approving, AuthEntity, AuthApproval, Readability } from "tangentsdk";
 import { AppStorage, BigStorage, SafeStorage, StorageField } from "./storage";
 import { Alert, AlertBox, AlertType } from "./../components/alert";
 import { Prompter, PrompterBox } from "../components/prompter";
 import { Navbar } from "../components/navbar";
-import Color from 'colorjs.io';
 import Regtest from './../configs/regtest.json';
 import Testnet from './../configs/testnet.json';
 import Mainnet from './../configs/mainnet.json';
 import BigNumber from "bignumber.js";
 
+BigNumber.config({ DECIMAL_PLACES: 18, ROUNDING_MODE: 1 });
 const RestorePage = lazy(() => import("./../pages/restore"));
 const HomePage = lazy(() => import("./../pages/home"));
 const ExplorerPage = lazy(() => import("./../pages/explorer"));
@@ -74,6 +72,13 @@ export enum AppPermission {
   Reset
 }
 
+/*
+
+import { core } from '@tauri-apps/api';
+import { listen } from "@tauri-apps/api/event";
+
+*/
+
 export class AppData {
   static root: Root | null = null;
   static server: ConnectionState | null = null;
@@ -93,11 +98,10 @@ export class AppData {
     appearance: 'dark'
   };
   static mayNotify: boolean = false;
-  static colors: Record<string, string> = { };
-  static styles: CSSStyleDeclaration | null = null;
   static platform: 'desktop' | 'mobile' | 'unknown' = 'unknown';
   static wallet: WalletKeychain | null = null;
   static tip: BigNumber | null = null;
+  static tauriRef: any = null;
   static approveTransaction: ((proof: { hash: Uint256, message: Uint8Array, signature: Hashsig } | null) => void) | null = null;
 
   private static storeWalletKeychain(type: WalletType, secret: string | string[]): boolean {
@@ -297,7 +301,8 @@ export class AppData {
       if (!this.isApp())
         return [];
 
-      const result: string[] = await core.invoke('resolve_domain_txt', {
+      const tauri = await this.tauri();
+      const result: string[] = await tauri.invoke('resolve_domain_txt', {
         hostname: hostname
       });
       return result;
@@ -320,6 +325,11 @@ export class AppData {
     } else {
       this.root.render(<App />);
     }
+  }
+  private static async tauri(): Promise<any> {
+    if (!this.tauriRef)
+      this.tauriRef = (await import('@tauri-apps/api')).core;
+    return this.tauriRef;
   }
   static async restoreWallet(passphrase: string, network?: NetworkType): Promise<boolean> {
     this.props.account = null;
@@ -553,7 +563,7 @@ export class AppData {
   static async main(): Promise<void> {
     const props: AppProps | null = AppStorage.get(StorageField.App);
     if (this.isApp())
-      core.invoke('platform_type').then((value) => this.platform = value as 'desktop' | 'mobile' | 'unknown');
+      this.tauri().then((tauri) => tauri.invoke('platform_type').then((value: string) => this.platform = value as 'desktop' | 'mobile' | 'unknown'));
     if (props != null)
       this.props = props;
 
@@ -572,7 +582,7 @@ export class AppData {
     this.reconfigure(null, AppPermission.ReadOnly);
     this.render();
     if (this.isApp())
-      await listen('authorizer', (event) => this.authorizerEvent(event));
+      import("@tauri-apps/api/event").then((tauri) => tauri.listen('authorizer', (event: any) => this.authorizerEvent(event)));
   }
   static reconfigure(network: NetworkType | null, type: AppPermission): void {
     const prevNetwork = AppStorage.get(StorageField.Network) || this.defaultNetwork();
@@ -619,9 +629,11 @@ export class AppData {
       AppStorage.set(StorageField.Validator);
     }
   }
-  static openDevTools(): void {
-    if (this.isApp())
-      core.invoke('open_devtools');
+  static async openDevTools(): Promise<void> {
+    if (this.isApp()) {
+      const tauri = await this.tauri();
+      tauri.invoke('open_devtools');
+    }
   }
   static openFile(type: string): Promise<Uint8Array | null> {
     return new Promise((resolve) => {
@@ -683,8 +695,6 @@ export class AppData {
     this.save();
   }
   static setAppearance(value: 'dark' | 'light'): void {
-    this.colors = { };
-    this.styles = null;
     this.props.appearance = value;
     this.save();
     this.setState();
@@ -713,38 +723,12 @@ export class AppData {
     return SafeStorage.hasEncryptedKey();
   }
   static isApp(): boolean {
-    return core.isTauri();
+    // @ts-ignore
+    return !!window.__TAURI_INTERNALS__ || !!window.__TAURI__;
   }
   static isDev(): boolean {
     // @ts-ignore
     return import.meta.env.DEV;
-  }
-  static styleOf(property: string): string | undefined {
-    if (!this.styles) {
-      const element = document.querySelector('.radix-themes')
-      if (element != null) {
-        this.styles = getComputedStyle(element);
-      }
-    }
-
-    const cache = this.colors[property];
-    if (cache != null)
-      return cache;
-
-    let result = this.styles?.getPropertyValue(property) || undefined;
-    if (!result)
-      return undefined;
-
-    if (!result.startsWith('#') && !result.startsWith('rgb')) {
-      try {
-        result = new Color(result).to('srgb').toString();
-      } catch {
-        return undefined;
-      }
-    }
-
-    this.colors[property] = result;
-    return result;
   }
   static defaultNetwork(): NetworkType {
     return this.isDev() ? NetworkType.Regtest : NetworkType.Mainnet;
