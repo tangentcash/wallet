@@ -389,7 +389,7 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
               }
             }} />
           </Flex>
-          <Flex gap="2" mt="2" px="2" wrap="wrap">
+          <Flex gap="2" mt="2" mb="4" px="2" wrap="wrap">
             <Badge size="2" color="red">From { blockchain.routing_policy != 'account' ? 'any' : 'this' } address</Badge>
             { blockchain.ext?.tokenStandard ? <Badge size="2" color="jade">Send { Readability.toAssetSymbol(blockchain) }/{ blockchain.ext.tokenStandard }</Badge> : <Badge size="2" color="jade">Send { Readability.toAssetSymbol(blockchain) }</Badge> }
             { blockchain.ext && <Badge size="2" color="yellow">ETA { blockchain.ext.depositTime }-{ blockchain.ext.depositTime + 10 } min.</Badge> }
@@ -415,24 +415,14 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
                 </Box>
               }
               {
-                ((routingAddressIndex == -1 && blockchainAddress) || (blockchain.routing_policy != 'account' && !blockchainAddresses.bridge)) &&
-                <Flex justify="center" align="center" direction="column" mt="8" mb={blockchainAddress ? '8' : '2'}>
-                  <Button size="3" variant="surface" style={{ paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation" onClick={() => claim()}>
-                    { blockchainAddress ? <>Claim address <Badge>{ Readability.toAddress(blockchainAddress, 6) }</Badge></> : 'Claim deposit address'}
-                  </Button>
-                </Flex>
-              }
-              {
                 blockchainAddress &&
-                <Box mt="2">
+                <Flex mt="2" gap="2">
                   <Select.Root size="3" value="-1" onValueChange={(value) => withdraw(parseInt(value))}>
-                    <Select.Trigger variant="surface" placeholder="Token to withdraw" style={{ width: '100%' }}>
+                    <Select.Trigger variant="surface" placeholder="Token to withdraw" style={{ flex: 'auto', width: '100%' }}>
                     </Select.Trigger>
                     <Select.Content variant="soft">
                       <Select.Group>
-                        <Select.Item value="-1" disabled={true}>
-                          Withdraw to <Badge>{ Readability.toAddress(blockchainAddress, 6) }</Badge>
-                        </Select.Item>
+                        <Select.Item value="-1" disabled={true}>Withdraw</Select.Item>
                         {
                           blockchainAssets.map((item, index) =>
                             <Select.Item key={item.asset.id + '_select'} value={index.toString()}>
@@ -449,7 +439,13 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
                       </Select.Group>
                     </Select.Content>
                   </Select.Root>
-                </Box>
+                  {
+                    routingAddressIndex == -1 && blockchain.routing_policy == 'account' &&
+                    <Flex justify="center" align="center" direction="column">
+                      <Button size="3" variant="surface" style={{ paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation" onClick={() => claim()}>Deposit</Button>
+                    </Flex>
+                  }
+                </Flex>
               }
             </>
           }
