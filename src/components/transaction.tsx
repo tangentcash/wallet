@@ -483,7 +483,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
             transaction.hashdata && transaction.calldata && transaction.prepared &&
             <>
               <DataList.Item>
-                <DataList.Label>Off-chain hash:</DataList.Label>
+                <DataList.Label>Transaction id:</DataList.Label>
                 <DataList.Value>
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(transaction.hashdata);
@@ -492,7 +492,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
                 </DataList.Value>
               </DataList.Item>
               <DataList.Item>
-                <DataList.Label>Off-chain data:</DataList.Label>
+                <DataList.Label>Proof message:</DataList.Label>
                 <DataList.Value>
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(JSON.stringify({
@@ -510,10 +510,10 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           {
             transaction.error &&
             <DataList.Item>
-              <DataList.Label>Off-chain relay:</DataList.Label>
+              <DataList.Label>Relay message:</DataList.Label>
               <DataList.Value>
                 <Code color="tomato" wrap="balance" size="1" variant="soft" style={{ whiteSpace: 'pre-wrap', maxWidth: '340px' }}>
-                  <Box px="1" py="1">FAULT { transaction.error }</Box>
+                  <Box px="1" py="1">FAILED { transaction.error }</Box>
                 </Code>
               </DataList.Value>
             </DataList.Item>
@@ -574,11 +574,11 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
           <>
             <DataList.Root orientation={props.orientation} mb="4">
               <DataList.Item>
-                <DataList.Label>Off-chain block:</DataList.Label>
+                <DataList.Label>Block id:</DataList.Label>
                 <DataList.Value>{ transaction.proof.block_id?.toString() || 'NULL' }</DataList.Value>
               </DataList.Item>
               <DataList.Item>
-                <DataList.Label>Off-chain transaction:</DataList.Label>
+                <DataList.Label>Transaction id:</DataList.Label>
                 <DataList.Value>
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(transaction.proof.transaction_id);
@@ -587,9 +587,16 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
                 </DataList.Value>
               </DataList.Item>
               <DataList.Item>
-                <DataList.Label>On-chain assurance:</DataList.Label>
+                <DataList.Label>Proof strength:</DataList.Label>
                 <DataList.Value>
-                  <Badge color="lime">{ Readability.toCount('signature', signatures) } in { Readability.toCount('commitment', commitments) }</Badge>
+                  <Badge color="lime" mr="1">{ Readability.toCount('commitment', commitments) }</Badge>
+                  <Badge color="lime">{ Readability.toCount('signature', signatures) }</Badge>
+                </DataList.Value>
+              </DataList.Item>
+              <DataList.Item>
+                <DataList.Label>Relay status:</DataList.Label>
+                <DataList.Value>
+                  <Badge color={transaction.proof.success ? 'lime' : 'red'}>{ transaction.proof.success ? 'Executed' : 'Reverted' }</Badge>
                 </DataList.Value>
               </DataList.Item>
             </DataList.Root>
@@ -1150,7 +1157,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   <Badge size="1" color={receipt.successful ? 'lime' : 'red'}>{ receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Rollback' }<Icon path={receipt.successful ? mdiCheck : mdiAlert} size={0.55}></Icon></Badge>
                 }
                 {
-                  transaction.error != null &&
+                  (transaction.error != null || (transaction.proof && !transaction.proof.success)) &&
                   <Badge size="1" color="red">Refund<Icon path={mdiAlert} size={0.55}></Icon></Badge>
                 }
                 {
