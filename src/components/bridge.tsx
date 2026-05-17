@@ -414,39 +414,36 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
                   }
                 </Box>
               }
-              {
-                blockchainAddress &&
-                <Flex mt="2" gap="2">
-                  <Select.Root size="3" value="-1" onValueChange={(value) => withdraw(parseInt(value))}>
-                    <Select.Trigger variant="surface" placeholder="Token to withdraw" style={{ flex: 'auto', width: '100%' }}>
-                    </Select.Trigger>
-                    <Select.Content variant="soft">
-                      <Select.Group>
-                        <Select.Item value="-1" disabled={true}>Withdraw</Select.Item>
-                        {
-                          blockchainAssets.map((item, index) =>
-                            <Select.Item key={item.asset.id + '_select'} value={index.toString()}>
-                              <Flex align="center" gap="2">
-                                <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
-                                <Flex gap="2" align="center">
-                                  <Text size="4">{ Readability.toMoney(null, item.balance) }</Text>
-                                  <AssetName asset={item.asset} size="4" badgeSize={0.8} badgeOffset={-1} symbol={true}></AssetName>
-                                </Flex>
+              <Flex mt="2" gap="2">
+                <Select.Root size="3" value="-1" onValueChange={(value) => withdraw(parseInt(value))} disabled={!blockchainAddress}>
+                  <Select.Trigger variant="surface" placeholder="Token to withdraw" style={{ flex: 'auto', width: '100%' }}>
+                  </Select.Trigger>
+                  <Select.Content variant="soft">
+                    <Select.Group>
+                      <Select.Item value="-1" disabled={true}>Withdraw</Select.Item>
+                      {
+                        blockchainAssets.map((item, index) =>
+                          <Select.Item key={item.asset.id + '_select'} value={index.toString()}>
+                            <Flex align="center" gap="2">
+                              <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
+                              <Flex gap="2" align="center">
+                                <Text size="4">{ Readability.toMoney(null, item.balance) }</Text>
+                                <AssetName asset={item.asset} size="4" badgeSize={0.8} badgeOffset={-1} symbol={true}></AssetName>
                               </Flex>
-                            </Select.Item>
-                          )
-                        }
-                      </Select.Group>
-                    </Select.Content>
-                  </Select.Root>
-                  {
-                    routingAddressIndex == -1 && blockchain.routing_policy == 'account' &&
-                    <Flex justify="center" align="center" direction="column">
-                      <Button size="3" variant="surface" style={{ paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation" onClick={() => claim()}>Deposit</Button>
-                    </Flex>
-                  }
-                </Flex>
-              }
+                            </Flex>
+                          </Select.Item>
+                        )
+                      }
+                    </Select.Group>
+                  </Select.Content>
+                </Select.Root>
+                {
+                  routingAddressIndex == -1 && blockchain.routing_policy == 'account' &&
+                  <Flex justify="center" align="center" direction="column">
+                    <Button size="3" variant="surface" style={{ paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation" onClick={() => claim()}>Deposit</Button>
+                  </Flex>
+                }
+              </Flex>
             </>
           }
         </Box>
