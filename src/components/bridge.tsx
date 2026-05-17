@@ -262,7 +262,7 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
       return;
     }
     
-    navigate(`/interaction?asset=${token.asset.id}&type=withdraw&bridge=${bridge.instance.bridge_hash}&address=${blockchainAddress}&fee=${bridge.instance.fee_rate.toString()}&back=/}`);
+    navigate(`/interaction?asset=${token.asset.id}&type=withdraw&bridge=${bridge.instance.bridge_hash}&address=${blockchainAddress}&fee=${bridge.instance.fee_rate.toString()}&back=/`);
   }, [blockchain, bridges, blockchainAssets, blockchainAddress]);
   useEffectAsync(async () => {
     setLoading(true);
@@ -415,7 +415,13 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
                 </Box>
               }
               <Flex mt="2" gap="2">
-                <Select.Root size="3" value="-1" onValueChange={(value) => withdraw(parseInt(value))} disabled={!blockchainAddress}>
+                <Select.Root size="3" value="-1" onValueChange={(value) => {
+                  if (value == '__custom__') {
+                    navigate('/explorer?view=bridges&asset=' + AssetId.fromHandle(blockchain.chain || '').toHex());
+                  } else {
+                    withdraw(parseInt(value));
+                  }
+                }} disabled={!blockchainAddress}>
                   <Select.Trigger variant="surface" placeholder="Token to withdraw" style={{ flex: 'auto', width: '100%' }}>
                   </Select.Trigger>
                   <Select.Content variant="soft">
@@ -434,6 +440,7 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
                           </Select.Item>
                         )
                       }
+                      <Select.Item value="__custom__">— manual router selection —</Select.Item>
                     </Select.Group>
                   </Select.Content>
                 </Select.Root>

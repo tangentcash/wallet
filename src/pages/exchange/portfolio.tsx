@@ -721,7 +721,7 @@ export default function PortfolioPage() {
   const [assetResync, setAssetResync] = useState(0);
   const [query, setQuery] = useState('');
   const [assets, setAssets] = useState<CachedBalance[]>([]);
-  const [viewer, setViewer] = useState<'swap' | 'trade' | 'assets' | 'open-orders' | 'closed-orders' | 'open-pools' | 'closed-pools'>(readOnly ? 'assets' : 'swap');
+  const [viewer, setViewer] = useState<'swap' | 'trade' | 'assets' | 'open-orders' | 'closed-orders' | 'open-pools' | 'closed-pools'>(readOnly ? 'assets' : 'trade');
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [todayProfits, setTodayProfits] = useState(true);
@@ -854,19 +854,19 @@ export default function PortfolioPage() {
           view: x == 'orders' || x == 'pools' ? 'open-' + x : x
         })} mt="4">
           <Tabs.List size="2" color="lime" justify={mobile ? undefined : 'center'}>
-            <Tabs.Trigger value="swap" className="tab-padding-erase">
-              <Badge size="3" radius="large">
-                <Flex align="center" gap="1">
-                  <Icon path={mdiMapMarkerPath} size={0.6}></Icon>
-                  <Text>Swap</Text>
-                </Flex>
-              </Badge>
-            </Tabs.Trigger>
             <Tabs.Trigger value="trade" className="tab-padding-erase">
               <Badge size="3" radius="large">
                 <Flex align="center" gap="1">
                   <Icon path={mdiShoppingSearch} size={0.6}></Icon>
                   <Text>Trade</Text>
+                </Flex>
+              </Badge>
+            </Tabs.Trigger>
+            <Tabs.Trigger value="swap" className="tab-padding-erase">
+              <Badge size="3" radius="large">
+                <Flex align="center" gap="1">
+                  <Icon path={mdiMapMarkerPath} size={0.6}></Icon>
+                  <Text>Swap</Text>
                 </Flex>
               </Badge>
             </Tabs.Trigger>
@@ -895,11 +895,11 @@ export default function PortfolioPage() {
               </Badge>
             </Tabs.Trigger>
           </Tabs.List>
-          <Tabs.Content value="swap">
-            <SwapRouter assets={assets}></SwapRouter>
-          </Tabs.Content>
           <Tabs.Content value="trade">
             <TradingPairs></TradingPairs>
+          </Tabs.Content>
+          <Tabs.Content value="swap">
+            <SwapRouter assets={assets}></SwapRouter>
           </Tabs.Content>
           <Tabs.Content value="assets">
             <PortfolioAssets assets={assets} todayProfits={todayProfits} readOnly={readOnly}></PortfolioAssets>
