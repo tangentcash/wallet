@@ -440,14 +440,14 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
                           </Select.Item>
                         )
                       }
-                      <Select.Item value="__custom__">— manual router selection —</Select.Item>
+                      <Select.Item value="__custom__">— All bridges —</Select.Item>
                     </Select.Group>
                   </Select.Content>
                 </Select.Root>
                 {
-                  routingAddressIndex == -1 && blockchain.routing_policy == 'account' &&
+                  ((routingAddressIndex == -1 && blockchainAddress) || (blockchain.routing_policy != 'account' && !blockchainAddresses.bridge)) &&
                   <Flex justify="center" align="center" direction="column">
-                    <Button size="3" variant="surface" style={{ paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation" onClick={() => claim()}>Deposit</Button>
+                    <Button size="3" variant="surface" style={{ paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation" onClick={() => claim()}>{ blockchainAddresses.bridge ? 'Claim' : 'Deposit' }</Button>
                   </Flex>
                 }
               </Flex>
