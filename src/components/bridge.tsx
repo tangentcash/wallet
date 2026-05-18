@@ -421,7 +421,7 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
                   } else {
                     withdraw(parseInt(value));
                   }
-                }} disabled={!blockchainAddress}>
+                }} disabled={!blockchainAddress || !blockchainAssets.length}>
                   <Select.Trigger variant="surface" placeholder="Token to withdraw" style={{ flex: 'auto', width: '100%' }}>
                   </Select.Trigger>
                   <Select.Content variant="soft">
@@ -440,7 +440,7 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
                           </Select.Item>
                         )
                       }
-                      <Select.Item value="__custom__">— All bridges —</Select.Item>
+                      <Select.Item value="__custom__">— Bridge / Discovery —</Select.Item>
                     </Select.Group>
                   </Select.Content>
                 </Select.Root>
