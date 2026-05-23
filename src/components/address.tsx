@@ -100,6 +100,8 @@ function toAddressVariant(network: string, address: string): string {
     }
     case 'ZEC':
       return address.startsWith('t1') ? 'P2PKH' : 'P2UPKH';
+    case 'TAN':
+      return 'P2PKH';
     default:
       return 'P2A';
   }
