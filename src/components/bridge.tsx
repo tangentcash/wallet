@@ -27,7 +27,7 @@ type ExtendedBlockchainInfo = AssetId & {
 const ASSET_INFORMATION: Record<string, ExtendedField> = {
   "ADA": {
     depositTime: 22,
-    tokenStandard: 'Native'
+    tokenStandard: 'FT'
   },
   "ARB": {
     depositTime: 1,
@@ -149,6 +149,7 @@ const ASSET_INFORMATION: Record<string, ExtendedField> = {
 
 export default function Bridge(props: { blockchains: any[], assets: any[] }) {
   const ownerAddress = AppData.getWalletAddress() || '';
+  const mobile = document.body.clientWidth < 500;
   const navigate = useNavigate();
   const [routingAddressValue, setRoutingAddressValue] = useState<string>('');
   const [routingAddressIndex, setRoutingAddressIndex] = useState<number>(-1);
@@ -319,7 +320,7 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
   }, [blockchainAddresses]);
 
   return (
-    <Box>
+    <Box px={mobile ? '2' : undefined}>
       <Select.Root size="3" value={blockchainIndex.toString()} onValueChange={(e) => {
         setBlockchainIndex(parseInt(e));
         setDisclaimer(false);
@@ -389,9 +390,8 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
               }
             }} />
           </Flex>
-          <Flex gap="2" mt="2" mb="4" px="2" wrap="wrap">
-            <Badge size="2" color="red">From { blockchain.routing_policy != 'account' ? 'any' : 'this' } address</Badge>
-            { blockchain.ext?.tokenStandard ? <Badge size="2" color="jade">Send { Readability.toAssetSymbol(blockchain) }/{ blockchain.ext.tokenStandard }</Badge> : <Badge size="2" color="jade">Send { Readability.toAssetSymbol(blockchain) }</Badge> }
+          <Flex gap="2" mt="2" mb="4" px="1" wrap="wrap">
+            <Badge size="2" color="red">Send { Readability.toAssetSymbol(blockchain) }{ blockchain.ext?.tokenStandard ? '/' + blockchain.ext.tokenStandard : '' } from { blockchain.routing_policy != 'account' ? 'any' : 'this' } wallet</Badge>
             { blockchain.ext && <Badge size="2" color="yellow">ETA { blockchain.ext.depositTime }-{ blockchain.ext.depositTime + 10 } min.</Badge> }
           </Flex>
           {

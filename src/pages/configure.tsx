@@ -7,17 +7,21 @@ import { AppData, AppPermission, ConnectionState } from "../core/app";
 import { ByteUtil, RPC, Signing, Readability } from "tangentsdk";
 import Icon from "@mdi/react";
 import License from "../components/license";
-import { useNavigate } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 
 export default function ConfigurePage() {
   const mobile = document.body.clientWidth <= 600;
   const orientation = mobile ? 'vertical' : 'horizontal';
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [counter, setCounter] = useState(0);
   const [walletExportType, setWalletExportType] = useState<'wallet' | 'mnemonic' | 'secretkey' | 'publickey' | 'address'>('wallet');
   const [validatorAddress, setValidatorAddress] = useState(AppData.props.validator || '');
   const [exchangeAddress, setExchangeAddress] = useState(AppData.props.exchange || '');
   const [loadingProps, setLoadingProps] = useState(false);
+  const highlightExport = useMemo(() => {
+    return searchParams.has('export');
+  }, [searchParams]);
   const networkInfo = useMemo<ConnectionState>(() => {
     return AppData.server || {
       sentBytes: 0,
@@ -82,6 +86,10 @@ export default function ConfigurePage() {
     return true;
   }, [loadingProps]);
   const exportWallet = useCallback(async () => {
+    if (!AppData.isWalletReady()) {
+      navigate(`/restore?to=${encodeURIComponent('/configure?export=1')}`);
+      return;
+    }
     switch (walletExportType) {
       case 'wallet': {
         const mnemonic = await SafeStorage.get(StorageField.Mnemonic);
@@ -90,7 +98,7 @@ export default function ConfigurePage() {
         const publicKeyHash = AppData.getWalletPublicKeyHash();
         const address = AppData.getWalletAddress();
         if ((!mnemonic && !secretKey) || !publicKey || !publicKeyHash || !address) {
-          AlertBox.open(AlertType.Error, 'Walled is locked or has no recovery phase and/or no private key');
+          AlertBox.open(AlertType.Error, 'Walled has no recovery phase and/or no private key');
           break;
         }
 
@@ -106,7 +114,7 @@ export default function ConfigurePage() {
       case 'mnemonic': {
         const mnemonic = await SafeStorage.get(StorageField.Mnemonic);
         if (!mnemonic) {
-          AlertBox.open(AlertType.Error, 'Wallet is locked or has no recovery phrase');
+          AlertBox.open(AlertType.Error, 'Wallet has no recovery phrase');
           break;
         }
 
@@ -118,7 +126,7 @@ export default function ConfigurePage() {
         const secretKey = AppData.getWalletSecretKey();
         const encodedSecretKey = secretKey ? Signing.encodeSecretKey(secretKey) : null;
         if (!encodedSecretKey) {
-          AlertBox.open(AlertType.Error, 'Wallet is locked or has no private key');
+          AlertBox.open(AlertType.Error, 'Wallet has no private key');
           break;
         }
 
@@ -130,7 +138,7 @@ export default function ConfigurePage() {
         const publicKey = AppData.getWalletPublicKey();
         const encodedPublicKey = publicKey ? Signing.encodePublicKey(publicKey) : null;
         if (!encodedPublicKey) {
-          AlertBox.open(AlertType.Error, 'Wallet is locked or has no public key');
+          AlertBox.open(AlertType.Error, 'Wallet has no public key');
           break;
         }
 
@@ -203,7 +211,7 @@ export default function ConfigurePage() {
                 </Select.Group>
               </Select.Content>
             </Select.Root>
-            <Button size="2" variant="soft" color="yellow" disabled={!AppData.isWalletExists()} onClick={exportWallet}>
+            <Button size="2" variant="soft" color="yellow" className={highlightExport ? 'shadow-rainbow-animation' : undefined} disabled={!AppData.isWalletExists()} onClick={() => exportWallet()}>
               <Icon path={mdiAlertOctagram} size={0.85} />
             </Button>
           </Flex>
@@ -314,7 +322,11 @@ export default function ConfigurePage() {
               <Icon path={mdiReloadAlert} size={0.85} />
             </Button>
           </Flex>
-          <Card mt="3" variant="surface">
+          <Box className="rt-Card" mt="3" style={{
+              backgroundColor: 'var(--color-panel)',
+              borderRadius: '32px',
+              padding: '12px 16px'
+            }}>
             <DataList.Root size="2" orientation={orientation}>
               <DataList.Item>
                 <DataList.Label>Server status</DataList.Label>
@@ -344,7 +356,7 @@ export default function ConfigurePage() {
                 </DataList.Value>
               </DataList.Item>
             </DataList.Root>
-          </Card>
+          </Box>
         </Box>
       </Card>
       <License style={{ marginTop: '60px' }} app={true}></License>

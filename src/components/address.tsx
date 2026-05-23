@@ -19,6 +19,91 @@ function toAddressType(type: string): string {
       return 'Tangent address';
   }
 }
+function toAddressVariant(network: string, address: string): string {
+  switch (network) {
+    case 'SOL':
+    case 'XLM':
+    case 'XMR':
+      return 'P2PK';
+    case 'ADA':
+    case 'ARB':
+    case 'AVAX':
+    case 'BASE':
+    case 'BLAST':
+    case 'BNB':
+    case 'CELO':
+    case 'ETC':
+    case 'ETH':
+    case 'GNO':
+    case 'MATIC':
+    case 'OP':
+    case 'S':
+    case 'LINEA':
+    case 'TRX':
+    case 'ZK':
+    case 'XRP':
+    case 'BCH':
+    case 'BSV':
+    case 'DASH':
+    case 'DOGE':
+    case 'XEC':
+      return 'P2PKH';
+    case 'BTC': {
+      if (address.indexOf('1q') != -1) {
+        return 'P2WPKH';
+      } if (address.indexOf('1p') != -1) {
+        return 'P2TR';
+      } else if (address.startsWith('1')) {
+        return 'P2PKH';
+      } else if (address.startsWith('3')) {
+        return 'P2SH';
+      } else {
+        return 'P2PK';
+      }
+    }
+    case 'BTG': {
+      if (address.indexOf('1q') != -1) {
+        return 'P2WPKH';
+      } else if (address.startsWith('G')) {
+        return 'P2PKH';
+      } else if (address.startsWith('A')) {
+        return 'P2SH';
+      } else {
+        return 'P2PK';
+      }
+    }
+    case 'DGB': {
+      if (address.indexOf('1q') != -1) {
+        return 'P2WPKH';
+      } if (address.indexOf('1p') != -1) {
+        return 'P2TR';
+      } else if (address.startsWith('D')) {
+        return 'P2PKH';
+      } else if (address.startsWith('S')) {
+        return 'P2SH';
+      } else {
+        return 'P2PK';
+      }
+    }
+    case 'LTC': {
+      if (address.indexOf('1q') != -1) {
+        return 'P2WPKH';
+      } if (address.indexOf('1p') != -1) {
+        return 'P2TR';
+      } else if (address.startsWith('3') || address.startsWith('L')) {
+        return 'P2PKH';
+      } else if (address.startsWith('M')) {
+        return 'P2SH';
+      } else {
+        return 'P2PK';
+      }
+    }
+    case 'ZEC':
+      return address.startsWith('t1') ? 'P2PKH' : 'P2UPKH';
+    default:
+      return 'P2A';
+  }
+}
 
 export function AddressView(props: { address: any, onExit?: () => any }) {
   const mobile = document.body.clientWidth < 500;
@@ -26,6 +111,20 @@ export function AddressView(props: { address: any, onExit?: () => any }) {
   const target = useMemo((): { address: string, tag: string | null } => {
     return variant >= 0 && variant < props.address.addresses.length ? props.address.addresses[variant] : props.address.addresses[0];
   }, [props.address, variant]);
+  const variants = useMemo(() => {
+    const duplicates: Record<string, number> = { };
+    const results = props.address.addresses.map((x: any) => toAddressVariant(props.address.asset.chain, x.address));
+    for (let i = 0; i < results.length; i++) {
+      const type = results[i];
+      if (duplicates[type]) {
+        results[i] = type + 'v' + duplicates[type].toString();
+        ++duplicates[type];
+      } else {
+        duplicates[type] = 1;
+      }
+    }
+    return results;
+  }, [props.address]);
   return (
     <Box>
       <Flex justify="center" width="100%">
@@ -48,7 +147,7 @@ export function AddressView(props: { address: any, onExit?: () => any }) {
         <Flex gap="1">
           <TextField.Root size="3" style={{ width: '100%' }} readOnly={true} value={ Readability.toAddress(target.address, mobile ? 6 : 12) } onClick={() => {
               navigator.clipboard.writeText(target.address);
-              AlertBox.open(AlertType.Info, 'Address v' + (props.address.addresses.length - variant) + ' copied!')
+              AlertBox.open(AlertType.Info, variants[variant] + ' address copied!')
             }}>
             <TextField.Slot>
               <Icon path={mdiQrcodeScan} size={0.7} style={{ paddingLeft: '4px' }} />
@@ -56,7 +155,7 @@ export function AddressView(props: { address: any, onExit?: () => any }) {
           </TextField.Root>
           <Flex gap="1">
             <Select.Root size="3" value={variant.toString()} onValueChange={(value) => setVariant(parseInt(value))}>
-              <Select.Trigger>v{ props.address.addresses.length - variant }</Select.Trigger>
+              <Select.Trigger>{ variants[variant] }</Select.Trigger>
               <Select.Content>
                 <Select.Group>
                   <Select.Label>Select variant</Select.Label>
@@ -64,7 +163,7 @@ export function AddressView(props: { address: any, onExit?: () => any }) {
                     props.address.addresses.map((address: any, index: number) =>
                       <Select.Item value={index.toString()} key={address.address + '_address'}>
                         <Flex align="center" gap="1">
-                          <Text>Variant {props.address.addresses.length - index}</Text>
+                          <Text>{ variants[index] }</Text>
                         </Flex>
                       </Select.Item>
                     )
@@ -87,9 +186,9 @@ export function AddressView(props: { address: any, onExit?: () => any }) {
         {
           target.tag != null &&
           <Box>
-            <TextField.Root mt="3" size="3" readOnly={true} value={ 'DT/M: ' + target.tag } onClick={() => {
+            <TextField.Root mt="3" size="3" readOnly={true} value={ 'Memo (DT): ' + target.tag } onClick={() => {
                 navigator.clipboard.writeText(target.tag as any);
-                AlertBox.open(AlertType.Info, 'Dest. tag / memo copied!')
+                AlertBox.open(AlertType.Info, 'Memo (destination tag) copied!')
               }}>
               <TextField.Slot>
                 <Icon path={mdiTagOutline} size={0.7} style={{ paddingLeft: '4px' }} />

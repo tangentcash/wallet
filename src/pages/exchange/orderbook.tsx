@@ -382,18 +382,18 @@ export default function OrderbookPage() {
               if (e != 'order')
                 setPreset(null);
             }}>
-              <Tabs.List size="2" justify="center" color="lime" style={mobile ? { paddingTop: '20px' } : { }}>
+              <Tabs.List size="2" justify="center" color="lime" style={mobile ? { paddingTop: '10px' } : { }}>
                 <Tabs.Trigger value="info" className="tab-padding-erase">
-                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.15rem' } : undefined}>Market</Badge>
+                  <Badge size="3" radius="large">Market</Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="order" className="tab-padding-erase">
-                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.15rem' } : undefined}>Trade</Badge>
+                  <Badge size="3" radius="large">Trade</Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="book" className="tab-padding-erase">
-                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.15rem' } : undefined}>Book</Badge>
+                  <Badge size="3" radius="large">Book</Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="trades" className="tab-padding-erase">
-                  <Badge size="3" radius="large" style={mobile ? { fontSize: '1.15rem' } : undefined}>Log</Badge>
+                  <Badge size="3" radius="large">Log</Badge>
                 </Tabs.Trigger>
               </Tabs.List>
               <Clock></Clock>

@@ -86,6 +86,7 @@ function toSimpleTransaction(input: any): Record<string, any> {
 export default function InteractionPage() {
   const location = useLocation();
   const ownerAddress = AppData.getWalletAddress() || '';
+  const mobile = document.body.clientWidth <= 800;
   const [query] = useSearchParams();
   const [assets, setAssets] = useState<any[]>([]);
   const [asset, setAsset] = useState(-1);
@@ -762,7 +763,7 @@ export default function InteractionPage() {
       <Box width="100%" mt="3" mb="4">
         <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
       </Box>
-      <Box className="rt-Card" style={{
+      <Box className="rt-Card" style={mobile ? { border: 'none' } : {
         backgroundColor: 'var(--color-panel)',
         borderRadius: '24px',
         padding: '12px 16px'
@@ -878,7 +879,7 @@ export default function InteractionPage() {
               <Flex gap="2">
                 <Box width="100%">
                   <Tooltip content="Payment value received by account">
-                    <TextField.Root size="3" placeholder={'Payment value in ' + Readability.toAssetSymbol(assets[asset].asset)} type="number" value={item.value} onChange={(e) => {
+                    <TextField.Root size="3" placeholder={'Payment in ' + Readability.toAssetSymbol(assets[asset].asset)} type="number" value={item.value} onChange={(e) => {
                       const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                       copy.to[index].value = e.target.value;
                       setProgram(copy);
@@ -978,7 +979,7 @@ export default function InteractionPage() {
             {
               program.attestations.map((item, index) =>
                 <Box mt="4" key={index}>
-                  <Box style={{
+                  <Box className="rt-Card" style={{
                       backgroundColor: 'var(--color-panel)',
                       borderRadius: '32px',
                       padding: '12px 16px'
@@ -1228,7 +1229,7 @@ export default function InteractionPage() {
             <Flex gap="2" mb="3">
               <Box width="100%">
                 <Tooltip content="Payment value received by account">
-                  <TextField.Root size="3" placeholder={'Payment value in ' + Readability.toAssetSymbol(assets[asset].asset)} type="number" value={program.value} onChange={(e) => {
+                  <TextField.Root size="3" placeholder={'Payment in ' + Readability.toAssetSymbol(assets[asset].asset)} type="number" value={program.value} onChange={(e) => {
                     const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                     copy.value = e.target.value;
                     setProgram(copy);
