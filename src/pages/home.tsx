@@ -5,7 +5,6 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData } from "../core/app";
 import { Authorizer, RPC } from "tangentsdk";
-import { scan, Format } from '@tauri-apps/plugin-barcode-scanner';
 import Account from "../components/account";
 import Icon from "@mdi/react";
 
@@ -20,6 +19,7 @@ export default function HomePage() {
     
     setLoading(true);
     try {
+      const { scan, Format } = await import('@tauri-apps/plugin-barcode-scanner');
       const result = await scan({ windowed: true, formats: [Format.QRCode] });
       try {
         const request: { url?: string } = JSON.parse(result.content);

@@ -72,13 +72,6 @@ export enum AppPermission {
   Reset
 }
 
-/*
-
-import { core } from '@tauri-apps/api';
-import { listen } from "@tauri-apps/api/event";
-
-*/
-
 export class AppData {
   static root: Root | null = null;
   static server: ConnectionState | null = null;
@@ -327,8 +320,10 @@ export class AppData {
     }
   }
   private static async tauri(): Promise<any> {
-    if (!this.tauriRef)
-      this.tauriRef = (await import('@tauri-apps/api')).core;
+    if (!this.tauriRef) {
+      const { core } = await import('@tauri-apps/api');
+      this.tauriRef = core;
+    }
     return this.tauriRef;
   }
   static async restoreWallet(passphrase: string, network?: NetworkType): Promise<boolean> {
@@ -581,8 +576,11 @@ export class AppData {
     });
     this.reconfigure(null, AppPermission.ReadOnly);
     this.render();
-    if (this.isApp())
-      import("@tauri-apps/api/event").then((tauri) => tauri.listen('authorizer', (event: any) => this.authorizerEvent(event)));
+    
+    if (this.isApp()) {
+      const { listen } = await import("@tauri-apps/api/event");
+      listen('authorizer', (event: any) => this.authorizerEvent(event));
+    }
   }
   static reconfigure(network: NetworkType | null, type: AppPermission): void {
     const prevNetwork = AppStorage.get(StorageField.Network) || this.defaultNetwork();
@@ -752,7 +750,7 @@ export function App() {
       <Box minHeight="100vh" minWidth="285px" style={{ paddingBottom: '96px' }}>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={AppData.isWalletExists() ? <HomePage /> : <HypePage />} />
+            <Route path="/" element={AppData.isWalletExists() ? <HomePage /> : (AppData.isApp() ? <RestorePage /> : <HypePage />)} />
             <Route path="/configure" element={<ConfigurePage />} />
             <Route path="/explorer" element={<ExplorerPage />} />
             <Route path="/interaction" element={<InteractionPage />} />

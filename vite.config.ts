@@ -13,7 +13,7 @@ export default defineConfig(async () => ({
       },
     }),
     visualizer({
-      filename: resolve(__dirname, './insights.html'),
+      filename: resolve(__dirname, './bundle.html'),
       gzipSize: true,
       brotliSize: true,
     }),

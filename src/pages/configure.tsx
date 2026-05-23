@@ -359,7 +359,7 @@ export default function ConfigurePage() {
           </Box>
         </Box>
       </Card>
-      <License style={{ marginTop: '60px' }} app={true}></License>
+      <License style={{ marginTop: '60px' }} app={!AppData.isApp()}></License>
     </Box>
   );
 }

@@ -6,5 +6,6 @@
 dist
 node_modules
 src-tauri
+bundle.html
 LICENCE
 README.md

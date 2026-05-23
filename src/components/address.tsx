@@ -119,8 +119,14 @@ export function AddressView(props: { address: any, onExit?: () => any }) {
     for (let i = 0; i < results.length; i++) {
       const type = results[i];
       if (duplicates[type]) {
-        results[i] = type + 'v' + duplicates[type].toString();
+        for (let j = 0; j < i; j++) {
+          if (results[j] == type) {
+            results[j] = type + 'v' + duplicates[type].toString();
+            break;
+          }
+        }
         ++duplicates[type];
+        results[i] = type + 'v' + duplicates[type].toString();
       } else {
         duplicates[type] = 1;
       }
