@@ -1,21 +1,19 @@
-import { mdiAlertOctagram, mdiBugOutline, mdiCached, mdiLightbulbOn, mdiLightbulbOutline, mdiLocationExit, mdiRefresh, mdiReloadAlert, mdiTrashCan } from "@mdi/js";
-import { AlertDialog, Badge, Box, Button, Card, DataList, Flex, Heading, Select, Separator, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { mdiCloudDownload } from "@mdi/js";
+import { AlertDialog, Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Heading, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { SafeStorage, StorageField } from "../core/storage";
 import { AppData, AppPermission, ConnectionState } from "../core/app";
 import { ByteUtil, RPC, Signing, Readability } from "tangentsdk";
+import { useNavigate, useSearchParams } from "react-router";
 import Icon from "@mdi/react";
 import License from "../components/license";
-import { useNavigate, useSearchParams } from "react-router";
 
 export default function ConfigurePage() {
   const mobile = document.body.clientWidth <= 600;
-  const orientation = mobile ? 'vertical' : 'horizontal';
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [counter, setCounter] = useState(0);
-  const [walletExportType, setWalletExportType] = useState<'wallet' | 'mnemonic' | 'secretkey' | 'publickey' | 'address'>('wallet');
   const [validatorAddress, setValidatorAddress] = useState(AppData.props.validator || '');
   const [exchangeAddress, setExchangeAddress] = useState(AppData.props.exchange || '');
   const [loadingProps, setLoadingProps] = useState(false);
@@ -85,12 +83,12 @@ export default function ConfigurePage() {
     setLoadingProps(false);
     return true;
   }, [loadingProps]);
-  const exportWallet = useCallback(async () => {
-    if (!AppData.isWalletReady()) {
+  const exportWallet = useCallback(async (type: 'wallet' | 'mnemonic' | 'secretkey' | 'publickey' | 'address') => {
+    if (!AppData.isWalletReady() && type != 'address') {
       navigate(`/restore?to=${encodeURIComponent('/configure?export=1')}`);
       return;
     }
-    switch (walletExportType) {
+    switch (type) {
       case 'wallet': {
         const mnemonic = await SafeStorage.get(StorageField.Mnemonic);
         const secretKey = AppData.getWalletSecretKey();
@@ -98,7 +96,7 @@ export default function ConfigurePage() {
         const publicKeyHash = AppData.getWalletPublicKeyHash();
         const address = AppData.getWalletAddress();
         if ((!mnemonic && !secretKey) || !publicKey || !publicKeyHash || !address) {
-          AlertBox.open(AlertType.Error, 'Walled has no recovery phase and/or no private key');
+          AlertBox.open(AlertType.Error, 'Walled has no recovery phase or no private key');
           break;
         }
 
@@ -158,7 +156,7 @@ export default function ConfigurePage() {
         break;
       }
     }
-  }, [walletExportType]);
+  }, []);
   const resetNetwork = useCallback(async () => {
     if (loadingProps)
       return false;
@@ -168,9 +166,12 @@ export default function ConfigurePage() {
     AppData.reconfigure(null, AppPermission.Reset);
     if (await AppData.sync()) {
       AlertBox.open(AlertType.Info, 'Network reset: connection re-acquired');
+      setValidatorAddress(AppData.props.validator || '');
+      setExchangeAddress(AppData.props.exchange || '');;
+      AppData.save();
     } else {
       AlertBox.open(AlertType.Warning, 'Connection failed');
-    }
+    }  
     setLoadingProps(false);
     return true;
   }, [loadingProps]);
@@ -181,182 +182,131 @@ export default function ConfigurePage() {
 
   return (
     <Box px={mobile ? undefined : '4'} pt={mobile ? '2' : '4'} mx="auto" maxWidth="580px">
-      {
-        !mobile &&
-        <>
-          <Heading size="6">Setup</Heading>
-          <Box width="100%" mt="4">
-            <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-          </Box>
-        </>
-      }
-      <Card mt={mobile ? undefined : '4'} variant={mobile ? 'ghost' : 'surface'} style={mobile ? { margin: 0, border: 'none' } : undefined}>
+      <Box px="4" py="2">
+        <Heading size="6" mb={mobile ? undefined : '2'}>Settings</Heading>
+      </Box>
+      <Card variant={mobile ? 'ghost' : 'surface'} style={mobile ? { margin: 0, border: 'none' } : { borderRadius: '28px' }}>
         <Box px="2" py="2">
-          <Heading size={mobile ? '6' : '5'} mb="2">Wallet</Heading>
-          <Flex justify="between" align="center" mt="3">
-            <Text size="2" color="gray">Wallet status</Text>
-            <Badge size="3" color="lime">{ AppData.isWalletExists() ? (AppData.getWalletSecretKey() != null ? 'Read/write' : 'Read-only') : 'TBC' }</Badge>
-          </Flex>
-          <Flex justify="between" align="center" mt="2">
-            <Select.Root value={walletExportType} onValueChange={(e) => setWalletExportType(e as any)}>
-              <Select.Trigger variant="ghost" />
-              <Select.Content>
-                <Select.Group>
-                  <Select.Label>Wallet export type</Select.Label>
-                  <Select.Item value="wallet">Export file</Select.Item>
-                  <Select.Item value="mnemonic">Export recovery phrase</Select.Item>
-                  <Select.Item value="secretkey">Export private key</Select.Item>
-                  <Select.Item value="publickey">Export public key</Select.Item>
-                  <Select.Item value="address">Export address</Select.Item>
-                </Select.Group>
-              </Select.Content>
-            </Select.Root>
-            <Button size="2" variant="soft" color="yellow" className={highlightExport ? 'shadow-rainbow-animation' : undefined} disabled={!AppData.isWalletExists()} onClick={() => exportWallet()}>
-              <Icon path={mdiAlertOctagram} size={0.85} />
-            </Button>
-          </Flex>
-          <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Close wallet</Text>
-            <Button size="2" variant="soft" color="lime" disabled={!AppData.isWalletExists() || !AppData.isWalletReady()} onClick={() => AppData.clearWallet()}>
-              <Icon path={mdiLocationExit} size={0.85} />
-            </Button>
-          </Flex>
-          <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Destroy wallet</Text>
-            <AlertDialog.Root>
-              <AlertDialog.Trigger disabled={!AppData.isWalletExists()}>
-                <Button size="2" variant="soft" color="red">
-                  <Icon path={mdiTrashCan} size={0.85} />
-                </Button>
-              </AlertDialog.Trigger>
-              <AlertDialog.Content maxWidth="450px">
-                <AlertDialog.Title>Wipe the wallet</AlertDialog.Title>
-                <AlertDialog.Description size="2">
-                  Are you sure? You will not be able to recover the access without your recovery phrase or private key.
-                </AlertDialog.Description>
-                <Flex gap="3" mt="4" justify="end">
-                  <AlertDialog.Cancel>
-                    <Button variant="soft" color="gray">Cancel</Button>
-                  </AlertDialog.Cancel>
-                  <AlertDialog.Action>
-                    <Button variant="solid" color="red" onClick={() => {
-                      AppData.destroyWallet();
-                      navigate('/');
-                    }}>Destroy wallet</Button>
-                  </AlertDialog.Action>
+          <DataList.Root orientation="vertical">
+            <DataList.Item>
+              <DataList.Label minWidth="88px">Wallet control</DataList.Label>
+              <DataList.Value>
+                <Flex gap="2" wrap="wrap">
+                  <Button size="2" variant="solid" color={AppData.isWalletExists() && AppData.isWalletReady() ? 'yellow' : 'lime'} onClick={() => {
+                    if (!AppData.isWalletExists() || !AppData.isWalletReady()) {
+                      navigate(`/restore?to=${encodeURIComponent('/configure')}`);
+                    }
+                  }}>
+                    { AppData.isWalletExists() ? (AppData.isWalletReady() ? (AppData.getWalletSecretKey() != null ? 'Full control' : 'Watch only') : 'Unlock to see') : 'Create to see' }
+                  </Button>
+                  <Button size="2" variant="surface" color="lime" disabled={!AppData.isWalletExists() || !AppData.isWalletReady()} onClick={() => AppData.clearWallet()}>Lock</Button>     
                 </Flex>
-              </AlertDialog.Content>
-            </AlertDialog.Root>
-          </Flex>
-        </Box>
-      </Card>
-      {
-        mobile &&
-        <Box width="100%">
-          <Separator my="0" size="4"></Separator>
-        </Box>
-      }
-      <Card mt="4" variant={mobile ? 'ghost' : 'surface'} style={mobile ? { margin: 0, border: 'none' } : undefined}>
-        <Box px="2" py="2">
-          <Heading size={mobile ? '6' : '5'} mb="3">Client</Heading>
-          <Flex gap="2" align="center" justify="between">
-            <Text size="2" color="gray">Display theme</Text>
-            <Button size="2" variant="soft" color="lime" onClick={() => AppData.setAppearance(AppData.props.appearance == 'dark' ? 'light' : 'dark')}>
-              <Icon path={AppData.props.appearance == 'dark' ? mdiLightbulbOutline : mdiLightbulbOn} size={0.85} />
-            </Button>
-          </Flex>
-          <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Erase cache</Text>
-            <Button size="2" variant="soft" color="lime" onClick={() => {
-              RPC.clearCache();
-              AlertBox.open(AlertType.Info, 'Application cache erased');
-            }}>
-              <Icon path={mdiCached} size={0.85} />
-            </Button>
-          </Flex>
-          <Flex justify="between" align="center" mt="2">
-            <Text size="2" color="gray">Reload app</Text>
-            <Button size="2" variant="soft" onClick={() => location.reload()}>
-              <Icon path={mdiReloadAlert} size={0.85} />
-            </Button>
-          </Flex>
-          {
-            AppData.isApp() &&
-            <Flex justify="between" align="center" mt="2">
-              <Text size="2" color="gray">Show debugger</Text>
-              <Button size="2" variant="soft" color="yellow" onClick={() => AppData.openDevTools()}>
-                <Icon path={mdiBugOutline} size={0.85} />
-              </Button>
-            </Flex>
-          }
-        </Box>
-      </Card>
-      {
-        mobile &&
-        <Box width="100%">
-          <Separator my="0" size="4"></Separator>
-        </Box>
-      }
-      <Card mt="4" variant={mobile ? 'ghost' : 'surface'} style={mobile ? { margin: 0, border: 'none' } : undefined}>
-        <Box px="2" py="2">
-          <Heading size={mobile ? '6' : '5'} mb="3">Server</Heading>
-          <Flex gap="1" mt="2">
-            <Tooltip content="Specify the URL of Validator RPC server: read/write on-chain data">
-              <TextField.Root style={{ width: '100%' }} size="2" placeholder="Validator RPC server address" type="text" value={validatorAddress} onChange={(e) => setValidatorAddress(e.target.value.trim())} />
-            </Tooltip>
-            <Button size="2" variant="soft" color="yellow" onClick={() => setValidatorServer(validatorAddress)}>
-              <Icon path={mdiRefresh} size={0.85} />
-            </Button>
-          </Flex>
-          <Flex gap="1" mt="2">
-            <Tooltip content="Specify the URL of Exchange RPC server: read-only DEX data">
-              <TextField.Root style={{ width: '100%' }} size="2" placeholder="Exchange RPC server address" type="text" value={exchangeAddress} onChange={(e) => setExchangeAddress(e.target.value.trim())} />
-            </Tooltip>
-            <Button size="2" variant="soft" color="yellow" onClick={() => setExchangeServer(exchangeAddress)}>
-              <Icon path={mdiRefresh} size={0.85} />
-            </Button>
-          </Flex>
-          <Flex justify="between" align="center" mt="2">
-            <Text size="2" ml="1" color="gray">Reset network</Text>
-            <Button size="2" variant="soft" color="yellow" onClick={() => resetNetwork()}>
-              <Icon path={mdiReloadAlert} size={0.85} />
-            </Button>
-          </Flex>
-          <Box className="rt-Card" mt="3" style={{
-              backgroundColor: 'var(--color-panel)',
-              borderRadius: '32px',
-              padding: '12px 16px'
-            }}>
-            <DataList.Root size="2" orientation={orientation}>
-              <DataList.Item>
-                <DataList.Label>Server status</DataList.Label>
-                <DataList.Value>
-                  <Flex gap="1" wrap="wrap">
-                    <Badge size="2" color={networkInfo.active ? 'lime' : 'red'}>{ networkInfo.active ? 'ONLINE' : 'OFFLINE' }</Badge>
-                    <Badge size="2" color={(networkInfo.requests ? networkInfo.responses / networkInfo.requests < 0.9 : false) ? 'red' : 'lime'} variant="soft" radius="full">{ (100 * Math.min(1, networkInfo.requests > 0 ? networkInfo.responses / networkInfo.requests : 1)).toFixed(2) }%</Badge>
-                  </Flex>
-                </DataList.Value>
-              </DataList.Item>
-              <DataList.Item>
-                <DataList.Label>Server test</DataList.Label>
-                <DataList.Value>
-                  <Text size="2">{ networkInfo.time ? networkInfo.time.toLocaleString() : 'never' }</Text>
-                </DataList.Value>
-              </DataList.Item>
-              <DataList.Item>
-                <DataList.Label>Server pings</DataList.Label>
-                <DataList.Value>
-                  <Text size="2">{ Readability.toCount('ping', networkInfo.requests) } — { Readability.toCount('byte', networkInfo.sentBytes) }</Text>
-                </DataList.Value>
-              </DataList.Item>
-              <DataList.Item>
-                <DataList.Label>Server pongs</DataList.Label>
-                <DataList.Value>
-                  <Text size="2">{ Readability.toCount('pong', networkInfo.responses) } — { Readability.toCount('byte', networkInfo.receivedBytes) }</Text>
-                </DataList.Value>
-              </DataList.Item>
-            </DataList.Root>
-          </Box>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label minWidth="88px">Wallet data</DataList.Label>
+              <DataList.Value>
+                <Flex gap="2" wrap="wrap">    
+                  <AlertDialog.Root>
+                    <AlertDialog.Trigger disabled={!AppData.isWalletExists()}>
+                      <Button size="2" variant="soft" color="red">Destroy</Button>
+                    </AlertDialog.Trigger>
+                    <AlertDialog.Content maxWidth="450px">
+                      <AlertDialog.Title>Wipe the wallet</AlertDialog.Title>
+                      <AlertDialog.Description size="2">
+                        Are you sure? You will not be able to recover the access without your recovery phrase or private key.
+                      </AlertDialog.Description>
+                      <Flex gap="3" mt="4" justify="end">
+                        <AlertDialog.Cancel>
+                          <Button variant="solid" color="lime">Cancel</Button>
+                        </AlertDialog.Cancel>
+                        <AlertDialog.Action>
+                          <Button variant="soft" color="red" onClick={() => {
+                            AppData.destroyWallet();
+                            navigate('/');
+                          }}>Destroy wallet</Button>
+                        </AlertDialog.Action>
+                      </Flex>
+                    </AlertDialog.Content>
+                  </AlertDialog.Root>
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger>
+                      <Button variant="surface" className={highlightExport ? 'shadow-rainbow-animation' : undefined} disabled={!AppData.isWalletExists()}>
+                        Backup
+                        <DropdownMenu.TriggerIcon />
+                      </Button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content>
+                      <DropdownMenu.Item onClick={() => exportWallet('wallet')}>File</DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={() => exportWallet('mnemonic')}>Recovery phrase</DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={() => exportWallet('secretkey')}>Private key</DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={() => exportWallet('publickey')}>Public key</DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={() => exportWallet('address')}>Address</DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
+                </Flex>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label minWidth="88px">Client app</DataList.Label>
+              <DataList.Value>
+                <Flex gap="2" wrap="wrap">
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger>
+                      <Button variant="surface" color="gray">
+                        Manage
+                        <DropdownMenu.TriggerIcon />
+                      </Button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content>
+                      <DropdownMenu.Item onClick={() => AppData.openDevTools()} disabled={!AppData.isApp()}>Debug app</DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={() => location.reload()}>Reload app</DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={() => resetNetwork()}>Reset network</DropdownMenu.Item>
+                      <DropdownMenu.Item onClick={() => {
+                        RPC.clearCache();
+                        AlertBox.open(AlertType.Info, 'Application cache erased');
+                      }}>Clear cache</DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
+                  <Button size="2" variant="solid" style={{ backgroundColor: 'var(--gray-12)', color: 'var(--gray-1)' }} onClick={() => AppData.setAppearance(AppData.props.appearance == 'dark' ? 'light' : 'dark')}>
+                    { AppData.props.appearance == 'dark' ? 'Lights on' : 'Lights off'}
+                  </Button>
+                </Flex>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label minWidth="88px">Validator RPC</DataList.Label>
+              <DataList.Value>
+                <Tooltip content="Specify the URL of Validator RPC server: read/write on-chain data">
+                  <TextField.Root style={{ width: '100%' }} size="2" placeholder="Validator RPC server address" type="text" value={validatorAddress} onChange={(e) => setValidatorAddress(e.target.value.trim())} />
+                </Tooltip>
+                <Button size="2" ml="2" variant="soft" color="lime" onClick={() => setValidatorServer(validatorAddress)}>
+                  <Icon path={mdiCloudDownload} size={0.85} />
+                </Button>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label minWidth="88px">Exchange RPC</DataList.Label>
+              <DataList.Value>
+                <Tooltip content="Specify the URL of Exchange RPC server: read-only DEX data">
+                  <TextField.Root style={{ width: '100%' }} size="2" placeholder="Exchange RPC server address" type="text" value={exchangeAddress} onChange={(e) => setExchangeAddress(e.target.value.trim())} />
+                </Tooltip>
+                <Button size="2" ml="2" variant="soft" color="lime" onClick={() => setExchangeServer(exchangeAddress)}>
+                  <Icon path={mdiCloudDownload} size={0.85} />
+                </Button>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>RPC traffic</DataList.Label>
+              <DataList.Value>
+                <Flex gap="1" wrap="wrap">
+                  <Badge size="3" color={networkInfo.active ? 'lime' : 'red'}>{ networkInfo.active ? 'ONLINE' : 'OFFLINE' }</Badge>
+                  <Badge size="3" color="lime">↓{ Readability.toCount('byte', networkInfo.receivedBytes) }</Badge>
+                  <Badge size="3" color="blue">↑{ Readability.toCount('byte', networkInfo.sentBytes) }</Badge>
+                </Flex>
+              </DataList.Value>
+            </DataList.Item>
+          </DataList.Root>
         </Box>
       </Card>
       <License style={{ marginTop: '60px' }} app={!AppData.isApp()}></License>

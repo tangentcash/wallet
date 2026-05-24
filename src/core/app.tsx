@@ -303,7 +303,7 @@ export class AppData {
       return [];
     }
   }
-  private static save(): void {
+  static save(): void {
     AppStorage.set(StorageField.App, this.props);
   }
   private static render(): void {
