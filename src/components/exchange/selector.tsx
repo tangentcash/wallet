@@ -176,7 +176,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
         </Box>
         <Flex justify="between" align="center" gap="2">
           <Tooltip content="Official market symbol (ticker) of target token (possibly coming from smart contract)">
-            <TextField.Root placeholder="Token's symbol (e.g. USDT)" size="3" style={{ width: '100%' }} value={symbol} onChange={(e) => setSymbol(e.currentTarget.value)}>
+            <TextField.Root placeholder="Token's symbol (e.g. USDC)" size="3" style={{ width: '100%' }} value={symbol} onChange={(e) => setSymbol(e.currentTarget.value)}>
               <TextField.Slot>
                 <Icon path={mdiAlphabeticalVariant} size={0.8}></Icon>
               </TextField.Slot>

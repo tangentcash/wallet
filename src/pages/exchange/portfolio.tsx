@@ -576,7 +576,7 @@ function TradingPairs() {
     <>
       <Box pt="5" pb="3">
         <Flex px="1" align="center" justify="start">
-          <TextField.Root placeholder="Try ETH/USDT…" variant="soft" color="gray" size="3" value={query} style={{ width: '100%', borderTopRightRadius: '0', borderBottomRightRadius: '0' }} onInput={(e) => setQuery(e.currentTarget.value || '')}>
+          <TextField.Root placeholder="Try ETH/USDC…" variant="soft" color="gray" size="3" value={query} style={{ width: '100%', borderTopRightRadius: '0', borderBottomRightRadius: '0' }} onInput={(e) => setQuery(e.currentTarget.value || '')}>
             <TextField.Slot>
               <Icon path={mdiMagnify} size={0.8}></Icon>
             </TextField.Slot>
