@@ -528,7 +528,7 @@ export default function InteractionPage() {
     }
   }, [programReady, loadingTransaction, assets, asset, nonce, gasPrice, gasLimit, program]);
   const calculateTransactionGas = useCallback(async (percentile: number) => {
-    if (loadingGasPriceAndPrice)
+    if (!programReady || loadingGasPriceAndPrice)
       return false;
 
     let presetGasPrice = new BigNumber(-1);
@@ -1258,7 +1258,7 @@ export default function InteractionPage() {
           </Box>
         }
         {
-          programReady && proMode &&
+          proMode &&
           <Box mt="5">
             <Box px="1">
               <Heading size="4" mb="2">Priority & cost</Heading>
@@ -1280,17 +1280,17 @@ export default function InteractionPage() {
               </Box>
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger>
-                  <Button size="3" variant="outline" color="gray" style={{ outlineColor: 'red' }} disabled={loadingTransaction || loadingGasPriceAndPrice} loading={loadingGasPriceAndPrice}>
+                  <Button size="3" variant="outline" color="gray" style={{ outlineColor: 'red' }} disabled={!programReady || loadingTransaction || loadingGasPriceAndPrice} loading={loadingGasPriceAndPrice}>
                     Auto
                     <DropdownMenu.TriggerIcon />
                   </Button>
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Content>
-                  <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.95)} shortcut="> 95%">Fastest</DropdownMenu.Item>
-                  <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.75)} shortcut="> 75%">Fast</DropdownMenu.Item>
-                  <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.50)} shortcut="> 50%">Medium</DropdownMenu.Item>
-                  <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.25)} shortcut="> 25%">Slow</DropdownMenu.Item>
-                  <DropdownMenu.Item disabled={loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.10)} shortcut="> 10%">Slowest</DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={!programReady || loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.95)} shortcut="> 95%">Fastest</DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={!programReady || loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.75)} shortcut="> 75%">Fast</DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={!programReady || loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.50)} shortcut="> 50%">Medium</DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={!programReady || loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.25)} shortcut="> 25%">Slow</DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={!programReady || loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.10)} shortcut="> 10%">Slowest</DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu.Root>
             </Flex>
