@@ -1,4 +1,4 @@
-import { mdiArrowBottomLeft, mdiArrowBottomRight, mdiArrowDown, mdiContactlessPayment, mdiCreation, mdiFire, mdiLightbulbOn, mdiLightbulbOutline, mdiLogin, mdiMenu, mdiScaleBalance, mdiSchool } from "@mdi/js";
+import { mdiArrowBottomLeft, mdiArrowBottomRight, mdiArrowDown, mdiContactlessPayment, mdiCreation, mdiFire, mdiFlash, mdiFlashAlert, mdiFlashOutline, mdiLightbulbOn, mdiLightbulbOutline, mdiLogin, mdiMenu, mdiPercent, mdiSale, mdiScaleBalance, mdiSchool } from "@mdi/js";
 import { Avatar, Box, Button, DropdownMenu, Flex, Heading, IconButton, Text } from "@radix-ui/themes";
 import { Link, useNavigate } from "react-router";
 import { useState } from "react";
@@ -226,10 +226,10 @@ export default function HypePage() {
       <Box style={{ padding: mobile ? '120px 0' : '200px 0', paddingBottom: '100px' }}>
         <Box maxWidth="800px" mx="auto" px="4" py="4">
           <Flex justify="center" mb="6">
-            <Heading align="center" size={mobile ? '7' : '8'}>Cheap Bridging</Heading>
+            <Heading align="center" size={mobile ? '7' : '8'}>Effective Bridging</Heading>
           </Flex>
           <Flex justify="center" mb="8">
-            <Text align="center" size={mobile ? '3' : '4'}>Withdrawal fees are the same no matter the amount.</Text>
+            <Text align="center" size={mobile ? '3' : '4'}>Pay network fees, not bank transfer fees.</Text>
           </Flex>
           <Flex wrap="wrap" gap="3" justify="center">
             <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--lime-9)' }}>
@@ -242,7 +242,51 @@ export default function HypePage() {
             </Flex>
             <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--ruby-9)' }}>
               <Icon path={mdiFire} color="white" size={mobile ? 0.7 : 1}></Icon>
-              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'white' }}>Fixed Fee Withdrawal</Heading>
+              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'white' }}>Fixed Withdrawal Fee</Heading>
+            </Flex>
+          </Flex>
+        </Box>
+      </Box>
+      <Box style={{ padding: mobile ? '120px 0' : '200px 0', paddingBottom: '100px' }}>
+        <Box maxWidth="800px" mx="auto" px="4" py="4">
+          <Flex justify="center" mb="6">
+            <Heading align="center" size={mobile ? '7' : '8'}>Trading Fees</Heading>
+          </Flex>
+          <Flex justify="center" mb="8">
+            <Text align="center" size={mobile ? '3' : '4'}>Optimal setup for spot trading.</Text>
+          </Flex>
+          <Flex wrap="wrap" gap="3" justify="center">
+            <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--gray-12)' }}>
+              <Icon path={mdiSale} color="var(--gray-1)" size={mobile ? 0.7 : 1}></Icon> 
+              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'var(--gray-1)' }}>0.01% Spread</Heading>
+            </Flex>
+            <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--indigo-10)' }}>
+              <Icon path={mdiPercent} color="white" size={mobile ? 0.7 : 1}></Icon> 
+              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'white' }}>0.00% Fee</Heading>
+            </Flex>
+          </Flex>
+        </Box>
+      </Box>
+      <Box style={{ padding: mobile ? '120px 0' : '200px 0', paddingBottom: '100px' }}>
+        <Box maxWidth="500px" mx="auto" px="4" py="4">
+          <Flex justify="center" mb="6">
+            <Heading align="center" size={mobile ? '7' : '8'}>Withdrawal Fees</Heading>
+          </Flex>
+          <Flex justify="center" mb="8">
+            <Text align="center" size={mobile ? '3' : '4'}>Pay the cost of the network you are using.</Text>
+          </Flex>
+          <Flex wrap="wrap" gap="3" justify="center">
+            <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--grass-9)' }}>
+              <Icon path={mdiFlashOutline} color="white" size={mobile ? 0.7 : 1}></Icon> 
+              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'white' }}>Modern L1s/L2s &lt; $0.90</Heading>
+            </Flex>
+            <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--amber-9)' }}>
+              <Icon path={mdiFlash} color="black" size={mobile ? 0.7 : 1}></Icon> 
+              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'black' }}>Standard L1s/L2s &lt; $1.50</Heading>
+            </Flex>
+            <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--red-9)' }}>
+              <Icon path={mdiFlashAlert} color="white" size={mobile ? 0.7 : 1}></Icon> 
+              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'white' }}>Legacy L1s &lt; $20.00</Heading>
             </Flex>
           </Flex>
         </Box>
