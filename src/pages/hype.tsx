@@ -119,7 +119,7 @@ export default function HypePage() {
             <Heading align="center" size={mobile ? '7' : '8'}>True Sovereignty</Heading>
           </Flex>
           <Flex justify="center" mb="8">
-            <Text align="center" size={mobile ? '3' : '4'}>Forget about KYC abuse and fronzen accounts.</Text>
+            <Text align="center" size={mobile ? '3' : '4'}>Forget about KYC abuse and frozen accounts.</Text>
           </Flex>
           <Flex wrap="wrap" gap="3" justify="center">
             <Flex px="4" py="4" style={{ borderRadius: '28px', backgroundColor: 'var(--blue-9)' }}>
