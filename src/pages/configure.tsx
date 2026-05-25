@@ -116,7 +116,7 @@ export default function ConfigurePage() {
           break;
         }
 
-        navigator.clipboard.writeText(mnemonic);
+        navigator.clipboard.writeText(mnemonic.join(' '));
         AlertBox.open(AlertType.Info, 'Recovery phrase copied!');
         break;
       }

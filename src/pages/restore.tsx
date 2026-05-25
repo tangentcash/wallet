@@ -46,6 +46,11 @@ export default function RestorePage() {
   const titleRef = useRef(null);
   const contentRef = useRef(null);
   const navigate = useNavigate();
+  const reportError = useCallback(() => {
+    setError(true);
+    setPassphrase('');
+    setTimeout(() => setError(false), 500);
+  }, []);
   const importValid = useMemo((): boolean => {
     switch (importType) {
       case WalletType.Mnemonic: {
@@ -129,11 +134,6 @@ export default function RestorePage() {
     } catch {
       navigate('/');
     }
-  }, []);
-  const reportError = useCallback(() => {
-    setError(true);
-    setPassphrase('');
-    setTimeout(() => setError(false), 500);
   }, []);
   const restoreWallet = useCallback(async () => {
     if (loading || error)
