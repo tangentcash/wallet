@@ -431,16 +431,19 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
                         blockchainAssets.map((item, index) =>
                           <Select.Item key={item.asset.id + '_select'} value={index.toString()}>
                             <Flex align="center" gap="2">
+                              <Text size="4">Send</Text>
                               <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
                               <Flex gap="2" align="center">
                                 <Text size="4">{ Readability.toMoney(null, item.balance) }</Text>
-                                <AssetName asset={item.asset} size="4" badgeSize={0.8} badgeOffset={-1} symbol={true}></AssetName>
+                                <AssetName asset={item.asset} size="4" badgeSize={0.8} badgeOffset={-1} symbol={true} tokenOnly={true}></AssetName>
                               </Flex>
                             </Flex>
                           </Select.Item>
                         )
                       }
-                      <Select.Item value="__custom__">— Bridge / Discovery —</Select.Item>
+                      <Select.Item value="__custom__">
+                        <Text size="4">Send manually</Text>
+                      </Select.Item>
                     </Select.Group>
                   </Select.Content>
                 </Select.Root>

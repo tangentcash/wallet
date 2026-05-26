@@ -39,6 +39,8 @@ export type Balance = {
   price: BigNumber | null
 }
 
+export type PolyAsset = (AssetId & { marketId?: BigNumber, liquidity?: BigNumber });
+
 export type Order = {
     id: BigNumber;
     orderId: BigNumber;
@@ -510,14 +512,15 @@ export class Exchange {
     const result = await this.fetch('GET', `market/pool`, { id: poolId.toString() });
     return this.toPool(result);
   }
-  static async marketAssets(marketId: number | string | BigNumber, asset: AssetId, liquidity?: boolean): Promise<(AssetId & { liquidity?: BigNumber })[]> {
+  static async marketAssets(asset: AssetId, liquidity?: boolean): Promise<PolyAsset[]> {
     const result = await this.fetch('GET', `market/assets`, {
-      marketId: marketId.toString(),
       assetHash: asset.id.toString(),
       liquidity: typeof liquidity == 'boolean' ? liquidity : undefined
     });
     return result.map((item: any) => {
-      const updated: AssetId & { liquidity?: BigNumber } = new AssetId(item.id);
+      const updated: PolyAsset = new AssetId(item.id);
+      if (item.marketId)
+        updated.marketId = item.marketId;
       if (item.liquidity)
         updated.liquidity = item.liquidity;
       return updated;

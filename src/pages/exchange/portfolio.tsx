@@ -1,8 +1,8 @@
-import { Badge, Box, Button, Card, Dialog, Flex, Heading, Select, Tabs, Slider, Spinner, Switch, Text, TextField, Tooltip, Separator} from "@radix-ui/themes";
-import { mdiArrowRight, mdiChevronDoubleRight, mdiCog, mdiPercent, mdiSwapVertical } from "@mdi/js";
+import { Badge, Box, Button, Card, Dialog, Flex, Heading, Select, Tabs, Slider, Spinner, Switch, Text, TextField, Tooltip, Separator, Callout } from "@radix-ui/themes";
+import { mdiAlert, mdiArrowRight, mdiChevronDoubleRight, mdiCog, mdiLockOutline, mdiPercent, mdiSetRight, mdiSwapVertical } from "@mdi/js";
 import { AssetId, Readability, ByteUtil, TextUtil, RPC, Signing, Whitelist } from "tangentsdk";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Exchange, Balance, Order, Pool, Cursor, AggregatedPair, OrderSide, RouterPath, Market } from "../../core/exchange";
+import { Exchange, Balance, Order, Pool, Cursor, AggregatedPair, OrderSide, RouterPath, Market, PolyAsset } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { AppData } from "../..//core/app";
 import { mdiCheckDecagram, mdiMagnify, mdiMagnifyScan, mdiMapMarkerPath, mdiPaletteSwatchVariant, mdiRefresh, mdiShimmer, mdiShoppingSearch, mdiWater } from "@mdi/js";
@@ -12,7 +12,6 @@ import { AlertBox, AlertType } from "../../components/alert";
 import { AssetImage, AssetName } from "../../components/asset";
 import { Builder, PerformerButton } from "./../../components/exchange/performer";
 import BigNumber from "bignumber.js";
-import BalanceView from "../../components/exchange/balance";
 import OrderView from "../../components/exchange/order";
 import PoolView from "../../components/exchange/pool";
 import Icon from "@mdi/react";
@@ -50,6 +49,142 @@ let toEquityAssets = (assets: Balance[], todayProfits: boolean, available?: bool
     }).sort((a, b) => (b.equity.current || new BigNumber(0)).minus(a.equity.current || 0).toNumber());
   };
 };
+
+function RepayableBalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } }, available?: boolean }) {
+  const item = props.item;
+  const baseEquity = item.equity.current || item.equity.previous || new BigNumber(0);
+  const previousEquity = item.equity.previous ? item.equity.previous : baseEquity;
+  const currentEquity = item.equity.current ? item.equity.current : baseEquity;
+  const [loading, setLoading] = useState(false);
+  const [assets, setAssets] = useState<PolyAsset[] | null>(null);
+  const [asset, setAsset] = useState<PolyAsset | null>(null);
+  const [amount, setAmount] = useState<string>('');
+  const assetPayload = useMemo((): {
+    marketId: string,
+    repaymentAssetHash: string,
+    paymentAssetHash: string,
+    pays: string
+  } | null => {
+    if (!asset || !asset.marketId || asset.chain == item.asset.chain || asset.token != item.asset.token)
+      return null;
+
+    const valueQuantity = TextUtil.toNumericValueOrPercent(amount.trim());
+    if (!valueQuantity.value.gt(0))
+      return null;
+
+    const value = valueQuantity.relative ? item.available.multipliedBy(valueQuantity.relative) : valueQuantity.value;
+    if (!value.gt(0) || value.gt(item.available) || value.gt(asset.liquidity || new BigNumber(0)))
+      return null;
+
+    return {
+      marketId: asset.marketId.toString(),
+      repaymentAssetHash: asset.id,
+      paymentAssetHash: item.asset.id,
+      pays: value.toString()
+    }
+  }, [asset, amount]);
+  useEffectAsync(async () => {
+    if (!loading && !assets) {
+      setLoading(true);
+      try {
+        const assets = await Exchange.marketAssets(item.asset, true);
+        setAssets(assets);
+      } catch {
+        setAssets([]);
+      }
+      setLoading(false);
+    }
+  }, [assets, loading]);
+  return (
+    <Card mb="4" variant="surface" style={{ borderRadius: '24px', position: "relative", overflow: 'visible' }}>
+      <Flex justify="start" align="center" gap="3" px="1" py="1">
+        <AssetImage asset={item.asset} size="4"></AssetImage>
+        <Box width="100%">
+          <Flex justify="between">
+            <AssetName asset={item.asset} size="2"></AssetName>
+            <Text size="2">{ Readability.toMoney(Exchange.equityAsset, item.equity.current) }</Text>
+          </Flex>
+          <Flex justify="between" align="center">
+            <Tooltip content={ 'Currently locked: ' + Readability.toMoney(item.asset, item.unavailable) }>
+              <Flex align="center" gap="1">
+                { item.unavailable.gt(0) && <Icon path={mdiLockOutline} size={0.575} color="var(--gray-11)" style={{ transform: 'translateY(-1px)' }}></Icon> }
+                <Text size="2" color="gray">{ Readability.toMoney(null, props.available ? item.available : item.available.plus(item.unavailable)) }</Text>
+              </Flex>
+            </Tooltip>
+            <Tooltip content={ Readability.toMoney(Exchange.equityAsset, currentEquity.minus(previousEquity), true) }>
+              <Badge size="2" variant="soft" color={previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : 'lime')} mt="1">
+                <Icon path={mdiSetRight} size={0.7}></Icon>
+                <Text size="1">{ Readability.toPercentageDelta(previousEquity, currentEquity) }</Text>
+              </Badge>
+            </Tooltip>
+          </Flex>
+        </Box>
+      </Flex>
+      <Flex justify="between" mt="2" gap="2">
+        <Select.Root size="2" value={asset?.id || '!'} onValueChange={(value) => setAsset(value == '!' ? null : assets?.find(x => x.id == value) || null)}>
+          <Select.Trigger variant="surface" placeholder="Repayable asset">
+          </Select.Trigger>
+          <Select.Content variant="soft">
+            <Select.Group>
+              <Select.Item value="!" disabled={true}>Network</Select.Item>
+              {
+                assets && assets.map((item) =>
+                  <Select.Item key={item.id + '_select'} value={item.id}>
+                    <AssetName asset={AssetId.fromHandle(item.chain || '')} size="3" badgeSize={0.7} badgeOffset={0} symbol={true}></AssetName>
+                  </Select.Item>
+                )
+              }
+            </Select.Group>
+          </Select.Content>
+        </Select.Root>
+        <Box width="100%">
+          <TextField.Root placeholder={`≤ ${Readability.toMoney(item.asset, BigNumber.min(item.available, asset?.liquidity || new BigNumber(0)))} or %`} size="2" value={amount} onChange={(e) => setAmount(e.target.value)} style={{ width: '100%' }}></TextField.Root>   
+        </Box>
+        <PerformerButton title="Pay" description="Smart contract will re-pay you back the 1:1 value of selected token after this action" variant="soft" color="yellow" disabled={!assetPayload} onBuild={async () => {
+          return assetPayload ? Builder.repayAsset(assetPayload) : null;
+        }}></PerformerButton>
+      </Flex>
+    </Card>
+  );
+}
+
+function DefaultBalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } }, available?: boolean }) {
+  const item = props.item;
+  const baseEquity = item.equity.current || item.equity.previous || new BigNumber(0);
+  const previousEquity = item.equity.previous ? item.equity.previous : baseEquity;
+  const currentEquity = item.equity.current ? item.equity.current : baseEquity;
+  return (
+    <Card mb="4" variant="surface" style={{ borderRadius: '24px', position: "relative", overflow: 'visible' }}>
+      <Flex justify="start" align="center" gap="3" px="1" py="1">
+        <AssetImage asset={item.asset} size="4"></AssetImage>
+        <Box width="100%">
+          <Flex justify="between">
+            <AssetName asset={item.asset} size="2"></AssetName>
+            <Text size="2">{ Readability.toMoney(Exchange.equityAsset, item.equity.current) }</Text>
+          </Flex>
+          <Flex justify="between" align="center">
+            <Tooltip content={ 'Currently locked: ' + Readability.toMoney(item.asset, item.unavailable) }>
+              <Flex align="center" gap="1">
+                { item.unavailable.gt(0) && <Icon path={mdiLockOutline} size={0.575} color="var(--gray-11)" style={{ transform: 'translateY(-1px)' }}></Icon> }
+                <Text size="2" color="gray">{ Readability.toMoney(null, props.available ? item.available : item.available.plus(item.unavailable)) }</Text>
+              </Flex>
+            </Tooltip>
+            <Tooltip content={ Readability.toMoney(Exchange.equityAsset, currentEquity.minus(previousEquity), true) }>
+              <Badge size="2" variant="soft" color={previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : 'lime')} mt="1">
+                <Text size="1">{ Readability.toPercentageDelta(previousEquity, currentEquity) }</Text>
+              </Badge>
+            </Tooltip>
+          </Flex>
+        </Box>
+      </Flex>
+    </Card>
+  );
+}
+
+function BalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } }, readOnly?: boolean, available?: boolean }) {
+  const repayable = props.item.asset.token != null && props.item.asset.chain == new AssetId().chain;
+  return repayable && !props.readOnly ? RepayableBalanceView(props) : DefaultBalanceView(props);
+}
 
 function PortfolioWorth(props: {
   address: string | null,
@@ -228,20 +363,20 @@ function SwapRouter(props: {
     }
   }, [state, assets]);
   useEffectAsync(async () => {
-    if (!market || !state.tokenIn) {
+    if (!state.tokenIn) {
       setPolyAssets([]);
       return;
     }
 
     setLoadingPoly(true);
     try {
-      setPolyAssets(await Exchange.marketAssets(market.id, state.tokenIn));
+      setPolyAssets(await Exchange.marketAssets(state.tokenIn));
     } catch (exception) {
       AlertBox.open(AlertType.Error, 'Failed to fetch poly assets: ' + (exception as Error).message);
       setPolyAssets([]);
     }
     setLoadingPoly(false);
-  }, [market, state.tokenIn]);
+  }, [state.tokenIn]);
   useEffect(() => {
     if (swapPathTimeoutId != null) {
       clearTimeout(swapPathTimeoutId);
@@ -677,16 +812,18 @@ function TradingPairs() {
 }
 
 function PortfolioAssets(props: {
-  assets: CachedBalance[]
+  assets: CachedBalance[],
   todayProfits: boolean,
   readOnly: boolean
 }) {
   const [available, setAvailable] = useState(false);
   const equityAssets = useMemo(toEquityAssets(props.assets, props.todayProfits, available), [props.assets, props.todayProfits, available]);
+  const repayableAssets = useMemo(() => equityAssets.filter(x => x.asset.token != null && x.asset.chain == new AssetId().chain), [equityAssets]);
+  const nativeAssets = useMemo(() => equityAssets.filter(x => x.asset.token == null || x.asset.chain != new AssetId().chain), [equityAssets]);
   return (
     <Box pt="4">
       <Flex justify="between" align="center" pb="4">
-        <Text>Balance sheet</Text>
+        <Text>{ repayableAssets.length > 0 ? 'Synthetic balance sheet' : 'Native balance sheet' }</Text>
         <Select.Root value={available ? '1' : '0'} onValueChange={(e) => setAvailable(parseInt(e) > 0)}>
           <Select.Trigger />
           <Select.Content>
@@ -698,7 +835,26 @@ function PortfolioAssets(props: {
           </Select.Content>
         </Select.Root>
       </Flex>
-      { equityAssets.map((item) => <BalanceView key={item.asset.id} item={item} readOnly={props.readOnly} available={available}></BalanceView>) }
+      {
+        repayableAssets.length > 0 &&
+        <Box mb="4">
+          <Callout.Root color="yellow">
+            <Callout.Icon>
+              <Icon path={mdiAlert} />
+            </Callout.Icon>
+            <Callout.Text>Use synthetic assets to access the multi-chain liquidity, convert them back to native tokens at a 1:1 rate using available liquidity.</Callout.Text>
+          </Callout.Root>
+        </Box>
+      }
+      { repayableAssets.map((item) => <BalanceView key={item.asset.id} item={item} readOnly={props.readOnly} available={available}></BalanceView>) }
+      {
+        repayableAssets.length > 0 && nativeAssets.length > 0 &&
+        <Flex mt="6" mb="4" align="center" justify="between">
+          <Text>Native balance sheet</Text>
+          <Badge variant="surface" color="yellow" size="3">Native</Badge>
+        </Flex>
+      }
+      { nativeAssets.map((item) => <BalanceView key={item.asset.id} item={item} readOnly={props.readOnly} available={available}></BalanceView>) }
       {
         !props.assets.length && 
         <Flex px="4" justify="center">
@@ -721,7 +877,7 @@ export default function PortfolioPage() {
   const [assetResync, setAssetResync] = useState(0);
   const [query, setQuery] = useState('');
   const [assets, setAssets] = useState<CachedBalance[]>([]);
-  const [viewer, setViewer] = useState<'swap' | 'trade' | 'assets' | 'open-orders' | 'closed-orders' | 'open-pools' | 'closed-pools'>(readOnly ? 'assets' : 'trade');
+  const [viewer, setViewer] = useState<'swap' | 'trade' | 'assets' | 'open-orders' | 'closed-orders' | 'open-pools' | 'closed-pools'>('assets');
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [todayProfits, setTodayProfits] = useState(true);
