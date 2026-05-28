@@ -512,6 +512,12 @@ export class Exchange {
     const result = await this.fetch('GET', `market/pool`, { id: poolId.toString() });
     return this.toPool(result);
   }
+  static async marketPools(account: PageQuery): Promise<Pool[]> {
+    const result = await this.fetch('GET', `market/pools`, {
+      page: account.page
+    });
+    return result.map((v: any) => this.toPool(v));
+  }
   static async marketAssets(asset: AssetId, liquidity?: boolean): Promise<PolyAsset[]> {
     const result = await this.fetch('GET', `market/assets`, {
       assetHash: asset.id.toString(),
@@ -716,6 +722,37 @@ export class Exchange {
     }
   }
   static toAPY(feeRate: BigNumber, liquidity: BigNumber, volume: BigNumber): BigNumber {
-    return new BigNumber(1).plus(volume.multipliedBy(feeRate).dividedBy(liquidity)).pow(365).minus(1).multipliedBy(100);
+    return this.toFeeBasedAPY(volume.multipliedBy(feeRate), liquidity);
+  }
+  static toFeeBasedAPY(fee: BigNumber, liquidity: BigNumber): BigNumber {
+    return new BigNumber(1).plus(fee.dividedBy(liquidity)).pow(365).minus(1).multipliedBy(100);
+  }
+  static toPayment(leftover: BigNumber, balances: Balance[]): Record<string, string> {
+    const pays: Record<string, string> = { };
+    for (let i = 0; i < balances.length; i++) {
+      const balance = balances[i];
+      const change = BigNumber.min(balance.available, leftover);
+      leftover = leftover.minus(change);
+      pays[balance.asset.id] = ByteUtil.bigNumberToString(change);
+      if (!leftover.gt(0))
+          break;
+    }
+    return pays;
+  }
+  static parsePayment(payment: Record<string, string>): { pays: { asset: AssetId, value: BigNumber }[], value: BigNumber } | null {
+    let total = new BigNumber(0);
+    const pays: { asset: AssetId, value: BigNumber }[] = [];
+    for (let assetId of Object.keys(payment)) {
+        const asset = new AssetId(assetId);
+        const paying = payment[assetId];
+        const value = typeof paying == 'string' || typeof paying == 'number' ? new BigNumber(paying) : null;
+        if (!value || !value.gt(0) || !asset.isValid()) {
+          return null;
+        }
+
+        pays.push({ asset: asset, value: value });
+        total = total.plus(value);
+    }
+    return { pays: pays, value: total };
   }
 }

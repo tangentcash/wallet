@@ -589,17 +589,7 @@ function SwapRouter(props: {
                 <Flex justify="between" align="center" gap="2">
                   <Badge size="3" color={(amountOut || new BigNumber(0)).gte(amountIn || new BigNumber(0)) ? 'gray' : 'red'}>{ (amountOut || new BigNumber(0)).gte(amountIn || new BigNumber(0)) ? (convervative ? 'Min gain' : 'Gain') : (convervative ? 'Max loss' : 'Loss') } { amountIn && amountOut ? amountOut.minus(amountIn).dividedBy(amountIn).multipliedBy(100).toFixed(2) : '0.00' }%</Badge>
                   <PerformerButton title="Execute" description={`Swap involves paying ${Readability.toAssetSymbol(state.tokenIn || new AssetId())} to smart contract and placing one or more market orders in a row to receive ${Readability.toAssetSymbol(state.tokenOut || new AssetId())} as a result`} color={pathIndex == 0 ? 'lime' : 'gray'} onBuild={async () => {
-                    let leftover = new BigNumber(swapInfo.amountIn);
-                    const pays: Record<string, string> = { };
-                    for (let i = 0; i < assetsIn.length; i++) {
-                      const balance = assetsIn[i];
-                      const change = BigNumber.min(balance.available, leftover);
-                      leftover = leftover.minus(change);
-                      pays[balance.asset.id] = ByteUtil.bigNumberToString(change);
-                      if (!leftover.gt(0))
-                        break;
-                    }
-                  
+                    const pays: Record<string, string> = Exchange.toPayment(new BigNumber(swapInfo.amountIn), assetsIn);
                     return Builder.swap({
                       ...state,
                       marketId: market?.id.toString() || '',
@@ -877,7 +867,7 @@ export default function PortfolioPage() {
   const [assetResync, setAssetResync] = useState(0);
   const [query, setQuery] = useState('');
   const [assets, setAssets] = useState<CachedBalance[]>([]);
-  const [viewer, setViewer] = useState<'swap' | 'trade' | 'assets' | 'open-orders' | 'closed-orders' | 'open-pools' | 'closed-pools'>('assets');
+  const [viewer, setViewer] = useState<'swap' | 'trade' | 'assets' | 'open-orders' | 'closed-orders' | 'open-pools' | 'closed-pools' | 'best-pools'>('assets');
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [todayProfits, setTodayProfits] = useState(true);
@@ -913,14 +903,16 @@ export default function PortfolioPage() {
     }
   }, [params.account, pools, viewer]);
   const findPools = useCallback(async (refresh?: boolean) => {
-    if (!baseAddress) {
+    const bestPools = viewer == 'best-pools';
+    if (!bestPools && !baseAddress) {
       setPools([]);
       setMorePools(false);
       return false;
     }
     try {
       const cursor = Cursor.offset(refresh ? 0 : pools.length);
-      const data = await Exchange.accountPools({ address: baseAddress, page: Math.floor(cursor.offset / cursor.count), active: viewer == 'open-pools' });
+      const page = Math.floor(cursor.offset / cursor.count);
+      const data = bestPools ? await Exchange.marketPools({ page: page }) : await Exchange.accountPools({ address: baseAddress || '', page: page, active: viewer == 'open-pools' });
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setPools([]);
@@ -943,7 +935,7 @@ export default function PortfolioPage() {
     setLoading(true);
     if (viewer == 'open-orders' || viewer == 'closed-orders') {
       await findOrders(true);
-    } else if (viewer == 'open-pools' || viewer == 'closed-pools') {
+    } else if (viewer == 'open-pools' || viewer == 'closed-pools'|| viewer == 'best-pools') {
       await findPools(true);
     } else if (viewer == 'assets' || viewer == 'swap') {
       setAssetResync(new Date().getTime());
@@ -952,7 +944,7 @@ export default function PortfolioPage() {
   }, [viewer, params.account]);
   useEffect(() => {
     const view = search.get('view') || AppStorage.get('__portfolio_view__') || null;
-    if (view != null && ['swap', 'trade', 'assets', 'open-orders', 'closed-orders', 'open-pools', 'closed-pools'].includes(view)) {
+    if (view != null && ['swap', 'trade', 'assets', 'open-orders', 'closed-orders', 'open-pools', 'closed-pools', 'best-pools'].includes(view)) {
       AppStorage.set('__portfolio_view__', view);
       setViewer(view as any);
     } else {
@@ -1006,7 +998,7 @@ export default function PortfolioPage() {
       }
       <PortfolioWorth address={baseAddress} assetResync={assetResync} todayProfits={todayProfits} onTodayProfitsChange={setTodayProfits} onAssetsChange={viewer == 'swap' || viewer == 'assets' ? setAssets : undefined}></PortfolioWorth>
       <Box px="2" pt="2">
-        <Tabs.Root value={viewer.replace(/(open-)|(closed-)/g, '')} onValueChange={(x) => setSearch({
+        <Tabs.Root value={viewer.replace(/(open-)|(closed-)|(best-)/g, '')} onValueChange={(x) => setSearch({
           view: x == 'orders' || x == 'pools' ? 'open-' + x : x
         })} mt="4">
           <Tabs.List size="2" color="lime" justify={mobile ? undefined : 'center'}>
@@ -1063,12 +1055,13 @@ export default function PortfolioPage() {
           <Tabs.Content value="pools">
             <Box pt="4">
               <Flex justify="between" align="center" pb="4">
-                <Text>LP history</Text>
+                <Text>LP { viewer == 'best-pools' ? 'market' : 'history' }</Text>
                 <Select.Root value={viewer.replace('-pools', '')} onValueChange={(e) => setSearch({ view: e + '-pools' })}>
                   <Select.Trigger />
                   <Select.Content>
                     <Select.Group>
                       <Select.Label>LP filter</Select.Label>
+                      <Select.Item value="best">Best LP</Select.Item>
                       <Select.Item value="open">Open LP</Select.Item>
                       <Select.Item value="closed">Closed LP</Select.Item>
                     </Select.Group>
@@ -1079,7 +1072,7 @@ export default function PortfolioPage() {
                 {
                   pools.map((item) =>
                     <Box key={item.poolId.toString()} mb="4">
-                      <PoolView item={item} readOnly={readOnly}></PoolView>
+                      <PoolView item={item} readOnly={readOnly || viewer == 'best-pools'}></PoolView>
                     </Box>)
                 }
               </InfiniteScroll>

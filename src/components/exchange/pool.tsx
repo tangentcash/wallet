@@ -2,23 +2,35 @@ import { Badge, Box, Button, Card, DataList, Dialog, Flex, Select, Text, Tooltip
 import { AssetId, ByteUtil, Readability } from "tangentsdk";
 import { Pool, Exchange, Balance } from "../../core/exchange";
 import { useCallback, useMemo, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { AlertBox, AlertType } from "../alert";
-import { mdiClose, mdiRotate3dVariant, mdiRotateOrbit, mdiScaleBalance, mdiScaleUnbalanced } from "@mdi/js";
+import { mdiArrowRight, mdiClose, mdiScaleBalance, mdiScaleUnbalanced } from "@mdi/js";
 import { AssetImage } from "../asset";
 import { PerformerButton, Builder, BuilderResult } from "./performer";
-import { LiquidityPool } from "./maker";
+import { defaultMakerState, LiquidityPool } from "./maker";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
 import { AppData } from "../../core/app";
+import { AppStorage } from "../../core/storage";
+import { pathOfMaker } from "../../pages/exchange/orderbook";
+
+function toRateColor(value: number) {
+  const clampedValue = Math.max(0, Math.min(100, value));
+  const colorPalette = ['jade', 'green', 'teal', 'blue', 'cyan', 'orange', 'red'];
+  const totalBuckets = colorPalette.length - 1;
+  const stepSize = 100 / totalBuckets;
+  let index = Math.floor(clampedValue / stepSize);
+  return colorPalette[index % colorPalette.length];
+}
 
 export default function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, readOnly?: boolean }) {
   const item = props.item;
   const concentrated = item.minPrice?.gt(0) && item.maxPrice?.gt(0);
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
+  const navigate = useNavigate();
   const [expanded, setExpanded] = useState(props.open || false);
-  const [mode, setMode] = useState<'isolated-rebalancer' | 'cross-rebalancer' | 'closure'>('closure');
+  const [mode, setMode] = useState<'isolated-rebalancer' | 'cross-rebalancer' | 'closure'>('cross-rebalancer');
   const bidPrice = useMemo(() => item.price.multipliedBy(new BigNumber(1).minus(item.feeRate)), [item.price, item.feeRate]);
   const askPrice = useMemo(() => item.price.multipliedBy(new BigNumber(1).plus(item.feeRate)), [item.price, item.feeRate]);
   const inLowerRange = useMemo(() => concentrated ? bidPrice.gte(item.minPrice || 0) : true, [bidPrice]);
@@ -27,21 +39,21 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
     const primaryPrice = Exchange.priceOf(item.primaryAsset), secondaryPrice = Exchange.priceOf(item.secondaryAsset);
     const isolatedLiquidity = item.primaryValue.multipliedBy(primaryPrice.close || new BigNumber(0)).plus(item.secondaryValue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
     const revenueLiquidity = item.primaryRevenue.multipliedBy(primaryPrice.close || new BigNumber(0)).plus(item.secondaryRevenue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
-    let stale = false;
+    let staleness = 0;
     if (item.active && item.price) {
       const marketPrice = Exchange.priceOf(item.primaryAsset, item.secondaryAsset);
       if (marketPrice.close != null && (!item.minPrice || item.minPrice.lte(marketPrice.close)) && (!item.maxPrice || item.maxPrice.gte(marketPrice.close))) {
         const marketDelta = marketPrice.close.minus(item.price).dividedBy(item.price).abs();
-        stale = marketDelta.gt(item.feeRate.plus(0.01));
+        staleness = marketDelta.dividedBy(item.feeRate.plus(0.01)).toNumber();
       } else {
-        stale = !!marketPrice.close;
+        staleness = marketPrice.close ? 1 : 0;
       }
     }
     return {
       absoluteRevenue: revenueLiquidity,
       relativeRevenue: isolatedLiquidity.gt(0) ? revenueLiquidity.dividedBy(isolatedLiquidity) : new BigNumber(0),
       liquidity: isolatedLiquidity.plus(revenueLiquidity),
-      stale: stale
+      staleness: staleness
     }
   }, [item]);
   const rebalance = useCallback(async (cross: boolean): Promise<BuilderResult[]> => {
@@ -93,38 +105,15 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
         throw new Error('Failed to re-balance the pool because of insufficient secondary reserve');
     }
 
-    const primaryPays: Record<string, string> = { };
-    const secondaryPays: Record<string, string> = { };
+    let primaryPays: Record<string, string> = { };
+    let secondaryPays: Record<string, string> = { };
     if (crossPoly && crossBalances) {
       baseMaxPrimaryValue = BigNumber.min(baseMaxPrimaryValue, primaryValue);
-      const primaryBalances = crossBalances.filter((v) => v.asset.id == item.primaryAsset.id || (crossPoly ? crossPoly.primary.findIndex((i) => i.id == v.asset.id) != -1 : false));
-      let primaryLeftover = new BigNumber(primaryValue.minus(baseMaxPrimaryValue));
-      primaryPays[item.primaryAsset.id] = ByteUtil.bigNumberToString(baseMaxPrimaryValue);
-      if (primaryLeftover.gt(0)) {
-        for (let i = 0; i < primaryBalances.length; i++) {
-          const balance = primaryBalances[i];
-          const change = BigNumber.min(balance.available, primaryLeftover);
-          primaryLeftover = primaryLeftover.minus(change);
-          primaryPays[balance.asset.id] = ByteUtil.bigNumberToString(primaryPays[balance.asset.id] ? new BigNumber(primaryPays[balance.asset.id]).plus(change) : change);
-          if (!primaryLeftover.gt(0))
-              break;
-        }
-      }
-
+      primaryPays = Exchange.toPayment(new BigNumber(primaryValue.minus(baseMaxPrimaryValue)), crossBalances.filter((v) => v.asset.id == item.primaryAsset.id || (crossPoly ? crossPoly.primary.findIndex((i) => i.id == v.asset.id) != -1 : false)));
+      primaryPays[item.primaryAsset.id] = ByteUtil.bigNumberToString(primaryPays[item.primaryAsset.id] ? baseMaxPrimaryValue.plus(new BigNumber(primaryPays[item.primaryAsset.id])) : baseMaxPrimaryValue);
       baseMaxSecondaryValue = BigNumber.min(baseMaxSecondaryValue, secondaryValue);
-      const secondaryBalances = crossBalances.filter((v) => v.asset.id == item.secondaryAsset.id || (crossPoly ? crossPoly.secondary.findIndex((i) => i.id == v.asset.id) != -1 : false));
-      let secondaryLeftover = new BigNumber(secondaryValue.minus(baseMaxSecondaryValue));
-      secondaryPays[item.secondaryAsset.id] = ByteUtil.bigNumberToString(baseMaxSecondaryValue);
-      if (secondaryLeftover.gt(0)) {
-        for (let i = 0; i < secondaryBalances.length; i++) {
-          const balance = secondaryBalances[i];
-          const change = BigNumber.min(balance.available, secondaryLeftover);
-          secondaryLeftover = secondaryLeftover.minus(change);
-          secondaryPays[balance.asset.id] = ByteUtil.bigNumberToString(secondaryPays[balance.asset.id] ? new BigNumber(secondaryPays[balance.asset.id]).plus(change) : change);
-          if (!secondaryLeftover.gt(0))
-              break;
-        }
-      }
+      secondaryPays = Exchange.toPayment(new BigNumber(secondaryValue.minus(baseMaxSecondaryValue)), crossBalances.filter((v) => v.asset.id == item.secondaryAsset.id || (crossPoly ? crossPoly.secondary.findIndex((i) => i.id == v.asset.id) != -1 : false)));
+      secondaryPays[item.secondaryAsset.id] = ByteUtil.bigNumberToString(secondaryPays[item.secondaryAsset.id] ? baseMaxSecondaryValue.plus(new BigNumber(secondaryPays[item.secondaryAsset.id])) : baseMaxSecondaryValue);
     } else {
       primaryPays[item.primaryAsset.id] = ByteUtil.bigNumberToString(primaryValue);
       secondaryPays[item.secondaryAsset.id] = ByteUtil.bigNumberToString(secondaryValue);
@@ -165,15 +154,12 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
           </Flex>
           <Flex justify="between" align="center">
             <Flex align="center" gap="2" pt="1">
-              <Flex gap="1">
-                <Badge variant="soft" color={item.active ? 'lime' : 'gray'} size="2">{ Readability.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</Badge>
-                <Badge variant="soft" color={item.active ? 'lime' : 'gray'} size="2">{ state.relativeRevenue.gt(0) ? '+' : '' }{ state.relativeRevenue.multipliedBy(100).toFixed(2) }%</Badge>
-              </Flex>
+              <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ Exchange.toFeeBasedAPY(item.primaryRevenue.multipliedBy(item.price).plus(item.secondaryRevenue), item.primaryValue.multipliedBy(item.price).plus(item.secondaryValue)).toFixed(2) }% APY</Badge>
             </Flex>
-            <Tooltip content={`LP is balanced if its current price is within ${item.feeRate.plus(0.01).multipliedBy(100).toFixed(2)}% market price, otherwise its unbalanced and can be optimized using reopen/refill options`}>
-              <Badge variant="soft" color={state.stale ? 'red' : (item.active ? 'jade' : 'gray')} size="2">    
-                <Icon path={state.stale ? mdiScaleUnbalanced : (item.active ? mdiScaleBalance : mdiClose)} size={0.65}></Icon>
-                <Text>{ state.stale ? 'Stale' : 'Fine' }</Text>
+            <Tooltip content={`Degradation rate (lower = better): market price ± ${item.feeRate.plus(0.01).multipliedBy(100).toFixed(2)}% delta, degraded LP's revenue may decrease, use reopen to optimize the DR factor`}>
+              <Badge variant="soft" color={item.active ? toRateColor(state.staleness * 100) as any : 'gray'} size="2">    
+                <Icon path={state.staleness >= 0.8 ? mdiScaleUnbalanced : (item.active ? mdiScaleBalance : mdiClose)} size={0.65}></Icon>
+                <Text>{ (state.staleness * 5).toFixed(1) }DR</Text>
               </Badge>
             </Tooltip>
           </Flex>
@@ -217,19 +203,33 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
               <Badge color={item.active ? (inLowerRange && inUpperRange ? 'lime' : 'yellow') : 'gray'}>{ item.active ? (inLowerRange && inUpperRange ? (concentrated ? 'Active (fully in range)' : 'Active') : 'Partially active (out of range)') : 'Inactive' }</Badge>
             </DataList.Value>
           </DataList.Item>
-          {
-            concentrated &&
-            <DataList.Item>
-              <DataList.Label>Price range:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.minPrice || null) } — { Readability.toMoney(item.secondaryAsset, item.maxPrice || null) }</DataList.Value>
-            </DataList.Item>
-          }
           <DataList.Item>
-            <DataList.Label>Price spread:</DataList.Label>
+            <DataList.Label>Spread:</DataList.Label>
             <DataList.Value>
               <Flex wrap="wrap" gap="2">
                 { inLowerRange && <Badge color="lime">BID { Readability.toMoney(item.secondaryAsset, bidPrice) }</Badge> }
                 { inUpperRange && <Badge color="red">ASK { Readability.toMoney(item.secondaryAsset, askPrice) }</Badge> }
+              </Flex>
+            </DataList.Value>
+          </DataList.Item>
+          {
+            (item.primaryRevenue.gt(0) || item.secondaryRevenue.gt(0)) &&
+            <DataList.Item>
+              <DataList.Label>Fees:</DataList.Label>
+              <DataList.Value>
+                <Flex wrap="wrap" gap="2">
+                  { item.primaryRevenue.gt(0) && <Badge color="lime">{ Readability.toMoney(item.primaryAsset, item.primaryRevenue) }</Badge> }
+                  { item.secondaryRevenue.gt(0) && <Badge color="lime">{ Readability.toMoney(item.secondaryAsset, item.secondaryRevenue) }</Badge> }
+                </Flex>
+              </DataList.Value>
+            </DataList.Item>
+          }
+          <DataList.Item>
+            <DataList.Label>Revenue:</DataList.Label>
+            <DataList.Value>
+              <Flex wrap="wrap" gap="2">
+                <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ Readability.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</Badge> 
+                <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ state.relativeRevenue.gt(0) ? '+' : '' }{ state.relativeRevenue.multipliedBy(100).toFixed(2) }%</Badge>
               </Flex>
             </DataList.Value>
           </DataList.Item>
@@ -238,15 +238,10 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
             <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.price) }</DataList.Value>
           </DataList.Item>
           {
-            (item.primaryRevenue.gt(0) || item.secondaryRevenue.gt(0)) &&
+            concentrated &&
             <DataList.Item>
-              <DataList.Label>Fees onhold:</DataList.Label>
-              <DataList.Value>
-                <Flex wrap="wrap" gap="2">
-                  { item.primaryRevenue.gt(0) && <Badge color="lime">{ Readability.toMoney(item.primaryAsset, item.primaryRevenue) }</Badge> }
-                  { item.secondaryRevenue.gt(0) && <Badge color="lime">{ Readability.toMoney(item.secondaryAsset, item.secondaryRevenue) }</Badge> }
-                </Flex>
-              </DataList.Value>
+              <DataList.Label>Price range:</DataList.Label>
+              <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.minPrice || null) } — { Readability.toMoney(item.secondaryAsset, item.maxPrice || null) }</DataList.Value>
             </DataList.Item>
           }
           <DataList.Item>
@@ -268,44 +263,53 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
         </DataList.Root>
         {
           !props.flash && !props.readOnly && item.active &&
-          <Flex justify="end" align="center" wrap="wrap" gap="4" mt="1">
+          <Flex justify="between" align="center" wrap="wrap" gap="4" mt="2">
             <Select.Root value={mode} onValueChange={(e) => setMode(e as any)}>
               <Select.Trigger variant="ghost" />
               <Select.Content>
                 <Select.Group>
-                  <Select.Label>Action</Select.Label>
-                  <Select.Item value="closure">
-                    <Box style={{ transform: 'translateY(3px)' }}>
-                      <Icon path={mdiClose} size={0.9}></Icon>
-                    </Box>
-                  </Select.Item>
-                  <Select.Item value="isolated-rebalancer">
-                    <Box style={{ transform: 'translateY(3px)' }}>
-                      <Icon path={mdiRotate3dVariant} size={0.9}></Icon>
-                    </Box>
-                  </Select.Item>
-                  <Select.Item value="cross-rebalancer">
-                    <Box style={{ transform: 'translateY(3px)' }}>
-                      <Icon path={mdiRotateOrbit} size={0.9}></Icon>
-                    </Box>
-                  </Select.Item>
+                  <Select.Label>Do</Select.Label>
+                  <Select.Item value="cross-rebalancer">Cross reopen</Select.Item>
+                  <Select.Item value="isolated-rebalancer">Reopen</Select.Item>
+                  <Select.Item value="closure">Close</Select.Item>
                 </Select.Group>
               </Select.Content>
             </Select.Root>
             {
               mode == 'closure' &&
-              <PerformerButton title="Close" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" color="red" onBuild={() => {
+              <PerformerButton title="Do" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" color="red" onBuild={() => {
                 return Builder.withdrawPool({ poolId: item.id.toString() });
               }}></PerformerButton>
             }
             {
               mode == 'isolated-rebalancer' &&
-              <PerformerButton title="Reopen" description="Smart contract will re-balance this pool based on current market price and pool liquidity" color="yellow" onBuild={() => rebalance(false)}></PerformerButton>
+              <PerformerButton title="Do" description="Smart contract will re-balance this pool based on current market price and pool liquidity" color="jade" onBuild={() => rebalance(false)}></PerformerButton>
             }
             {
               mode == 'cross-rebalancer' &&
-              <PerformerButton title="Refill" description="Smart contract will re-balance this pool based on current market price and pool liquidity plus available balance" color="jade" onBuild={() => rebalance(true)}></PerformerButton>
+              <PerformerButton title="Do" description="Smart contract will re-balance this pool based on current market price and pool liquidity plus available balance" color="lime" onBuild={() => rebalance(true)}></PerformerButton>
             }
+          </Flex>
+        }
+        {
+          !props.flash && props.readOnly && item.active &&
+          <Flex justify="center" mt="3">
+            <Button variant="soft" onClick={() => {
+              const orderbook = Exchange.toOrderbookQuery(item.marketId, item.primaryAsset, item.secondaryAsset);
+              const path = pathOfMaker(orderbook);
+              AppStorage.set(path, {
+                ...(AppStorage.get(path) || defaultMakerState),
+                basePrice: ByteUtil.bigNumberToString(item.price),
+                rangePrice: item.minPrice && item.maxPrice ? ByteUtil.bigNumberToString(item.maxPrice.minus(item.minPrice)) : '',
+                feeRate: ByteUtil.bigNumberToString(item.feeRate.multipliedBy(100)) + '%',
+                pool: true
+              });
+              console.log(AppStorage.get(path))
+              navigate(`/orderbook/${orderbook}?tab=pool`);
+            }}>
+              Add liquidity using this LP
+              <Icon path={mdiArrowRight} size={0.75}></Icon>
+            </Button>
           </Flex>
         }
       </Collapsible.Content>
@@ -342,43 +346,31 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
           </Dialog.Root>
           {
             !props.readOnly && item.active &&
-            <Flex justify="end" align="center" wrap="wrap" gap="4" mt="1">
+            <Flex justify="between" align="center" wrap="wrap" gap="4" pl="1" mt="1">
               <Select.Root value={mode} onValueChange={(e) => setMode(e as any)}>
                 <Select.Trigger variant="ghost" />
                 <Select.Content>
                   <Select.Group>
-                    <Select.Label>Action</Select.Label>
-                    <Select.Item value="closure">
-                      <Box style={{ transform: 'translateY(3px)' }}>
-                        <Icon path={mdiClose} size={0.9}></Icon>
-                      </Box>
-                    </Select.Item>
-                    <Select.Item value="isolated-rebalancer">
-                      <Box style={{ transform: 'translateY(3px)' }}>
-                        <Icon path={mdiRotate3dVariant} size={0.9}></Icon>
-                      </Box>
-                    </Select.Item>
-                    <Select.Item value="cross-rebalancer">
-                      <Box style={{ transform: 'translateY(3px)' }}>
-                        <Icon path={mdiRotateOrbit} size={0.9}></Icon>
-                      </Box>
-                    </Select.Item>
+                    <Select.Label>Do</Select.Label>
+                    <Select.Item value="cross-rebalancer">Cross reopen</Select.Item>
+                    <Select.Item value="isolated-rebalancer">Reopen</Select.Item>
+                    <Select.Item value="closure">Close</Select.Item>
                   </Select.Group>
                 </Select.Content>
               </Select.Root>
               {
                 mode == 'closure' &&
-                <PerformerButton title="Close" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" color="red" onBuild={() => {
+                <PerformerButton title="Do" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" color="red" onBuild={() => {
                   return Builder.withdrawPool({ poolId: item.id.toString() });
                 }}></PerformerButton>
               }
               {
                 mode == 'isolated-rebalancer' &&
-                <PerformerButton title="Reopen" description="Smart contract will re-balance this pool based on current market price and pool liquidity" color="yellow" onBuild={() => rebalance(false)}></PerformerButton>
+                <PerformerButton title="Do" description="Smart contract will re-balance this pool based on current market price and pool liquidity" color="jade" onBuild={() => rebalance(false)}></PerformerButton>
               }
               {
                 mode == 'cross-rebalancer' &&
-                <PerformerButton title="Refill" description="Smart contract will re-balance this pool based on current market price and pool liquidity plus available balance" color="jade" onBuild={() => rebalance(true)}></PerformerButton>
+                <PerformerButton title="Do" description="Smart contract will re-balance this pool based on current market price and pool liquidity plus available balance" color="lime" onBuild={() => rebalance(true)}></PerformerButton>
               }
             </Flex>
           }

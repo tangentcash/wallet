@@ -1,6 +1,6 @@
 import { Box, Button, Dialog, Flex, IconButton, Spinner, Text, Tooltip } from "@radix-ui/themes";
 import { CSSProperties, useCallback, useEffect, useState } from "react";
-import { OrderCondition, OrderPolicy, OrderSide, Exchange, RouterPath } from "../../core/exchange";
+import { OrderCondition, OrderPolicy, OrderSide, Exchange, RouterPath, Market, AggregatedPair } from "../../core/exchange";
 import { AlertBox, AlertType } from "./../alert";
 import { mdiArrowRight, mdiBlur, mdiBlurOff, mdiCancel, mdiCashRefund, mdiClose, mdiCollage, mdiSwapHorizontalVariant, mdiWater, mdiWaterOff } from "@mdi/js";
 import { AssetId, DEX, Hashsig, Readability, SchemaUtil, Signing, Stream, Transactions, Uint256 } from "tangentsdk";
@@ -30,22 +30,13 @@ export class Builder {
       pays: Record<string, string>
       marketId: string,
     }): Promise<BuilderResult[]> {
-        let totalIn = new BigNumber(0);
-        const pays: { asset: AssetId, value: BigNumber }[] = [];
-        for (let assetId of Object.keys(args.pays)) {
-            const asset = new AssetId(assetId);
-            const paying = args.pays[assetId];
-            const value = typeof paying == 'string' || typeof paying == 'number' ? new BigNumber(paying) : null;
-            if (!value || !value.gt(0) || !asset.isValid())
-                throw new Error('Token in value must be positive');
-
-            pays.push({ asset: asset, value: value });
-            totalIn = totalIn.plus(value);
+        const payment = Exchange.parsePayment(args.pays);
+        if (!payment) {
+            throw new Error('Token in value must be positive');
+        } else if (payment.value.lt(args.amountIn)) {
+            throw new Error('Not enough balance to build a swap');
         }
 
-        if (totalIn.lt(args.amountIn))
-            throw new Error('Not enough balance to build a swap');
-        
         const market = await Exchange.market(args.marketId);
         if (!market || !market.account)
             throw new Error('Market ' + args.marketId.toString() + ' account cannot be found');
@@ -71,7 +62,7 @@ export class Builder {
                 text: `Swap ${Readability.toMoney(tokenIn, swap.input.max)} and receive between [${Readability.toMoney(tokenOut, swap.output.min)}; ${Readability.toMoney(tokenOut, swap.output.max)}]`,
                 body: {
                     callable: marketAccount,
-                    pays: swapIndex == 0 ? pays : [{ asset: tokenIn, value: swap.input.max }],
+                    pays: swapIndex == 0 ? payment.pays : [{ asset: tokenIn, value: swap.input.max }],
                     function: (swapIndex > 0 ? '>' : '') + Readability.toFunction(DEX.Spot.marketOrder),
                     args: [primaryAsset?.toUint256(), secondaryAsset?.toUint256(), swap.side, OrderPolicy.Immediate, slippagePrice]
                 }
@@ -92,16 +83,9 @@ export class Builder {
         trailingStep?: string,
         trailingDistance?: string
     }): Promise<BuilderResult> {
-        const pays: { asset: AssetId, value: BigNumber }[] = [];
-        for (let assetId of Object.keys(args.pays)) {
-            const asset = new AssetId(assetId);
-            const paying = args.pays[assetId];
-            const value = typeof paying == 'string' || typeof paying == 'number' ? new BigNumber(paying) : null;
-            if (!value || !value.gt(0) || !asset.isValid())
-                throw new Error('Order value must be positive');
-
-            pays.push({ asset: asset, value: value });
-        }
+        const payment = Exchange.parsePayment(args.pays);
+        if (!payment)
+            throw new Error('Order value must be positive');
         
         const market = await Exchange.market(args.marketId);
         if (!market || !market.account)
@@ -148,7 +132,7 @@ export class Builder {
         const price = typeof args.price == 'string' || typeof args.price == 'number' ? new BigNumber(args.price) : null;
         const stopPrice = typeof args.stopPrice == 'string' || typeof args.stopPrice == 'number' ? new BigNumber(args.stopPrice) : null;
         const targetPrice = price || stopPrice || levelPrice;
-        const targetValue = pays.reduce((t, i) => t.plus(i.value), new BigNumber(0));
+        const targetValue = payment.value;
         const toText = (order: { primaryAsset: AssetId, secondaryAsset: AssetId, condition: OrderCondition, side: OrderSide, slippage?: BigNumber, stopPrice?: BigNumber, trailingStep?: BigNumber, trailingDistance?: BigNumber, price?: BigNumber, value: BigNumber }, targetPrice?: BigNumber | null) => {
             const toPercentile = (asset: AssetId, value?: BigNumber | null) => value ? (value.gte(0) ? value.toString() + ' ' + asset.handle : value.negated().multipliedBy(100).toFixed(2) + '%') : 'N/A';
             const buying = order.side == OrderSide.Buy;
@@ -326,7 +310,7 @@ export class Builder {
             text: text,
             body: {
               callable: marketAccount,
-              pays: pays,
+              pays: payment.pays,
               function: Readability.toFunction(method),
               args: parameters
             }
@@ -366,31 +350,17 @@ export class Builder {
         price: string,
         minPrice?: string;
         maxPrice?: string;
-    }): Promise<BuilderResult> {
+    }, ref?: { market: Market, pair: AggregatedPair }): Promise<BuilderResult> {
         if (typeof args.primaryPays != 'object' || typeof args.secondaryPays != 'object')
             throw new Error('Pool value must be set');
 
-        const primaryPays: { asset: AssetId, value: BigNumber }[] = [];
-        for (let assetId of Object.keys(args.primaryPays)) {
-            const asset = new AssetId(assetId);
-            const paying = args.primaryPays[assetId];
-            const value = typeof paying == 'string' || typeof paying == 'number' ? new BigNumber(paying) : null;
-            if (!value || !value.gt(0) || !asset.isValid())
-                throw new Error('Pool value must be positive');
-
-            primaryPays.push({ asset: asset, value: value });
-        }
+        const primaryPayment = Exchange.parsePayment(args.primaryPays);
+        if (!primaryPayment)
+            throw new Error('Primary pool value must be positive');
         
-        const secondaryPays: { asset: AssetId, value: BigNumber }[] = [];
-        for (let assetId of Object.keys(args.secondaryPays)) {
-            const asset = new AssetId(assetId);
-            const paying = args.secondaryPays[assetId];
-            const value = typeof paying == 'string' || typeof paying == 'number' ? new BigNumber(paying) : null;
-            if (!value || !value.gt(0) || !asset.isValid())
-                throw new Error('Pool value must be positive');
-
-            secondaryPays.push({ asset: asset, value: value });
-        }
+        const secondaryPayment = Exchange.parsePayment(args.secondaryPays);
+        if (!secondaryPayment)
+            throw new Error('Secondary pool value must be positive');
         
         const marketId = typeof args.marketId == 'string' || typeof args.marketId == 'number' ? new Uint256(args.marketId) : null;
         if (!marketId)
@@ -420,7 +390,7 @@ export class Builder {
         if (maxPrice && minPrice && (maxPrice.lt(price) || maxPrice.eq(minPrice)))
             throw new Error('Pool max price must be lower or equal to price');
 
-        const market = await Exchange.market(marketId.toString());
+        const market = ref ? ref.market : await Exchange.market(marketId.toString());
         if (!market || !market.account)
             throw new Error('Market ' + marketId.toString() + ' account cannot be found');
 
@@ -428,19 +398,19 @@ export class Builder {
         if (!marketAccount)
             throw new Error('Market ' + marketId.toString() + ' account cannot be found');
 
-        const pairId = await Exchange.marketPair(market.id, primaryAsset, secondaryAsset, true);
+        const pairId = ref ? ref.pair : await Exchange.marketPair(market.id, primaryAsset, secondaryAsset, true);
         if (!pairId)
             throw new Error('Pair cannot be found');
 
         const concentrated = minPrice && maxPrice;
-        const targetPrimaryValue = primaryPays.reduce((t, i) => t.plus(i.value), new BigNumber(0));
-        const targetSecondaryValue = secondaryPays.reduce((t, i) => t.plus(i.value), new BigNumber(0));
+        const targetPrimaryValue = primaryPayment.value;
+        const targetSecondaryValue = secondaryPayment.value;
         return {
             icon: mdiWater,
             text: `Provide liquidity with ${Readability.toMoney(primaryAsset, targetPrimaryValue)} and ${Readability.toMoney(secondaryAsset, targetSecondaryValue)} as reserves with initial price at ${Readability.toMoney(secondaryAsset, price)} active in ${concentrated ? 'concentrated' : 'uniform'} range [${concentrated ? Readability.toMoney(null, minPrice) : '0'}; ${concentrated ? Readability.toMoney(null, maxPrice) + ']' : '+∞)'} and fee set at ${feeRate.multipliedBy(100).toFixed(2)}%`,
             body: {
               callable: marketAccount,
-              pays: [...primaryPays, ...secondaryPays],
+              pays: [...primaryPayment.pays, ...secondaryPayment.pays],
               function: Readability.toFunction(DEX.Spot.depositPool),
               args: [primaryAsset.toUint256(), secondaryAsset.toUint256(), price, concentrated ? minPrice : new BigNumber(-1), concentrated ? maxPrice : new BigNumber(-1), feeRate]
             }

@@ -1,5 +1,5 @@
 import { Badge, Box, Button, Card, Flex, Heading, SegmentedControl, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { AppData } from "../../core/app";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Exchange, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide, Balance, Pool } from "../../core/exchange";
@@ -54,11 +54,11 @@ function policyOf(market: Market | null): string {
         return 'Unknown';
     }
 }
-function pathOfOrderbook(orderbook: string): string {
+export function pathOfOrderbook(orderbook: string): string {
   return `__orderbook:${orderbook}__`;
 }
-function pathOfOrder(orderbook: string): string {
-  return `__order:${orderbook}__`;
+export function pathOfMaker(orderbook: string): string {
+  return `__maker:${orderbook}__`;
 }
 
 let accountUpdateId: any = null;
@@ -67,12 +67,13 @@ export default function OrderbookPage() {
   const params = useParams();
   const navigate = useNavigate();
   const mobile = document.body.clientWidth <= 800;
+  const [search] = useSearchParams();
   const [blockNumber, setBlockNumber] = useState<number>(AppData.tip?.toNumber() || 0)
   const [whitelisted, setWhitelisted] = useState<boolean | null>(null);
   const [showingPools, setShowingPools] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [preset, setPreset] = useState<{ id: number, condition: OrderCondition, side: OrderSide, price: string } | null>(null);
-  const [tab, setTab] = useState<'info' | 'order' | 'book' | 'trades'>(mobile ? 'info' : 'order');
+  const [tab, setTab] = useState<'info' | 'maker' | 'book' | 'trades'>(mobile ? 'info' : 'maker');
   const [orders, setOrders] = useState<Order[]>([]);
   const [pools, setPools] = useState<Pool[]>([]);
   const [levels, setLevels] = useState<{ ask: AggregatedGroupedLevel[], bid: AggregatedGroupedLevel[] }>({ ask: [], bid: [] })
@@ -115,8 +116,8 @@ export default function OrderbookPage() {
     Exchange.setOrderbook(params.orderbook);
     return Exchange.fromOrderbookQuery(params.orderbook);
   }, [params]);
-  const orderPath = useMemo(() => {
-    return params.orderbook ? pathOfOrder(params.orderbook) : undefined;
+  const makerPath = useMemo(() => {
+    return params.orderbook ? pathOfMaker(params.orderbook) : undefined;
   }, [params]);
   const liquidity = useMemo(() => {
     return {
@@ -173,7 +174,7 @@ export default function OrderbookPage() {
       side: side,
       price: price.toString()
     });
-    setTab('order');
+    setTab('maker');
   }, [preset]);
   const updateSeriesOptions = useCallback((change: (prev: any) => any) => {
     setSeriesOptions(prev => {
@@ -358,6 +359,12 @@ export default function OrderbookPage() {
       window.removeEventListener('update:chain', updateChain);
     };
   }, []);
+  useEffect(() => {
+    const tab = search.get('tab');
+    if (tab && ['info', 'maker', 'book', 'trades'].includes(tab)) {
+      setTab(tab as any);
+    }
+  }, [search]);
 
   return (
     <Box minWidth={mobile ? undefined : '800px'}>
@@ -379,14 +386,14 @@ export default function OrderbookPage() {
           <Box width={ mobile ? '100%' : '460px'}>
             <Tabs.Root value={tab} onValueChange={(e) => {
               setTab(e as any);
-              if (e != 'order')
+              if (e != 'maker')
                 setPreset(null);
             }}>
               <Tabs.List size="2" justify="center" color="lime" style={mobile ? { paddingTop: '10px' } : { }}>
                 <Tabs.Trigger value="info" className="tab-padding-erase">
                   <Badge size="3" radius="large">Market</Badge>
                 </Tabs.Trigger>
-                <Tabs.Trigger value="order" className="tab-padding-erase">
+                <Tabs.Trigger value="maker" className="tab-padding-erase">
                   <Badge size="3" radius="large">Trade</Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="book" className="tab-padding-erase">
@@ -570,9 +577,9 @@ export default function OrderbookPage() {
                     </Box>
                   }
                 </Tabs.Content>
-                <Tabs.Content value="order">
+                <Tabs.Content value="maker">
                   <Maker
-                    path={orderPath}
+                    path={makerPath}
                     marketId={orderbook?.marketId || new BigNumber(0)}
                     pairId={pair?.id || new BigNumber(0)}
                     primaryAsset={orderbook?.primaryAsset || new AssetId()}
@@ -582,18 +589,20 @@ export default function OrderbookPage() {
                     tiers={tiers || undefined}
                     preset={preset}
                     onStateChange={(state) => setShowingPools(state.pool)}></Maker>
-                  {
-                    !showingPools && orders.map((item) =>
-                      <Box mt="3" key={item.orderId.toString()}>
-                        <OrderView flash={true} item={item}></OrderView>
-                      </Box>)
-                  }
-                  {
-                    showingPools && pools.map((item) =>
-                      <Box mt="3" key={item.poolId.toString()}>
-                        <PoolView flash={true} item={item}></PoolView>
-                      </Box>)
-                  }
+                  <Box px={mobile ? '2' : undefined}>
+                    {
+                      !showingPools && orders.map((item) =>
+                        <Box mt="3" key={item.orderId.toString()}>
+                          <OrderView flash={true} item={item}></OrderView>
+                        </Box>)
+                    }
+                    {
+                      showingPools && pools.map((item) =>
+                        <Box mt="3" key={item.poolId.toString()}>
+                          <PoolView flash={true} item={item}></PoolView>
+                        </Box>)
+                    }
+                  </Box>
                 </Tabs.Content>
                 <Tabs.Content value="book">
                   <Card variant="surface" style={{ borderRadius: '22px', border: mobile ? 'none' : undefined }}>

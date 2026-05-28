@@ -1,5 +1,5 @@
 import { Box, Button, Card, Flex, SegmentedControl, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { AccountTier, Balance, OrderCondition, OrderPolicy, OrderSide } from "../../core/exchange";
+import { AccountTier, Balance, Exchange, OrderCondition, OrderPolicy, OrderSide } from "../../core/exchange";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { mdiCurrencyUsd } from "@mdi/js";
 import { AssetId, ByteUtil, Readability, TextUtil } from "tangentsdk";
@@ -73,7 +73,7 @@ export type MakerState = {
   pool: boolean
 };
 
-const defaultState: MakerState = {
+export const defaultMakerState: MakerState = {
   condition: OrderCondition.Market,
   side: OrderSide.Buy,
   fillOrKill: false,
@@ -100,19 +100,32 @@ export function Maker(props: {
   balances?: { primary: Balance[], secondary: Balance[] },
   prices?: { ask: BigNumber | null, bid: BigNumber | null }
   tiers?: AccountTier,
-  preset?: ({ id: number } & Partial<typeof defaultState>) | null,
+  preset?: ({ id: number } & Partial<typeof defaultMakerState>) | null,
   onStateChange?: (state: MakerState) => any
 }) {
   const mobile = document.body.clientWidth <= 800;
   const [presetId, setPresetId] = useState<number>(0);
-  const [state, setState] = useState<MakerState>(defaultState);
-  const balances = useMemo((): { primary: BigNumber, secondary: BigNumber } | null => {
-    if (!props.balances)
-      return null;
-
-    const primaryBalance = props.balances.primary.reduce((p, n) => p.plus(n.available), new BigNumber(0));
-    const secondaryBalance = props.balances.secondary.reduce((p, n) => p.plus(n.available), new BigNumber(0));
-    return { primary: primaryBalance, secondary: secondaryBalance };
+  const [state, setState] = useState<MakerState>(defaultMakerState);
+  const balances = useMemo((): {
+    primary: {
+      value: BigNumber,
+      assets: Balance[]
+    },
+    secondary: {
+      value: BigNumber,
+      assets: Balance[]
+    }
+  } | null => {
+    return props.balances ? {
+      primary: {
+        value: props.balances.primary.reduce((p, n) => p.plus(n.available), new BigNumber(0)),
+        assets: props.balances.primary
+      },
+      secondary: {
+        value: props.balances.secondary.reduce((p, n) => p.plus(n.available), new BigNumber(0)),
+        assets: props.balances.secondary
+      }
+    } : null;
   }, [props.balances]);
   const isImmediate = useMemo((): boolean => {
     return state.condition == OrderCondition.Market;
@@ -133,7 +146,7 @@ export function Maker(props: {
     return state.side == OrderSide.Buy ? props.secondaryAsset : props.primaryAsset;
   }, [props.primaryAsset, props.secondaryAsset, state.side]);
   const valueBalance = useMemo((): BigNumber | null => {
-    return state.side == OrderSide.Buy ? balances?.secondary || null : balances?.primary || null;
+    return state.side == OrderSide.Buy ? balances?.secondary.value || null : balances?.primary.value || null;
   }, [balances, state.side]);
   const bestPrice = useMemo((): BigNumber => {
     if (hasPrice)
@@ -204,18 +217,7 @@ export function Maker(props: {
     if (!props.balances || !finalValue || !valueBalance || !finalValue.gt(0) || finalValue.gt(valueBalance))
       return null;
 
-    let leftover = new BigNumber(finalValue);
-    const pays: Record<string, string> = { };
-    const available = state.side == OrderSide.Buy ? props.balances.secondary : props.balances.primary;
-    for (let i = 0; i < available.length; i++) {
-      const balance = available[i];
-      const change = BigNumber.min(balance.available, leftover);
-      leftover = leftover.minus(change);
-      pays[balance.asset.id] = ByteUtil.bigNumberToString(change);
-      if (!leftover.gt(0))
-          break;
-    }
-
+    const pays = Exchange.toPayment(new BigNumber(finalValue), state.side == OrderSide.Buy ? props.balances.secondary : props.balances.primary);
     switch (state.condition) {
       case OrderCondition.Market: {
         const finalSlippage = TextUtil.toNumericValueOrPercent(state.slippage);
@@ -359,6 +361,9 @@ export function Maker(props: {
   }, [props.marketId, props.primaryAsset, props.secondaryAsset, state, policy, valueBalance]);
   const poolPayload = useMemo((): {
     marketId: string,
+    swappingAssetHash?: string,
+    swappingPays?: Record<string, string>,
+    swappingSlippage?: string,
     primaryAssetHash: string,
     secondaryAssetHash: string,
     primaryPays: Record<string, string>,
@@ -378,44 +383,23 @@ export function Maker(props: {
     if (concentratedRange && concentratedRange.min.lte(0))
       return null;
     
-    if (!props.balances || !balances)
+    if (!balances)
       return null;
 
     const primary = TextUtil.toNumericValueOrPercent(state.primaryValue), secondary = TextUtil.toNumericValueOrPercent(state.secondaryValue);
-    primary.value = primary.relative ? primary.value.multipliedBy(balances.primary) : primary.value;
-    secondary.value = secondary.relative ? secondary.value.multipliedBy(balances.secondary) : secondary.value;
+    primary.value = primary.relative ? primary.value.multipliedBy(balances.primary.value) : primary.value;
+    secondary.value = secondary.relative ? secondary.value.multipliedBy(balances.secondary.value) : secondary.value;
     if (!primary.value.gt(0) || !secondary.value.gt(0))
       return null;
-
-    if (primary.value.gt(balances.primary) || secondary.value.gt(balances.secondary))
+    if (primary.value.gt(balances.primary.value) || secondary.value.gt(balances.secondary.value))
       return null;
 
     const feeRate = TextUtil.toNumericValueOrPercent(state.feeRate);
     if (feeRate.absolute || feeRate.value.lt(0) || feeRate.value.gt(1))
       return null;
     
-    let primaryLeftover = new BigNumber(primary.value);
-    const primaryPays: Record<string, string> = { };
-    for (let i = 0; i < props.balances.primary.length; i++) {
-      const balance = props.balances.primary[i];
-      const change = BigNumber.min(balance.available, primaryLeftover);
-      primaryLeftover = primaryLeftover.minus(change);
-      primaryPays[balance.asset.id] = ByteUtil.bigNumberToString(change);
-      if (!primaryLeftover.gt(0))
-          break;
-    }
-
-    let secondaryLeftover = new BigNumber(secondary.value);
-    const secondaryPays: Record<string, string> = { };
-    for (let i = 0; i < props.balances.secondary.length; i++) {
-      const balance = props.balances.secondary[i];
-      const change = BigNumber.min(balance.available, secondaryLeftover);
-      secondaryLeftover = secondaryLeftover.minus(change);
-      secondaryPays[balance.asset.id] = ByteUtil.bigNumberToString(change);
-      if (!secondaryLeftover.gt(0))
-          break;
-    }
-
+    const primaryPays: Record<string, string> = Exchange.toPayment(new BigNumber(primary.value), balances.primary.assets);
+    const secondaryPays: Record<string, string> = Exchange.toPayment(new BigNumber(secondary.value), balances.secondary.assets);
     return {
       marketId: props.marketId.toString(),
       primaryAssetHash: props.primaryAsset.id,
@@ -441,7 +425,7 @@ export function Maker(props: {
     const price = TextUtil.toNumericValue(state.basePrice);
     if (price.gt(0)) {
       const primary = TextUtil.toNumericValueOrPercent(primaryValue);
-      primary.value = balances ? (primary.relative ? primary.value.multipliedBy(balances.primary) : primary.value) : new BigNumber(0);
+      primary.value = balances ? (primary.relative ? primary.value.multipliedBy(balances.primary.value) : primary.value) : new BigNumber(0);
 
       if (!concentratedRange || concentratedRange.min.gt(0)) {
         const secondary = concentratedRange ? LiquidityPool.toSecondaryValue(primary.value.multipliedBy(1.00005), price, concentratedRange.min || null, concentratedRange.max || null) : LiquidityPool.toSecondaryValue(primary.value, price, null, null);
@@ -457,7 +441,7 @@ export function Maker(props: {
     const price = TextUtil.toNumericValue(state.basePrice);
     if (price.gt(0)) {
       const secondary = TextUtil.toNumericValueOrPercent(secondaryValue);
-      secondary.value = balances ? (secondary.relative ? secondary.value.multipliedBy(balances.secondary) : secondary.value) : new BigNumber(0);
+      secondary.value = balances ? (secondary.relative ? secondary.value.multipliedBy(balances.secondary.value) : secondary.value) : new BigNumber(0);
  
       if (!concentratedRange || concentratedRange.min.gt(0)) {
         const primary = concentratedRange ? LiquidityPool.toPrimaryValue(secondary.value.dividedBy(1.00005), price, concentratedRange.min || null, concentratedRange.max || null) : LiquidityPool.toSecondaryValue(secondary.value, price, null, null);
@@ -491,6 +475,7 @@ export function Maker(props: {
     } else if (props.path != null) {
       const memorizedState = AppStorage.get(props.path);
       if (memorizedState != null && typeof memorizedState == 'object') {
+        memorizedState.value = '';
         setState(prev => ({ ...prev, ...memorizedState }));
       }
     }
@@ -662,8 +647,8 @@ export function Maker(props: {
             {
               balances &&
               <Box>
-                <Text align="left" weight="bold" size="3" style={{ display: 'block' }}>{ Readability.toMoney(props.primaryAsset, balances.primary) }</Text>
-                <Text align="left" style={{ display: 'block' }}>{ Readability.toMoney(props.secondaryAsset, balances.secondary) }</Text>
+                <Text align="left" weight="bold" size="3" style={{ display: 'block' }}>{ Readability.toMoney(props.primaryAsset, balances.primary.value) }</Text>
+                <Text align="left" style={{ display: 'block' }}>{ Readability.toMoney(props.secondaryAsset, balances.secondary.value) }</Text>
               </Box>
             }
             {
@@ -704,6 +689,15 @@ export function Maker(props: {
         </Tooltip>
       }
       <Box mb="2">
+        <Tooltip side="left" content={`Fee rate: pool fee equal to ${state.feeRate ? state.feeRate : 'N/A'} and taken from each trade with this pool`}>
+          <TextField.Root placeholder={'Exchange fee %'} size="2" value={state.feeRate} onChange={(e) => updateState(prev => ({ ...prev, feeRate: TextUtil.toPercent(prev.feeRate, e.target.value) }))}>
+            <TextField.Slot>
+              <Icon path={mdiCurrencyUsd} size={0.8} />
+            </TextField.Slot>
+          </TextField.Root>
+        </Tooltip>
+      </Box>
+      <Box mb="2">
         <Tooltip side="left" content={`Primary reserve: initial ${Readability.toAssetSymbol(props.primaryAsset)} reserve equal to ${Readability.toMoney(props.primaryAsset, state.primaryValue)} and will adjust as trades are made`}>
           <TextField.Root placeholder={Readability.toAssetSymbol(props.primaryAsset) + ' reserve or %'} size="2" value={state.primaryValue} onChange={(e) => setPrimaryValue(e.target.value)}>
             <TextField.Slot>
@@ -715,15 +709,6 @@ export function Maker(props: {
       <Box mb="2">
         <Tooltip side="left" content={`Secondary reserve: initial ${Readability.toAssetSymbol(props.secondaryAsset)} reserve equal to ${Readability.toMoney(props.secondaryAsset, state.secondaryValue)} and will adjust as trades are made`}>
           <TextField.Root placeholder={Readability.toAssetSymbol(props.secondaryAsset) + ' reserve or %'} size="2" value={state.secondaryValue} onChange={(e) => setSecondaryValue(e.target.value)}>
-            <TextField.Slot>
-              <Icon path={mdiCurrencyUsd} size={0.8} />
-            </TextField.Slot>
-          </TextField.Root>
-        </Tooltip>
-      </Box>
-      <Box mb="2">
-        <Tooltip side="left" content={`Fee rate: pool fee equal to ${state.feeRate ? state.feeRate : 'N/A'} and taken from each trade with this pool`}>
-          <TextField.Root placeholder={'Exchange fee %'} size="2" value={state.feeRate} onChange={(e) => updateState(prev => ({ ...prev, feeRate: TextUtil.toPercent(prev.feeRate, e.target.value) }))}>
             <TextField.Slot>
               <Icon path={mdiCurrencyUsd} size={0.8} />
             </TextField.Slot>
