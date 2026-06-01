@@ -1127,6 +1127,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
   const receipt = props.receipt || null;
   const state = props.state || null;
   const ownerAddress = props.ownerAddress;
+  const finalized = !receipt || receipt.successful;
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [expanded, setExpanded] = useState(props.open || false);
   if (!props.preview && receipt != null && (!AppData.tip || receipt.block_number.gt(AppData.tip)))
@@ -1153,8 +1154,8 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               state != null &&
               <Flex gap="2" wrap="wrap">
                 {
-                  !transaction.error && EventResolver.isSummaryStateEmpty(state, ownerAddress) &&
-                  <Badge size="1" color={receipt.successful ? 'lime' : 'red'}>{ receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Rollback' }<Icon path={receipt.successful ? mdiCheck : mdiAlert} size={0.55}></Icon></Badge>
+                  !transaction.error && (!finalized || EventResolver.isSummaryStateEmpty(state, ownerAddress)) &&
+                  <Badge size="1" color={receipt.successful ? 'lime' : 'red'}>{ receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Reverted' }<Icon path={receipt.successful ? mdiCheck : mdiAlert} size={0.55}></Icon></Badge>
                 }
                 {
                   (transaction.error != null || (transaction.proof && !transaction.proof.success)) &&
@@ -1162,10 +1163,10 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                 }
                 {
                   state.errors.length > 0 &&
-                  <Badge size="1" color="red">{ Readability.toCount('execution error', state.errors.length) }</Badge>
+                  <Badge size="1" color="red">{ Readability.toCount('error', state.errors.length) }</Badge>
                 }
                 {
-                  state.account.balances[ownerAddress] && Object.keys(state.account.balances[ownerAddress]).map((asset) => {
+                  finalized && state.account.balances[ownerAddress] && Object.keys(state.account.balances[ownerAddress]).map((asset) => {
                     const value = state.account.balances[ownerAddress][asset];
                     const zero = value.supply.eq(0) && value.reserve.eq(0);
                     return (
@@ -1182,37 +1183,37 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   })
                 }
                 {
-                  Object.keys(state.bridge.migrations).length > 0 &&
+                  finalized && Object.keys(state.bridge.migrations).length > 0 &&
                   <Badge size="1" color="cyan">
                     { Readability.toValue(null, Object.keys(state.bridge.migrations).length, true, false) }<Icon path={mdiKeyChange} size={0.55}></Icon>
                   </Badge>
                 }
                 {
-                  Object.keys(state.bridge.policies).length > 0 &&
+                  finalized && Object.keys(state.bridge.policies).length > 0 &&
                   <Badge size="1" color="blue">
                     { Readability.toValue(null, Object.keys(state.bridge.policies).length, true, false) }<Icon path={mdiBridge} size={0.55}></Icon>
                   </Badge>
                 }
                 {
-                  Object.keys(state.bridge.transactions).length > 0 &&
+                  finalized && Object.keys(state.bridge.transactions).length > 0 &&
                   <Badge size="1" color="blue">
                     { Readability.toValue(null, Object.keys(state.bridge.transactions).length, true, false) }<Icon path={mdiVectorLink} size={0.55}></Icon>
                   </Badge>
                 }
                 {
-                  Object.keys(state.bridge.accounts).length > 0 &&
+                  finalized && Object.keys(state.bridge.accounts).length > 0 &&
                   <Badge size="1" color="blue">
                     { Readability.toValue(null, Object.keys(state.bridge.accounts).length, true, false) }<Icon path={mdiVectorCurve} size={0.55}></Icon>
                   </Badge>
                 }
                 {
-                  state.bridge.attesters.size > 0 &&
+                  finalized && state.bridge.attesters.size > 0 &&
                   <Badge size="1" color="brown">
                     { Readability.toValue(null, state.bridge.attesters.size, false, false) }<Icon path={mdiStateMachine} size={0.55}></Icon>
                   </Badge>
                 }
                 {
-                  state.bridge.participants.size > 0 &&
+                  finalized && state.bridge.participants.size > 0 &&
                   <Badge size="1" color="brown">
                     { Readability.toValue(null, state.bridge.participants.size, true, false) }<Icon path={mdiVectorSquareEdit} size={0.55}></Icon>
                   </Badge>
@@ -1224,7 +1225,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   </Badge>
                 }
                 {
-                  Object.keys(state.bridge.queues).length > 0 && Object.keys(state.bridge.queues[Object.keys(state.bridge.queues)[0]]).map((asset) => {
+                  finalized && Object.keys(state.bridge.queues).length > 0 && Object.keys(state.bridge.queues[Object.keys(state.bridge.queues)[0]]).map((asset) => {
                     const queue = state.bridge.queues[Object.keys(state.bridge.queues)[0]][asset];
                     return (
                       <Badge key={'X148' + transaction.hash + asset} size="1" color={queue.size.gt(1) ? 'yellow' : 'lime'}>
@@ -1234,14 +1235,14 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
                   })
                 }
                 {
-                  Object.keys(state.witness.accounts).map((asset) => {
+                  finalized && Object.keys(state.witness.accounts).map((asset) => {
                     const aliases = state.witness.accounts[asset].aliases;
                     const bridge = state.witness.accounts[asset].purpose == 'bridge';
                     return aliases.map((alias) => <Badge key={'X3' + alias} size="1" color={bridge ? 'blue' : 'lime'}>{ Readability.toAddress(alias, 6) }</Badge>)
                   })
                 }
                 {
-                  Object.keys(state.witness.transactions).map((asset) => {
+                  finalized && Object.keys(state.witness.transactions).map((asset) => {
                     const event = state.witness.transactions[asset];
                     return event.stateHashes.map((stateHash) => <Badge key={'X4' + event.asset.toHex() + stateHash} size="1" color="gray">{ Readability.toAddress(stateHash, 4) }</Badge>)
                   })
