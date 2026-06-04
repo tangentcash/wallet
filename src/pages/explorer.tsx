@@ -6,10 +6,10 @@ import { AppData } from "../core/app";
 import { AssetId, Chain, EventResolver, Readability, RPC, Signing, Stream, SummaryState, Whitelist } from "tangentsdk";
 import { mdiMagnify, mdiOpenInNew } from "@mdi/js";
 import { useEffectAsync } from "../core/react";
+import { TransactionView } from "../components/transaction";
+import { AssetImage, AssetName } from "../components/asset";
 import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
-import Transaction from "../components/transaction";
-import { AssetImage, AssetName } from "../components/asset";
 
 const BLOCK_COUNT = 64;
 const TRANSACTION_COUNT = 16;
@@ -296,7 +296,7 @@ export default function ExplorerPage() {
                 transactions.map((item, index) =>
                   <Box width="100%" key={item.transaction.hash + index + '_tx'}>
                     <Box mb="4">
-                      <Transaction ownerAddress={''} transaction={item.transaction} receipt={item.receipt} state={item.state}></Transaction>
+                      <TransactionView ownerAddress={''} transaction={item.transaction} receipt={item.receipt} state={item.state} summary={true}></TransactionView>
                     </Box>
                   </Box>
                 )

@@ -8,10 +8,10 @@ import { AppData } from "../core/app";
 import { Link, useNavigate } from "react-router";
 import { AssetImage, AssetName } from "./asset";
 import { AddressView } from "./address";
+import { TransactionView } from "../components/transaction";
 import BigNumber from "bignumber.js";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import Icon from "@mdi/react";
-import Transaction from "../components/transaction";
 import Bridge from "./bridge";
 
 const TRANSACTION_COUNT = 16;
@@ -501,7 +501,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               {
                 mempoolTransactions.map((item, index) =>
                   <Box mb="4" key={item.hash + index + '_mempool'}>
-                    <Transaction ownerAddress={ownerAddress} transaction={item}></Transaction>
+                    <TransactionView ownerAddress={ownerAddress} transaction={item}></TransactionView>
                   </Box>
                 )
               }
@@ -519,7 +519,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                     </Box>
                   }
                   <Box mb="4">
-                    <Transaction ownerAddress={ownerAddress} transaction={item.transaction} receipt={item.receipt} state={item.state}></Transaction>
+                    <TransactionView ownerAddress={ownerAddress} transaction={item.transaction} receipt={item.receipt} state={item.state}></TransactionView>
                   </Box>
                 </Box>
               )

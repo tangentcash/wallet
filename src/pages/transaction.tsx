@@ -5,7 +5,7 @@ import { Box, Callout, Flex, Heading, Spinner, Text } from "@radix-ui/themes";
 import { Chain, EventResolver, RPC, Stream } from "tangentsdk";
 import { AppData } from "../core/app";
 import { mdiListStatus } from "@mdi/js";
-import Transaction from "../components/transaction";
+import { TransactionView } from "../components/transaction";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 
@@ -14,11 +14,11 @@ function ExtendedTransaction(props: { data: any, focused: boolean }) {
   const ownerAddress = AppData.getWalletAddress() || '';
   return (
     <>
-      <Transaction ownerAddress={ownerAddress} transaction={data.transaction} receipt={data.receipt} state={data.state} open={props.focused || undefined}></Transaction>
+      <TransactionView ownerAddress={ownerAddress} transaction={data.transaction} receipt={data.receipt} state={data.state} open={props.focused || undefined} summary={true}></TransactionView>
       {
         Array.isArray(data.transaction.transactions) && data.transaction.transactions.map((subtransaction: any, index: number) =>
           <Box mt="4" key={subtransaction.action.hash + index.toString()}>
-            <Transaction ownerAddress={ownerAddress} preview={'Internal transaction #' + (index + 1).toString()} transaction={(() => ({
+            <TransactionView ownerAddress={ownerAddress} preview={'Internal transaction #' + (index + 1).toString()} transaction={(() => ({
               ...subtransaction.action,
               gas_price: new BigNumber(0),
               gas_limit: data.rollupGasLimit.gt(0) ? data.rollupGasLimit : data.transaction.gas_limit
@@ -28,7 +28,7 @@ function ExtendedTransaction(props: { data: any, focused: boolean }) {
                 ...data.receipt,
                 relative_gas_use: receipt ? receipt.relativeGasUse : data.receipt.relative_gas_use,
               };
-            })()} open={true}></Transaction>
+            })()} open={true}></TransactionView>
           </Box>
         )
       }

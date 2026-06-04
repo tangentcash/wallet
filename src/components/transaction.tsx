@@ -1,16 +1,16 @@
 import { Badge, Box, Button, Card, Code, DataList, Flex, Spinner, Text, Tooltip } from "@radix-ui/themes";
-import { EventResolver, SummaryState, AssetId, Readability, EventType } from 'tangentsdk';
+import { SummaryState, AssetId, Readability, EventType } from 'tangentsdk';
 import { AlertBox, AlertType } from "./alert";
 import { Link } from "react-router";
 import { AppData } from "../core/app";
-import { useState } from "react";
-import { mdiAlert, mdiBridge, mdiCheck, mdiInformationOutline, mdiKeyChange, mdiListBox, mdiLockOpenVariantOutline, mdiLockOutline, mdiReceiptTextCheck, mdiStateMachine, mdiVectorCurve, mdiVectorLink, mdiVectorSquareEdit } from "@mdi/js";
+import { useMemo, useState } from "react";
+import { mdiAlert, mdiCheck, mdiInformationOutline, mdiLockOpenVariantOutline, mdiLockOutline } from "@mdi/js";
+import { AssetImage } from "./asset";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
-import { AssetImage } from "./asset";
 
-function InputFields(props: { orientation: 'horizontal' | 'vertical', transaction: any }) {
+export function TransactionInputFields(props: { orientation: 'horizontal' | 'vertical', transaction: any }) {
   const transaction = props.transaction;
   switch (transaction.type) {
     case 'transfer':
@@ -661,7 +661,7 @@ function InputFields(props: { orientation: 'horizontal' | 'vertical', transactio
       return <Text size="1" color="gray">No additional input fields</Text>
   }
 }
-function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: SummaryState }) {
+export function TransactionOutputFields(props: { orientation: 'horizontal' | 'vertical', state: SummaryState }) {
   const state = props.state;
   return (
     <>
@@ -1121,8 +1121,141 @@ function OutputFields(props: { orientation: 'horizontal' | 'vertical', state: Su
     </>
   )
 }
-
-export default function Transaction(props: { ownerAddress: string, transaction: any, receipt?: any, state?: SummaryState, open?: boolean, preview?: string | boolean }) {
+export function TransactionDetailsView(props: { orientation: 'horizontal' | 'vertical', transaction: any, receipt?: any, state?: SummaryState, preview?: string | boolean }) {
+  const transaction = props.transaction;
+  const receipt = props.receipt || null;
+  const state = props.state || null;
+  const orientation = props.orientation;
+  return (
+    <Box>
+      <DataList.Root orientation={orientation}>
+        <DataList.Item>
+          <DataList.Label>Transaction hash:</DataList.Label>
+          <DataList.Value>
+            <Button size="2" variant="ghost" color="indigo" onClick={() => {
+              navigator.clipboard.writeText(transaction.hash);
+              AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+            }}>{ Readability.toHash(transaction.hash, 12) }</Button>
+            <Box ml="2">
+              <Link className="router-link" to={'/transaction/' + transaction.hash}>▒▒</Link>
+            </Box>
+          </DataList.Value>
+        </DataList.Item>
+        <DataList.Item>
+          <DataList.Label>Signature:</DataList.Label>
+          <DataList.Value>
+            <Button size="2" variant="ghost" color="indigo" onClick={() => {
+              navigator.clipboard.writeText(transaction.signature);
+              AlertBox.open(AlertType.Info, 'Transaction signature copied!')
+            }}>{ Readability.toHash(transaction.signature, 12) }</Button>
+          </DataList.Value>
+        </DataList.Item>
+        {
+          !props.preview && receipt &&
+          <>
+            <DataList.Item>
+              <DataList.Label>Status:</DataList.Label>
+              <DataList.Value>
+                <Badge color={receipt.successful ? 'lime' : 'red'}>Execution { receipt.successful ? 'finalized' : 'reverted' }</Badge>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Block:</DataList.Label>
+              <DataList.Value>
+                { receipt.block_number.toString() }
+                <Box ml="2">
+                  <Link className="router-link" to={'/block/' + receipt.block_number.toString()}>▒▒</Link>
+                </Box>
+              </DataList.Value>
+            </DataList.Item>
+            {
+              AppData.tip != null &&
+              <DataList.Item>
+                <DataList.Label>Confidence:</DataList.Label>
+                <DataList.Value>
+                  <Badge color={AppData.tip.minus(receipt.block_number).gt(0) ? 'lime' : 'yellow'}>{ Readability.toCount('confirmation', AppData.tip.minus(receipt.block_number).plus(1)) }</Badge>
+                </DataList.Value>
+              </DataList.Item>
+            }
+          </>
+        }
+        {
+          (props.preview || !receipt) &&
+          <DataList.Item>
+            <DataList.Label>Status:</DataList.Label>
+            <DataList.Value>
+              <Badge color="yellow">Not included in a block</Badge>
+            </DataList.Value>
+          </DataList.Item>
+        }
+        {
+          receipt && 
+          <DataList.Item>
+            <DataList.Label>Timestamp:</DataList.Label>
+            <DataList.Value>{ new Date(receipt.block_time.toNumber()).toLocaleString() }</DataList.Value>
+          </DataList.Item>
+        }
+        <DataList.Item>
+          <DataList.Label>Paying account:</DataList.Label>
+          <DataList.Value>
+            <Button size="2" variant="ghost" color="indigo" onClick={() => {
+              navigator.clipboard.writeText(receipt?.from || 'NULL');
+              AlertBox.open(AlertType.Info, 'Address copied!')
+            }}>{ Readability.toAddress(receipt?.from || 'NULL') }</Button>
+            {
+              receipt?.from != null &&
+              <Box ml="2">
+                <Link className="router-link" to={'/account/' + receipt?.from}>▒▒</Link>
+              </Box>
+            }
+          </DataList.Value>
+        </DataList.Item>
+        <DataList.Item>
+          <DataList.Label>Nonce:</DataList.Label>
+          <DataList.Value>0x{ transaction.nonce.toString(16) }</DataList.Value>
+        </DataList.Item>
+        <DataList.Item>
+          <DataList.Label>Gas network:</DataList.Label>
+          <DataList.Value>{ Readability.toAssetName(transaction.asset, true) }</DataList.Value>
+        </DataList.Item>
+        <DataList.Item>
+          <DataList.Label>Gas price:</DataList.Label>
+          <DataList.Value>{ transaction.gas_price != null ? Readability.toMoney(AssetId.fromHandle(transaction.asset.chain), transaction.gas_price) : <Badge color="yellow">Consensus override</Badge> }</DataList.Value>
+        </DataList.Item>
+        <DataList.Item>
+          <DataList.Label>Gas limit:</DataList.Label>
+          <DataList.Value>{ Readability.toGas(transaction.gas_limit) }</DataList.Value>
+        </DataList.Item>
+        {
+          receipt &&
+          <>
+            <DataList.Item>
+              <DataList.Label>Gas use:</DataList.Label>
+              <DataList.Value>{ Readability.toGas(receipt.relative_gas_use) } | { (receipt.relative_gas_use.div(transaction.gas_limit).toNumber() * 100).toFixed(2) }%</DataList.Value>
+            </DataList.Item>
+            {
+              transaction.gas_price != null &&
+              <DataList.Item>
+                <DataList.Label>Fee paid:</DataList.Label>
+                <DataList.Value>{ Readability.toMoney(AssetId.fromHandle(transaction.asset.chain), receipt.relative_gas_use.multipliedBy(transaction.gas_price)) }</DataList.Value>
+              </DataList.Item>
+            }
+          </>
+        }
+      </DataList.Root>
+      <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
+      <TransactionInputFields orientation={orientation} transaction={transaction}></TransactionInputFields>
+      {
+        state != null && state.events.length > 0 &&
+        <>
+          <Box mt="4" mb="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
+          <TransactionOutputFields orientation={orientation} state={state}></TransactionOutputFields>
+        </>
+      }
+    </Box>
+  );
+}
+export function TransactionView(props: { ownerAddress: string, transaction: any, receipt?: any, state?: SummaryState, open?: boolean, preview?: string | boolean, summary?: boolean }) {
   const transaction = props.transaction;
   const receipt = props.receipt || null;
   const state = props.state || null;
@@ -1130,9 +1263,34 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
   const finalized = !receipt || receipt.successful;
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [expanded, setExpanded] = useState(props.open || false);
+  const summary = useMemo((): {
+    delta: { asset: AssetId, supply: BigNumber, reserve: BigNumber }[],
+    volume: { asset: AssetId, value: BigNumber }[],
+    empty: boolean
+  } | null => {
+    if (!state || !finalized)
+      return null;
+
+    const volumes: Record<string, { asset: AssetId, value: BigNumber }> = { };
+    for (let account of Object.keys(state.account.balances)) {
+      const balances = state.account.balances[account];
+      for (let asset of Object.keys(balances)) {
+        const target = balances[asset], total = volumes[asset];
+        const volume = BigNumber.max(target.supply.minus(target.reserve), 0);
+        volumes[asset] = { asset: target.asset, value: total ? total.value.plus(volume) : volume }; 
+      }
+    }
+
+    const baseBalance = state.account.balances[ownerAddress];
+    return {
+      delta: baseBalance ? Object.keys(baseBalance).map((asset) => baseBalance[asset]).filter(x => !x.supply.eq(0) || !x.reserve.eq(0)) : [],
+      volume: Object.keys(volumes).map((id) => volumes[id]).filter((v) => v.value.gt(0)),
+      empty: !finalized || !Object.keys(baseBalance || { }).length
+    };
+  }, [state, finalized, ownerAddress]);
   if (!props.preview && receipt != null && (!AppData.tip || receipt.block_number.gt(AppData.tip)))
     AppData.tip = receipt.block_number;
-
+  
   return (
     <Collapsible.Root open={expanded}>
       <Card variant="surface" mt="4" style={{ borderRadius: '22px', position: 'relative' }}>
@@ -1140,7 +1298,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
           <AssetImage asset={transaction.asset}></AssetImage>
           <Box width="100%">
             <Flex justify="between" align="center" mb="1">
-              <Text as="div" size="2" weight="bold">{ transaction.type == 'call' && transaction.function != null ? Readability.toFunctionName(transaction.function) : Readability.toTransactionType(transaction.type) }</Text>       
+              <Text as="div" size="2" weight="bold">{ transaction.transactions?.length > 0 ? transaction.transactions?.length + 'x' : ''} { transaction.type == 'call' && transaction.function != null ? Readability.toFunctionName(transaction.function) : Readability.toTransactionType(transaction.type) }</Text>       
               <Badge size="1" variant="soft" color={props.preview ? 'yellow' : 'gray'}>
                 <Icon path={mdiInformationOutline} size={0.65}></Icon>
                 <Box px="1" ml="-1">
@@ -1151,101 +1309,35 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
               </Badge>
             </Flex>
             {
-              state != null &&
+              state &&
               <Flex gap="2" wrap="wrap">
                 {
-                  !transaction.error && (!finalized || EventResolver.isSummaryStateEmpty(state, ownerAddress)) &&
+                  props.summary &&
+                  <Badge size="1" color="lime">{ Readability.toHash(transaction.hash, 6) }</Badge>
+                }
+                {
+                  !transaction.error && (!summary || summary.empty) &&
                   <Badge size="1" color={receipt.successful ? 'lime' : 'red'}>{ receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Reverted' }<Icon path={receipt.successful ? mdiCheck : mdiAlert} size={0.55}></Icon></Badge>
                 }
                 {
-                  (transaction.error != null || (transaction.proof && !transaction.proof.success)) &&
-                  <Badge size="1" color="red">Refund<Icon path={mdiAlert} size={0.55}></Icon></Badge>
+                  summary && summary.delta.map((item) => 
+                    <Flex key={'X0' + transaction.hash + item.asset.id} gap="2">
+                      { (!item.supply.eq(0)) && <Badge size="1" color={item.supply.gt(0) ? 'lime' : (item.supply.isNegative() ? 'red' : 'gray')}>{ Readability.toMoney(item.asset, item.supply, true) }</Badge> }
+                      {
+                        !item.reserve.eq(0) &&
+                        <Badge size="1" color={item.reserve.lt(0) ? 'gold' : (item.reserve.isPositive() ? 'amber' : 'gray')}>
+                          <Icon path={item.reserve.lt(0) ? mdiLockOpenVariantOutline : mdiLockOutline} size={0.55}></Icon> { Readability.toMoney(item.asset, item.reserve.negated(), true) }
+                        </Badge>
+                      }
+                    </Flex>
+                  )
                 }
                 {
-                  state.errors.length > 0 &&
-                  <Badge size="1" color="red">{ Readability.toCount('error', state.errors.length) }</Badge>
-                }
-                {
-                  finalized && state.account.balances[ownerAddress] && Object.keys(state.account.balances[ownerAddress]).map((asset) => {
-                    const value = state.account.balances[ownerAddress][asset];
-                    const zero = value.supply.eq(0) && value.reserve.eq(0);
-                    return (
-                      <Flex key={'X0' + transaction.hash + asset} gap="2">
-                        { (zero || !value.supply.eq(0)) && <Badge size="1" color={value.supply.gt(0) ? 'lime' : (value.supply.isNegative() ? 'red' : 'gray')}>{ Readability.toMoney(value.asset, value.supply, true) }</Badge> }
-                        {
-                          !value.reserve.eq(0) &&
-                          <Badge size="1" color="gold">
-                            <Icon path={value.reserve.lt(0) ? mdiLockOpenVariantOutline : mdiLockOutline} size={0.55}></Icon> { Readability.toMoney(value.asset, value.reserve.lt(0) ? value.reserve.negated() : value.reserve) }
-                          </Badge>
-                        }
-                      </Flex>
-                    )
-                  })
-                }
-                {
-                  finalized && Object.keys(state.bridge.migrations).length > 0 &&
-                  <Badge size="1" color="cyan">
-                    { Readability.toValue(null, Object.keys(state.bridge.migrations).length, true, false) }<Icon path={mdiKeyChange} size={0.55}></Icon>
-                  </Badge>
-                }
-                {
-                  finalized && Object.keys(state.bridge.policies).length > 0 &&
-                  <Badge size="1" color="blue">
-                    { Readability.toValue(null, Object.keys(state.bridge.policies).length, true, false) }<Icon path={mdiBridge} size={0.55}></Icon>
-                  </Badge>
-                }
-                {
-                  finalized && Object.keys(state.bridge.transactions).length > 0 &&
-                  <Badge size="1" color="blue">
-                    { Readability.toValue(null, Object.keys(state.bridge.transactions).length, true, false) }<Icon path={mdiVectorLink} size={0.55}></Icon>
-                  </Badge>
-                }
-                {
-                  finalized && Object.keys(state.bridge.accounts).length > 0 &&
-                  <Badge size="1" color="blue">
-                    { Readability.toValue(null, Object.keys(state.bridge.accounts).length, true, false) }<Icon path={mdiVectorCurve} size={0.55}></Icon>
-                  </Badge>
-                }
-                {
-                  finalized && state.bridge.attesters.size > 0 &&
-                  <Badge size="1" color="brown">
-                    { Readability.toValue(null, state.bridge.attesters.size, false, false) }<Icon path={mdiStateMachine} size={0.55}></Icon>
-                  </Badge>
-                }
-                {
-                  finalized && state.bridge.participants.size > 0 &&
-                  <Badge size="1" color="brown">
-                    { Readability.toValue(null, state.bridge.participants.size, true, false) }<Icon path={mdiVectorSquareEdit} size={0.55}></Icon>
-                  </Badge>
-                }
-                {
-                  Object.keys(state.receipts).length > 0 &&
-                  <Badge size="1" color="brown">
-                    { Readability.toValue(null, Object.keys(state.receipts).length, true, false) }<Icon path={mdiReceiptTextCheck} size={0.55}></Icon>
-                  </Badge>
-                }
-                {
-                  finalized && Object.keys(state.bridge.queues).length > 0 && Object.keys(state.bridge.queues[Object.keys(state.bridge.queues)[0]]).map((asset) => {
-                    const queue = state.bridge.queues[Object.keys(state.bridge.queues)[0]][asset];
-                    return (
-                      <Badge key={'X148' + transaction.hash + asset} size="1" color={queue.size.gt(1) ? 'yellow' : 'lime'}>
-                        { Readability.toValue(null, queue.size, false, false) }<Icon path={mdiListBox} size={0.55}></Icon>
-                      </Badge>
-                    )
-                  })
-                }
-                {
-                  finalized && Object.keys(state.witness.accounts).map((asset) => {
-                    const aliases = state.witness.accounts[asset].aliases;
-                    const bridge = state.witness.accounts[asset].purpose == 'bridge';
-                    return aliases.map((alias) => <Badge key={'X3' + alias} size="1" color={bridge ? 'blue' : 'lime'}>{ Readability.toAddress(alias, 6) }</Badge>)
-                  })
-                }
-                {
-                  finalized && Object.keys(state.witness.transactions).map((asset) => {
-                    const event = state.witness.transactions[asset];
-                    return event.stateHashes.map((stateHash) => <Badge key={'X4' + event.asset.toHex() + stateHash} size="1" color="gray">{ Readability.toAddress(stateHash, 4) }</Badge>)
-                  })
+                  props.summary && summary && summary.volume.map((item) => 
+                    <Flex key={'XXX0' + transaction.hash + item.asset.id } gap="2">
+                      { <Badge size="1" color="gold">{ Readability.toMoney(item.asset, item.value) }</Badge> }
+                    </Flex>
+                  )
                 }
               </Flex>
             }
@@ -1259,130 +1351,7 @@ export default function Transaction(props: { ownerAddress: string, transaction: 
         </Flex>
         <Collapsible.Content>
           <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
-          <DataList.Root orientation={orientation}>
-            <DataList.Item>
-              <DataList.Label>Transaction hash:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(transaction.hash);
-                  AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                }}>{ Readability.toHash(transaction.hash, 12) }</Button>
-                <Box ml="2">
-                  <Link className="router-link" to={'/transaction/' + transaction.hash}>▒▒</Link>
-                </Box>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Signature:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(transaction.signature);
-                  AlertBox.open(AlertType.Info, 'Transaction signature copied!')
-                }}>{ Readability.toHash(transaction.signature, 12) }</Button>
-              </DataList.Value>
-            </DataList.Item>
-            {
-              !props.preview && receipt &&
-              <>
-                <DataList.Item>
-                  <DataList.Label>Status:</DataList.Label>
-                  <DataList.Value>
-                    <Badge color={receipt.successful ? 'lime' : 'red'}>Execution { receipt.successful ? 'finalized' : 'reverted' }</Badge>
-                  </DataList.Value>
-                </DataList.Item>
-                <DataList.Item>
-                  <DataList.Label>Block:</DataList.Label>
-                  <DataList.Value>
-                    { receipt.block_number.toString() }
-                    <Box ml="2">
-                      <Link className="router-link" to={'/block/' + receipt.block_number.toString()}>▒▒</Link>
-                    </Box>
-                  </DataList.Value>
-                </DataList.Item>
-                {
-                  AppData.tip != null &&
-                  <DataList.Item>
-                    <DataList.Label>Confidence:</DataList.Label>
-                    <DataList.Value>
-                      <Badge color={AppData.tip.minus(receipt.block_number).gt(0) ? 'lime' : 'yellow'}>{ Readability.toCount('confirmation', AppData.tip.minus(receipt.block_number).plus(1)) }</Badge>
-                    </DataList.Value>
-                  </DataList.Item>
-                }
-              </>
-            }
-            {
-              (props.preview || !receipt) &&
-              <DataList.Item>
-                <DataList.Label>Status:</DataList.Label>
-                <DataList.Value>
-                  <Badge color="yellow">Not included in a block</Badge>
-                </DataList.Value>
-              </DataList.Item>
-            }
-            {
-              receipt && 
-              <DataList.Item>
-                <DataList.Label>Timestamp:</DataList.Label>
-                <DataList.Value>{ new Date(receipt.block_time.toNumber()).toLocaleString() }</DataList.Value>
-              </DataList.Item>
-            }
-            <DataList.Item>
-              <DataList.Label>Paying account:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(receipt?.from || 'NULL');
-                  AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ Readability.toAddress(receipt?.from || 'NULL') }</Button>
-                {
-                  receipt?.from != null &&
-                  <Box ml="2">
-                    <Link className="router-link" to={'/account/' + receipt?.from}>▒▒</Link>
-                  </Box>
-                }
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Nonce:</DataList.Label>
-              <DataList.Value>0x{ transaction.nonce.toString(16) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Gas network:</DataList.Label>
-              <DataList.Value>{ Readability.toAssetName(transaction.asset, true) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Gas price:</DataList.Label>
-              <DataList.Value>{ transaction.gas_price != null ? Readability.toMoney(AssetId.fromHandle(transaction.asset.chain), transaction.gas_price) : <Badge color="yellow">Consensus override</Badge> }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Gas limit:</DataList.Label>
-              <DataList.Value>{ Readability.toGas(transaction.gas_limit) }</DataList.Value>
-            </DataList.Item>
-            {
-              receipt &&
-              <>
-                <DataList.Item>
-                  <DataList.Label>Gas use:</DataList.Label>
-                  <DataList.Value>{ Readability.toGas(receipt.relative_gas_use) } | { (receipt.relative_gas_use.div(transaction.gas_limit).toNumber() * 100).toFixed(2) }%</DataList.Value>
-                </DataList.Item>
-                {
-                  transaction.gas_price != null &&
-                  <DataList.Item>
-                    <DataList.Label>Fee paid:</DataList.Label>
-                    <DataList.Value>{ Readability.toMoney(AssetId.fromHandle(transaction.asset.chain), receipt.relative_gas_use.multipliedBy(transaction.gas_price)) }</DataList.Value>
-                  </DataList.Item>
-                }
-              </>
-            }
-          </DataList.Root>
-          <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
-          <InputFields orientation={orientation} transaction={transaction}></InputFields>
-          {
-            state != null && state.events.length > 0 &&
-            <>
-              <Box mt="4" mb="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
-              <OutputFields orientation={orientation} state={state}></OutputFields>
-            </>
-          }
+          <TransactionDetailsView orientation={orientation} transaction={transaction}></TransactionDetailsView>
         </Collapsible.Content>
       </Card>
     </Collapsible.Root>

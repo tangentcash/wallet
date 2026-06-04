@@ -7,9 +7,9 @@ import { AlertBox, AlertType } from "../components/alert";
 import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, TextUtil, TransactionOutput, Transactions, Uint256, Readability, Hashsig, Pubkeyhash, Pubkey, Seckey, SummaryState, EventResolver, Whitelist } from "tangentsdk";
 import { AppData } from "../core/app";
 import { AssetImage, AssetName } from "../components/asset";
+import { TransactionView } from "../components/transaction";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
-import Transaction from "../components/transaction";
 
 export class ProgramTransfer {
   to: { address: string, value: string }[] = [];
@@ -1306,11 +1306,11 @@ export default function InteractionPage() {
       {
         previewTransaction != null &&
         <Box mt="2">
-          <Transaction ownerAddress={ownerAddress} transaction={previewTransaction} receipt={simulation?.receipt || undefined} state={simulation?.state || undefined} preview={true}></Transaction>
+          <TransactionView ownerAddress={ownerAddress} transaction={previewTransaction} receipt={simulation?.receipt || undefined} state={simulation?.state || undefined} preview={true}></TransactionView>
           {
             Array.isArray(previewTransaction.transactions) && previewTransaction.transactions.map((subtransaction: any, index: number) =>
               <Box mt="4" key={subtransaction.action.hash + index.toString()}>
-                <Transaction ownerAddress={ownerAddress} transaction={subtransaction.action} preview={'Internal transaction #' + (index + 1).toString() + ' preview!'}></Transaction>
+                <TransactionView ownerAddress={ownerAddress} transaction={subtransaction.action} preview={'Internal transaction #' + (index + 1).toString() + ' preview!'}></TransactionView>
               </Box>
             )
           }

@@ -156,10 +156,10 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
             <Flex align="center" gap="2" pt="1">
               <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ Exchange.toFeeBasedAPY(item.primaryRevenue.multipliedBy(item.price).plus(item.secondaryRevenue), item.primaryValue.multipliedBy(item.price).plus(item.secondaryValue)).toFixed(2) }% APY</Badge>
             </Flex>
-            <Tooltip content={`Degradation rate (lower = better): market price ± ${item.feeRate.plus(0.01).multipliedBy(100).toFixed(2)}% delta, degraded LP's revenue may decrease, use reopen to optimize the DR factor`}>
+            <Tooltip content={`Degradation rate (lower = better): market price ± ${item.feeRate.plus(0.01).multipliedBy(100).toFixed(2)}% delta, degraded LP's revenue may decrease, use reopen to optimize the r factor`}>
               <Badge variant="soft" color={item.active ? toRateColor(state.staleness * 100) as any : 'gray'} size="2">    
                 <Icon path={state.staleness >= 0.8 ? mdiScaleUnbalanced : (item.active ? mdiScaleBalance : mdiClose)} size={0.65}></Icon>
-                <Text>{ (state.staleness * 5).toFixed(1) }DR</Text>
+                <Text>{ (state.staleness * 5).toFixed(1) }r</Text>
               </Badge>
             </Tooltip>
           </Flex>
