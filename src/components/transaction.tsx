@@ -1283,7 +1283,14 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
 
     const baseBalance = state.account.balances[ownerAddress];
     return {
-      delta: baseBalance ? Object.keys(baseBalance).map((asset) => baseBalance[asset]).filter(x => !x.supply.eq(0) || !x.reserve.eq(0)) : [],
+      delta: baseBalance ? Object.keys(baseBalance).map((asset) => {
+        const target = baseBalance[asset];
+        return {
+          asset: target.asset,
+          supply: target.supply,
+          reserve: target.reserve.lt(0) && target.supply.lt(0) ? target.reserve.minus(target.supply) : target.reserve
+        };
+      }).filter(x => !x.supply.eq(0) || !x.reserve.eq(0)) : [],
       volume: Object.keys(volumes).map((id) => volumes[id]).filter((v) => v.value.gt(0)),
       empty: !finalized || !Object.keys(baseBalance || { }).length
     };
@@ -1318,6 +1325,10 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
                 {
                   !transaction.error && (!summary || summary.empty) &&
                   <Badge size="1" color={receipt.successful ? 'lime' : 'red'}>{ receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Reverted' }<Icon path={receipt.successful ? mdiCheck : mdiAlert} size={0.55}></Icon></Badge>
+                }
+                {
+                  (transaction.error != null || (transaction.proof && !transaction.proof.success)) &&
+                  <Badge size="1" color="red">Reverted<Icon path={mdiAlert} size={0.55}></Icon></Badge>
                 }
                 {
                   summary && summary.delta.map((item) => 
