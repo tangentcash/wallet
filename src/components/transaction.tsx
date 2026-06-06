@@ -1362,7 +1362,7 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
         </Flex>
         <Collapsible.Content>
           <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
-          <TransactionDetailsView orientation={orientation} transaction={transaction}></TransactionDetailsView>
+          <TransactionDetailsView orientation={orientation} transaction={transaction} receipt={receipt} state={props.state} preview={props.preview}></TransactionDetailsView>
         </Collapsible.Content>
       </Card>
     </Collapsible.Root>
