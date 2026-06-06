@@ -368,7 +368,7 @@ export default function OrderbookPage() {
 
   return (
     <Box minWidth={mobile ? undefined : '800px'}>
-      <Box px={mobile ? undefined : '3'} py={mobile ? undefined : '4'} width="100%" maxWidth="1560px" mx="auto">
+      <Box px={mobile ? undefined : '3'} py={mobile ? undefined : '4'} width="100%" maxWidth="1680px" mx="auto">
         <Flex gap="3" align="start">
           {
             !mobile &&

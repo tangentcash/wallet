@@ -29,9 +29,12 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   const [production, setProduction] = useState<any>(null);
   const [selectedAddress, setSelectedAddress] = useState<number>(0);
   const [control, setControl] = useState<'balance' | 'address' | 'storage'>('balance');
-  const [transactions, setTransactions] = useState<{ transaction: any, receipt?: any, state?: SummaryState }[]>([]);
+  const [finalizedTransactions, setFinalizedTransactions] = useState<{ transaction: any, receipt?: any, state?: SummaryState }[]>([]);
   const [mempoolTransactions, setMempoolTransactions] = useState<any[]>([]);
   const [moreTransactions, setMoreTransactions] = useState(true);
+  const transactions = useMemo((): { transaction: any, receipt?: any, state?: SummaryState }[] => {
+    return [...mempoolTransactions.map((x) => ({ transaction: x })), ...finalizedTransactions]
+  }, [finalizedTransactions, mempoolTransactions]);
   const filteredAddresses = useMemo((): any[] => {
     const routes = addresses.filter((x) => x.purpose == 'routing');
     const bridges = addresses.filter((x) => x.asset.chain == Chain.policy.TOKEN_NAME || x.purpose == 'bridge');
@@ -67,26 +70,26 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   }, [filteredAddresses, selectedAddress]);
   const findTransactions = useCallback(async (refresh?: boolean) => {
     try {
-      const data = await RPC.getTransactionsByOwner(ownerAddress, refresh ? 0 : transactions.length, TRANSACTION_COUNT, 0, 2);
+      const data = await RPC.getTransactionsByOwner(ownerAddress, refresh ? 0 : finalizedTransactions.length, TRANSACTION_COUNT, 0, 2);
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
-          setTransactions([]);
+          setFinalizedTransactions([]);
         setMoreTransactions(false);
         return false;
       }
 
       const candidateTransactions = data.map((value) => { return { ...value, state: EventResolver.calculateSummaryState(value?.receipt?.events) } });
-      setTransactions(refresh ? candidateTransactions : prev => prev.concat(candidateTransactions));
+      setFinalizedTransactions(refresh ? candidateTransactions : prev => prev.concat(candidateTransactions));
       setMoreTransactions(candidateTransactions.length >= TRANSACTION_COUNT);
       return candidateTransactions.length > 0;
     } catch (exception) {
       AlertBox.open(AlertType.Error, 'Failed to fetch transactions: ' + (exception as Error).message);
       if (refresh)
-        setTransactions([]);
+        setFinalizedTransactions([]);
       setMoreTransactions(false);
       return false;
     }
-  }, [ownerAddress, transactions]);
+  }, [ownerAddress, finalizedTransactions]);
   const findMempoolTransactions = useCallback(async () => {
     try {
       const data = await RPC.getMempoolTransactionsByOwner(ownerAddress, 0, TRANSACTION_COUNT, 0, 1);
@@ -489,40 +492,27 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
         </Tabs.Root>
       </Card>
       {
-        (transactions.length > 0 || mempoolTransactions.length > 0) &&
-        <Box width="100%" my="8" px="2">
-          {
-            mempoolTransactions.length > 0 &&
-            <Box width="100%">
-              <Box px="2">
-                <Text as="div" size="2" mb="1" align="right">Queue</Text>
-                <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-              </Box>
-              {
-                mempoolTransactions.map((item, index) =>
-                  <Box mb="4" key={item.hash + index + '_mempool'}>
-                    <TransactionView ownerAddress={ownerAddress} transaction={item}></TransactionView>
-                  </Box>
-                )
-              }
-            </Box>
-          }
+        transactions.length > 0 &&
+        <Box width="100%" my="6" px={mobile ? '2' : undefined}>
           <InfiniteScroll dataLength={transactions.length} hasMore={moreTransactions} next={findTransactions} loader={<div></div>}>
             {
-              transactions.map((item, index) =>
-                <Box width="100%" key={item.transaction.hash + index + '_tx'}>
-                  {
-                    (!index || !item.receipt || new Date(transactions[index - 1].receipt.block_time?.toNumber()).setHours(0, 0, 0, 0) != new Date(item.receipt.block_time?.toNumber()).setHours(0, 0, 0, 0)) &&
-                    <Box px="2">
-                      <Text as="div" size="2" mb="1" align="right">{ item.receipt ? (new Date(item.receipt.block_time?.toNumber()).setHours(0, 0, 0, 0) == new Date().setHours(0, 0, 0, 0) ? 'Today' : new Date(item.receipt.block_time?.toNumber()).toLocaleDateString()) : 'Today' }</Text>
-                      <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+              transactions.map((item, index) => {
+                const prev = index ? transactions[index - 1] : null;
+                return (
+                  <Box width="100%" key={item.transaction.hash + index + '_tx'}>
+                    {
+                      (!prev || (prev.receipt && item.receipt && new Date(prev.receipt?.block_time?.toNumber() || 0).setHours(0, 0, 0, 0) != new Date(item.receipt?.block_time?.toNumber() || 0).setHours(0, 0, 0, 0))) &&
+                      <Box px="2" mt="4">
+                        <Text as="div" size="2" mb="1" align="right">{ item.receipt ? (new Date(item.receipt.block_time?.toNumber()).setHours(0, 0, 0, 0) == new Date().setHours(0, 0, 0, 0) ? 'Today' : new Date(item.receipt.block_time?.toNumber()).toLocaleDateString()) : 'Today' }</Text>
+                        <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+                      </Box>
+                    }
+                    <Box mt="4">
+                      <TransactionView ownerAddress={ownerAddress} transaction={item.transaction} receipt={item.receipt} state={item.state}></TransactionView>
                     </Box>
-                  }
-                  <Box mb="4">
-                    <TransactionView ownerAddress={ownerAddress} transaction={item.transaction} receipt={item.receipt} state={item.state}></TransactionView>
                   </Box>
-                </Box>
-              )
+                )
+              })
             }
           </InfiniteScroll>
         </Box>
