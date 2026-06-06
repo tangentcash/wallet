@@ -102,9 +102,9 @@ export default function OrderbookPage() {
     bars: 512,
     priceLevel: '',
     priceScope: PriceScope.All,
-    view: ChartViewType.Candles,
+    view: ChartViewType.Mountain,
     price: PriceScaleMode.Normal,
-    crosshair: CrosshairMode.Normal,
+    crosshair: CrosshairMode.Magnet,
     volume: false,
     inverted: false,
     showPrimary: true

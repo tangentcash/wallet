@@ -68,7 +68,7 @@ export type VolumeBar = GenericBar & {
   color: string
 };
 
-const UP_COLOR = '#22ab94';
+const UP_COLOR = '#b3f42e';
 const DOWN_COLOR = '#f7525f';
 let colors: Record<string, string> = { };
 let styles: CSSStyleDeclaration | null = null;
@@ -198,24 +198,34 @@ export function ChartView(props: {
     <Chart options={props.options} onInit={props.onInit} onCrosshairMove={onCrosshairMove}>
       {
         props.type == ChartViewType.Candles &&
-        <CandlestickSeries ref={props.priceRef as any} data={props.priceData} />
+        <CandlestickSeries ref={props.priceRef as any} data={props.priceData} options={{
+          upColor: UP_COLOR,
+          wickUpColor: UP_COLOR,
+          borderUpColor: UP_COLOR,
+          downColor: DOWN_COLOR,
+          wickDownColor: DOWN_COLOR,
+          borderDownColor: DOWN_COLOR
+        }} />
       }
       {
         props.type == ChartViewType.Bars &&
-        <BarSeries ref={props.priceRef as any} data={props.priceData} />
+        <BarSeries ref={props.priceRef as any} data={props.priceData} options={{
+          upColor: UP_COLOR,
+          downColor: DOWN_COLOR,
+        }}  />
       }
       {
         props.type == ChartViewType.Mountain &&
         <AreaSeries ref={props.priceRef as any} data={props.priceData} options={{
-          lineColor: colorOf('--accent-a11'),
-          topColor: colorOf('--accent-a3'),
-          bottomColor: colorOf('--gray-2')
+          lineColor: colorOf('--accent-10'),
+          topColor: colorOf('--accent-a4'),
+          bottomColor: colorOf('--accent-a1')
         }} />
       }
       {
         props.type == ChartViewType.Line &&
         <LineSeries ref={props.priceRef as any} data={props.priceData} options={{
-          color: colorOf('--accent-a11')
+          color: colorOf('--accent-a10')
         }} />
       }
       {
