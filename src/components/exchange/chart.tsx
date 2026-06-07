@@ -42,8 +42,8 @@ export type SeriesOptions = {
 export type ChartProps = {
   orderbook: { marketId: BigNumber | null, primaryAsset: AssetId | null, secondaryAsset: AssetId | null } | null,
   pair: AggregatedPair | null,
-  blockNumber: number,
   whitelisted: boolean | null,
+  blockNumber: number,
   options: SeriesOptions,
   tradeEvents: CustomEvent<any>[],
   onOptionsChange: (callback: (prev: SeriesOptions) => SeriesOptions) => any,
@@ -241,11 +241,49 @@ export function ChartView(props: {
     </Chart>
   );
 }
+export function ChartTitle({
+  orderbook,
+  pair,
+  whitelisted,
+}: {
+  orderbook: { marketId: BigNumber | null, primaryAsset: AssetId | null, secondaryAsset: AssetId | null } | null,
+  pair: AggregatedPair | null,
+  whitelisted: boolean | null
+}) {
+  const mobile = document.body.clientWidth <= 800;
+  return (  
+    <Flex align="center" pt={mobile ? '4' : '3'} pb={mobile ? '1' : '3'} px="3">
+      <Box style={{ position: 'relative' }} mr="2">
+        <AssetImage asset={orderbook?.secondaryAsset || undefined} size="2" style={{ position: 'absolute', top: mobile ? '18px' : '24px', left: '-6px' }}></AssetImage>
+        <AssetImage asset={orderbook?.primaryAsset || undefined} size={mobile ? '3' : '4'}></AssetImage>
+      </Box>
+      <Flex direction="column" width="100%">
+        <Flex justify="between">
+          <Tooltip side="left" content={whitelisted === true ? 'Well-known trading pair — current price is possibly within reasonable market ranges' : (whitelisted === false ? 'One or both of assets in trading pair are unknown and are possibly malicious — current price is likely not representative of actual market conditions' : 'Loading...')}>
+            <Flex gap="1">
+              <Text size={mobile ? '3' : '4'} style={{ height: '18px', color: 'var(--gray-12)' }}>{ orderbook?.primaryAsset ? Readability.toAssetName(orderbook.primaryAsset) : '?' }</Text>
+              { <Icon path={whitelisted === true ? mdiCheckDecagram : (whitelisted === false ? mdiAlert : mdiTimelapse)} color={whitelisted === true ? 'var(--sky-9)' : (whitelisted === false ? 'var(--yellow-9)' : 'var(--gray-9)')} size={0.75} style={{ transform: 'translateY(3px)' }}></Icon> }
+            </Flex>
+          </Tooltip>
+          <Text size={mobile ? '3' : '4'} style={{ height: '18px' }}>{ Readability.toValue(null, pair?.price.close || null, false, true) }</Text>
+        </Flex>
+        <Flex justify="between" align="center" mt={mobile ? undefined : '1'}>
+          <Text size={mobile ? '1' : '2'} color="gray">{ (orderbook?.primaryAsset ? Readability.toAssetSymbol(orderbook.primaryAsset) : '?') + 'x' + (orderbook?.secondaryAsset ? Readability.toAssetSymbol(orderbook.secondaryAsset) : '?') }</Text>
+          <Box>
+            <Text size={mobile ? '1' : '2'}>{ Readability.toValue(null, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true, true) }</Text>
+            <Text size={mobile ? '1' : '2'} color="gray"> | </Text>
+            <Text size={mobile ? '1' : '2'} color={ (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'red' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'lime') }>{ Readability.toPercentageDelta(pair?.price.open || new BigNumber(0), pair?.price.close || new BigNumber(0)) }</Text>
+          </Box>
+        </Flex>
+      </Flex>
+    </Flex>
+  )
+}
 export function ChartWidget({
   orderbook,
   pair,
-  blockNumber,
   whitelisted,
+  blockNumber,
   options,
   tradeEvents,
   onOptionsChange,
@@ -401,17 +439,10 @@ export function ChartWidget({
       setLegendBar({ price: priceBar, volume: volumeBar });
   }, []);
   useEffectAsync(async () => {
-    if (!state.ready) {
+    if (!state.ready && priceSeriesRef.current) {
       await fetchSeries(null);
     }
-  }, [state.ready, fetchSeries]);
-  useEffect(() => {
-    setState(prev => ({
-      ...prev,
-      launch: pair ? Math.floor(pair.launchTime / 1000) : Number.MIN_SAFE_INTEGER,
-      ready: false
-    }));
-  }, [pair?.id]);
+  }, [state.ready, priceSeriesRef.current, fetchSeries]);
   useEffect(() => {
     if (!pair || !state.ready || !tradeEvents.length)
       return;
@@ -508,31 +539,7 @@ export function ChartWidget({
 
   return (
     <Box width="100%" className={mobile ? undefined : 'rt-Card'} mb={mobile ? undefined : '3'} style={mobile ? { } : { backgroundColor: 'var(--color-panel)', borderRadius: '22px', overflow: 'hidden' }}>
-      <Flex align="center" pt={mobile ? '4' : '3'} pb={mobile ? '4' : '3'} px="3">
-        <Box style={{ position: 'relative' }} mr="2">
-          <AssetImage asset={orderbook?.secondaryAsset || undefined} size="2" style={{ position: 'absolute', top: mobile ? '18px' : '24px', left: '-6px' }}></AssetImage>
-          <AssetImage asset={orderbook?.primaryAsset || undefined} size={mobile ? '3' : '4'}></AssetImage>
-        </Box>
-        <Flex direction="column" width="100%">
-          <Flex justify="between">
-            <Tooltip side="left" content={whitelisted === true ? 'Well-known trading pair — current price is possibly within reasonable market ranges' : (whitelisted === false ? 'One or both of assets in trading pair are unknown and are possibly malicious — current price is likely not representative of actual market conditions' : 'Loading...')}>
-              <Flex gap="1">
-                <Text size={mobile ? '3' : '4'} style={{ height: '18px', color: 'var(--gray-12)' }}>{ orderbook?.primaryAsset ? Readability.toAssetName(orderbook.primaryAsset) : '?' }</Text>
-                { <Icon path={whitelisted === true ? mdiCheckDecagram : (whitelisted === false ? mdiAlert : mdiTimelapse)} color={whitelisted === true ? 'var(--sky-9)' : (whitelisted === false ? 'var(--yellow-9)' : 'var(--gray-9)')} size={0.75} style={{ transform: 'translateY(3px)' }}></Icon> }
-              </Flex>
-            </Tooltip>
-            <Text size={mobile ? '3' : '4'} style={{ height: '18px' }}>{ Readability.toValue(null, pair?.price.close || null, false, true) }</Text>
-          </Flex>
-          <Flex justify="between" align="center" mt={mobile ? undefined : '1'}>
-            <Text size={mobile ? '1' : '2'} color="gray">{ (orderbook?.primaryAsset ? Readability.toAssetSymbol(orderbook.primaryAsset) : '?') + 'x' + (orderbook?.secondaryAsset ? Readability.toAssetSymbol(orderbook.secondaryAsset) : '?') }</Text>
-            <Box>
-              <Text size={mobile ? '1' : '2'}>{ Readability.toValue(null, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true, true) }</Text>
-              <Text size={mobile ? '1' : '2'} color="gray"> | </Text>
-              <Text size={mobile ? '1' : '2'} color={ (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'red' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'lime') }>{ Readability.toPercentageDelta(pair?.price.open || new BigNumber(0), pair?.price.close || new BigNumber(0)) }</Text>
-            </Box>
-          </Flex>
-        </Flex>
-      </Flex>
+      { !mobile && <ChartTitle orderbook={orderbook} pair={pair} whitelisted={whitelisted}></ChartTitle> }
       <AspectRatio ratio={mobile ? (7 / 9) : (16 / 9)}>
         <ChartView
           type={options.view}

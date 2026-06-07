@@ -5,13 +5,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Exchange, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide, Balance, Pool } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { CrosshairMode, PriceScaleMode } from "lightweight-charts";
-import { mdiAlert, mdiArrowRightThin, mdiCheck, mdiCurrencyUsd } from "@mdi/js";
+import { mdiAlert, mdiArrowRightThin, mdiChartBox, mdiChartGantt, mdiCheck, mdiCurrencyUsd, mdiListBox, mdiShopping } from "@mdi/js";
 import { AlertBox, AlertType } from "../../components/alert";
 import { AssetId, Readability, Whitelist } from "tangentsdk";
 import { AppStorage } from "../../core/storage";
 import { Maker } from "../../components/exchange/maker";
 import { AssetImage } from "../../components/asset";
-import { ChartViewType, ChartWidget, SeriesOptions, PriceScope } from "../../components/exchange/chart";
+import { ChartViewType, ChartWidget, SeriesOptions, PriceScope, ChartTitle } from "../../components/exchange/chart";
 import BigNumber from "bignumber.js";
 import OrderView from "../../components/exchange/order";
 import Icon from "@mdi/react";
@@ -131,19 +131,20 @@ export default function OrderbookPage() {
       bid: levels.bid.length > 0 ? levels.bid[0].price : null
     }
   }, [levels]);
-  const balances = useMemo((): { primary: { price: BigNumber | null, value: BigNumber }, secondary: { price: BigNumber | null, value: BigNumber } } => {
-    const primaryBalance = polyBalances.primary.reduce((p, n) => ({ p: n.price ? (p.p.isNaN() ? n.price : p.p.plus(n.price).div(2)) : p.p, v: p.v.plus(n.available) }), { p: new BigNumber(NaN), v: new BigNumber(0) });
-    const secondaryBalance = polyBalances.secondary.reduce((p, n) => ({ p: n.price ? (p.p.isNaN() ? n.price : p.p.plus(n.price).div(2)) : p.p, v: p.v.plus(n.available) }), { p: new BigNumber(NaN), v: new BigNumber(0) });
+  const balances = useMemo((): { primary: { price: BigNumber | null, value: BigNumber, total: BigNumber }, secondary: { price: BigNumber | null, value: BigNumber, total: BigNumber } } => {
+    const primaryBalance = polyBalances.primary.reduce((p, n) => ({ p: n.price ? (p.p.isNaN() ? n.price : p.p.plus(n.price).div(2)) : p.p, v: p.v.plus(n.available), t: p.t.plus(n.available).plus(n.unavailable) }), { p: new BigNumber(NaN), v: new BigNumber(0), t: new BigNumber(0) });
+    const secondaryBalance = polyBalances.secondary.reduce((p, n) => ({ p: n.price ? (p.p.isNaN() ? n.price : p.p.plus(n.price).div(2)) : p.p, v: p.v.plus(n.available), t: p.t.plus(n.available).plus(n.unavailable) }), { p: new BigNumber(NaN), v: new BigNumber(0), t: new BigNumber(0) });
     return {
-      primary: { price: primaryBalance.p.isNaN() ? null : primaryBalance.p, value: primaryBalance.v },
-      secondary: { price: secondaryBalance.p.isNaN() ? null : secondaryBalance.p, value: secondaryBalance.v },
+      primary: { price: primaryBalance.p.isNaN() ? null : primaryBalance.p, value: primaryBalance.v, total: primaryBalance.t },
+      secondary: { price: secondaryBalance.p.isNaN() ? null : secondaryBalance.p, value: secondaryBalance.v, total: secondaryBalance.t },
     };
   }, [polyBalances]);
   const valuation = useMemo(() => {
-    const rate = pair ? Exchange.priceOf(seriesOptions.showPrimary ? pair.secondaryAsset : pair.primaryAsset)?.close : null;
-    const basePrice = rate ? (seriesOptions.showPrimary ? balances.primary.price : balances.secondary.price)?.dividedBy(rate) || null : null;
+    const rate = pair ? Exchange.priceOf(pair.secondaryAsset)?.close : null;
+    const achorPrice = rate ? balances.primary.price?.dividedBy(rate) || null : null
+    const basePrice = seriesOptions.showPrimary ? achorPrice : (achorPrice ? new BigNumber(1).dividedBy(achorPrice) : null);
     const currentPrice = rate ? (seriesOptions.showPrimary ? pair?.price.close : (pair?.price.close ? new BigNumber(1).dividedBy(pair.price.close) : null)) || null : null;
-    const quantity = seriesOptions.showPrimary ? balances.primary.value : balances.secondary.value;
+    const quantity = seriesOptions.showPrimary ? balances.primary.total : balances.secondary.total;
     const worth = currentPrice ? quantity.multipliedBy(currentPrice) : null;
     const relativePL = currentPrice && basePrice ? currentPrice.minus(basePrice).dividedBy(basePrice) : new BigNumber(0);
     return {
@@ -375,8 +376,8 @@ export default function OrderbookPage() {
             <ChartWidget 
               orderbook={orderbook}
               pair={pair}
-              blockNumber={blockNumber}
               whitelisted={whitelisted}
+              blockNumber={blockNumber}
               options={seriesOptions}
               tradeEvents={incomingTrades}
               onOptionsChange={updateSeriesOptions}
@@ -389,36 +390,59 @@ export default function OrderbookPage() {
               if (e != 'maker')
                 setPreset(null);
             }}>
+              { mobile && <ChartTitle orderbook={orderbook} pair={pair} whitelisted={whitelisted}></ChartTitle> }
               <Tabs.List size="2" justify="center" color="lime" style={mobile ? { paddingTop: '10px' } : { }}>
                 <Tabs.Trigger value="info" className="tab-padding-erase">
-                  <Badge size="3" radius="large">Market</Badge>
+                  <Badge size="3" radius="large">
+                    <Flex align="center" gap="1">
+                      <Icon path={mdiChartBox} size={0.6}></Icon>
+                      <Text>Market</Text>
+                    </Flex>
+                  </Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="maker" className="tab-padding-erase">
-                  <Badge size="3" radius="large">Trade</Badge>
+                  <Badge size="3" radius="large">
+                    <Flex align="center" gap="1">
+                      <Icon path={mdiShopping} size={0.6}></Icon>
+                      <Text>Trade</Text>
+                    </Flex>
+                  </Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="book" className="tab-padding-erase">
-                  <Badge size="3" radius="large">Book</Badge>
+                  <Badge size="3" radius="large">
+                    <Flex align="center" gap="1">
+                      <Icon path={mdiChartGantt} size={0.6}></Icon>
+                      <Text>Book</Text>
+                    </Flex>
+                  </Badge>
                 </Tabs.Trigger>
                 <Tabs.Trigger value="trades" className="tab-padding-erase">
-                  <Badge size="3" radius="large">Log</Badge>
+                  <Badge size="3" radius="large">
+                    <Flex align="center" gap="1">
+                      <Icon path={mdiListBox} size={0.6}></Icon>
+                      <Text>Logs</Text>
+                    </Flex>
+                  </Badge>
                 </Tabs.Trigger>
               </Tabs.List>
               <Clock></Clock>
               <Box pt={mobile ? '1' : '3'}>
-                <Tabs.Content value="info">
-                  {
-                    mobile &&
+                {
+                  mobile &&
+                  <Box display={tab == 'info' ? undefined : 'none'}>
                     <ChartWidget 
                       orderbook={orderbook}
                       pair={pair}
-                      blockNumber={blockNumber}
                       whitelisted={whitelisted}
+                      blockNumber={blockNumber}
                       options={seriesOptions}
                       tradeEvents={incomingTrades}
                       onOptionsChange={updateSeriesOptions}
                       onTradesChange={updateIncomingTrades}
                       onPairChange={setPair}></ChartWidget>
-                  }
+                  </Box>
+                }
+                <Tabs.Content value="info">
                   {
                     orderbook?.primaryAsset && orderbook.secondaryAsset && 
                     <Box px={mobile ? '3' : undefined} pt={mobile ? '2' : undefined}>
