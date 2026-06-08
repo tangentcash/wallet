@@ -1,7 +1,7 @@
 import { AspectRatio, Badge, Box, Dialog, Flex, IconButton, Select, Text, Tooltip } from "@radix-ui/themes";
 import { AppData } from "../../core/app";
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Exchange, AggregatedMatch, AggregatedPair, OrderSide } from "../../core/exchange";
+import { Exchange, AggregatedLog, AggregatedPair, OrderSide } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { AreaSeries, BarSeries, CandlestickSeries, Chart, HistogramSeries, LineSeries, TimeScale, TimeScaleFitContentTrigger, SeriesApiRef } from "lightweight-charts-react-components";
 import { LogicalRangeChangeEventHandler, MouseEventHandler, BarPrice, ChartOptions, CrosshairMode, DeepPartial, IChartApi, LogicalRange, MouseEventParams, PriceScaleMode, Time } from "lightweight-charts";
@@ -47,7 +47,7 @@ export type ChartProps = {
   options: SeriesOptions,
   tradeEvents: CustomEvent<any>[],
   onOptionsChange: (callback: (prev: SeriesOptions) => SeriesOptions) => any,
-  onTradesChange: (trades: AggregatedMatch[]) => any,
+  onTradesChange: (trades: AggregatedLog[]) => any,
   onPairChange: (pair: AggregatedPair) => any
 };
 
@@ -447,7 +447,7 @@ export function ChartWidget({
     if (!pair || !state.ready || !tradeEvents.length)
       return;
 
-    const trades: AggregatedMatch[] = [];
+    const trades: AggregatedLog[] = [];
     const target = Exchange.priceOf(pair.primaryAsset, pair.secondaryAsset);
     let sentiment = 0, price = target.close, quantity = new BigNumber(0);
     for (let i = 0; i < tradeEvents.length; i++) {
