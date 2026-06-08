@@ -64,7 +64,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.data);
                 AlertBox.open(AlertType.Info, 'Program calldata copied!')
-              }}>{ Readability.toHash(transaction.data) }</Button>
+              }}>{ Readability.toAddress(transaction.data) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -74,7 +74,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
                 const data: any = JSON.stringify(transaction.args, null, 2);
                 navigator.clipboard.writeText(data);
                 AlertBox.open(AlertType.Info, 'Program arguments copied!')
-              }}>{ Readability.toHash(args) }</Button>
+              }}>{ Readability.toAddress(args) }</Button>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
@@ -105,7 +105,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <Button size="2" variant="ghost" color="lime" onClick={() => {
                 navigator.clipboard.writeText(origin);
                 AlertBox.open(AlertType.Info, 'Program function copied!')
-              }}>{ Readability.toHash(method, 20) }</Button>
+              }}>{ Readability.toAddress(method, 20) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -114,7 +114,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(JSON.stringify(transaction.args, null, 2));
                 AlertBox.open(AlertType.Info, 'Program arguments copied!')
-              }}>{ Readability.toHash(args, 20) }</Button>
+              }}>{ Readability.toAddress(args, 20) }</Button>
             </DataList.Value>
           </DataList.Item>
           {
@@ -148,7 +148,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(item.action.hash);
                     AlertBox.open(AlertType.Info, 'Internal transaction hash copied!')
-                  }}>{ Readability.toHash(item.action.hash) }</Button>
+                  }}>{ Readability.toAddress(item.action.hash) }</Button>
                   <Link className="router-link" to={'/transaction/' + item.action.hash}>▒▒</Link>
                 </Flex>
               )
@@ -165,7 +165,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.bridge_hash);
                 AlertBox.open(AlertType.Info, 'Bridge hash copied!')
-              }}>{ Readability.toHash(transaction.bridge_hash) }</Button>
+              }}>{ Readability.toAddress(transaction.bridge_hash) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -188,7 +188,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.route_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.route_hash) }</Button>
+              }}>{ Readability.toAddress(transaction.route_hash) }</Button>
               <Box ml="2">
                 <Link className="router-link" to={'/transaction/' + transaction.route_hash}>▒▒</Link>
               </Box>
@@ -200,7 +200,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.group_public_key || 'NULL');
                 AlertBox.open(AlertType.Info, 'Group public key copied!')
-              }}>{ Readability.toHash(transaction.group_public_key) }</Button>
+              }}>{ Readability.toAddress(transaction.group_public_key) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -209,7 +209,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.group_signature || 'NULL');
                 AlertBox.open(AlertType.Info, 'Group signature copied!')
-              }}>{ Readability.toHash(transaction.group_signature) }</Button>
+              }}>{ Readability.toAddress(transaction.group_signature) }</Button>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
@@ -223,7 +223,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.route_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.route_hash) }</Button>
+              }}>{ Readability.toAddress(transaction.route_hash) }</Button>
               <Box ml="2">
                 <Link className="router-link" to={'/transaction/' + transaction.route_hash}>▒▒</Link>
               </Box>
@@ -235,7 +235,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.correction_key || 'NULL');
                 AlertBox.open(AlertType.Info, 'Correction key copied!')
-              }}>{ Readability.toHash(transaction.correction_key) }</Button>
+              }}>{ Readability.toAddress(transaction.correction_key) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -244,7 +244,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.imperfect_key || 'NULL');
                 AlertBox.open(AlertType.Info, 'Imperfect key copied!')
-              }}>{ Readability.toHash(transaction.imperfect_key) }</Button>
+              }}>{ Readability.toAddress(transaction.imperfect_key) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -253,7 +253,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.correction_commitment || 'NULL');
                 AlertBox.open(AlertType.Info, 'Correction commitment copied!')
-              }}>{ Readability.toHash(transaction.correction_commitment) }</Button>
+              }}>{ Readability.toAddress(transaction.correction_commitment) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -262,7 +262,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.key_commitment || 'NULL');
                 AlertBox.open(AlertType.Info, 'Key commitment copied!')
-              }}>{ Readability.toHash(transaction.key_commitment) }</Button>
+              }}>{ Readability.toAddress(transaction.key_commitment) }</Button>
             </DataList.Value>
           </DataList.Item>
         </DataList.Root>
@@ -349,7 +349,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
                       <Button size="2" variant="ghost" color="indigo" onClick={() => {
                         navigator.clipboard.writeText(item.broadcast_hash);
                         AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                      }}>{ Readability.toHash(item.broadcast_hash) }</Button>
+                      }}>{ Readability.toAddress(item.broadcast_hash) }</Button>
                       <Box ml="2">
                         <Link className="router-link" to={'/transaction/' + item.broadcast_hash}>▒▒</Link>
                       </Box>
@@ -380,7 +380,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(transaction.setup_hash);
                   AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                }}>{ Readability.toHash(transaction.setup_hash) }</Button>
+                }}>{ Readability.toAddress(transaction.setup_hash) }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/transaction/' + transaction.setup_hash}>▒▒</Link>
                 </Box>
@@ -401,7 +401,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
                       <Button size="2" variant="ghost" color="indigo" onClick={() => {
                         navigator.clipboard.writeText(item.correction_key || 'NULL');
                         AlertBox.open(AlertType.Info, 'Correction key copied!')
-                      }}>{ Readability.toHash(item.correction_key) }</Button>
+                      }}>{ Readability.toAddress(item.correction_key) }</Button>
                     </DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
@@ -410,7 +410,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
                       <Button size="2" variant="ghost" color="indigo" onClick={() => {
                         navigator.clipboard.writeText(item.imperfect_key || 'NULL');
                         AlertBox.open(AlertType.Info, 'Imperfect key copied!')
-                      }}>{ Readability.toHash(item.imperfect_key) }</Button>
+                      }}>{ Readability.toAddress(item.imperfect_key) }</Button>
                     </DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
@@ -419,7 +419,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
                       <Button size="2" variant="ghost" color="indigo" onClick={() => {
                         navigator.clipboard.writeText(item.correction_commitment || 'NULL');
                         AlertBox.open(AlertType.Info, 'Correction commitment copied!')
-                      }}>{ Readability.toHash(item.correction_commitment) }</Button>
+                      }}>{ Readability.toAddress(item.correction_commitment) }</Button>
                     </DataList.Value>
                   </DataList.Item>
                   <DataList.Item>
@@ -428,7 +428,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
                       <Button size="2" variant="ghost" color="indigo" onClick={() => {
                         navigator.clipboard.writeText(item.key_commitment || 'NULL');
                         AlertBox.open(AlertType.Info, 'Key commitment copied!')
-                      }}>{ Readability.toHash(item.key_commitment) }</Button>
+                      }}>{ Readability.toAddress(item.key_commitment) }</Button>
                     </DataList.Value>
                   </DataList.Item>
                 </DataList.Root>
@@ -446,7 +446,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.bridge_hash);
                 AlertBox.open(AlertType.Info, 'Bridge hash copied!')
-              }}>{ Readability.toHash(transaction.bridge_hash) }</Button>
+              }}>{ Readability.toAddress(transaction.bridge_hash) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -473,7 +473,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.withdraw_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.withdraw_hash) }</Button>
+              }}>{ Readability.toAddress(transaction.withdraw_hash) }</Button>
               <Box ml="2">
                 <Link className="router-link" to={'/transaction/' + transaction.withdraw_hash}>▒▒</Link>
               </Box>
@@ -488,7 +488,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(transaction.hashdata);
                     AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                  }}>{ Readability.toHash(transaction.hashdata) }</Button>
+                  }}>{ Readability.toAddress(transaction.hashdata) }</Button>
                 </DataList.Value>
               </DataList.Item>
               <DataList.Item>
@@ -529,7 +529,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.broadcast_hash);
                 AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ Readability.toHash(transaction.broadcast_hash) }</Button>
+              }}>{ Readability.toAddress(transaction.broadcast_hash) }</Button>
               <Box ml="2">
                 <Link className="router-link" to={'/transaction/' + transaction.broadcast_hash}>▒▒</Link>
               </Box>
@@ -583,7 +583,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(transaction.proof.transaction_id);
                     AlertBox.open(AlertType.Info, 'Transaction id copied!')
-                  }}>{ Readability.toHash(transaction.proof.transaction_id) }</Button>
+                  }}>{ Readability.toAddress(transaction.proof.transaction_id) }</Button>
                 </DataList.Value>
               </DataList.Item>
               <DataList.Item>
@@ -814,7 +814,7 @@ export function TransactionOutputFields(props: { orientation: 'horizontal' | 've
                         <Button size="2" variant="ghost" color="indigo" onClick={() => {
                           navigator.clipboard.writeText(event.bridgeHash);
                           AlertBox.open(AlertType.Info, 'Bridge hash copied!')
-                        }}>{ Readability.toHash(event.bridgeHash) }</Button>
+                        }}>{ Readability.toAddress(event.bridgeHash) }</Button>
                       </DataList.Value>
                     </DataList.Item>
                   </DataList.Root>
@@ -837,7 +837,7 @@ export function TransactionOutputFields(props: { orientation: 'horizontal' | 've
                         <Button size="2" variant="ghost" color="indigo" onClick={() => {
                           navigator.clipboard.writeText(event.bridgeHash);
                           AlertBox.open(AlertType.Info, 'Bridge hash copied!')
-                        }}>{ Readability.toHash(event.bridgeHash) }</Button>
+                        }}>{ Readability.toAddress(event.bridgeHash) }</Button>
                       </DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
@@ -869,7 +869,7 @@ export function TransactionOutputFields(props: { orientation: 'horizontal' | 've
                         <Button size="2" variant="ghost" color="indigo" onClick={() => {
                           navigator.clipboard.writeText(event.bridgeHash);
                           AlertBox.open(AlertType.Info, 'Bridge hash copied!')
-                        }}>{ Readability.toHash(event.bridgeHash) }</Button>
+                        }}>{ Readability.toAddress(event.bridgeHash) }</Button>
                       </DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
@@ -901,7 +901,7 @@ export function TransactionOutputFields(props: { orientation: 'horizontal' | 've
                         <Button size="2" variant="ghost" color="indigo" onClick={() => {
                           navigator.clipboard.writeText(event.bridgeHash);
                           AlertBox.open(AlertType.Info, 'Bridge hash copied!')
-                        }}>{ Readability.toHash(event.bridgeHash) }</Button>
+                        }}>{ Readability.toAddress(event.bridgeHash) }</Button>
                       </DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
@@ -930,7 +930,7 @@ export function TransactionOutputFields(props: { orientation: 'horizontal' | 've
                         <Button size="2" variant="ghost" color="indigo" onClick={() => {
                           navigator.clipboard.writeText(event.bridgeHash);
                           AlertBox.open(AlertType.Info, 'Bridge hash copied!')
-                        }}>{ Readability.toHash(event.bridgeHash) }</Button>
+                        }}>{ Readability.toAddress(event.bridgeHash) }</Button>
                       </DataList.Value>
                     </DataList.Item>
                     <DataList.Item>
@@ -1046,7 +1046,7 @@ export function TransactionOutputFields(props: { orientation: 'horizontal' | 've
                         <Button size="2" variant="ghost" color="indigo" onClick={() => {
                           navigator.clipboard.writeText(event.stateHash);
                           AlertBox.open(AlertType.Info, 'State hash copied!')
-                        }}>{ Readability.toHash(event.stateHash) }</Button>
+                        }}>{ Readability.toAddress(event.stateHash) }</Button>
                       </DataList.Value>
                     </DataList.Item>
                   </DataList.Root>
@@ -1069,7 +1069,7 @@ export function TransactionOutputFields(props: { orientation: 'horizontal' | 've
                         <Button size="2" variant="ghost" color="indigo" onClick={() => {
                           navigator.clipboard.writeText(event.transactionHash);
                           AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                        }}>{ Readability.toHash(event.transactionHash) }</Button>
+                        }}>{ Readability.toAddress(event.transactionHash) }</Button>
                         <Box ml="2">
                           <Link className="router-link" to={'/transaction/' + event.transactionHash}>▒▒</Link>
                         </Box>
@@ -1135,7 +1135,7 @@ export function TransactionDetailsView(props: { orientation: 'horizontal' | 'ver
             <Button size="2" variant="ghost" color="indigo" onClick={() => {
               navigator.clipboard.writeText(transaction.hash);
               AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-            }}>{ Readability.toHash(transaction.hash, 12) }</Button>
+            }}>{ Readability.toAddress(transaction.hash, 12) }</Button>
             <Box ml="2">
               <Link className="router-link" to={'/transaction/' + transaction.hash}>▒▒</Link>
             </Box>
@@ -1147,7 +1147,7 @@ export function TransactionDetailsView(props: { orientation: 'horizontal' | 'ver
             <Button size="2" variant="ghost" color="indigo" onClick={() => {
               navigator.clipboard.writeText(transaction.signature);
               AlertBox.open(AlertType.Info, 'Transaction signature copied!')
-            }}>{ Readability.toHash(transaction.signature, 12) }</Button>
+            }}>{ Readability.toAddress(transaction.signature, 12) }</Button>
           </DataList.Value>
         </DataList.Item>
         {
@@ -1320,7 +1320,7 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
               <Flex gap="2" wrap="wrap">
                 {
                   props.summary &&
-                  <Badge size="1" color="lime">{ Readability.toHash(transaction.hash, 6) }</Badge>
+                  <Badge size="1" color="lime">{ Readability.toAddress(transaction.hash, 6) }</Badge>
                 }
                 {
                   !transaction.error && (!summary || summary.empty) &&

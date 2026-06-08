@@ -145,10 +145,10 @@ export type AggregatedPair = {
   }
 }
 
-export type AggregatedMatch = {
+export type AggregatedLog = {
   time: Date,
   account: string,
-  side: OrderSide,
+  side: OrderSide | 'lp',
   price: BigNumber,
   quantity: BigNumber
 }
@@ -594,8 +594,8 @@ export class Exchange {
       secondary: result.secondary.map((item: any) => new AssetId(item.id)),
     };
   }
-  static async marketPairTrades(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber } & PageQuery): Promise<AggregatedMatch[]> {
-    const result = await this.fetch('GET', `market/pair/trades`, {
+  static async marketPairLogs(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber } & PageQuery): Promise<AggregatedLog[]> {
+    const result = await this.fetch('GET', `market/pair/logs`, {
       marketId: account.marketId?.toString(),
       pairId: account.pairId?.toString(),
       page: account.page

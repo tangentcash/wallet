@@ -2,7 +2,7 @@ import { Badge, Box, Button, Card, Flex, Heading, SegmentedControl, Tabs, Text, 
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { AppData } from "../../core/app";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Exchange, AccountTier, AggregatedLevel, AggregatedMatch, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide, Balance, Pool } from "../../core/exchange";
+import { Exchange, AccountTier, AggregatedLevel, AggregatedLog, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide, Balance, Pool, Cursor } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { CrosshairMode, PriceScaleMode } from "lightweight-charts";
 import { mdiAlert, mdiArrowRightThin, mdiChartBox, mdiChartGantt, mdiCheck, mdiCurrencyUsd, mdiListBox, mdiShopping } from "@mdi/js";
@@ -12,6 +12,7 @@ import { AppStorage } from "../../core/storage";
 import { Maker } from "../../components/exchange/maker";
 import { AssetImage } from "../../components/asset";
 import { ChartViewType, ChartWidget, SeriesOptions, PriceScope, ChartTitle } from "../../components/exchange/chart";
+import InfiniteScroll from 'react-infinite-scroll-component';
 import BigNumber from "bignumber.js";
 import OrderView from "../../components/exchange/order";
 import Icon from "@mdi/react";
@@ -73,7 +74,7 @@ export default function OrderbookPage() {
   const [showingPools, setShowingPools] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [preset, setPreset] = useState<{ id: number, condition: OrderCondition, side: OrderSide, price: string } | null>(null);
-  const [tab, setTab] = useState<'info' | 'maker' | 'book' | 'trades'>(mobile ? 'info' : 'maker');
+  const [tab, setTab] = useState<'info' | 'maker' | 'book' | 'logs'>(mobile ? 'info' : 'maker');
   const [orders, setOrders] = useState<Order[]>([]);
   const [pools, setPools] = useState<Pool[]>([]);
   const [levels, setLevels] = useState<{ ask: AggregatedGroupedLevel[], bid: AggregatedGroupedLevel[] }>({ ask: [], bid: [] })
@@ -81,7 +82,8 @@ export default function OrderbookPage() {
   const [tiers, setTiers] = useState<AccountTier | null>(null);
   const [pair, setPair] = useState<AggregatedPair | null>(null);
   const [market, setMarket] = useState<Market | null>(null);
-  const [trades, setTrades] = useState<AggregatedMatch[]>([]);
+  const [logs, setLogs] = useState<AggregatedLog[]>([]);
+  const [moreLogs, setMoreLogs] = useState(true);
   const [_, setPolyAssets] = useState<{ primary: AssetId[], secondary: AssetId[] }>({ primary: [], secondary: [] });
   const [incomingTrades, setIncomingTrades] = useState<CustomEvent<any>[]>([]);
   const [incomingLevels, setIncomingLevels] = useState<CustomEvent<any>[]>([]);
@@ -185,11 +187,38 @@ export default function OrderbookPage() {
       return result;
     });
   }, [params]);
-  const updateIncomingTrades = useCallback((trades: AggregatedMatch[]) => {
+  const updateIncomingTrades = useCallback((trades: AggregatedLog[]) => {
     setIncomingTrades([]);
-    if (trades.length > 0)
-      setTrades(prev => ([...prev, ...trades]));
+    if (trades.length > 0) {
+      setLogs(prev => ([...trades.sort((a, b) => a.time.getTime() - b.time.getTime()), ...prev]));
+    }
   }, []);
+  const findLogs = useCallback(async (refresh?: boolean, marketId?: BigNumber, pairId?: BigNumber) => {
+    if ((!orderbook?.marketId && !marketId) || (!pair?.id && !pairId))
+      return false;
+
+    try {
+      const cursor = Cursor.offset(refresh ? 0 : logs.length);
+      const page = Math.floor(cursor.offset / cursor.count);
+      const data = await Exchange.marketPairLogs({ marketId: orderbook?.marketId || marketId, pairId: pair?.id || pairId, page: page });
+      if (!Array.isArray(data) || !data.length) {
+        if (refresh)
+          setLogs([]);
+        setMoreLogs(false);
+        return false;
+      }
+
+      setLogs(refresh ? data : prev => prev.concat(data));
+      setMoreLogs(data.length >= cursor.count);
+      return data.length > 0;
+    } catch (exception) {
+      AlertBox.open(AlertType.Error, 'Failed to fetch market logs: ' + (exception as Error).message);
+      if (refresh)
+        setLogs([]);
+      setMoreLogs(false);
+      return false;
+    }
+  }, [orderbook?.marketId, pair?.id, logs]);
   useEffectAsync(async () => {
     setLoading(true);
     try {
@@ -244,7 +273,7 @@ export default function OrderbookPage() {
       const marketResult = Exchange.market(orderbook.marketId);
       const levelsResult = Exchange.marketPairPriceLevels(orderbook.marketId, result.id, 128);
       const assetsResult = Exchange.marketPairAssets(orderbook.marketId, result.id);
-      const tradesResult = Exchange.marketPairTrades({ marketId: orderbook.marketId, pairId: result.id });
+      const logsResult = findLogs(true, orderbook.marketId, result.id);
       try {
         setMarket(await marketResult);
       } catch (exception: any) {
@@ -269,16 +298,7 @@ export default function OrderbookPage() {
         AlertBox.open(AlertType.Error, 'Failed to fetch market poly assets: ' + (exception.message || 'unknown error'));
       }
 
-      try {
-        const tradesData = await tradesResult;
-        if (tradesData != null) {
-          setTrades(tradesData);
-        }
-      } catch (exception: any) {
-        AlertBox.open(AlertType.Error, 'Failed to fetch market trades: ' + (exception.message || 'unknown error'));
-      }
-
-      await updateAccount();
+      await Promise.all([logsResult, updateAccount()]);
       setWhitelisted(!!Whitelist.contractAddressOf(result.primaryAsset) && !!Whitelist.contractAddressOf(result.secondaryAsset));
       setLoading(false);
 
@@ -362,7 +382,7 @@ export default function OrderbookPage() {
   }, []);
   useEffect(() => {
     const tab = search.get('tab');
-    if (tab && ['info', 'maker', 'book', 'trades'].includes(tab)) {
+    if (tab && ['info', 'maker', 'book', 'logs'].includes(tab)) {
       setTab(tab as any);
     }
   }, [search]);
@@ -416,7 +436,7 @@ export default function OrderbookPage() {
                     </Flex>
                   </Badge>
                 </Tabs.Trigger>
-                <Tabs.Trigger value="trades" className="tab-padding-erase">
+                <Tabs.Trigger value="logs" className="tab-padding-erase">
                   <Badge size="3" radius="large">
                     <Flex align="center" gap="1">
                       <Icon path={mdiListBox} size={0.6}></Icon>
@@ -704,41 +724,49 @@ export default function OrderbookPage() {
                     </Flex>
                   </Card>
                 </Tabs.Content>
-                <Tabs.Content value="trades">
+                <Tabs.Content value="logs">
                   <Box px={mobile ? '3' : undefined} pt={mobile ? '4' : undefined}>
-                    {
-                      trades.map((item) =>
-                        <Box key={item.account + item.time.getTime()} mb="3" className="rt-Card" style={{ width: '100%', height: 'auto', backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
-                          <Flex direction="column" gap="2" style={{ padding: '12px' }}>
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">At</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook?.secondaryAsset || null, item.price) }</Text>
-                            </Flex>
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color={item.side == OrderSide.Buy ? 'lime' : 'red'}>{ item.side == OrderSide.Buy ? 'Buy' : 'Sell' }</Text>
-                              <Text size="2" color={item.side == OrderSide.Buy ? 'lime' : 'red'}>{ Readability.toMoney(orderbook?.primaryAsset || null, item.quantity) }</Text>
-                            </Flex>
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>With</Text>
-                              <Flex>
-                                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                  navigator.clipboard.writeText(item.account || 'NULL');
-                                  AlertBox.open(AlertType.Info, 'Account address copied!')
-                                }}>{ Readability.toAddress(item.account || 'NULL', 5) }</Button>
-                                <Box ml="2">
-                                  <Link className="router-link" to={'/portfolio/' + item.account}>▒▒</Link>
-                                </Box>
+                    <InfiniteScroll dataLength={logs.length} hasMore={moreLogs} next={findLogs} loader={<div></div>}>
+                      {
+                        logs.map((item, index) => {
+                          const pool = item.side == 'lp';
+                          const action = pool ? (item.quantity.gt(0) ? 'Push LP' : 'Pull LP') : (item.side == OrderSide.Buy ? 'Buy' : 'Sell');
+                          const color = pool ? (item.quantity.gt(0) ? 'lime' : 'red') : (item.side == OrderSide.Buy ? 'lime' : 'red');
+                          return (
+                            <Box key={item.account + item.time.getTime().toString() + index.toString()} mb="3" className="rt-Card" style={{ width: '100%', height: 'auto', backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
+                              <Flex direction="column" gap="2" style={{ padding: '12px' }}>
+                                <Flex justify="between" wrap="wrap" gap="1">
+                                  <Text size="2" color="gray">At</Text>
+                                  <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook?.secondaryAsset || null, item.price) }</Text>
+                                </Flex>
+                                <Flex justify="between" wrap="wrap" gap="1">
+                                  <Text size="2" color={color}>{ action }</Text>
+                                  <Text size="2" color={color}>{ Readability.toMoney(orderbook?.primaryAsset || null, item.quantity.abs()) }</Text>
+                                </Flex>
+                                <Flex justify="between" wrap="wrap" gap="1">
+                                  <Text size="2" style={{ color: 'var(--gray-12)' }}>With</Text>
+                                  <Flex>
+                                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                                      navigator.clipboard.writeText(item.account || 'NULL');
+                                      AlertBox.open(AlertType.Info, 'Account address copied!')
+                                    }}>{ Readability.toAddress(item.account || 'NULL', 5) }</Button>
+                                    <Box ml="2">
+                                      <Link className="router-link" to={'/portfolio/' + item.account}>▒▒</Link>
+                                    </Box>
+                                  </Flex>
+                                </Flex>
+                                <Flex justify="between" wrap="wrap" gap="1">
+                                  <Text size="2" color="gray">Age</Text>
+                                  <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toTimePassed(item.time) }</Text>
+                                </Flex>
                               </Flex>
-                            </Flex>
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">Age</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toTimePassed(item.time) }</Text>
-                            </Flex>
-                          </Flex>
-                        </Box>)
-                    }
+                            </Box>
+                          )
+                        })
+                      }
+                    </InfiniteScroll>
                     {
-                      !trades.length &&
+                      !logs.length &&
                       <Flex justify="center">
                         <Text>No activity</Text>
                       </Flex>

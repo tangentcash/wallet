@@ -9,7 +9,7 @@ import { PerformerButton, Builder } from "./performer";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 
-export class PoolFormula {
+export class LiquidityPool {
   static toLiquidity0(amount0: BigNumber, price: BigNumber, maxPrice: BigNumber): BigNumber {
     return amount0.multipliedBy(price).multipliedBy(maxPrice).dividedBy(BigNumber.max(0, maxPrice.minus(price))).dp(18);
   }
@@ -22,9 +22,6 @@ export class PoolFormula {
   static toAmount1(liquidity: BigNumber, price: BigNumber, minPrice: BigNumber): BigNumber {
     return liquidity.multipliedBy(BigNumber.max(0, price.minus(minPrice))).dp(18);
   }
-}
-
-export class LiquidityPool {
   static toPrimaryValue(secondaryValue: BigNumber, price: BigNumber, minPrice: BigNumber | null, maxPrice: BigNumber | null): BigNumber | null {
     if (!secondaryValue.gt(0))
       return null;
@@ -33,8 +30,8 @@ export class LiquidityPool {
       const sqrtPrice = price.sqrt();
       const sqrtMinPrice = minPrice.sqrt();
       const sqrtMaxPrice = maxPrice.sqrt();
-      const liquidity = PoolFormula.toLiquidity1(secondaryValue, sqrtPrice, sqrtMinPrice);
-      return PoolFormula.toAmount0(liquidity, sqrtPrice, sqrtMaxPrice);
+      const liquidity = this.toLiquidity1(secondaryValue, sqrtPrice, sqrtMinPrice);
+      return this.toAmount0(liquidity, sqrtPrice, sqrtMaxPrice);
     } else {
       return secondaryValue.dividedBy(price);
     }
@@ -47,10 +44,19 @@ export class LiquidityPool {
       const sqrtPrice = price.sqrt();
       const sqrtMinPrice = minPrice.sqrt();
       const sqrtMaxPrice = maxPrice.sqrt();
-      const liquidity = PoolFormula.toLiquidity0(primaryValue, sqrtPrice, sqrtMaxPrice);
-      return PoolFormula.toAmount1(liquidity, sqrtPrice, sqrtMinPrice);
+      const liquidity = this.toLiquidity0(primaryValue, sqrtPrice, sqrtMaxPrice);
+      return this.toAmount1(liquidity, sqrtPrice, sqrtMinPrice);
     } else {
       return price.multipliedBy(primaryValue);
+    }
+  }
+  static toPrice(primaryValue: BigNumber, secondaryValue: BigNumber, liquidity: BigNumber, minPrice: BigNumber | null, maxPrice: BigNumber | null) {
+    if (minPrice?.gt(0) && maxPrice?.gt(0)) {
+      const price0 = liquidity.multipliedBy(maxPrice).dividedBy(primaryValue.multipliedBy(maxPrice).plus(liquidity));
+      const price1 = secondaryValue.plus(liquidity.multipliedBy(minPrice)).dividedBy(liquidity);
+      return price0.plus(price1).dividedBy(2);
+    } else {
+      return secondaryValue.dividedBy(primaryValue);
     }
   }
 }
