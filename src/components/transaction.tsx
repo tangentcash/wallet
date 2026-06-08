@@ -4,7 +4,7 @@ import { AlertBox, AlertType } from "./alert";
 import { Link } from "react-router";
 import { AppData } from "../core/app";
 import { useMemo, useState } from "react";
-import { mdiAlert, mdiCheck, mdiInformationOutline, mdiLockOpenVariantOutline, mdiLockOutline } from "@mdi/js";
+import { mdiAlert, mdiCheck, mdiInformationOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiReload } from "@mdi/js";
 import { AssetImage } from "./asset";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
@@ -1272,19 +1272,23 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
       return null;
 
     const volumes: Record<string, { asset: AssetId, value: BigNumber }> = { };
-    for (let account of Object.keys(state.account.balances)) {
-      const balances = state.account.balances[account];
-      for (let asset of Object.keys(balances)) {
-        const target = balances[asset], total = volumes[asset];
-        const volume = BigNumber.max(target.supply.minus(target.reserve), 0);
-        volumes[asset] = { asset: target.asset, value: total ? total.value.plus(volume) : volume }; 
+    for (let i = 0; i < state.events.length; i++) {
+      const event = state.events[i];
+      if (event.type == EventType.Transfer) {
+        volumes[event.asset.id] = { asset: event.asset, value: (volumes[event.asset.id]?.value || new BigNumber(0)).plus(event.value.abs()) };
+      } else if (event.type == EventType.TransferIsolated) {
+        volumes[event.asset.id] = { asset: event.asset, value: (volumes[event.asset.id]?.value || new BigNumber(0)).plus(BigNumber.max(event.supply.abs(), event.reserve.abs())) };
+      } else if (event.type == EventType.TransferFee) {
+        volumes[event.asset.id] = { asset: event.asset, value: (volumes[event.asset.id]?.value || new BigNumber(0)).plus(event.fee.abs()) };
+      } else if (event.type == EventType.BridgeTransfer) {
+        volumes[event.asset.id] = { asset: event.asset, value: (volumes[event.asset.id]?.value || new BigNumber(0)).plus(event.value.abs()) };
       }
     }
 
-    const baseBalance = state.account.balances[ownerAddress];
+    const balance = state.account.balances[ownerAddress];
     return {
-      delta: baseBalance ? Object.keys(baseBalance).map((asset) => {
-        const target = baseBalance[asset];
+      delta: balance ? Object.keys(balance).map((asset) => {
+        const target = balance[asset];
         return {
           asset: target.asset,
           supply: target.supply,
@@ -1292,7 +1296,7 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
         };
       }).filter(x => !x.supply.eq(0) || !x.reserve.eq(0)) : [],
       volume: Object.keys(volumes).map((id) => volumes[id]).filter((v) => v.value.gt(0)),
-      empty: !finalized || !Object.keys(baseBalance || { }).length
+      empty: !finalized || !Object.keys(balance || { }).length
     };
   }, [state, finalized, ownerAddress]);
   if (!props.preview && receipt != null && (!AppData.tip || receipt.block_number.gt(AppData.tip)))
@@ -1346,7 +1350,7 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
                 {
                   props.summary && summary && summary.volume.map((item) => 
                     <Flex key={'XXX0' + transaction.hash + item.asset.id } gap="2">
-                      { <Badge size="1" color="gold">{ Readability.toMoney(item.asset, item.value) }</Badge> }
+                      { <Badge size="1" color="gold"><Icon path={mdiReload} size={0.55}></Icon> { Readability.toMoney(item.asset, item.value) }</Badge> }
                     </Flex>
                   )
                 }
