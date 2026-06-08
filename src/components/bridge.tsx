@@ -405,9 +405,10 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
                     (!disclaimer && blockchain.routing_policy == 'account') &&
                     <Flex justify="center" align="center" direction="column" my="8">
                       <Text as="label" size="2">
-                        <Flex gap="2">
+                        <Flex gap="2" wrap="wrap">
                           <Checkbox checked={disclaimer} onCheckedChange={(e) => setDisclaimer(!!e.valueOf())} />
-                          I will deposit only from <Badge>{ Readability.toAddress(blockchainAddress || '', 6) }</Badge>
+                          <Text>I'll deposit from</Text>
+                          <Badge>{ Readability.toAddress(blockchainAddress || '', 6) }</Badge>
                         </Flex>
                       </Text>
                     </Flex>
@@ -435,7 +436,7 @@ export default function Bridge(props: { blockchains: any[], assets: any[] }) {
                               <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
                               <Flex gap="2" align="center">
                                 <Text size="4">{ Readability.toMoney(null, item.balance) }</Text>
-                                <AssetName asset={item.asset} size="4" badgeSize={0.8} badgeOffset={-1} symbol={true} tokenOnly={true}></AssetName>
+                                <AssetName asset={item.asset} size="4" badgeSize={0.8} badgeOffset={4} symbol={true} tokenOnly={true}></AssetName>
                               </Flex>
                             </Flex>
                           </Select.Item>

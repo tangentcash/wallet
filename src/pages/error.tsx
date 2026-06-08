@@ -5,8 +5,8 @@ import Icon from "@mdi/react";
 export default function HypePage() {
   return (
     <Box px="4" pt="6" maxWidth="800px" mx="auto">
-      <Flex align="center" mb="3" gap="2">
-        <Heading>Not a commonly known place</Heading>
+      <Flex align="center" justify="center" mb="3" gap="2">
+        <Heading>Unknown place</Heading>
       </Flex>
       <Callout.Root color="yellow">
         <Callout.Icon>

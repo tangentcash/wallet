@@ -21,13 +21,18 @@ export function AssetName(props: { asset?: AssetId, size?: string, badgeSize?: n
       <Flex align="center" gap="1" style={props.style}>
         {
           fake &&
-          <>
-            <Text as="div" size={size} weight="light">{ (!props.tokenOnly && props.asset.token ? props.asset.chain + ' ' : '') + Readability.toAssetSymbol(props.asset) }</Text>
-            { props.asset.checksum && <Text as="div" size={size} weight="light" ml="1" style={{ color: "var(--gray-11)" }}>({ props.asset.checksum.substring(0, 4) })</Text> }
-          </>
+          <Text as="div" size={size} weight="light">
+            { (!props.tokenOnly && props.asset.token ? props.asset.chain + ' ' : '') + Readability.toAssetSymbol(props.asset) }
+            { props.asset.checksum ? `(${ props.asset.checksum.substring(0, 4) })` : '' }
+          </Text>
         }
-        { !fake && <Text as="div" size={size} weight="light">{ props.symbol ? Readability.toAssetSymbol(props.asset) + (!props.tokenOnly && props.asset.token ? ` (${ props.asset.chain })` : '') : Readability.toAssetName(props.asset, false, props.tokenOnly) }</Text> }
-        { contractAddress && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={props.badgeSize || 0.7} style={{ transform: typeof props.badgeOffset == 'number' ? `translateY(${props.badgeOffset}px)` : 'translateY(-2px)' }}></Icon> }
+        {
+          !fake &&
+          <Text as="div" size={size} weight="light">
+            { props.symbol ? Readability.toAssetSymbol(props.asset) + (!props.tokenOnly && props.asset.token ? ` (${ props.asset.chain })` : '') : Readability.toAssetName(props.asset, false, props.tokenOnly) }
+            { contractAddress && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={props.badgeSize || 0.7} style={{ transform: `translateY(${props.badgeOffset || 2}px)`, paddingLeft: '2px' }}></Icon> }
+          </Text>
+        }
       </Flex>
     </Tooltip>
   )

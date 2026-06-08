@@ -808,7 +808,7 @@ export default function InteractionPage() {
                       <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
                       <Flex gap="2" align="center">
                         <Text size="4">{ Readability.toMoney(null, item.balance) }</Text>
-                        <AssetName asset={item.asset} size="4" badgeSize={0.8} badgeOffset={-1} symbol={true}></AssetName>
+                        <AssetName asset={item.asset} size="4" badgeSize={0.8} badgeOffset={4} symbol={true}></AssetName>
                       </Flex>
                     </Flex>
                   </Select.Item>

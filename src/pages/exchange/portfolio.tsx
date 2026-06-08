@@ -481,7 +481,7 @@ function SwapRouter(props: {
                       <AssetImage asset={AssetId.fromHandle(state.tokenIn.chain || '')} size="1" style={{ position: 'absolute', top: '16px', left: '-6px' }} iconSize="16px"></AssetImage>
                     }
                   </Box>
-                  <AssetName asset={state.tokenIn} symbol={true} tokenOnly={true} size="4" badgeOffset={0.1}></AssetName>
+                  <AssetName asset={state.tokenIn} symbol={true} tokenOnly={true} size="4"></AssetName>
                 </Flex>
               }
               {
@@ -534,7 +534,7 @@ function SwapRouter(props: {
                       <AssetImage asset={AssetId.fromHandle(state.tokenOut.chain || '')} size="1" style={{ position: 'absolute', top: '16px', left: '-6px' }} iconSize="16px"></AssetImage>
                     }
                   </Box>
-                  <AssetName asset={state.tokenOut} symbol={true} tokenOnly={true} size="4" badgeOffset={0.1}></AssetName>
+                  <AssetName asset={state.tokenOut} symbol={true} tokenOnly={true} size="4"></AssetName>
                 </Flex>
               }
               {

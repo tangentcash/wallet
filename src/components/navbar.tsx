@@ -1,5 +1,5 @@
-import { Box, Button, Flex, IconButton, Tooltip } from "@radix-ui/themes";
-import { mdiAlertDecagramOutline, mdiContactlessPaymentCircleOutline, mdiDotsCircle, mdiDownload, mdiMagnifyScan, mdiRulerSquareCompass, mdiScaleBalance, mdiSquareRoundedBadgeOutline } from "@mdi/js";
+import { Box, Button, Flex, Text, Tooltip } from "@radix-ui/themes";
+import { mdiContactlessPaymentCircleOutline, mdiDotsCircle, mdiRulerSquareCompass, mdiSquareRoundedBadgeOutline } from "@mdi/js";
 import { useLocation, useNavigate } from "react-router";
 import { AppData } from "../core/app";
 import { useMemo } from "react";
@@ -10,33 +10,20 @@ type Route = {
   name: string,
   tip: string,
   icon: string,
-  baseColor?: string,
-  activeColor?: string,
-  persistent?: boolean,
-  deep?: boolean,
   disabled?: (path: string) => boolean
 };
 
 const types: Route[] = [
-  { path: '/', name: 'Home', tip: 'Account & Balances', icon: mdiSquareRoundedBadgeOutline, persistent: true },
-  { path: '/portfolio', name: 'Trade', tip: 'Trade & Analyze', icon: mdiRulerSquareCompass, persistent: true, deep: true },
-  { path: ['/interaction', '/restore'], name: 'Pay', tip: 'Pay & Interact', icon: mdiContactlessPaymentCircleOutline, persistent: true, disabled: (path: string) => path.startsWith('/restore') && !AppData.isWalletReady() },
-  { path: '/configure', name: 'Configure', tip: 'Settings & Statistics', icon: mdiDotsCircle, persistent: true },
-  { path: '/legal', name: 'Legal', tip: 'Legal documents', icon: mdiScaleBalance, activeColor: 'yellow' },
-  { path: '/app', name: 'App', tip: 'Get the app', icon: mdiDownload, activeColor: 'yellow' },
-  { path: '/explorer', name: 'Explorer', tip: 'Explorer', icon: mdiMagnifyScan, activeColor: 'blue' },
-  { path: '/block', name: 'Block', tip: 'Block explorer', icon: mdiMagnifyScan, activeColor: 'blue', deep: true },
-  { path: '/transaction', name: 'Txn', tip: 'Transaction explorer', icon: mdiMagnifyScan, activeColor: 'blue', deep: true },
-  { path: '/program', name: 'Program', tip: 'Program explorer', icon: mdiMagnifyScan, activeColor: 'blue', deep: true },
-  { path: '/account', name: 'Account', tip: 'Account explorer', icon: mdiMagnifyScan, activeColor: 'blue', deep: true },
-  { path: '/orderbook/', name: 'Market', tip: 'Market explorer', icon: mdiMagnifyScan, activeColor: 'blue', deep: true },
-  { path: '*', name: 'Error', tip: 'Unknown place', icon: mdiAlertDecagramOutline, activeColor: 'red', deep: true }
+  { path: ['/', '/explorer', '/block', '/transaction', '/account', '/program'], name: 'Hub', tip: 'Account & Blockchain', icon: mdiSquareRoundedBadgeOutline },
+  { path: ['/portfolio', '/orderbook'], name: 'Swap', tip: 'Trade & Analyze', icon: mdiRulerSquareCompass },
+  { path: ['/interaction', '/restore'], name: 'Pay', tip: 'Pay & Interact', icon: mdiContactlessPaymentCircleOutline, disabled: (path: string) => path.startsWith('/restore') && !AppData.isWalletReady() },
+  { path: ['/configure', '/legal', '/app'], name: 'App', tip: 'Info & Settings', icon: mdiDotsCircle }
 ]
 
 export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const routes = useMemo((): (Route & { selected: boolean })[] => {
+  const routes = useMemo((): (Route & { selected: boolean, inner: boolean })[] => {
     const toLongestString = (x: string[]) => {
       let target = '';
       for (let i = 0; i < x.length; i++) {
@@ -59,7 +46,7 @@ export function Navbar() {
       const targets = typeof item.path == 'string' ? [item.path] : item.path;
       for (let i = 0; i < targets.length; i++) {
         const target = targets[i];
-        if (item.deep ? location.pathname.startsWith(target) : target == location.pathname) {
+        if (target != '/' ? location.pathname.startsWith(target) : target == location.pathname) {
           return true;
         }
       }
@@ -67,8 +54,9 @@ export function Navbar() {
     }) || sortedSubtypes[sortedSubtypes.length - 1]).path;
     return types.map((item) => ({
       ...item,
-      selected: item.path == selected
-    })).filter((item) => item.selected || item.persistent);
+      selected: item.path == selected,
+      inner: item.path == selected ? (typeof item.path == 'string' || (item.path[0] == '/' ? location.pathname != '/' : !location.pathname.startsWith(item.path[0]))) : false
+    }));
   }, [location.pathname]);
 
   AppData.state.setNavigation = navigate;
@@ -84,28 +72,23 @@ export function Navbar() {
             filter: "saturate(0.7) brightness(1.1)",
             WebkitBackdropFilter: "blur(24px)",
             backdropFilter: "blur(24px)",
-            padding: '12px'
+            padding: '6px 8px'
           }}>
-            <Flex gap="2">
+            <Flex gap="1">
               {
                 routes.map((item) =>
                   <Box key={typeof item.path == 'string' ? item.path : item.path[0]}>
                     <Tooltip content={item.tip}>
-                      <Box>
-                        {
-                          item.selected &&
-                          <Button size="3" variant="outline" style={{ boxShadow: `inset 0 0 0 1px var(--${item.activeColor || 'lime'}-a7)` }} color={item.activeColor as any} disabled={item.disabled ? item.disabled(location.pathname) : false}>
-                            <Icon path={item.icon} size={1} />
-                            {item.name}
-                          </Button>
+                      <Button size="3" variant="outline" style={{ boxShadow: item.inner ? undefined : 'none', backgroundColor: item.selected && !item.inner ? 'var(--lime-a3)' : undefined, height: 'auto' }} color="lime" disabled={item.disabled ? item.disabled(location.pathname) : false} onClick={() => {
+                        if (!item.selected || item.inner) {
+                          navigate(typeof item.path == 'string' ? item.path : item.path[0]);
                         }
-                        {
-                          !item.selected &&
-                          <IconButton style={{ boxShadow: 'none' }} size="3" variant="soft" color={item.baseColor as any} disabled={item.disabled ? item.disabled(location.pathname) : false} onClick={() => navigate(typeof item.path == 'string' ? item.path : item.path[0])}>
-                            <Icon path={item.icon} size={1} />
-                          </IconButton>
-                        }
-                      </Box>
+                      }}>
+                        <Flex direction="column" align="center" py="2" px="1">
+                          <Icon path={item.icon} size={1} />
+                          <Text size="1">{item.name}</Text>
+                        </Flex>
+                      </Button>
                     </Tooltip>
                   </Box>
                 )

@@ -1,18 +1,18 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "tangentwallet",
+  "productName": "Tangent Cash App",
   "version": "0.1.0",
-  "identifier": "cash.tangent.app",
+  "identifier": "cash.tangent.wallet",
   "build": {
     "beforeDevCommand": "yarn dev",
     "devUrl": "http://localhost:18421",
-    "beforeBuildCommand": "yarn build",
+    "beforeBuildCommand": "yarn make",
     "frontendDist": "../dist"
   },
   "app": {
     "windows": [
       {
-        "title": "Tangent Wallet",
+        "title": "Tangent Cash App",
         "width": 800,
         "height": 600,
         "resizable": true,
