@@ -242,7 +242,7 @@ export default function Vault(props: { blockchains: any[], assets: any[] }) {
       return;
     }
 
-    navigate(`/interaction?asset=${blockchain.id}&type=register&bridge=${bridge.instance.bridge_hash}&address=${routingAddressValue}&back=/&note=${encodeURIComponent('The address claim transaction is free of charge')}`);
+    navigate(`/interaction?asset=${blockchain.id}&type=register&vault=${bridge.instance.bridge_hash}&address=${routingAddressValue}&back=/&note=${encodeURIComponent('The address claim transaction is free of charge')}`);
   }, [blockchain, bridges, routingAddressValue]);
   const withdraw = useCallback((assetIndex: number) => {
     const token = blockchainAssets[assetIndex];
@@ -263,7 +263,7 @@ export default function Vault(props: { blockchains: any[], assets: any[] }) {
       return;
     }
     
-    navigate(`/interaction?asset=${token.asset.id}&type=withdraw&bridge=${bridge.instance.bridge_hash}&address=${blockchainAddress}&fee=${bridge.instance.fee_rate.toString()}&back=/`);
+    navigate(`/interaction?asset=${token.asset.id}&type=withdraw&vault=${bridge.instance.bridge_hash}&address=${blockchainAddress}&fee=${bridge.instance.fee_rate.toString()}&back=/`);
   }, [blockchain, bridges, blockchainAssets, blockchainAddress]);
   useEffectAsync(async () => {
     setLoading(true);
