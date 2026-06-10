@@ -423,7 +423,7 @@ export class AppData {
 
     const type32 = type.toInteger();
     const typename: string | null = Readability.toTransactionType(type32);
-    if (typename?.toLowerCase() == 'non-standard')
+    if (!typename)
       throw new Error('Transaction type ' + type.toCompactHex() + ' is not among valid ones');
 
     if (signature != null && signature.length != 0 && signature.length > Chain.size.HASHSIG)

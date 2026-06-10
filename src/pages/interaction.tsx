@@ -104,7 +104,7 @@ export default function InteractionPage() {
   const params = useMemo(() => ({
     type: query.get('type'),
     asset: query.get('asset'),
-    bridge: query.get('bridge'),
+    vault: query.get('vault'),
     address: query.get('address'),
     fee: query.get('fee'),
     transaction: query.get('transaction'),
@@ -163,7 +163,7 @@ export default function InteractionPage() {
     } else if (program instanceof ProgramWithdraw) {
       return 'Withdraw to address';
     } else if (program instanceof ProgramAnticast) {
-        return 'Protest bridge';
+        return 'Protest withdrawal';
     } else if (program instanceof ApproveTransaction) {
       return 'Approve action';
     }
@@ -308,7 +308,7 @@ export default function InteractionPage() {
       if (routing?.policy == 'account' && !program.routingAddress.length)
         return false;
 
-      if (params.bridge == null)
+      if (params.vault == null)
         return false;
   
       return true;
@@ -328,7 +328,7 @@ export default function InteractionPage() {
         return false;
       }
       
-      if (params.bridge == null)
+      if (params.vault == null)
         return false;
   
       const child = assets[asset];
@@ -489,7 +489,7 @@ export default function InteractionPage() {
         return await buildProgram({
           type: new Transactions.Route(),
           args: {
-            bridgeHash: new Uint256(params.bridge || ''),
+            bridgeHash: new Uint256(params.vault || ''),
             routingAddress: includeRoutingAddress ? program.routingAddress : ''
           }
         });
@@ -497,7 +497,7 @@ export default function InteractionPage() {
         return await buildProgram({
           type: new Transactions.Withdraw(),
           args: {
-            bridgeHash: new Uint256(params.bridge || ''),
+            bridgeHash: new Uint256(params.vault || ''),
             address: program.address,
             value: new BigNumber(program.value)
           }
@@ -826,10 +826,10 @@ export default function InteractionPage() {
           </Box>
         }
         {
-          proMode && asset != -1 && params.bridge != null &&
+          proMode && asset != -1 && params.vault != null &&
           <Box width="100%" mt="3">
-            <Tooltip content="Bridge that will process the withdrawal">
-              <TextField.Root size="3" type="text" color="red" value={'Bridge: ' + Readability.toAddress(params.bridge, 16)} readOnly={true} />
+            <Tooltip content="Vault that will process the withdrawal">
+              <TextField.Root size="3" type="text" color="red" value={'Vault: ' + Readability.toAddress(params.vault, 16)} readOnly={true} />
             </Tooltip>
           </Box>
         }
@@ -951,15 +951,15 @@ export default function InteractionPage() {
                 copy.bridgeParticipationStake = '';
                 setProgram(copy);
               }}>
-                <Select.Trigger variant="surface" placeholder="Select bridge participation" style={{ width: '100%' }}>
+                <Select.Trigger variant="surface" placeholder="Select vault participation" style={{ width: '100%' }}>
                 </Select.Trigger>
                 <Select.Content color="gray">
-                  <Select.Item value="standby">Bridge participation unchanged</Select.Item>
+                  <Select.Item value="standby">Vault participation unchanged</Select.Item>
                   <Select.Item value="enable">
-                    <Text color="lime">ENABLE</Text> bridge participation
+                    <Text color="lime">ENABLE</Text> vault participation
                   </Select.Item>
                   <Select.Item value="disable">
-                    <Text color="red">DISABLE</Text> bridge participation
+                    <Text color="red">DISABLE</Text> vault participation
                   </Select.Item>
                 </Select.Content>
               </Select.Root>
@@ -967,8 +967,8 @@ export default function InteractionPage() {
             {
               program.bridgeParticipation == 'enable' &&
               <Box width="100%" mt="4">
-                <Tooltip content="Locking value to activate bridge participation staking">
-                  <TextField.Root mb="3" size="3" placeholder={'Bride participation stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={program.bridgeParticipationStake} onChange={(e) => {
+                <Tooltip content="Locking value to activate vault participation staking">
+                  <TextField.Root mb="3" size="3" placeholder={'Vault participation stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={program.bridgeParticipationStake} onChange={(e) => {
                     const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                     copy.bridgeParticipationStake = e.target.value;
                     setProgram(copy);
@@ -991,7 +991,7 @@ export default function InteractionPage() {
                       </Flex>
                     </Heading>
                     <Box width="100%">
-                      <Tooltip content="Locking value to activate/increase bridge attestation staking">
+                      <Tooltip content="Locking value to activate/increase vault attestation staking">
                         <TextField.Root mb="3" size="3" placeholder={'Attestation stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
                           const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                           copy.attestations[index].stake = e.target.value;
@@ -1000,7 +1000,7 @@ export default function InteractionPage() {
                       </Tooltip>
                     </Box>
                     <Box width="100%">
-                      <Tooltip content="Minimal fee value to coordinate a bridge (absolute value)">
+                      <Tooltip content="Minimal fee value to coordinate a vault (absolute value)">
                         <TextField.Root size="3" placeholder="Absolute fee 0.0-∞" type="text" value={item.minFee} onChange={(e) => {
                           const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                           copy.attestations[index].minFee = e.target.value;
@@ -1051,7 +1051,7 @@ export default function InteractionPage() {
                 copy.attestationReservations.add(copy.attestations[copy.attestations.length - 1].asset.chain || '');
                 setProgram(copy);
               }}>
-                <Select.Trigger variant="surface" placeholder="Change bridge attestation stake" style={{ width: '100%' }}>
+                <Select.Trigger variant="surface" placeholder="Change vault attestation stake" style={{ width: '100%' }}>
                 </Select.Trigger>
                 <Select.Content variant="soft">
                   <Select.Group>
@@ -1081,7 +1081,7 @@ export default function InteractionPage() {
                     <Heading size="4" mb="2">
                       <Flex align="center" gap="3">
                         <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
-                        <Text>{ item.asset.chain || '' } bridge</Text>
+                        <Text>{ item.asset.chain || '' } vault</Text>
                       </Flex>
                     </Heading>
                     <Box width="100%" mt="3">
@@ -1131,17 +1131,17 @@ export default function InteractionPage() {
                 copy.bridgeReservations.add(copy.bridges[copy.bridges.length - 1].asset.chain || '');
                 setProgram(copy);
               }}>
-                <Select.Trigger variant="surface" placeholder="Allocate a bridge" style={{ width: '100%' }}>
+                <Select.Trigger variant="surface" placeholder="Allocate a vault" style={{ width: '100%' }}>
                 </Select.Trigger>
                 <Select.Content variant="soft">
                   <Select.Group>
-                    <Select.Item value="0" disabled={true}>Select bridge blockchain</Select.Item>
+                    <Select.Item value="0" disabled={true}>Select vault blockchain</Select.Item>
                     {
                       program.assets.map((item) =>
                         <Select.Item key={item.asset.chain + '_select'} value={item.asset.chain || ''} disabled={program.bridgeReservations.has(item.asset.chain || '')}>
                           <Flex align="center" gap="3">
                             <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
-                            <Text size="4">{ item.asset.chain || '' } bridge allocation</Text>
+                            <Text size="4">{ item.asset.chain || '' } vault allocation</Text>
                           </Flex>
                         </Select.Item>
                       )
@@ -1196,7 +1196,7 @@ export default function InteractionPage() {
                 setProgram(copy);
               }}>
                 <Box px="2" py="2">
-                  <Text size="3">Migrate bridge participant</Text>
+                  <Text size="3">Migrate vault participant</Text>
                 </Box>
               </Button>
             </Box>
@@ -1249,7 +1249,7 @@ export default function InteractionPage() {
           asset != -1 && program instanceof ProgramAnticast &&
           <Box mt="4" width="100%">
             <Tooltip content="Transaction hash of broadcast transaction that has off-chain relay success but no off-chain withdrawal received">
-              <TextField.Root size="3" placeholder={'Bridge broadcast transaction hash'} type="text" value={program.broadcastHash || ''} onChange={(e) => {
+              <TextField.Root size="3" placeholder={'Vault broadcast transaction hash'} type="text" value={program.broadcastHash || ''} onChange={(e) => {
                 const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                 copy.broadcastHash = e.target.value;
                 setProgram(copy);

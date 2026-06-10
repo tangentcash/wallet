@@ -13,7 +13,7 @@ import InfiniteScroll from "react-infinite-scroll-component";
 
 const BLOCK_COUNT = 64;
 const TRANSACTION_COUNT = 16;
-const BRIDGE_COUNT = 16;
+const VAULT_COUNT = 16;
 
 export default function ExplorerPage() {
   const mobile = document.body.clientWidth < 500;
@@ -24,13 +24,13 @@ export default function ExplorerPage() {
   const [subject, setSubject] = useState('');
   const [asset, setAsset] = useState<AssetId | null>(null);
   const [blockchains, setBlockchains] = useState<any[]>([]);
-  const [tab, setTab] = useState<'blocks' | 'transactions' | 'bridges'>('blocks');
+  const [tab, setTab] = useState<'blocks' | 'transactions' | 'vaults'>('blocks');
   const [blocks, setBlocks] = useState<{ blockNumber: number, blockHash: string }[]>([]);
   const [transactions, setTransactions] = useState<{ transaction: any, receipt?: any, state?: SummaryState }[]>([]);
-  const [bridges, setBridges] = useState<any[]>([]);
+  const [vaults, setVaults] = useState<any[]>([]);
   const [moreBlocks, setMoreBlocks] = useState(true);
   const [moreTransactions, setMoreTransactions] = useState(true);
-  const [moreBridges, setMoreBridges] = useState(true);
+  const [moreVaults, setMoreVaults] = useState(true);
   const searchInput = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
   const blockNumber = useMemo((): BigNumber | null => {
@@ -159,25 +159,25 @@ export default function ExplorerPage() {
       return false;
     }
   }, [transactions]);
-  const findBridges = useCallback(async (refresh?: boolean) => {
+  const findVaults = useCallback(async (refresh?: boolean) => {
     try {
       if (!asset)
         return null;
 
-      let data = await RPC.getBestBridgeInstancesByBalance(new AssetId(asset.id), refresh ? 0 : bridges.length, BRIDGE_COUNT);
+      let data = await RPC.getBestBridgeInstancesByBalance(new AssetId(asset.id), refresh ? 0 : vaults.length, VAULT_COUNT);
       if (!Array.isArray(data) || !data.length) {
-        data = await RPC.getBestBridgeInstancesBySecurity(new AssetId(asset.id), refresh ? 0 : bridges.length, BRIDGE_COUNT);
+        data = await RPC.getBestBridgeInstancesBySecurity(new AssetId(asset.id), refresh ? 0 : vaults.length, VAULT_COUNT);
       }
 
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
-          setBridges([]);
-        setMoreBridges(false);
+          setVaults([]);
+        setMoreVaults(false);
         return null;
       }
 
-      const result = refresh ? data : data.concat(bridges);
-      setBridges(result.map((x) => {
+      const result = refresh ? data : data.concat(vaults);
+      setVaults(result.map((x) => {
         const balance: BigNumber | null = x.balances.find((v: any) => v.asset.id == asset.id)?.supply || null;
         x.withdrawable = balance ? balance.gte(x.instance.fee_rate) : false;   
         x.balances = x.balances.map((y: any) => ({ ...y, whitelist: Whitelist.has(y.asset) })).sort((a: any, b: any) => {
@@ -194,15 +194,15 @@ export default function ExplorerPage() {
         });
         return x;
       }));
-      setMoreBridges(data.length >= BRIDGE_COUNT);
+      setMoreVaults(data.length >= VAULT_COUNT);
       return result;
     } catch {
       if (refresh)
-        setBridges([]);
-      setMoreBridges(false);
+        setVaults([]);
+      setMoreVaults(false);
       return null;
     }
-  }, [asset, bridges]);
+  }, [asset, vaults]);
   useEffectAsync(async () => {
     await AppData.sync();
     switch (tab) {
@@ -214,9 +214,9 @@ export default function ExplorerPage() {
         await findTransactions(true);
         break;
       }
-      case 'bridges': {
+      case 'vaults': {
         if (asset != null) {
-          await findBridges(true);
+          await findVaults(true);
         }
         break;
       }
@@ -232,7 +232,7 @@ export default function ExplorerPage() {
   }, []);
   useEffect(() => {
     const view = search.get('view');
-    if (view != null && ['blocks', 'transactions', 'bridges'].includes(view)) {
+    if (view != null && ['blocks', 'transactions', 'vaults'].includes(view)) {
       setTab(view as any);
     }
 
@@ -268,7 +268,7 @@ export default function ExplorerPage() {
         <Tabs.List>
           <Tabs.Trigger value="blocks">Blocks</Tabs.Trigger>
           <Tabs.Trigger value="transactions">Transactions</Tabs.Trigger>
-          <Tabs.Trigger value="bridges">Bridges</Tabs.Trigger>
+          <Tabs.Trigger value="vaults">Vaults</Tabs.Trigger>
         </Tabs.List>
         <Box pt="3">
           <Tabs.Content value="blocks">
@@ -303,7 +303,7 @@ export default function ExplorerPage() {
               }
             </InfiniteScroll>
           </Tabs.Content>
-          <Tabs.Content value="bridges">
+          <Tabs.Content value="vaults">
             <Box my="4">
               <Select.Root size="3" value={asset ? asset.id : '!'} onValueChange={(e) => setAsset(e.length > 0 ? new AssetId(e) : null)}>
                 <Select.Trigger style={{ width: '100%' }} />
@@ -324,17 +324,17 @@ export default function ExplorerPage() {
             </Box>
             {
               asset &&
-              <InfiniteScroll dataLength={bridges.length} hasMore={moreBridges} next={findBridges} loader={<div></div>}>
+              <InfiniteScroll dataLength={vaults.length} hasMore={moreVaults} next={findVaults} loader={<div></div>}>
                 {
-                  bridges.map((item, index) =>
+                  vaults.map((item, index) =>
                     <Box width="100%" key={item.instance.hash + index} mb="4">
                       <Card variant="surface" style={{ borderRadius: '28px' }}>
                         <Box px="2" py="2">
                           <Flex align="center" justify="between" gap="2" mb="4">
-                            <Heading size="5">Bridge</Heading>
+                            <Heading size="5">Vault</Heading>
                             <Button size="2" variant="surface" color="lime" onClick={() => {
                               navigator.clipboard.writeText(item.instance.bridge_hash);
-                              AlertBox.open(AlertType.Info, 'Bridge hash copied!')
+                              AlertBox.open(AlertType.Info, 'Vault hash copied!')
                             }}>{ Readability.toHash(item.instance.bridge_hash, 4) }</Button>
                           </Flex>
                           <DataList.Root orientation={orientation}>
@@ -352,7 +352,7 @@ export default function ExplorerPage() {
                                 </DataList.Value>
                               </DataList.Item>
                             }
-                            <Tooltip content={'Participants (signers) to involve in each created account but no less than ' + Chain.policy.PARTICIPATION_COMMITTEE[0] + ' and no more than ' + Chain.policy.PARTICIPATION_COMMITTEE[1] + ' per account, txn/account nonces and the redeem fee to be deduced from each withdrawal to cover off-chain network fees and to pay to bridge attesters and participants'}>
+                            <Tooltip content={'Participants (signers) to involve in each created account but no less than ' + Chain.policy.PARTICIPATION_COMMITTEE[0] + ' and no more than ' + Chain.policy.PARTICIPATION_COMMITTEE[1] + ' per account, txn/account nonces and the redeem fee to be deduced from each withdrawal to cover off-chain network fees and to pay to vault attesters and participants'}>
                               <DataList.Item>
                                 <DataList.Label>Public params:</DataList.Label>
                                 <DataList.Value>
@@ -365,7 +365,7 @@ export default function ExplorerPage() {
                                 </DataList.Value>
                               </DataList.Item>
                             </Tooltip>
-                            <Tooltip content="Unspent balance of a bridge usable as withdrawal liquidity">
+                            <Tooltip content="Unspent balance of a vault usable as withdrawal liquidity">
                               <DataList.Item>
                                 <DataList.Label>Asset TVL:</DataList.Label>
                                 <DataList.Value>
@@ -388,13 +388,13 @@ export default function ExplorerPage() {
                                 <Flex gap="2" wrap="wrap">
                                   <Tooltip content="Claim a deposit address and/or sender address">
                                     <Button size="2" variant="soft" color="jade" className="shadow-rainbow-hover" onClick={() => {
-                                      navigate(`/interaction?asset=${asset.id}&type=register&bridge=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`);
+                                      navigate(`/interaction?asset=${asset.id}&type=register&vault=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`);
                                     }}>↙ Mint tokens <Icon path={mdiOpenInNew} size={0.6}></Icon></Button>
                                   </Tooltip>
-                                  <Tooltip content={(item.withdrawable ? 'Bridge has enough ' : 'Bridge doesn\'t have enough ') + Readability.toAssetSymbol(asset) + ' for a withdrawal'}>
+                                  <Tooltip content={(item.withdrawable ? 'Vault has enough ' : 'Vault doesn\'t have enough ') + Readability.toAssetSymbol(asset) + ' for a withdrawal'}>
                                     <Button size="2" variant="soft" color="red" className="shadow-rainbow-hover" disabled={!item.withdrawable} onClick={() => {
                                       if (item.withdrawable) {
-                                        navigate(`/interaction?asset=${asset.id}&type=withdraw&bridge=${item.instance.bridge_hash}&fee=${item.instance.fee_rate.toString()}&back=${encodeURIComponent(location.pathname + location.search)}`);
+                                        navigate(`/interaction?asset=${asset.id}&type=withdraw&vault=${item.instance.bridge_hash}&fee=${item.instance.fee_rate.toString()}&back=${encodeURIComponent(location.pathname + location.search)}`);
                                       }
                                     }}>↗ Redeem tokens <Icon path={mdiOpenInNew} size={0.6}></Icon></Button>
                                   </Tooltip>

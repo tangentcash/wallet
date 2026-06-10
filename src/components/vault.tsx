@@ -147,7 +147,7 @@ const ASSET_INFORMATION: Record<string, ExtendedField> = {
   },
 }
 
-export default function Bridge(props: { blockchains: any[], assets: any[] }) {
+export default function Vault(props: { blockchains: any[], assets: any[] }) {
   const ownerAddress = AppData.getWalletAddress() || '';
   const mobile = document.body.clientWidth < 500;
   const navigate = useNavigate();

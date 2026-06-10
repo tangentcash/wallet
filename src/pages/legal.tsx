@@ -46,13 +46,13 @@ export default function LegalPage() {
               <Text><b>Smart Contract Risks: </b>The bridging process relies on smart contracts, which may contain bugs or vulnerabilities.</Text>
             </Box>
             <Box mt="2">
-              <Text><b>Liquidity Risks: </b>There may be periods of low liquidity on either side of the bridge, affecting your ability to transfer assets.</Text>
+              <Text><b>Liquidity Risks: </b>There may be periods of low liquidity on either side of the vault, affecting your ability to transfer assets.</Text>
             </Box>
             <Box mt="2">
               <Text><b>Counterparty Risks: </b>The bridging process involves interacting with other blockchains and their respective validators or miners.</Text>
             </Box>
             <Box mt="2" mb="4">
-              <Text>Tangent Cash does not guarantee the successful completion of any bridge transaction, and we are not responsible for any losses incurred due to bridging activities.</Text> 
+              <Text>Tangent Cash does not guarantee the successful completion of any vault transaction, and we are not responsible for any losses incurred due to bridging activities.</Text> 
             </Box>
             <Heading size="4">5. Decentralized Nature</Heading>
             <Box my="4">

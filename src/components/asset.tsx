@@ -23,7 +23,7 @@ export function AssetName(props: { asset?: AssetId, size?: string, badgeSize?: n
           fake &&
           <Text as="div" size={size} weight="light">
             { (!props.tokenOnly && props.asset.token ? props.asset.chain + ' ' : '') + Readability.toAssetSymbol(props.asset) }
-            { props.asset.checksum ? `(${ props.asset.checksum.substring(0, 4) })` : '' }
+            { props.asset.checksum ? ` (${ props.asset.checksum.substring(0, 4) })` : '' }
           </Text>
         }
         {

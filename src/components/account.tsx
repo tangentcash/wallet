@@ -12,7 +12,7 @@ import { TransactionView } from "../components/transaction";
 import BigNumber from "bignumber.js";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import Icon from "@mdi/react";
-import Bridge from "./bridge";
+import Vault from "./vault";
 
 const TRANSACTION_COUNT = 16;
 export default function Account(props: { ownerAddress: string, self?: boolean, nonce?: number }) {
@@ -37,7 +37,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   }, [finalizedTransactions, mempoolTransactions]);
   const filteredAddresses = useMemo((): any[] => {
     const routes = addresses.filter((x) => x.purpose == 'routing');
-    const bridges = addresses.filter((x) => x.asset.chain == Chain.policy.TOKEN_NAME || x.purpose == 'bridge');
+    const vaults = addresses.filter((x) => x.asset.chain == Chain.policy.TOKEN_NAME || x.purpose == 'bridge');
     const results: Record<string, any> = { };
     const filteredResults = [{ asset: new AssetId(), addresses: [{ address: ownerAddress }] }];
     const merge = (item: any) => {
@@ -51,14 +51,14 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
     };
     for (let i = 0; i < routes.length; i++) {
       const route = routes[i];
-      const bridge = bridges.find((x) => x.asset.chain == route.asset.chain);
-      const blockchain = bridge ? null : blockchains.find((x) => x.chain == route.asset.chain);
-      if (!bridge && blockchain != null && blockchain.routing_policy == 'account')
-        bridges.push({ ...route, purpose: 'bridge', addresses: null });
+      const vault = vaults.find((x) => x.asset.chain == route.asset.chain);
+      const blockchain = vault ? null : blockchains.find((x) => x.chain == route.asset.chain);
+      if (!vault && blockchain != null && blockchain.routing_policy == 'account')
+        vaults.push({ ...route, purpose: 'bridge', addresses: null });
       merge(route);
     }
-    for (let i = 0; i < bridges.length; i++) {
-      merge(bridges[i]);
+    for (let i = 0; i < vaults.length; i++) {
+      merge(vaults[i]);
     }
     for (let chain in results) {
       filteredResults.push(results[chain]);
@@ -144,6 +144,12 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
         tasks.push((async () => {
           try {
             const attestationData = await RPC.getValidatorAttestationsWithRewards(ownerAddress);
+            if (Array.isArray(attestationData)) {
+              for (let i = 0; i< attestationData.length; i++) {
+                const data = attestationData[i];
+                data.block_number = BigNumber.max(data.block_number, ...(data.rewards || []).map((x: any) => x.block_number || new BigNumber(0)));
+              }
+            }
             setAttestations(Array.isArray(attestationData) ? attestationData : []);
           } catch (exception) {
             AlertBox.open(AlertType.Error, 'Failed to fetch account attestations: ' + (exception as Error).message);
@@ -153,6 +159,9 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
         tasks.push((async () => {
           try {
             const participationData = await RPC.getValidatorParticipationWithRewards(ownerAddress);
+            if (participationData != null) {
+              participationData.block_number = BigNumber.max(participationData.block_number, ...(participationData.rewards || []).map((x: any) => x.block_number || new BigNumber(0)));
+            }
             setParticipation(participationData || null);
           } catch (exception) {
             AlertBox.open(AlertType.Error, 'Failed to fetch account participations: ' + (exception as Error).message)
@@ -162,6 +171,9 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
         tasks.push((async () => {
           try {
             const productionData = await RPC.getValidatorProductionWithRewards(ownerAddress);
+            if (productionData != null) {
+              productionData.block_number = BigNumber.max(productionData.block_number, ...(productionData.rewards || []).map((x: any) => x.block_number || new BigNumber(0)));
+            }
             setProduction(productionData || null);
           } catch {
             setProduction(null);
@@ -246,7 +258,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                         if (item.addresses != null) {
                           setSelectedAddress(index);
                         } else {
-                          navigate(`/explorer?view=bridges&asset=${item.asset.id}`);
+                          navigate(`/explorer?view=vaults&asset=${item.asset.id}`);
                         }
                       }}>
                         <Flex gap="3" align="center" py="3">
@@ -262,7 +274,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                                 !item.addresses &&
                                 <Flex align="center" gap="1">
                                   <Icon path={mdiOpenInNew} size={0.6} color="var(--sky-11)"></Icon> 
-                                  <Text size="1" color="sky">View bridges</Text>
+                                  <Text size="1" color="sky">View vaults</Text>
                                 </Flex>
                               }
                             </Flex>
@@ -341,7 +353,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
             {
               props.self &&
               <Box mt="2">
-                <Bridge blockchains={blockchains} assets={assets}></Bridge>
+                <Vault blockchains={blockchains} assets={assets}></Vault>
               </Box>
             }
           </Tabs.Content>
@@ -412,7 +424,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                   <Icon path={mdiCellphoneKey} size={1.5} style={{ color: 'var(--yellow-9)' }} />
                   <Box width="100%">
                     <Flex justify="between" align="center">
-                      <Text as="div" size="2" weight="light">Bridge participation</Text>
+                      <Text as="div" size="2" weight="light">Vault participation</Text>
                     </Flex>
                     <Badge size="1" color={participation.stake != null ? 'lime' : 'red'}>PARTICIPANT { (participation.stake != null ? 'ACTIVE' : 'OFFLINE') }{ participation.stake != null ? ' IN BLOCK ' + participation.block_number.toNumber() : (' FROM BLOCK ' + participation.block_number.toNumber()) }</Badge>
                   </Box>
@@ -423,7 +435,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                     <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                       <AssetImage asset={new AssetId()} size="2"></AssetImage>
                       <Box width="100%" style={{ marginLeft: '2px' }}>
-                        <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by bridge participation as a signer of withdrawal transactions"}>
+                        <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by vault participation as a signer of withdrawal transactions"}>
                           <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), participation.stake) }</Text>
                         </Tooltip>
                       </Box>
@@ -435,7 +447,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                         <Flex key={item.asset.id + '_participation'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                           <AssetImage asset={item.asset} size="2"></AssetImage>
                           <Box width="100%" style={{ marginLeft: '2px' }}>
-                            <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by bridge participation as a signer of withdrawal transactions'}>
+                            <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by vault participation as a signer of withdrawal transactions'}>
                               <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
                             </Tooltip>
                           </Box>
@@ -453,7 +465,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                     <Icon path={mdiTransitConnectionVariant} size={1.5} style={{ color: 'var(--lime-10)' }} />
                     <Box width="100%">
                       <Flex justify="between" align="center">
-                        <Text as="div" size="2" weight="light">Bridge attestation — { Readability.toAssetName(new AssetId(attestation.asset.id)) }</Text>
+                        <Text as="div" size="2" weight="light">Vault attestation — { Readability.toAssetName(new AssetId(attestation.asset.id)) }</Text>
                       </Flex>
                       <Badge size="1" color={attestation ? (attestation.stake != null ? 'lime' : 'red') : 'gray'}>ATTESTATION { attestation ? (attestation.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ attestation != null ? attestation.stake != null ? ' IN BLOCK ' + attestation.block_number.toNumber() : (' FROM BLOCK ' + attestation.block_number.toNumber()) : '' }</Badge>
                     </Box>
@@ -464,7 +476,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                       <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                         <AssetImage asset={new AssetId()} size="2"></AssetImage>
                         <Box width="100%" style={{ marginLeft: '2px' }}>
-                          <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by bridge attestation as a off-chain transaction notification and participant coordination"}>
+                          <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by vault attestation as a off-chain transaction notification and participant coordination"}>
                             <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), attestation.stake) }</Text>
                           </Tooltip>
                         </Box>
@@ -476,7 +488,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                           <Flex key={item.asset.id + '_attestation'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                             <AssetImage asset={item.asset} size="2"></AssetImage>
                             <Box width="100%" style={{ marginLeft: '2px' }}>
-                              <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by bridge attestation as a off-chain transaction notification and participant coordination'}>
+                              <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by vault attestation as a off-chain transaction notification and participant coordination'}>
                                 <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
                               </Tooltip>
                             </Box>
