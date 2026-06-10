@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
-import { Avatar, Badge, Box, Button, Card, Flex, SegmentedControl, Spinner, Tabs, Text, Tooltip } from "@radix-ui/themes";
+import { Avatar, Badge, Box, Button, Card, Flex, SegmentedControl, Spinner, Switch, Tabs, Text, Tooltip } from "@radix-ui/themes";
 import { RPC, EventResolver, SummaryState, AssetId, Readability, Chain, Whitelist } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
 import { AlertBox, AlertType } from "../components/alert";
@@ -13,15 +13,18 @@ import BigNumber from "bignumber.js";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import Icon from "@mdi/react";
 import Vault from "./vault";
+import { AppStorage } from "../core/storage";
 
 const TRANSACTION_COUNT = 16;
+
 export default function Account(props: { ownerAddress: string, self?: boolean, nonce?: number }) {
   const ownerAddress = props.ownerAddress;
   const navigate = useNavigate();
   const prevState = useRef<{ control: any, ownerAddress: any, nonce: any }>({ control: undefined, ownerAddress: undefined, nonce: undefined });
+  const [verifiedAssetsOnly, setVerifiedAssetsOnly] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [blockchains, setBlockchains] = useState<any[]>([]);
-  const [assets, setAssets] = useState<any[]>([]);
+  const [allAssets, setAllAssets] = useState<any[]>([]);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [program, setProgram] = useState<string | null>(null);
   const [attestations, setAttestations] = useState<any[]>([]);
@@ -68,6 +71,19 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   const filteredAddress = useMemo((): any => {
     return selectedAddress >= 0 && selectedAddress < filteredAddresses.length ? filteredAddresses[selectedAddress] : null;
   }, [filteredAddresses, selectedAddress]);
+  const assets = useMemo((): { values: any[], displayToggle: boolean } => {
+    const result = { values: verifiedAssetsOnly ? [] : allAssets, displayToggle: false };
+    for (let i = 0; i < allAssets.length; i++) {
+      const item = allAssets[i];
+      const contractAddress = Whitelist.contractAddressOf(item.asset);
+      const verified = contractAddress && !Whitelist.fake(item.asset, contractAddress);
+      result.displayToggle = result.displayToggle || !verified;
+      if (verified && verifiedAssetsOnly) {
+        result.values.push(item);
+      }
+    }
+    return result;
+  }, [allAssets, verifiedAssetsOnly]);
   const findTransactions = useCallback(async (refresh?: boolean) => {
     try {
       const data = await RPC.getTransactionsByOwner(ownerAddress, refresh ? 0 : finalizedTransactions.length, TRANSACTION_COUNT, 0, 2);
@@ -130,13 +146,13 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
             if (Array.isArray(assetData)) {
               assetData = assetData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
               assetData = assetData.filter((item) => item.balance?.gt(0) || item.reserve?.gt(0) || item.supply?.gt(0));
-              setAssets(assetData.map(x => ({ ...x, contractAddress: Whitelist.contractAddressOf(x.asset) })));
+              setAllAssets(assetData.map(x => ({ ...x, contractAddress: Whitelist.contractAddressOf(x.asset) })));
             } else {
-              setAssets([]);
+              setAllAssets([]);
             }
           } catch (exception) {
             AlertBox.open(AlertType.Error, 'Failed to fetch account balances: ' + (exception as Error).message);
-            setAssets([]);
+            setAllAssets([]);
           }
         })());
         break;
@@ -208,6 +224,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
     setLoading(false);
   }, [control, props.ownerAddress, props.nonce]);
   useEffectAsync(async () => {
+    setVerifiedAssetsOnly(!!AppStorage.get('__verified_assets_only__'));
     try {
       if (!blockchains.length)
         setBlockchains((await RPC.getBlockchains()) || []);
@@ -313,7 +330,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
           </Tabs.Content>
           <Tabs.Content value="balance">
             {
-              !assets.length &&
+              !assets.values.length &&
               <Tooltip content="Account does not have any non-zero asset balances">
                 <Flex px="2" py="3" gap="3" align="center">
                   <Avatar size="3" radius="large" fallback="NA" color="gray" />
@@ -328,7 +345,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
               </Tooltip>
             }
             { 
-              assets.map((item) =>
+              assets.values.map((item) =>
                 <Flex key={item.asset.id + '_balance'} px="2" py="3" gap="3" align="center">
                   <AssetImage asset={item.asset}></AssetImage>
                   <Box width="100%">
@@ -353,7 +370,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
             {
               props.self &&
               <Box mt="2">
-                <Vault blockchains={blockchains} assets={assets}></Vault>
+                <Vault blockchains={blockchains} assets={allAssets}></Vault>
               </Box>
             }
           </Tabs.Content>
@@ -503,6 +520,19 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
           </Tabs.Content>
         </Tabs.Root>
       </Card>
+      {
+        control == 'balance' && assets.displayToggle &&
+        <Flex justify="end" pt="4" px="2">
+          <Text as="label" size="2">
+            <Flex gap="2">
+              <Switch size="1" checked={verifiedAssetsOnly} onCheckedChange={(e) => {
+                AppStorage.set('__verified_assets_only__', e.valueOf());
+                setVerifiedAssetsOnly(e.valueOf())
+              }} /> Verified only
+            </Flex>
+          </Text>
+        </Flex>
+      }
       {
         transactions.length > 0 &&
         <Box width="100%" my="6" px={mobile ? '2' : undefined}>
