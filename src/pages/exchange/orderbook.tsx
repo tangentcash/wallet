@@ -730,8 +730,8 @@ export default function OrderbookPage() {
                       {
                         logs.map((item, index) => {
                           const pool = item.side == 'lp';
-                          const action = pool ? (item.quantity.gt(0) ? 'Push LP' : 'Pull LP') : (item.side == OrderSide.Buy ? 'Buy' : 'Sell');
-                          const color = pool ? (item.quantity.gt(0) ? 'lime' : 'red') : (item.side == OrderSide.Buy ? 'lime' : 'red');
+                          const action = pool ? (item.quantity.gt(0) ? 'Push' : 'Pull') : (item.side == OrderSide.Buy ? 'Buy' : 'Sell');
+                          const color = pool ? (item.quantity.gt(0) ? 'cyan' : 'orange') : (item.side == OrderSide.Buy ? 'lime' : 'red');
                           return (
                             <Box key={item.account + item.time.getTime().toString() + index.toString()} mb="3" className="rt-Card" style={{ width: '100%', height: 'auto', backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
                               <Flex direction="column" gap="2" style={{ padding: '12px' }}>
@@ -741,10 +741,10 @@ export default function OrderbookPage() {
                                 </Flex>
                                 <Flex justify="between" wrap="wrap" gap="1">
                                   <Text size="2" color={color}>{ action }</Text>
-                                  <Text size="2" color={color}>{ Readability.toMoney(orderbook?.primaryAsset || null, item.quantity.abs()) }</Text>
+                                  <Text size="2" color={color}>{ Readability.toMoney(orderbook?.primaryAsset || null, item.quantity, pool) }</Text>
                                 </Flex>
                                 <Flex justify="between" wrap="wrap" gap="1">
-                                  <Text size="2" style={{ color: 'var(--gray-12)' }}>With</Text>
+                                  <Text size="2" style={{ color: 'var(--gray-12)' }}>From</Text>
                                   <Flex>
                                     <Button size="2" variant="ghost" color="indigo" onClick={() => {
                                       navigator.clipboard.writeText(item.account || 'NULL');
