@@ -384,7 +384,7 @@ function SwapRouter(props: {
     }
 
     const tokenIn = state.tokenIn, tokenOut = state.tokenOut;
-    if (market != null && tokenIn != null && tokenOut != null) {
+    if (market != null && tokenIn != null && tokenOut != null && tokenIn.id != tokenOut.id) {
       const balanceIn = assetsIn.reduce((a, b) => a.plus(b.available), new BigNumber(0));
       const finalAmountIn = TextUtil.toNumericValueOrPercent(state.amountIn);
       const amountIn = finalAmountIn.relative?.gt(0) ? finalAmountIn.relative.multipliedBy(balanceIn) : (finalAmountIn.absolute?.gt(0) ? finalAmountIn.absolute : new BigNumber(0));
@@ -393,7 +393,7 @@ function SwapRouter(props: {
         setLoadingPath(true);
         swapPathTimeoutId = setTimeout(async () => {
           try {
-            const paths = await Exchange.marketPaths(market.id, tokenIn, tokenOut, amountIn, slippage);
+            const paths = (await Exchange.marketPaths(market.id, tokenIn, tokenOut, amountIn, slippage)).filter(x => x.length > 0);
             const best = paths.length > 0 ? paths[0] : [];
             setBestPaths(paths);
             if (best.length > 0) {
