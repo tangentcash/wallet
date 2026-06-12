@@ -1,10 +1,10 @@
 import { mdiAlphabeticalVariant, mdiCancel, mdiConsole, mdiMagnify, mdiPlus } from "@mdi/js";
-import { Badge, Box, Button, Dialog, Flex, IconButton, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Badge, Box, Button, Dialog, Flex, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { AssetId, Readability, Whitelist } from "tangentsdk";
 import { Exchange, BlockchainInfo } from "../../core/exchange";
-import Icon from "@mdi/react";
 import { AssetImage, AssetName } from "../asset";
+import Icon from "@mdi/react";
 
 export default function AssetSelector(props: { children: ReactNode, title?: string, value?: AssetId | null, onChange?: (asset: AssetId | null) => void }) {
   const [launching, setLaunching] = useState(false);
@@ -26,7 +26,6 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
   }, [policy, symbol, address]);
   const updateQuery = useCallback((value: string) => {
     setQuery(value);
-    setAssets([]);
     if (loading != null)
       clearTimeout(loading);
 
@@ -94,7 +93,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
             </TextField.Root>
           </Tooltip>
           <Tooltip content="Add a new token using public information">
-            <IconButton variant="soft" size="3" onClick={() => setLaunching(true)}>
+            <IconButton variant="soft" size="3" onClick={() => setLaunching(true)} loading={!!loading}>
               <Icon path={mdiPlus} size={0.8}></Icon>
             </IconButton>
           </Tooltip>
@@ -121,12 +120,6 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
             !assets.length && !loading && query.length > 0 &&
             <Flex width="100%" justify="center" pt="4">
               <Text color="gray" size="2" align="center">No tokens found</Text>
-            </Flex>
-          }
-          {
-            loading != null && 
-            <Flex width="100%" justify="center" pt="6">
-              <Spinner size="3"></Spinner>
             </Flex>
           }
         </Box>
