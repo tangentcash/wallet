@@ -2002,7 +2002,7 @@ strip-ansi@^6.0.0, strip-ansi@^6.0.1:
 
 "tangentsdk@https://github.com/tangentcash/sdk.git":
   version "1.0.0"
-  resolved "https://github.com/tangentcash/sdk.git#249d13d5cc3630bad2b8a891ad99c7d731751765"
+  resolved "https://github.com/tangentcash/sdk.git#0c18fdd35cd21e0799bffdb0ceec4ea189ba4b10"
   dependencies:
     "@ethersproject/random" "5.8.0"
     "@noble/hashes" "1.8.0"

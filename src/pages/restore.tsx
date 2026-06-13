@@ -51,71 +51,74 @@ export default function RestorePage() {
     setPassphrase('');
     setTimeout(() => setError(false), 500);
   }, []);
-  const importValid = useMemo((): boolean => {
+  const importError = useMemo((): string | null => {
     switch (importType) {
       case WalletType.Mnemonic: {
         const words = importCandidate.split(/[\s$]/).filter((v) => v.length > 0 && v.match(/[a-z]+/)).map((v) => v.trim());
-        if (words.length != 24)
-          return false;
+        if (words.length != 24) {
+          const missing = 24 - words.length;
+          return missing > 0 ? `Input ${missing} more word${missing > 1 ? 's' : ''}` : `Remove ${-missing} word${missing < -1 ? 's' : ''}`;
+        }
+
+        for (let i = 0; i < words.length; i++) {
+          const word = words[i];
+          if (!Signing.verifyMnemonicWord(word)) {
+            return `“${word}” is not a recovery word`
+          }
+        }
 
         if (Signing.verifyMnemonic(words.join(' '))) {
           const result = words.join(' ');
           if (result != importCandidate)
             setImportCandidate(result);
-          return true;
+          return null;
         }
 
-        AlertBox.open(AlertType.Error, 'Recovery phrase is not correct');
-        reportError();
-        return false;
+        return `Not a recovery phrase`;
       }
       case WalletType.SecretKey: {
         Chain.props = Chain[networkType];
         const key = Signing.decodeSecretKey(importCandidate.trim());
         if (!key)
-          return false;
+          return `Not a private key`;
 
         const result = Signing.encodeSecretKey(key);
         if (result != null && result != importCandidate)
           setImportCandidate(result);
-        return true;
+        return null;
       }
       case WalletType.PublicKey: {
         Chain.props = Chain[networkType];
         const key = Signing.decodePublicKey(importCandidate.trim());
         if (!key)
-          return false;
+          return `Not a public key`;
 
         if (Signing.verifyPublicKey(key)) {
           const result = Signing.encodePublicKey(key);
           if (result != null && result != importCandidate)
             setImportCandidate(result);
-          return true;
+          return null;
         }
-
-        AlertBox.open(AlertType.Error, 'Public key is not correct');
-        reportError();
-        return false;
+        
+        return `Not a valid public key`;
       }
       case WalletType.Address: {
         Chain.props = Chain[networkType];
         const address = Signing.decodeAddress(importCandidate.trim());
         if (!address)
-          return false;
+          return `Not an address`;
 
         if (address.data.length == 20) {
           const result = Signing.encodeAddress(address);
           if (result != null && result != importCandidate)
             setImportCandidate(result);
-          return true;
+          return null;
         }
 
-        AlertBox.open(AlertType.Error, 'Address is not correct');
-        reportError();
-        return false;
+        return `Not a valid address`;
       }
       default:
-        return false;
+        return null;
     }
   }, [importType, importCandidate, networkType]);
   const wordsList = useMemo(() => {
@@ -161,7 +164,7 @@ export default function RestorePage() {
     setLoading(true);
     let status = await SafeStorage.reset(passphrase);
     if (status) {
-      if (importValid) {
+      if (!importError) {
         status = await AppData.resetWallet(importType == WalletType.Mnemonic ? importCandidate.split(' ') : importCandidate, importType, networkType);
         if (status)
           return exitPrompt();
@@ -184,7 +187,7 @@ export default function RestorePage() {
       reportError();
     }
     setLoading(false);
-  }, [passphrase, networkType, loading, error, importValid, mnemonic]);
+  }, [passphrase, networkType, loading, error, importError, mnemonic]);
   const secureMnemonic = useCallback(async () => {
     if (loading || error)
       return;
@@ -291,15 +294,15 @@ export default function RestorePage() {
                   !AppData.isWalletExists() &&
                   <Flex justify="center" mt="2" px="2">
                     <Text size="1" weight="light" color="gray">
-                      At any cost, do not forget.<Link size="1" ml="1" color="lime" onClick={importWallet}>{ importValid ? 'Change wallet.' : 'Import wallet.' }</Link>
+                      At any cost, do not forget.<Link size="1" ml="1" color="lime" onClick={importWallet}>{ importError ? 'Import wallet.' : 'Change wallet.' }</Link>
                     </Text>
                   </Flex>
                 }
               </form>
             </Box>
             <Flex mt="4" justify="start" align="center" direction="column" gap="3">
-              <Button size="3" variant="surface" loading={loading} style={{ paddingLeft: '24px', paddingRight: '24px' }} disabled={passphrase.length < PASSWORD_SIZE} className={error ? 'shadow-rainbow-hover animation-horizontal-shake' : (passphrase.length < PASSWORD_SIZE ? 'shadow-rainbow-hover' :  'shadow-rainbow-animation')} onClick={createWallet}>{ importValid ? 'Import wallet' : 'Create wallet' }</Button>
-              { AppData.isWalletExists() && <Link size="1" ml="1" color="gray" onClick={importWallet}>{ importValid ? 'Change wallet' : 'Import wallet' }</Link> }
+              <Button size="3" variant="surface" loading={loading} style={{ paddingLeft: '24px', paddingRight: '24px' }} disabled={passphrase.length < PASSWORD_SIZE} className={error ? 'shadow-rainbow-hover animation-horizontal-shake' : (passphrase.length < PASSWORD_SIZE ? 'shadow-rainbow-hover' :  'shadow-rainbow-animation')} onClick={createWallet}>{ importError ? 'Create wallet' : 'Import wallet' }</Button>
+              { AppData.isWalletExists() && <Link size="1" ml="1" color="gray" onClick={importWallet}>{ importError ? 'Import wallet' : 'Change wallet' }</Link> }
             </Flex>
           </Card>
         }
@@ -373,8 +376,8 @@ export default function RestorePage() {
               <>
                 <TextArea resize="vertical" variant="classic" size="3" style={{ minHeight: 150 }} placeholder={ wordsList.join(' ') + ' ... and 20 other words' } value={importCandidate} onChange={(e) => setImportCandidate(e.target.value)} />
                 <Flex justify="center" mt="2" px="2">
-                  <Text size="1" weight="light" color="gray">
-                    Recovery phrase is a secret for wallet recovery.<Link size="1" color="red" ml="1" onClick={() => resetWallet(false)}>Reset wallet.</Link>
+                  <Text size="1" weight="light" color={importCandidate && importError ? 'red' : 'gray'}>
+                    {importCandidate && importError ? importError : 'Recovery phrase is a secret for wallet recovery' }.<Link size="1" color="lime" ml="1" onClick={() => resetWallet(false)}>Create wallet.</Link>
                   </Text>
                 </Flex>
               </>
@@ -384,8 +387,8 @@ export default function RestorePage() {
               <>
                 <TextField.Root type="text" placeholder={Chain[networkType].SECKEY_PREFIX + ' ...'} size="3" value={importCandidate} onChange={(e) => { setImportCandidate(e.target.value); }} />
                 <Flex justify="center" mt="2" px="2">
-                  <Text size="1" weight="light" color="gray">
-                    Private key is your wallet.<Link size="1" color="red" ml="1" onClick={() => resetWallet(false)}>Reset wallet.</Link>
+                  <Text size="1" weight="light" color={importCandidate && importError ? 'red' : 'gray'}>
+                    {importCandidate && importError ? importError : 'Private key is your wallet' }.<Link size="1" color="lime" ml="1" onClick={() => resetWallet(false)}>Create wallet.</Link>
                   </Text>
                 </Flex>
               </>
@@ -395,8 +398,8 @@ export default function RestorePage() {
               <>
                 <TextField.Root type="text" placeholder={Chain[networkType].PUBKEY_PREFIX + ' ...'} size="3" value={importCandidate} onChange={(e) => { setImportCandidate(e.target.value); }} />
                 <Flex justify="center" mt="2" px="2">
-                  <Text size="1" weight="light" color="gray">
-                    Public key unlocks watch-only wallet.<Link size="1" color="red" ml="1" onClick={() => resetWallet(false)}>Reset wallet.</Link>
+                  <Text size="1" weight="light" color={importCandidate && importError ? 'red' : 'gray'}>
+                    {importCandidate && importError ? importError : 'Public key unlocks watch-only wallet' }.<Link size="1" color="lime" ml="1" onClick={() => resetWallet(false)}>Create wallet.</Link>
                   </Text>
                 </Flex>
               </>
@@ -406,14 +409,14 @@ export default function RestorePage() {
               <>
                 <TextField.Root type="text" placeholder={Chain[networkType].ADDRESS_PREFIX + ' ...'} size="3" value={importCandidate} onChange={(e) => { setImportCandidate(e.target.value); }} />
                 <Flex justify="center" mt="2" px="2">
-                  <Text size="1" weight="light" color="gray">
-                    Address unlocks watch-only wallet.<Link size="1" color="red" ml="1" onClick={() => resetWallet(false)}>Reset wallet.</Link>
+                  <Text size="1" weight="light" color={importCandidate && importError ? 'red' : 'gray'}>
+                    {importCandidate && importError ? importError : 'Address unlocks watch-only wallet' }.<Link size="1" color="lime" ml="1" onClick={() => resetWallet(false)}>Create wallet.</Link>
                   </Text>
                 </Flex>
               </>
             }
             <Flex mt="6" justify="start" align="center" direction="column" gap="3">
-              <Button size="3" variant="surface" loading={loading} disabled={ error || !importValid } style={{ paddingLeft: '24px', paddingRight: '24px' }} className={ importValid ? 'shadow-rainbow-animation' : 'shadow-rainbow-hover' } onClick={() => resetWallet(true)}>Setup a password</Button>
+              <Button size="3" variant="surface" loading={loading} disabled={ error || !!importError } style={{ paddingLeft: '24px', paddingRight: '24px' }} className={ importError ? 'shadow-rainbow-hover' : 'shadow-rainbow-animation' } onClick={() => resetWallet(true)}>Setup a password</Button>
             </Flex>
           </Card>
         }
@@ -450,8 +453,8 @@ export default function RestorePage() {
                 <Select.Item value="mainnet">
                   <Text color="lime">Mainnet</Text>
                 </Select.Item>
-                <Select.Item value="testnet">
-                  <Text color="yellow">Testnet</Text>
+                <Select.Item value="testnet" disabled>
+                  <Text style={{ color: 'var(--gray-5)' }}>Testnet</Text>
                 </Select.Item>
                 <Select.Item value="regtest">
                   <Text color="red">Regtest</Text>
