@@ -1,11 +1,11 @@
-import { Badge, Box, Button, Card, Dialog, Flex, Heading, Select, Tabs, Slider, Spinner, Switch, Text, TextField, Tooltip, Separator, Callout } from "@radix-ui/themes";
-import { mdiAlert, mdiArrowRight, mdiChevronDoubleRight, mdiCog, mdiLockOutline, mdiPercent, mdiSetRight, mdiSwapVertical } from "@mdi/js";
+import { Badge, Box, Button, Card, Dialog, Flex, Heading, Select, Tabs, Spinner, Switch, Text, TextField, Tooltip, Separator, Callout } from "@radix-ui/themes";
+import { mdiAlert, mdiArrowRight, mdiChevronDoubleRight, mdiListBox, mdiLockOutline, mdiPercent, mdiSetRight, mdiSwapVertical } from "@mdi/js";
 import { AssetId, Readability, ByteUtil, TextUtil, RPC, Signing, Whitelist } from "tangentsdk";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Exchange, Balance, Order, Pool, Cursor, AggregatedPair, OrderSide, RouterPath, Market, PolyAsset } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { AppData } from "../..//core/app";
-import { mdiCheckDecagram, mdiMagnify, mdiMagnifyScan, mdiMapMarkerPath, mdiPaletteSwatchVariant, mdiRefresh, mdiShimmer, mdiShoppingSearch, mdiWater } from "@mdi/js";
+import { mdiCheckDecagram, mdiMagnify, mdiMagnifyScan, mdiMapMarkerPath, mdiPaletteSwatchVariant, mdiRefresh, mdiShoppingSearch } from "@mdi/js";
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { AppStorage } from "../../core/storage";
 import { AlertBox, AlertType } from "../../components/alert";
@@ -33,7 +33,7 @@ let portfolioSyncTimeoutId: number | null = null;
 let toAssetSymbol = (asset: AssetId): string => asset.chain == 'TAN' && asset.token ? (asset.token || '') : ((asset.token || '') + (asset.chain || ''));
 let toEquityAssets = (assets: Balance[], todayProfits: boolean, available?: boolean) => {
   return (): (Balance & { value: BigNumber, equity: { current: BigNumber | null, previous: BigNumber | null } })[] => {
-    return assets.map((v: Balance) => {
+    const list = assets.map((v: Balance) => {
       const price = Exchange.priceOf(v.asset);
       const value = available ? v.available : v.available.plus(v.unavailable);
       const previousEquity = todayProfits ? (price.open ? new BigNumber(price.open.multipliedBy(value).toFixed(2)) : null) : (v.price ? new BigNumber(v.price.multipliedBy(value).toFixed(2)) : null);
@@ -47,8 +47,10 @@ let toEquityAssets = (assets: Balance[], todayProfits: boolean, available?: bool
         equity: { previous: previousEquity, current: currentEquity }
       };
     }).sort((a, b) => (b.equity.current || new BigNumber(0)).minus(a.equity.current || 0).toNumber());
+    return available ? list.filter(x => x.value.gt(0)) : list;
   };
 };
+let approxEq = (a: BigNumber, b: BigNumber) => a.lte(b.multipliedBy(1.005)) && a.gte(b.multipliedBy(0.995));
 
 function RepayableBalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } }, available?: boolean }) {
   const item = props.item;
@@ -432,45 +434,32 @@ function SwapRouter(props: {
   }, []);
   
   return (
-    <Box>
-      <Card mt="4" variant="surface" style={{ borderRadius: '28px' }}>
-        <Flex justify="between" align="center" px="3" mb="2">
-          <Text color="gray" size="2">Spending ↗</Text>
-          <Dialog.Root>
-            <Dialog.Trigger>
-              <Button variant="ghost" color="gray">
-                <Icon path={mdiCog} size={0.8}></Icon>
-              </Button>
-            </Dialog.Trigger>
-            <Dialog.Content maxWidth="450px">
-              <Flex justify="between" align="center">
-                <Dialog.Title mb="0">Config</Dialog.Title>
-                <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => setMarket(Exchange.contracts.find((v) => v.id.toString() == e) || null)} size="2">
-                  <Select.Trigger variant="soft" color="gray">{ market ? Exchange.marketPolicyOf(market) + ' ' + (market.version || market.account.substring(market.account.length - 4)) : 'Market unset' }</Select.Trigger>
-                  <Select.Content position="popper" side="bottom">
-                    <Select.Group>
-                      <Select.Label>Market contract</Select.Label>
-                      { Exchange.contracts.map((item) => <Select.Item key={item.id.toString()} value={item.id.toString()}>{ Exchange.marketPolicyOf(item) } contract — { item.version || item.account.substring(item.account.length - 4) }</Select.Item>) }
-                    </Select.Group>
-                  </Select.Content>
-                </Select.Root>
-              </Flex>
-              <Box mt="3">
-                <Tooltip side="top" content={`Slippage: maximal unfavorable deviation from best price`}>
-                  <TextField.Root placeholder="Slippage %" size="2" value={state.slippage} onChange={(e) => updateState(prev => ({ ...prev, slippage: TextUtil.toPercent(prev.slippage, e.target.value) }))}>
-                    <TextField.Slot>
-                      <Icon path={mdiPercent} size={0.8} />
-                    </TextField.Slot>
-                  </TextField.Root>
-                </Tooltip>
-              </Box>
-            </Dialog.Content>
-          </Dialog.Root>
-        </Flex>
+    <Box px="1" pt="5">
+      <Flex align="center" justify="start" mb="4">
+        <Tooltip side="top" content={`Slippage: maximal unfavorable deviation from best price`}>
+          <TextField.Root placeholder="Slippage %" variant="soft" color="gray" size="3" value={state.slippage} style={{ width: '100%', borderTopRightRadius: '0', borderBottomRightRadius: '0' }} onChange={(e) => updateState(prev => ({ ...prev, slippage: TextUtil.toPercent(prev.slippage, e.target.value) }))}>
+            <TextField.Slot>
+              <Icon path={mdiPercent} size={0.8}></Icon>
+            </TextField.Slot>
+          </TextField.Root>
+        </Tooltip>
+        <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => setMarket(Exchange.contracts.find((v) => v.id.toString() == e) || null)} size="3">
+          <Select.Trigger variant="soft" color="gray" style={{ borderTopLeftRadius: '0', borderBottomLeftRadius: '0' }}>{ market ? Exchange.marketPolicyOf(market) + ' ' + (market.version || market.account.substring(market.account.length - 4)) : 'Unset market' }</Select.Trigger>
+          <Select.Content position="popper" side="bottom">
+            <Select.Group>
+              <Select.Label>Market contract</Select.Label>
+              { Exchange.contracts.map((item) => <Select.Item key={item.id.toString()} value={item.id.toString()}>{ Exchange.marketPolicyOf(item) } contract — { item.version || item.account.substring(item.account.length - 4) }</Select.Item>) }
+            </Select.Group>
+          </Select.Content>
+        </Select.Root>
+      </Flex>
+      <Box px="5" pt="2" pb="5" position="relative" style={{
+        borderRadius: '28px',
+        border: '1px solid var(--gray-6)'
+      }}>
         <Flex justify="between" align="center">
-          <TextField.Root style={{ width: '100%', backgroundColor: 'var(--color-background)' }} size="3" placeholder="Amount out" type="text" value={state.amountIn} onChange={(e) => setAmount('amount-in', e.target.value)} />
           <AssetSelector title="token to sell" value={state.tokenIn} onChange={(value) => updateState(prev => ({ ...prev, tokenIn: value }))}>
-            <Button variant="soft" size="4" style={{ backgroundColor: 'var(--color-background)', boxShadow: 'none' }}>
+            <Button variant="soft" size="4" style={{ backgroundColor: 'var(--color-background)', boxShadow: 'none', padding: 0 }}>
               {
                 state.tokenIn != null &&
                 <Flex align="center" gap="1">
@@ -486,44 +475,47 @@ function SwapRouter(props: {
               }
               {
                 state.tokenIn == null &&
-                <Text size="4">Token ↗</Text>
+                <Text size="4">AAA</Text>
               }
             </Button>
           </AssetSelector>
+          <TextField.Root style={{ width: '100%', backgroundColor: 'transparent', border: 'none', textAlign: 'right', boxShadow: 'none', outline: 'none' }} size="3" placeholder="Pay" type="text" value={state.amountIn} onChange={(e) => setAmount('amount-in', e.target.value)} />
+        </Flex>    
+        <Flex justify="between" style={{ padding: '0 2px' }}>
+          <Text size="1" color="gray">{ Readability.toMoney(Exchange.equityAsset, swapInfo.valuationIn) }</Text>
+          <Text size="1" color="gray">{ Readability.toMoney(state.tokenIn, swapInfo.balanceIn) }</Text>
         </Flex>
-        <Flex justify="between" px="3" mt="2" mb="1">
-          <Text size="2" color="gray">{ Readability.toMoney(Exchange.equityAsset, swapInfo.valuationIn) }</Text>
-          <Flex align="center" gap="1">
-            { loadingPoly && <Spinner size="1"></Spinner> }
-            <Text size="2" color="gray">{ Readability.toMoney(state.tokenIn, swapInfo.balanceIn) }</Text>
+        <Flex align="center" justify="between" px="2" position="absolute" style={{ left: 0, right: 0, bottom: '-37px' }}>
+          <Text size="1" color="gray">{ state.slippage } slippage</Text>
+          <Flex justify="end" align="center" gap="1">
+            <Button variant="soft" size="1" style={{ fontSize: '0.925rem', padding: '10px' }} onClick={() => setAmount('amount-in', ByteUtil.bigNumberToString(swapInfo.balanceIn.multipliedBy(0.25)))} color={approxEq(swapInfo.amountIn, swapInfo.balanceIn.multipliedBy(0.25)) ? 'lime' : 'gray'}>25%</Button>
+            <Button variant="soft" size="1" style={{ fontSize: '0.925rem', padding: '10px' }} onClick={() => setAmount('amount-in', ByteUtil.bigNumberToString(swapInfo.balanceIn.multipliedBy(0.50)))} color={approxEq(swapInfo.amountIn, swapInfo.balanceIn.multipliedBy(0.50)) ? 'lime' : 'gray'}>50%</Button>
+            <Button variant="soft" size="1" style={{ fontSize: '0.925rem', padding: '10px' }} onClick={() => setAmount('amount-in', ByteUtil.bigNumberToString(swapInfo.balanceIn.multipliedBy(0.75)))} color={approxEq(swapInfo.amountIn, swapInfo.balanceIn.multipliedBy(0.75)) ? 'lime' : 'gray'}>75%</Button>
+            <Button variant="soft" size="1" style={{ fontSize: '0.925rem', padding: '10px' }} onClick={() => setAmount('amount-in', ByteUtil.bigNumberToString(swapInfo.balanceIn.multipliedBy(1.00)))} color={approxEq(swapInfo.amountIn, swapInfo.balanceIn.multipliedBy(1.00)) ? 'lime' : (swapInfo.balanceIn.gte(swapInfo.amountIn) ? 'gray' : 'red')}>Max</Button>
           </Flex>
         </Flex>
-        <Flex align="center" gap="2" px="2" mt="2">
-          <Slider variant="soft" color={swapInfo.balanceIn.gte(swapInfo.amountIn) ? undefined : 'red'} step={5} size="3" value={[swapInfo.balanceIn.gt(0) ? Math.min(100, Math.max(0, swapInfo.amountIn.dividedBy(swapInfo.balanceIn).multipliedBy(100).toNumber())) : 0]} onValueChange={(e) => setAmount('amount-in', ByteUtil.bigNumberToString(swapInfo.balanceIn.multipliedBy(e[0] / 100)))} />
-          <Badge size="1" color={swapInfo.balanceIn.gte(swapInfo.amountIn) ? undefined : 'red'}>{ (swapInfo.balanceIn.gt(0) ? Math.min(100, Math.max(0, swapInfo.amountIn.dividedBy(swapInfo.balanceIn).multipliedBy(100).toNumber())) : 0).toFixed(2) }%{ swapInfo.balanceIn.lt(swapInfo.amountIn) ? '+' : '' }</Badge>
+      </Box>
+      <Box position="relative" px="5">
+        <Separator mt="9" mb="8" size="4"></Separator>
+        <Flex justify="center" px="2" py="2" align="center" position="absolute" className="rt-Card" style={{ backgroundColor: 'var(--color-panel-solid)', borderRadius: '16px', top: '-20px', left: '50%', transform: 'translateX(-50%)' }}>
+          <Button variant="ghost" style={{ height: 'auto' }} onClick={() => updateState(prev => ({
+            tokenIn: prev.tokenOut,
+            tokenOut: prev.tokenIn,
+            amountIn: prev.amountOut,
+            amountOut: prev.amountIn,
+            slippage: prev.slippage
+          }))} loading={loadingPath || loadingPoly}>
+            <Icon path={mdiSwapVertical} size={0.9}></Icon>
+          </Button>
         </Flex>
-        <Box position="relative">
-          <Separator my="6" size="4"></Separator>
-          <Flex justify="center" px="3" py="3" align="center" position="absolute" className="rt-Card" style={{ backgroundColor: 'var(--color-panel-solid)', borderRadius: '16px', top: '-24px', left: '50%', transform: 'translateX(-50%)' }}>
-            <Button variant="ghost" style={{ height: 'auto' }} onClick={() => updateState(prev => ({
-              tokenIn: prev.tokenOut,
-              tokenOut: prev.tokenIn,
-              amountIn: prev.amountOut,
-              amountOut: prev.amountIn,
-              slippage: prev.slippage
-            }))}>
-              <Icon path={mdiSwapVertical} size={1}></Icon>
-            </Button>
-          </Flex>
-        </Box>
-        <Flex justify="between" align="center" px="3" mb="2">
-          <Text color="gray" size="2">Receiving ↙</Text>
-          { loadingPath && <Spinner size="3"></Spinner> }
-        </Flex>
+      </Box>
+      <Box px="5" pt="2" pb="5" style={{
+        borderRadius: '28px',
+        border: '1px solid var(--gray-6)'
+      }}>
         <Flex justify="between" align="center">
-          <TextField.Root style={{ width: '100%', backgroundColor: 'var(--color-background)' }} size="3" placeholder="Amount in" type="text" value={state.amountOut} onChange={(e) => setAmount('amount-out', e.target.value)} />
           <AssetSelector title="token to buy" value={state.tokenOut} onChange={(value) => updateState(prev => ({ ...prev, tokenOut: value }))}>
-            <Button variant="soft" size="4" style={{ backgroundColor: 'var(--color-background)', boxShadow: 'none' }}>
+            <Button variant="soft" size="4" style={{ backgroundColor: 'var(--color-background)', boxShadow: 'none', padding: 0 }}>
               {
                 state.tokenOut != null &&
                 <Flex align="center" gap="1">
@@ -539,16 +531,17 @@ function SwapRouter(props: {
               }
               {
                 state.tokenOut == null &&
-                <Text size="4">Token ↙</Text>
+                <Text size="4">BBB</Text>
               }
             </Button>
           </AssetSelector>
+          <TextField.Root style={{ width: '100%', backgroundColor: 'transparent', border: 'none', textAlign: 'right', boxShadow: 'none', outline: 'none' }} size="3" placeholder="Receive" type="text" value={state.amountOut} onChange={(e) => setAmount('amount-out', e.target.value)} />         
         </Flex>
-        <Flex justify="between" px="3" mt="2" mb="1">
-          <Text size="2" color="gray">{ Readability.toMoney(Exchange.equityAsset, swapInfo.valuationOut) }</Text>
-          <Text size="2" color="gray">{ Readability.toMoney(state.tokenOut, swapInfo.balanceOut) }</Text>
+        <Flex justify="between" style={{ padding: '0 2px' }}>
+          <Text size="1" color="gray">{ Readability.toMoney(Exchange.equityAsset, swapInfo.valuationOut) }</Text>
+          <Text size="1" color="gray">{ Readability.toMoney(state.tokenOut, swapInfo.balanceOut) }</Text>
         </Flex>
-      </Card>
+      </Box>
       {
         bestPaths.map((path: RouterPath, pathIndex: number) => {
           const last = path[path.length - 1];
@@ -557,13 +550,13 @@ function SwapRouter(props: {
           const amountOut = swapInfo.priceOut?.gt(0) && last.output[type].gt(0) ? last.output[type].multipliedBy(swapInfo.priceOut) : null;
           return (
             <Card key={'swap_path_' + pathIndex} mt="4" style={{ borderRadius: '28px' }}>
-              <Box px="2">
+              <Box px="2" py="1">
                 <Flex justify="between" align="center">
                   <Flex gap="2">
                     <Badge size="3" color={pathIndex == 0 ? undefined : 'gray'}>{ pathIndex == 0 ? 'Best route' : (pathIndex == 1 ? '2nd route' : (pathIndex == 2 ? '3rd route' : ((pathIndex + 1) + 'th route'))) }</Badge>
                     <Badge size="3" color="gray">{ Readability.toCount('swap', path.length) }</Badge>
                   </Flex>
-                  <Text as="label" size="3">Slip <Switch size="2" color="red" checked={convervative} onCheckedChange={(e) => setConservative(e)} /></Text>
+                  <Text as="label" size="3">Min <Switch size="2" color="red" checked={convervative} onCheckedChange={(e) => setConservative(e)} /></Text>
                 </Flex>
                 <Flex align="center" gap="1" wrap="wrap" my="4">
                   {
@@ -720,7 +713,7 @@ function TradingPairs() {
           { loading && <Spinner></Spinner> }
           { !loading && <Text>{ Readability.toCount('pair', pairsFilter.length) }</Text> }
           <Flex gap="2" justify="end">
-            <Text>Launch</Text>
+            <Text>List</Text>
             <AssetSelector title="token 1 to launch" value={marketLauncher.primary} onChange={(value) => setMarketLauncher(prev => ({ primary: value, secondary: prev?.secondary || null }))}>
               <Button variant="ghost" size="3">
                 {
@@ -733,7 +726,7 @@ function TradingPairs() {
                 { marketLauncher.primary == null && (assetQuery.primary?.toUpperCase() || 'AAA') }
               </Button>
             </AssetSelector>
-            <Text>x</Text>
+            <Text>/</Text>
             <AssetSelector title="token 2 to launch" value={marketLauncher.secondary} onChange={(value) => setMarketLauncher(prev => ({ primary: prev?.primary || null, secondary: value }))}>
               <Button variant="ghost" size="3">
                 {
@@ -813,17 +806,15 @@ function PortfolioAssets(props: {
   return (
     <Box pt="4">
       <Flex justify="between" align="center" pb="4">
-        <Text>{ repayableAssets.length > 0 ? 'Synthetic balance sheet' : 'Native balance sheet' }</Text>
-        <Select.Root value={available ? '1' : '0'} onValueChange={(e) => setAvailable(parseInt(e) > 0)}>
-          <Select.Trigger />
-          <Select.Content>
-            <Select.Group>
-              <Select.Label>View mode</Select.Label>
-              <Select.Item value="1">Spendable</Select.Item>
-              <Select.Item value="0">Overall</Select.Item>
-            </Select.Group>
-          </Select.Content>
-        </Select.Root>
+        <Text>Balance sheet</Text>
+        <Text as="label" size="2">
+          <Flex gap="2">
+            <Switch size="1" checked={!available} onCheckedChange={(e) => {
+              AppStorage.set('__verified_assets_only__', e.valueOf());
+              setAvailable(!e.valueOf())
+            }} /> Total
+          </Flex>
+        </Text>
       </Flex>
       {
         repayableAssets.length > 0 &&
@@ -839,10 +830,9 @@ function PortfolioAssets(props: {
       { repayableAssets.map((item) => <BalanceView key={item.asset.id} item={item} readOnly={props.readOnly} available={available}></BalanceView>) }
       {
         repayableAssets.length > 0 && nativeAssets.length > 0 &&
-        <Flex mt="6" mb="4" align="center" justify="between">
-          <Text>Native balance sheet</Text>
-          <Badge variant="surface" color="yellow" size="3">Native</Badge>
-        </Flex>
+        <Box px="2">
+          <Box my="6" style={{ border: '1px dashed var(--gray-8)' }}></Box>
+        </Box>
       }
       { nativeAssets.map((item) => <BalanceView key={item.asset.id} item={item} readOnly={props.readOnly} available={available}></BalanceView>) }
       {
@@ -867,7 +857,7 @@ export default function PortfolioPage() {
   const [assetResync, setAssetResync] = useState(0);
   const [query, setQuery] = useState('');
   const [assets, setAssets] = useState<CachedBalance[]>([]);
-  const [viewer, setViewer] = useState<'swap' | 'trade' | 'assets' | 'open-orders' | 'closed-orders' | 'open-pools' | 'closed-pools' | 'best-pools'>('assets');
+  const [viewer, setViewer] = useState<'swap' | 'trade' | 'assets' | 'history-open-orders' | 'history-closed-orders' | 'history-open-pools' | 'history-closed-pools' | 'history-best-pools'>('assets');
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [todayProfits, setTodayProfits] = useState(true);
@@ -875,6 +865,20 @@ export default function PortfolioPage() {
   const [pools, setPools] = useState<Pool[]>([]);
   const [moreOrders, setMoreOrders] = useState(true);
   const [morePools, setMorePools] = useState(true);
+  const historyTitle = useMemo(() => {
+    switch (viewer) {
+      case 'history-open-orders':
+      case 'history-closed-orders':
+        return 'Order history';
+      case 'history-open-pools':
+      case 'history-closed-pools':
+        return 'LP history';
+      case 'history-best-pools':
+        return 'LP market';
+      default:
+        return 'History';
+    }
+  }, [viewer]);
   const findOrders = useCallback(async (refresh?: boolean) => {
     if (!baseAddress) {
       setOrders([]);
@@ -883,7 +887,7 @@ export default function PortfolioPage() {
     }
     try {
       const cursor = Cursor.offset(refresh ? 0 : orders.length);
-      const data = await Exchange.accountOrders({ address: baseAddress, page: Math.floor(cursor.offset / cursor.count), active: viewer == 'open-orders' });
+      const data = await Exchange.accountOrders({ address: baseAddress, page: Math.floor(cursor.offset / cursor.count), active: viewer == 'history-open-orders' });
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setOrders([]);
@@ -903,7 +907,7 @@ export default function PortfolioPage() {
     }
   }, [params.account, pools, viewer]);
   const findPools = useCallback(async (refresh?: boolean) => {
-    const bestPools = viewer == 'best-pools';
+    const bestPools = viewer == 'history-best-pools';
     if (!bestPools && !baseAddress) {
       setPools([]);
       setMorePools(false);
@@ -912,7 +916,7 @@ export default function PortfolioPage() {
     try {
       const cursor = Cursor.offset(refresh ? 0 : pools.length);
       const page = Math.floor(cursor.offset / cursor.count);
-      const data = bestPools ? await Exchange.marketPools({ page: page }) : await Exchange.accountPools({ address: baseAddress || '', page: page, active: viewer == 'open-pools' });
+      const data = bestPools ? await Exchange.marketPools({ page: page }) : await Exchange.accountPools({ address: baseAddress || '', page: page, active: viewer == 'history-open-pools' });
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setPools([]);
@@ -932,10 +936,14 @@ export default function PortfolioPage() {
     }
   }, [params.account, pools, viewer]);
   useEffectAsync(async () => {
+    if (viewer.startsWith('history')) {
+      AppStorage.set('__portfolio_view_history__', viewer);
+    }
+
     setLoading(true);
-    if (viewer == 'open-orders' || viewer == 'closed-orders') {
+    if (viewer == 'history-open-orders' || viewer == 'history-closed-orders') {
       await findOrders(true);
-    } else if (viewer == 'open-pools' || viewer == 'closed-pools'|| viewer == 'best-pools') {
+    } else if (viewer == 'history-open-pools' || viewer == 'history-closed-pools'|| viewer == 'history-best-pools') {
       await findPools(true);
     } else if (viewer == 'assets' || viewer == 'swap') {
       setAssetResync(new Date().getTime());
@@ -944,12 +952,12 @@ export default function PortfolioPage() {
   }, [viewer, params.account]);
   useEffect(() => {
     const view = search.get('view') || AppStorage.get('__portfolio_view__') || null;
-    if (view != null && ['swap', 'trade', 'assets', 'open-orders', 'closed-orders', 'open-pools', 'closed-pools', 'best-pools'].includes(view)) {
+    if (view != null && ['swap', 'trade', 'assets', 'history-open-orders', 'history-closed-orders', 'history-open-pools', 'history-closed-pools', 'history-best-pools'].includes(view)) {
       AppStorage.set('__portfolio_view__', view);
       setViewer(view as any);
     } else {
       AppStorage.set('__portfolio_view__');
-    }  
+    }
   }, [search]);
 
   return (
@@ -998,10 +1006,12 @@ export default function PortfolioPage() {
       }
       <PortfolioWorth address={baseAddress} assetResync={assetResync} todayProfits={todayProfits} onTodayProfitsChange={setTodayProfits} onAssetsChange={viewer == 'swap' || viewer == 'assets' ? setAssets : undefined}></PortfolioWorth>
       <Box px="2" pt="2">
-        <Tabs.Root value={viewer.replace(/(open-)|(closed-)|(best-)/g, '')} onValueChange={(x) => setSearch({
-          view: x == 'orders' || x == 'pools' ? 'open-' + x : x
-        })} mt="4">
-          <Tabs.List size="2" color="lime" justify={mobile ? undefined : 'center'}>
+        <Tabs.Root value={viewer.startsWith('history') ? 'history' : viewer} onValueChange={(x) => {
+          let history = AppStorage.get('__portfolio_view_history__') || 'history-open-orders';
+          history = ['history-open-orders', 'history-closed-orders', 'history-open-pools', 'history-closed-pools', 'history-best-pools'].includes(history) ? history : 'history-open-orders';
+          setSearch({ view: x == 'history' ? history : x })
+        }} mt="4">
+          <Tabs.List size="2" color="lime" justify="center">
             <Tabs.Trigger value="trade" className="tab-padding-erase">
               <Badge size="3" radius="large">
                 <Flex align="center" gap="1">
@@ -1014,7 +1024,7 @@ export default function PortfolioPage() {
               <Badge size="3" radius="large">
                 <Flex align="center" gap="1">
                   <Icon path={mdiMapMarkerPath} size={0.6}></Icon>
-                  <Text>Swap</Text>
+                  <Text>Router</Text>
                 </Flex>
               </Badge>
             </Tabs.Trigger>
@@ -1022,23 +1032,15 @@ export default function PortfolioPage() {
               <Badge size="3" radius="large">
                 <Flex align="center" gap="1">
                   <Icon path={mdiPaletteSwatchVariant} size={0.6}></Icon>
-                  <Text>Balance</Text>
+                  <Text>Wallet</Text>
                 </Flex>
               </Badge>
             </Tabs.Trigger>
-            <Tabs.Trigger value="pools" className="tab-padding-erase">
+            <Tabs.Trigger value="history" className="tab-padding-erase">
               <Badge size="3" radius="large">
                 <Flex align="center" gap="1">
-                  <Icon path={mdiWater} size={0.6}></Icon>
-                  <Text>LPs</Text>
-                </Flex>
-              </Badge>
-            </Tabs.Trigger>
-            <Tabs.Trigger value="orders" className="tab-padding-erase">
-              <Badge size="3" radius="large">
-                <Flex align="center" gap="1">
-                  <Icon path={mdiShimmer} size={0.6}></Icon>
-                  <Text>Orders</Text>
+                  <Icon path={mdiListBox} size={0.6}></Icon>
+                  <Text>History</Text>
                 </Flex>
               </Badge>
             </Tabs.Trigger>
@@ -1052,68 +1054,71 @@ export default function PortfolioPage() {
           <Tabs.Content value="assets">
             <PortfolioAssets assets={assets} todayProfits={todayProfits} readOnly={readOnly}></PortfolioAssets>
           </Tabs.Content>
-          <Tabs.Content value="pools">
-            <Box pt="4">
+          <Tabs.Content value="history">
+            <Box pt="4" px="1">
               <Flex justify="between" align="center" pb="4">
-                <Text>LP { viewer == 'best-pools' ? 'market' : 'history' }</Text>
-                <Select.Root value={viewer.replace('-pools', '')} onValueChange={(e) => setSearch({ view: e + '-pools' })}>
+                <Text>{ historyTitle }</Text>
+                <Select.Root value={viewer} onValueChange={(e) => setSearch({ view: e })}>
                   <Select.Trigger />
                   <Select.Content>
                     <Select.Group>
-                      <Select.Label>LP filter</Select.Label>
-                      <Select.Item value="best">Best LP</Select.Item>
-                      <Select.Item value="open">Open LP</Select.Item>
-                      <Select.Item value="closed">Closed LP</Select.Item>
+                      <Select.Label>Orders</Select.Label>
+                      <Select.Item value="history-open-orders">Open orders</Select.Item>
+                      <Select.Item value="history-closed-orders">Closed orders</Select.Item>
+                    </Select.Group>
+                    <Select.Separator />
+                    <Select.Group>
+                      <Select.Label>Liquidity pools</Select.Label>
+                      <Select.Item value="history-open-pools">Open LP</Select.Item>
+                      <Select.Item value="history-closed-pools">Closed LP</Select.Item>
+                      <Select.Item value="history-best-pools">Best LP</Select.Item>
                     </Select.Group>
                   </Select.Content>
                 </Select.Root>
               </Flex>
-              <InfiniteScroll dataLength={pools.length} hasMore={morePools} next={findPools} loader={<div></div>}>
-                {
-                  pools.map((item) =>
-                    <Box key={item.poolId.toString()} mb="4">
-                      <PoolView item={item} readOnly={readOnly || viewer == 'best-pools'}></PoolView>
-                    </Box>)
-                }
-              </InfiniteScroll>
               {
-                !pools.length &&
-                <Flex px="4" justify="center">
-                  <Text size="2" align="center">No LPs to show.</Text>
-                </Flex>
+                (viewer == 'history-open-orders' || viewer == 'history-closed-orders') &&
+                <>
+                  <InfiniteScroll dataLength={orders.length} hasMore={moreOrders} next={findOrders} loader={<div></div>}>
+                    {
+                      orders.map((item) =>
+                        <Box key={item.orderId.toString()} mb="4">
+                          <OrderView item={item} readOnly={readOnly}></OrderView>
+                        </Box>
+                      )
+                    }
+                  </InfiniteScroll>
+                  {
+                    !orders.length &&
+                    <Flex px="4" justify="center">
+                      <Text size="2" align="center">No orders to show.</Text>
+                    </Flex>
+                  }
+                </>
+              }
+              {
+                (viewer == 'history-open-pools' || viewer == 'history-closed-pools' || viewer == 'history-best-pools') &&
+                <>
+                  <InfiniteScroll dataLength={pools.length} hasMore={morePools} next={findPools} loader={<div></div>}>
+                    {
+                      pools.map((item) =>
+                        <Box key={item.poolId.toString()} mb="4">
+                          <PoolView item={item} readOnly={readOnly || viewer == 'history-best-pools'}></PoolView>
+                        </Box>)
+                    }
+                  </InfiniteScroll>
+                  {
+                    !pools.length &&
+                    <Flex px="4" justify="center">
+                      <Text size="2" align="center">No LPs to show.</Text>
+                    </Flex>
+                  }
+                </>
               }
             </Box>
           </Tabs.Content>
           <Tabs.Content value="orders">
             <Box pt="4">
-              <Flex justify="between" align="center" pb="4">
-                <Text>Order history</Text>
-                <Select.Root value={viewer.replace('-orders', '')} onValueChange={(e) => setSearch({ view: e + '-orders' })}>
-                  <Select.Trigger />
-                  <Select.Content>
-                    <Select.Group>
-                      <Select.Label>Order filter</Select.Label>
-                      <Select.Item value="open">Open orders</Select.Item>
-                      <Select.Item value="closed">Closed orders</Select.Item>
-                    </Select.Group>
-                  </Select.Content>
-                </Select.Root>
-              </Flex>
-              <InfiniteScroll dataLength={orders.length} hasMore={moreOrders} next={findOrders} loader={<div></div>}>
-                {
-                  orders.map((item) =>
-                    <Box key={item.orderId.toString()} mb="4">
-                      <OrderView item={item} readOnly={readOnly}></OrderView>
-                    </Box>
-                  )
-                }
-              </InfiniteScroll>
-              {
-                !orders.length &&
-                <Flex px="4" justify="center">
-                  <Text size="2" align="center">No orders to show.</Text>
-                </Flex>
-              }
             </Box>
           </Tabs.Content>
         </Tabs.Root>
