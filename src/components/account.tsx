@@ -234,16 +234,19 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   useEffect(() => {
     if (props.self) {
       let asset: AssetId | null = null;
-      if (transactions.length > 0) {
-        const target = transactions[0];
-        const type = Readability.toTransactionType(target.transaction.type);
-        if (type == 'route' || type == 'bind' || type == 'imbind') {
-          asset = AssetId.fromHandle(target.transaction.asset.chain);
+      if (finalizedTransactions.length > 0) {
+        const target = finalizedTransactions[0];
+        const blockchain = blockchains.find((x) => x.chain == target.transaction.asset.chain);
+        if (blockchain != null) {
+          const type = Readability.toTransactionType(target.transaction.type);
+          if (blockchain.routing_policy == 'account' ? (type == 'route' || type == 'bind' || type == 'imbind') : (type == 'bind' || type == 'imbind')) {
+            asset = AssetId.fromHandle(target.transaction.asset.chain);
+          }
         }
       }
       setVaultBlockchain(asset);
     }
-  }, [props.self, transactions]);
+  }, [props.self, blockchains, finalizedTransactions]);
 
   const mobile = document.body.clientWidth < 500;
   return (
