@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Avatar, Badge, Box, Button, Card, Flex, SegmentedControl, Spinner, Switch, Tabs, Text, Tooltip } from "@radix-ui/themes";
 import { RPC, EventResolver, SummaryState, AssetId, Readability, Chain, Whitelist } from 'tangentsdk';
 import { useEffectAsync } from "../core/react";
@@ -21,6 +21,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   const ownerAddress = props.ownerAddress;
   const navigate = useNavigate();
   const prevState = useRef<{ control: any, ownerAddress: any, nonce: any }>({ control: undefined, ownerAddress: undefined, nonce: undefined });
+  const [vaultBlockchain, setVaultBlockchain] = useState<AssetId | null>(null);
   const [verifiedAssetsOnly, setVerifiedAssetsOnly] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [blockchains, setBlockchains] = useState<any[]>([]);
@@ -36,7 +37,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   const [mempoolTransactions, setMempoolTransactions] = useState<any[]>([]);
   const [moreTransactions, setMoreTransactions] = useState(true);
   const transactions = useMemo((): { transaction: any, receipt?: any, state?: SummaryState }[] => {
-    return [...mempoolTransactions.map((x) => ({ transaction: x })), ...finalizedTransactions]
+    return [...mempoolTransactions.map((x) => ({ transaction: x })), ...finalizedTransactions];
   }, [finalizedTransactions, mempoolTransactions]);
   const filteredAddresses = useMemo((): any[] => {
     const routes = addresses.filter((x) => x.purpose == 'routing');
@@ -230,6 +231,19 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
         setBlockchains((await RPC.getBlockchains()) || []);
     } catch { }
   }, []);
+  useEffect(() => {
+    if (props.self) {
+      let asset: AssetId | null = null;
+      if (transactions.length > 0) {
+        const target = transactions[0];
+        const type = Readability.toTransactionType(target.transaction.type);
+        if (type == 'route' || type == 'bind' || type == 'imbind') {
+          asset = AssetId.fromHandle(target.transaction.asset.chain);
+        }
+      }
+      setVaultBlockchain(asset);
+    }
+  }, [props.self, transactions]);
 
   const mobile = document.body.clientWidth < 500;
   return (
@@ -370,7 +384,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
             {
               props.self &&
               <Box mt="2">
-                <Vault blockchains={blockchains} assets={allAssets}></Vault>
+                <Vault blockchains={blockchains} blockchain={vaultBlockchain || undefined} assets={allAssets}></Vault>
               </Box>
             }
           </Tabs.Content>

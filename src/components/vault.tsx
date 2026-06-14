@@ -147,7 +147,7 @@ const ASSET_INFORMATION: Record<string, ExtendedField> = {
   },
 }
 
-export default function Vault(props: { blockchains: any[], assets: any[] }) {
+export default function Vault(props: { blockchains: any[], assets: any[], blockchain?: AssetId }) {
   const ownerAddress = AppData.getWalletAddress() || '';
   const mobile = document.body.clientWidth < 500;
   const navigate = useNavigate();
@@ -318,6 +318,11 @@ export default function Vault(props: { blockchains: any[], assets: any[] }) {
   useEffect(() => {
     setRoutingAddressIndex(blockchainAddresses.routing?.addresses.length > 0 ? 0 : -1);
   }, [blockchainAddresses]);
+  useEffect(() => {
+    if (props.blockchain != null) {
+      setBlockchainIndex(props.blockchains.sort((a, b) => new AssetId(a.id).handle.localeCompare(new AssetId(b.id).handle)).findIndex((x) => x.id == props.blockchain?.id))
+    }
+  }, [props.blockchains, props.blockchain]);
 
   return (
     <Box px={mobile ? '2' : undefined}>
