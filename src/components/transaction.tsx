@@ -1338,7 +1338,7 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
   
   return (
     <Collapsible.Root open={expanded}>
-      <Card variant="surface" style={{ borderRadius: '22px', position: 'relative' }}>
+      <Card variant="surface" style={{ borderRadius: '22px', position: 'relative', backgroundColor: 'transparent' }}>
         <Flex gap="3" align="start" className="card-expander" onClick={() => props.open ? undefined : setExpanded(!expanded)}>
           <AssetImage asset={transaction.asset}></AssetImage>
           <Box width="100%">

@@ -1,5 +1,5 @@
 import { Badge, Box, Button, Card, Dialog, Flex, Heading, Select, Tabs, Spinner, Switch, Text, TextField, Tooltip, Separator, Callout } from "@radix-ui/themes";
-import { mdiAlert, mdiArrowRight, mdiChevronDoubleRight, mdiListBox, mdiLockOutline, mdiPercent, mdiSetRight, mdiSwapVertical } from "@mdi/js";
+import { mdiAlert, mdiArrowLeft, mdiArrowRight, mdiChevronDoubleRight, mdiListBox, mdiLockOutline, mdiPercent, mdiSetRight, mdiSwapVertical } from "@mdi/js";
 import { AssetId, Readability, ByteUtil, TextUtil, RPC, Signing, Whitelist } from "tangentsdk";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Exchange, Balance, Order, Pool, Cursor, AggregatedPair, OrderSide, RouterPath, Market, PolyAsset } from "../../core/exchange";
@@ -458,7 +458,7 @@ function SwapRouter(props: {
         border: '1px solid var(--gray-6)'
       }}>
         <Flex justify="between" align="center">
-          <AssetSelector title="token to sell" value={state.tokenIn} onChange={(value) => updateState(prev => ({ ...prev, tokenIn: value }))}>
+          <AssetSelector title="token to pay" value={state.tokenIn} onChange={(value) => updateState(prev => ({ ...prev, tokenIn: value }))}>
             <Button variant="soft" size="4" style={{ backgroundColor: 'var(--color-background)', boxShadow: 'none', padding: 0 }}>
               {
                 state.tokenIn != null &&
@@ -475,7 +475,10 @@ function SwapRouter(props: {
               }
               {
                 state.tokenIn == null &&
-                <Text size="4">AAA</Text>
+                <Flex align="center">
+                  <Icon path={mdiArrowRight} size={0.9}></Icon>
+                  <Text size="4">Token</Text>
+                </Flex>
               }
             </Button>
           </AssetSelector>
@@ -514,7 +517,7 @@ function SwapRouter(props: {
         border: '1px solid var(--gray-6)'
       }}>
         <Flex justify="between" align="center">
-          <AssetSelector title="token to buy" value={state.tokenOut} onChange={(value) => updateState(prev => ({ ...prev, tokenOut: value }))}>
+          <AssetSelector title="token to get" value={state.tokenOut} onChange={(value) => updateState(prev => ({ ...prev, tokenOut: value }))}>
             <Button variant="soft" size="4" style={{ backgroundColor: 'var(--color-background)', boxShadow: 'none', padding: 0 }}>
               {
                 state.tokenOut != null &&
@@ -531,11 +534,14 @@ function SwapRouter(props: {
               }
               {
                 state.tokenOut == null &&
-                <Text size="4">BBB</Text>
+                <Flex align="center">
+                  <Icon path={mdiArrowLeft} size={0.9}></Icon>
+                  <Text size="4">Token</Text>
+                </Flex>
               }
             </Button>
           </AssetSelector>
-          <TextField.Root style={{ width: '100%', backgroundColor: 'transparent', border: 'none', textAlign: 'right', boxShadow: 'none', outline: 'none' }} size="3" placeholder="Receive" type="text" value={state.amountOut} onChange={(e) => setAmount('amount-out', e.target.value)} />         
+          <TextField.Root style={{ width: '100%', backgroundColor: 'transparent', border: 'none', textAlign: 'right', boxShadow: 'none', outline: 'none' }} size="3" placeholder="Get" type="text" value={state.amountOut} onChange={(e) => setAmount('amount-out', e.target.value)} />         
         </Flex>
         <Flex justify="between" style={{ padding: '0 2px' }}>
           <Text size="1" color="gray">{ Readability.toMoney(Exchange.equityAsset, swapInfo.valuationOut) }</Text>
@@ -1024,7 +1030,7 @@ export default function PortfolioPage() {
               <Badge size="3" radius="large">
                 <Flex align="center" gap="1">
                   <Icon path={mdiMapMarkerPath} size={0.6}></Icon>
-                  <Text>Router</Text>
+                  <Text>Swap</Text>
                 </Flex>
               </Badge>
             </Tabs.Trigger>
@@ -1040,7 +1046,7 @@ export default function PortfolioPage() {
               <Badge size="3" radius="large">
                 <Flex align="center" gap="1">
                   <Icon path={mdiListBox} size={0.6}></Icon>
-                  <Text>History</Text>
+                  <Text>Logs</Text>
                 </Flex>
               </Badge>
             </Tabs.Trigger>
