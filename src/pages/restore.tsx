@@ -279,31 +279,31 @@ export default function RestorePage() {
             <Heading as="h3" size="8" align="center" mb="5">
               <Text ref={titleRef}>Tangent Wallet</Text>
             </Heading>
-            <Box mb="5" position="relative">
-              <form action="">
-                <TextField.Root id="card-password-field" type="password" placeholder="Come up with a password" autoComplete="new-password" size="3" value={passphrase} onChange={(e) => { setPassphrase(e.target.value); }} />
-                {
-                  AppData.isWalletExists() &&
-                  <Flex justify="center" mt="2" px="2">
-                    <Text size="1" weight="light" color="gray">
-                      At any cost, do not forget.<Link size="1" ml="1" color="red" onClick={tryRestoreWallet}>Restore wallet.</Link>
-                    </Text>
-                  </Flex>
-                }
-                {
-                  !AppData.isWalletExists() &&
-                  <Flex justify="center" mt="2" px="2">
-                    <Text size="1" weight="light" color="gray">
-                      At any cost, do not forget.<Link size="1" ml="1" color="lime" onClick={importWallet}>{ importError ? 'Import wallet.' : 'Change wallet.' }</Link>
-                    </Text>
-                  </Flex>
-                }
-              </form>
-            </Box>
-            <Flex mt="4" justify="start" align="center" direction="column" gap="3">
-              <Button size="3" variant="surface" loading={loading} style={{ paddingLeft: '24px', paddingRight: '24px' }} disabled={passphrase.length < PASSWORD_SIZE} className={error ? 'shadow-rainbow-hover animation-horizontal-shake' : (passphrase.length < PASSWORD_SIZE ? 'shadow-rainbow-hover' :  'shadow-rainbow-animation')} onClick={createWallet}>{ importError ? 'Create wallet' : 'Import wallet' }</Button>
-              { AppData.isWalletExists() && <Link size="1" ml="1" color="gray" onClick={importWallet}>{ importError ? 'Import wallet' : 'Change wallet' }</Link> }
-            </Flex>
+            <form action="">
+              <Box mb="5" position="relative">
+                  <TextField.Root id="card-password-field" type="password" placeholder="Come up with a password" autoComplete="new-password" size="3" value={passphrase} onChange={(e) => { setPassphrase(e.target.value); }} />
+                  {
+                    AppData.isWalletExists() &&
+                    <Flex justify="center" mt="2" px="2">
+                      <Text size="1" weight="light" color="gray">
+                        At any cost, do not forget.<Link size="1" ml="1" color="red" onClick={tryRestoreWallet}>Restore wallet.</Link>
+                      </Text>
+                    </Flex>
+                  }
+                  {
+                    !AppData.isWalletExists() &&
+                    <Flex justify="center" mt="2" px="2">
+                      <Text size="1" weight="light" color="gray">
+                        At any cost, do not forget.<Link size="1" ml="1" color="lime" onClick={importWallet}>{ importError ? 'Import wallet.' : 'Change wallet.' }</Link>
+                      </Text>
+                    </Flex>
+                  }
+              </Box>
+              <Flex mt="4" justify="start" align="center" direction="column" gap="3">
+                <Button size="3" variant="surface" type="submit" loading={loading} style={{ paddingLeft: '24px', paddingRight: '24px' }} disabled={passphrase.length < PASSWORD_SIZE} className={error ? 'shadow-rainbow-hover animation-horizontal-shake' : (passphrase.length < PASSWORD_SIZE ? 'shadow-rainbow-hover' :  'shadow-rainbow-animation')} onClick={(e) => { e.preventDefault(); createWallet(); }}>{ importError ? 'Create wallet' : 'Import wallet' }</Button>
+                { AppData.isWalletExists() && <Link size="1" ml="1" color="gray" onClick={importWallet}>{ importError ? 'Import wallet' : 'Change wallet' }</Link> }
+              </Flex>
+            </form>
           </Card>
         }
         {

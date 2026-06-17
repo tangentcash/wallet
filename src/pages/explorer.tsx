@@ -219,7 +219,10 @@ export default function ExplorerPage() {
                 <Icon path={mdiMagnify} size={0.9} color="var(--accent-8)"/>
               </TextField.Slot>
             </TextField.Root>
-            <Button style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }} variant="surface" size="3" type="submit" color="gray" loading={loading} onClick={() => navigateToSearch()}>Query</Button>
+            <Button style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }} variant="surface" size="3" type="submit" color="gray" loading={loading} onClick={(e) => {
+              e.preventDefault();
+              navigateToSearch();
+            }}>Query</Button>
           </Flex>
         </form>
       </Box>
