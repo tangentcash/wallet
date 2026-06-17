@@ -1,5 +1,5 @@
 import { Badge, Box, Button, Card, Dialog, Flex, Heading, Select, Tabs, Spinner, Switch, Text, TextField, Tooltip, Separator, Callout } from "@radix-ui/themes";
-import { mdiAlert, mdiArrowLeft, mdiArrowRight, mdiChevronDoubleRight, mdiListBox, mdiLockOutline, mdiPercent, mdiSetRight, mdiSwapVertical } from "@mdi/js";
+import { mdiAlert, mdiArrowBottomLeft, mdiArrowDown, mdiArrowRight, mdiArrowTopRight, mdiChevronDoubleRight, mdiListBox, mdiLockOutline, mdiPercent, mdiSetRight } from "@mdi/js";
 import { AssetId, Readability, ByteUtil, TextUtil, RPC, Signing, Whitelist } from "tangentsdk";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Exchange, Balance, Order, Pool, Cursor, AggregatedPair, OrderSide, RouterPath, Market, PolyAsset } from "../../core/exchange";
@@ -407,7 +407,11 @@ function SwapRouter(props: {
           }
           setLoadingPath(false);
         }, 1000) as any;
+      } else {
+        setBestPaths([]);
       }
+    } else {
+      setBestPaths([]);
     }
     
     return () => {
@@ -453,6 +457,9 @@ function SwapRouter(props: {
           </Select.Content>
         </Select.Root>
       </Flex>
+      <Box px="2" pb="1">
+        <Text size="1" color="gray">Paying</Text>
+      </Box>
       <Box px="5" pt="2" pb="5" position="relative" style={{
         borderRadius: '28px',
         border: '1px solid var(--gray-6)'
@@ -471,13 +478,14 @@ function SwapRouter(props: {
                     }
                   </Box>
                   <AssetName asset={state.tokenIn} symbol={true} tokenOnly={true} size="4"></AssetName>
+                  <Icon path={mdiArrowTopRight} size={0.9}></Icon>
                 </Flex>
               }
               {
                 state.tokenIn == null &&
                 <Flex align="center">
-                  <Icon path={mdiArrowRight} size={0.9}></Icon>
                   <Text size="4">Token</Text>
+                  <Icon path={mdiArrowTopRight} size={0.9}></Icon>
                 </Flex>
               }
             </Button>
@@ -488,8 +496,48 @@ function SwapRouter(props: {
           <Text size="1" color="gray">{ Readability.toMoney(Exchange.equityAsset, swapInfo.valuationIn) }</Text>
           <Text size="1" color="gray">{ Readability.toMoney(state.tokenIn, swapInfo.balanceIn) }</Text>
         </Flex>
+      </Box>
+      <Box px="2" pb="1" mt="4">
+        <Text size="1" color="gray">Getting</Text>
+      </Box>
+      <Box px="5" pt="2" pb="5" position="relative" style={{
+        borderRadius: '28px',
+        border: '1px solid var(--gray-6)'
+      }}>
+        <Flex justify="between" align="center">
+          <AssetSelector title="token to get" value={state.tokenOut} onChange={(value) => updateState(prev => ({ ...prev, tokenOut: value }))}>
+            <Button variant="soft" size="4" style={{ backgroundColor: 'var(--color-background)', boxShadow: 'none', padding: 0 }}>
+              {
+                state.tokenOut != null &&
+                <Flex align="center" gap="1">
+                  <Box style={{ position: 'relative' }}>
+                    <AssetImage asset={state.tokenOut} size="2" iconSize="24px"></AssetImage>
+                    {
+                      state.tokenOut.token != null &&
+                      <AssetImage asset={AssetId.fromHandle(state.tokenOut.chain || '')} size="1" style={{ position: 'absolute', top: '16px', left: '-6px' }} iconSize="16px"></AssetImage>
+                    }
+                  </Box>
+                  <AssetName asset={state.tokenOut} symbol={true} tokenOnly={true} size="4"></AssetName>
+                  <Icon path={mdiArrowBottomLeft} size={0.9}></Icon>
+                </Flex>
+              }
+              {
+                state.tokenOut == null &&
+                <Flex align="center">
+                  <Text size="4">Token</Text>
+                  <Icon path={mdiArrowBottomLeft} size={0.9}></Icon>
+                </Flex>
+              }
+            </Button>
+          </AssetSelector>
+          <TextField.Root style={{ width: '100%', backgroundColor: 'transparent', border: 'none', textAlign: 'right', boxShadow: 'none', outline: 'none' }} size="3" placeholder="Get" type="text" value={state.amountOut} onChange={(e) => setAmount('amount-out', e.target.value)} />         
+        </Flex>
+        <Flex justify="between" style={{ padding: '0 2px' }}>
+          <Text size="1" color="gray">{ Readability.toMoney(Exchange.equityAsset, swapInfo.valuationOut) }</Text>
+          <Text size="1" color="gray">{ Readability.toMoney(state.tokenOut, swapInfo.balanceOut) }</Text>
+        </Flex>
         <Flex align="center" justify="between" px="2" position="absolute" style={{ left: 0, right: 0, bottom: '-37px' }}>
-          <Text size="1" color="gray">{ state.slippage } slippage</Text>
+          <Text size="1" color="gray">Slippage { state.slippage }</Text>
           <Flex justify="end" align="center" gap="1">
             <Button variant="soft" size="1" style={{ fontSize: '0.925rem', padding: '10px' }} onClick={() => setAmount('amount-in', ByteUtil.bigNumberToString(swapInfo.balanceIn.multipliedBy(0.25)))} color={approxEq(swapInfo.amountIn, swapInfo.balanceIn.multipliedBy(0.25)) ? 'lime' : 'gray'}>25%</Button>
             <Button variant="soft" size="1" style={{ fontSize: '0.925rem', padding: '10px' }} onClick={() => setAmount('amount-in', ByteUtil.bigNumberToString(swapInfo.balanceIn.multipliedBy(0.50)))} color={approxEq(swapInfo.amountIn, swapInfo.balanceIn.multipliedBy(0.50)) ? 'lime' : 'gray'}>50%</Button>
@@ -508,44 +556,8 @@ function SwapRouter(props: {
             amountOut: prev.amountIn,
             slippage: prev.slippage
           }))} loading={loadingPath || loadingPoly}>
-            <Icon path={mdiSwapVertical} size={0.9}></Icon>
+            <Icon path={mdiArrowDown} size={0.9}></Icon>
           </Button>
-        </Flex>
-      </Box>
-      <Box px="5" pt="2" pb="5" style={{
-        borderRadius: '28px',
-        border: '1px solid var(--gray-6)'
-      }}>
-        <Flex justify="between" align="center">
-          <AssetSelector title="token to get" value={state.tokenOut} onChange={(value) => updateState(prev => ({ ...prev, tokenOut: value }))}>
-            <Button variant="soft" size="4" style={{ backgroundColor: 'var(--color-background)', boxShadow: 'none', padding: 0 }}>
-              {
-                state.tokenOut != null &&
-                <Flex align="center" gap="1">
-                  <Box style={{ position: 'relative' }}>
-                    <AssetImage asset={state.tokenOut} size="2" iconSize="24px"></AssetImage>
-                    {
-                      state.tokenOut.token != null &&
-                      <AssetImage asset={AssetId.fromHandle(state.tokenOut.chain || '')} size="1" style={{ position: 'absolute', top: '16px', left: '-6px' }} iconSize="16px"></AssetImage>
-                    }
-                  </Box>
-                  <AssetName asset={state.tokenOut} symbol={true} tokenOnly={true} size="4"></AssetName>
-                </Flex>
-              }
-              {
-                state.tokenOut == null &&
-                <Flex align="center">
-                  <Icon path={mdiArrowLeft} size={0.9}></Icon>
-                  <Text size="4">Token</Text>
-                </Flex>
-              }
-            </Button>
-          </AssetSelector>
-          <TextField.Root style={{ width: '100%', backgroundColor: 'transparent', border: 'none', textAlign: 'right', boxShadow: 'none', outline: 'none' }} size="3" placeholder="Get" type="text" value={state.amountOut} onChange={(e) => setAmount('amount-out', e.target.value)} />         
-        </Flex>
-        <Flex justify="between" style={{ padding: '0 2px' }}>
-          <Text size="1" color="gray">{ Readability.toMoney(Exchange.equityAsset, swapInfo.valuationOut) }</Text>
-          <Text size="1" color="gray">{ Readability.toMoney(state.tokenOut, swapInfo.balanceOut) }</Text>
         </Flex>
       </Box>
       {
@@ -559,7 +571,7 @@ function SwapRouter(props: {
               <Box px="2" py="1">
                 <Flex justify="between" align="center">
                   <Flex gap="2">
-                    <Badge size="3" color={pathIndex == 0 ? undefined : 'gray'}>{ pathIndex == 0 ? 'Best route' : (pathIndex == 1 ? '2nd route' : (pathIndex == 2 ? '3rd route' : ((pathIndex + 1) + 'th route'))) }</Badge>
+                    <Badge size="3" color={pathIndex == 0 ? undefined : 'gray'}>{ pathIndex == 0 ? 'Best' : (pathIndex == 1 ? '2nd' : (pathIndex == 2 ? '3rd' : ((pathIndex + 1) + 'th'))) }</Badge>
                     <Badge size="3" color="gray">{ Readability.toCount('swap', path.length) }</Badge>
                   </Flex>
                   <Text as="label" size="3">Min <Switch size="2" color="red" checked={convervative} onCheckedChange={(e) => setConservative(e)} /></Text>

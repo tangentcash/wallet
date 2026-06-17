@@ -251,7 +251,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
   const mobile = document.body.clientWidth < 500;
   return (
     <Box>
-      <Card mt="3" variant={mobile ? 'ghost' : 'surface'} style={mobile ? { borderRadius: '0', border: 'none', borderBottom: 'none', margin: 0 } : { borderRadius: '28px' }}>
+      <Card mt="3" variant={mobile ? 'ghost' : 'surface'} style={mobile ? { borderRadius: '0', border: 'none', borderBottom: 'none', margin: 0, paddingBottom: '32px' } : { borderRadius: '28px' }}>
         <Flex justify={mobile ? 'center' : 'start'} gap="2" pb="1" pt={mobile ? '0' : '1'}>
           <SegmentedControl.Root value={control} radius="full" size="3" mb="2" onValueChange={(value) => setControl(value as any)}>
             <SegmentedControl.Item value="address">

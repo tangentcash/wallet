@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData } from "../core/app";
-import { AssetId, Chain, EventResolver, Readability, RPC, Signing, Stream, SummaryState, Whitelist } from "tangentsdk";
+import { AssetId, Chain, EventResolver, Readability, RPC, Signing, SummaryState, Uint256, Whitelist } from "tangentsdk";
 import { mdiMagnify, mdiOpenInNew } from "@mdi/js";
 import { useEffectAsync } from "../core/react";
 import { TransactionView } from "../components/transaction";
@@ -36,8 +36,8 @@ export default function ExplorerPage() {
   const blockNumber = useMemo((): BigNumber | null => {
     return AppData.tip;
   }, [counter]);
-  const find = useCallback(async (mode: 'block' | 'transaction' | false) => {
-    if (loading)
+  const navigateToSearch = useCallback(async () => {
+    if (loading || !subject.trim().length)
       return;
 
     setLoading(true);
@@ -45,74 +45,35 @@ export default function ExplorerPage() {
       setLoading(false);
       navigate(target);
     };
-    const value = subject.trim();
+    const value = subject.trim().toLowerCase();
     const publicKeyHash = Signing.decodeAddress(value);
     if (publicKeyHash != null && publicKeyHash.data.length == 20) {
-      jump('/account/' + value);
-      return;
+      return jump('/account/' + value);
+    }
+  
+    const blockNumber = parseInt(value, 10);
+    if (!isNaN(blockNumber) && blockNumber > 0) {
+      return jump('/block/' + value);
+    }
+
+    try {
+      const hash = new Uint256(value, 16);
+      if (hash.toHex() != value && hash.toCompactHex() != value) {
+        throw false;
+      }
+    } catch {
+      AlertBox.open(AlertType.Error, 'Must be an address, a hash or a number');
+      return setLoading(false);
     }
     
-    if (!mode || mode == 'block') {
-      const blockNumber = parseInt(value, 10);
-      if (!isNaN(blockNumber) && blockNumber > 0) {
-        try {
-          const block = await RPC.getBlockByNumber(blockNumber);
-          if (block != null) {
-            jump('/block/' + value);
-            return;
-          }
-        } catch { }
+    try {
+      const block = await RPC.getBlockByHash(value);
+      if (block != null) {     
+        return jump('/block/' + value);
       }
-    }
+    } catch { }
 
-    if (!mode || mode == 'transaction') {
-      try {
-        const transaction = await RPC.getTransactionByHash(value);
-        if (transaction != null) {
-          jump('/transaction/' + value);
-          return;
-        }
-      } catch { }
-
-      try {
-        const aliasTransaction = await RPC.getTransactionByHash(new Stream().writeString(value).hash().toHex());
-        if (aliasTransaction != null) {
-          jump('/transaction/' + value);
-          return;
-        }
-      } catch { }
-
-      try {
-        const mempoolTransaction = await RPC.getMempoolTransactionByHash(value);
-        if (mempoolTransaction != null) {
-          jump('/transaction/' + value);
-          return;
-        }
-      } catch { }
-
-      if (mode) {
-        jump('/transaction/' + value);
-        return;
-      }
-    }
-
-    if (!mode || mode == 'block') {
-      try {
-        const block = await RPC.getBlockByHash(value);
-        if (block != null) {
-          jump('/block/' + value);
-          return;
-        }
-      } catch { }
-
-      if (mode) {
-        jump('/block/' + value);
-        return;
-      }
-    }
-
-    AlertBox.open(AlertType.Error, 'Nothing found');
-    setLoading(false);
+    jump('/transaction/' + value);
   }, [subject, loading]);
   const findBlocks = useCallback(async (refresh?: boolean) => {
     const tip = AppData.tip?.toNumber() || 0;
@@ -125,7 +86,8 @@ export default function ExplorerPage() {
         return false;
       }
 
-      const candidateBlocks = data.map((value, index: number) => { return { blockNumber: tip - index, blockHash: value } });
+      const offset = (refresh ? 0 : blocks.length);
+      const candidateBlocks = data.map((value, index: number) => { return { blockNumber: Math.max(1, tip - offset - index), blockHash: value } });
       setBlocks(refresh ? candidateBlocks : prev => prev.concat(candidateBlocks));
       setMoreBlocks(candidateBlocks.length >= BLOCK_COUNT);
       return candidateBlocks.length > 0;
@@ -250,20 +212,17 @@ export default function ExplorerPage() {
             setSubject(blockNumber?.toString() || '');
           }}>Height { Readability.toValue(null, blockNumber, false, false) }</Button>
         </Flex>
-        <TextField.Root style={{ width: '100%' }} placeholder="Address, hash or number…" size="3" variant="soft" value={subject} onChange={(e) => setSubject(e.target.value)} readOnly={loading} ref={searchInput}>
-          <TextField.Slot>
-            <Icon path={mdiMagnify} size={0.9} color="var(--accent-8)"/>
-          </TextField.Slot>
-        </TextField.Root>
+        <form action="">
+          <Flex>
+            <TextField.Root style={{ width: '100%', borderTopRightRadius: 0, borderBottomRightRadius: 0 }} color="gray" placeholder="Address, hash or number…" size="3" variant="soft" value={subject} onChange={(e) => setSubject(e.target.value)} readOnly={loading} ref={searchInput}>
+              <TextField.Slot>
+                <Icon path={mdiMagnify} size={0.9} color="var(--accent-8)"/>
+              </TextField.Slot>
+            </TextField.Root>
+            <Button style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }} variant="surface" size="3" type="submit" color="gray" loading={loading} onClick={() => navigateToSearch()}>Query</Button>
+          </Flex>
+        </form>
       </Box>
-      {
-        subject.trim().length > 0 &&
-        <Flex px="2" gap="1" mt="4" wrap="wrap">   
-          <Button size="2" variant="soft" disabled={loading} onClick={() => find(false)}>In anything</Button>
-          <Button size="2" variant="soft" disabled={loading} onClick={() => find('transaction')}>In transaction</Button>
-          <Button size="2" variant="soft" disabled={loading} onClick={() => find('block')}>In block</Button>
-        </Flex>
-      }
       <Tabs.Root mt="4" value={tab} onValueChange={(x) => setSearch({ view: x })}>
         <Tabs.List>
           <Tabs.Trigger value="blocks">Blocks</Tabs.Trigger>

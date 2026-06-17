@@ -291,9 +291,9 @@ export default function BlockPage() {
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>Slot status:</DataList.Label>
+              <DataList.Label>Slot congestion:</DataList.Label>
               <DataList.Value>
-                <Badge color={block.slot.congestion ? 'red' : 'lime'}>{ block.slot.congestion ? 'Only paid transactions in next block' : 'Costless transactions in next block' }</Badge>
+                <Badge color={block.slot.congestion ? 'red' : 'lime'}>{ block.slot.congestion ? 'Min gas price applies' : 'No min gas price' }</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>

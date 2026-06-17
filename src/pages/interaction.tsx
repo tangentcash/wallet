@@ -559,8 +559,7 @@ export default function InteractionPage() {
         
         setPaidGas(gas.paid);
         if (gas.paid && !gas.price.gt(0)) {
-          AlertBox.open(AlertType.Warning, 'Must specify gas price manually: network is congested (anti-spam)')
-          throw false;
+          gas.price = new BigNumber(Chain.policy.MIN_GAS_PRICE);
         }
 
         presetGasPrice = gas.price;
@@ -570,9 +569,16 @@ export default function InteractionPage() {
 
     if (presetGasLimit.eq(-1)) {
       try {
-        const output = await buildTransaction({ gasPrice: presetGasPrice });
+        let output = await buildTransaction({ gasPrice: presetGasPrice });
         if (!output)
           throw new Error('cannot build transaction');
+
+        if (!presetGasPrice.gt(0) && output.data.length / 2 > Chain.policy.ZERO_GAS_PRICE_SIZE_LIMIT) {
+          presetGasPrice = new BigNumber(Chain.policy.MIN_GAS_PRICE);
+          output = await buildTransaction({ gasPrice: presetGasPrice });
+          if (!output)
+            throw new Error('cannot build transaction');
+        }
 
         let receipt = await RPC.simulateTransaction(output.data);
         presetGasLimit = receipt ? typeof receipt.relative_gas_use == 'string' ? new BigNumber(receipt.relative_gas_use, 16) : (BigNumber.isBigNumber(receipt.relative_gas_use) ? receipt.relative_gas_use : new BigNumber(-1)) : new BigNumber(-1);
@@ -583,7 +589,7 @@ export default function InteractionPage() {
           try {
             const preview = await RPC.decodeTransaction(output.data);
             transaction = preview.transaction || null;
-          } catch (exception) {    
+          } catch (exception) {
             AlertBox.open(AlertType.Error, 'Failed to decode transaction: ' + (exception as Error).message);
           }
           setSimulation({ transaction: transaction, receipt: receipt, state: EventResolver.calculateSummaryState(receipt.events) });
@@ -1330,7 +1336,7 @@ export default function InteractionPage() {
       {
         programReady &&
         <Flex direction="column" align="center" gap="2" mt="6">
-          <Button variant="surface" size="4" color="lime" className="shadow-rainbow-animation" loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => transactionReady ? submitTransaction() : calculateTransactionGas(0.95)}>{transactionReady ? 'Submit' : 'Review'} action</Button>
+          <Button variant="surface" size="4" color="lime" className="shadow-rainbow-animation" loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => transactionReady ? submitTransaction() : calculateTransactionGas(0.60)}>{transactionReady ? 'Submit' : 'Review'} action</Button>
           <Flex gap="3" mt="4">
             <IconButton variant="soft" color="indigo" size="3" onClick={() => {
               navigator.clipboard.writeText(JSON.stringify(toSimpleTransaction(transactionData), null, 4));
