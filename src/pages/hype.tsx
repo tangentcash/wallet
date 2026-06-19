@@ -1,27 +1,78 @@
 import { mdiArrowBottomLeft, mdiArrowBottomRight, mdiArrowDown, mdiContactlessPayment, mdiCreation, mdiFire, mdiFlash, mdiFlashAlert, mdiFlashOutline, mdiLightbulbOn, mdiLightbulbOutline, mdiLogin, mdiMenu, mdiPercent, mdiSale, mdiScaleBalance, mdiSchool } from "@mdi/js";
 import { Avatar, Box, Button, DropdownMenu, Flex, Heading, IconButton, Text } from "@radix-ui/themes";
 import { Link, useNavigate } from "react-router";
-import { useState } from "react";
 import { AssetId, Readability } from "tangentsdk";
 import { AppData } from "../core/app";
+import { useEffectAsync } from "../core/react";
+import { useState } from "react";
+import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 import License from "../components/license";
+
+type Metrics = { assets: string, pairs: string, accounts: string, actions: string, quantity: string, volume: string };
+
+let cachedMetrics: Metrics | null | false = false; 
+
+function toNiceNumber(number: BigNumber): string {
+  const stringify = (value: BigNumber) => value.integerValue().eq(value) ? value.toString() : value.toFixed(1);
+  const compress = (rotation: number) => stringify(number.dividedBy(Math.pow(1000.0, rotation)));
+  let result = stringify(number);
+  if (number.gt(1000000000000000))
+    result = compress(5) + 'Q';
+  else if (number.gt(1000000000000))
+    result = compress(4) + 'T';
+  else if (number.gt(1000000000))
+    result = compress(3) + 'B';
+  else if (number.gt(1000000))
+    result = compress(2) + 'M';
+  else if (number.gt(1000))
+    result = compress(1) + 'K';
+  return result;
+}
+function toNiceCount(count: BigNumber, label: string): string {
+  return toNiceNumber(count) + ' ' + (count.gt(1) ? label + 's' : label);
+}
+function toNiceAmount(amount: BigNumber): string {
+  return '$' + toNiceNumber(amount.integerValue());
+}
+
+const blockchains = [
+  'ADA',
+  'BTC',
+  'ETH',
+  'SOL',
+  'TRX',
+  'XRP',
+  'XLM',
+  'BCH',
+  'LTC',
+  'DOGE'
+].sort();
 
 export default function HypePage() {
   const mobile = document.body.clientWidth < 510;
   const navigate = useNavigate();
-  const [blockchains] = useState([
-    'ADA',
-    'BTC',
-    'ETH',
-    'SOL',
-    'TRX',
-    'XRP',
-    'XLM',
-    'BCH',
-    'LTC',
-    'DOGE'
-  ].sort());
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
+  useEffectAsync(async () => {
+    if (cachedMetrics === false) {   
+      try {
+        const response = await fetch('https://p2p.tangent.cash:19420/market/metrics');
+        const result = (await response.json()).result;
+        cachedMetrics = {
+          assets: toNiceCount(new BigNumber(result.assets), 'token'),
+          pairs: toNiceCount(new BigNumber(result.pairs), 'trading pair'),
+          accounts: toNiceCount(new BigNumber(result.accounts), 'user'),
+          actions: toNiceCount(new BigNumber(result.actions), 'action'),
+          quantity: toNiceAmount(new BigNumber(new BigNumber(result.quantity).toFixed(2))),
+          volume: toNiceAmount(new BigNumber(new BigNumber(result.volume).toFixed(2)))
+        };
+      } catch {
+        cachedMetrics = null;
+      }
+    }
+    setMetrics(cachedMetrics);
+  }, []);
+
   return (
     <Box position="relative">
       <Box position="absolute" top="0" bottom="0" left="0" right="0" style={{
@@ -58,7 +109,7 @@ export default function HypePage() {
           <Flex justify="between" align="center">
             <Flex align="center" gap="3">
               <Avatar size="3" radius="none" fallback="TC" src="/favicon.svg"></Avatar>
-              <Heading size="5">Tangent<Text color="lime">Cash</Text></Heading>
+              <Heading size="5" weight="bold" style={{ letterSpacing: '1.25px' }}>TANGENT<Text color="lime">CASH</Text></Heading>
             </Flex>
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>
@@ -157,6 +208,30 @@ export default function HypePage() {
           </Box>
         </Box>
       </Box>
+      {
+        metrics != null &&
+        <Box style={{ padding: mobile ? '120px 0' : '200px 0' }}>
+          <Box maxWidth="540px" mx="auto" px="4" py="4">
+            <Flex justify="center" mb="6">
+              <Heading align="center" size={mobile ? '7' : '8'}>Serving { metrics.accounts }</Heading>
+            </Flex>
+            <Flex justify="center" mb="8">
+              <Text align="center" size={mobile ? '3' : '4'}>On-chain all-time metrics.</Text>
+            </Flex>
+            <Flex wrap="wrap" gap="3" justify="center">
+              <Flex px="5" py="4" style={{ borderRadius: '36px', backgroundColor: 'var(--gray-12)' }}>
+                <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'var(--gray-1)' }}><Text weight="bold">{ metrics.actions }</Text> on <Text weight="bold">{ metrics.pairs }</Text></Heading>
+              </Flex>
+              <Flex px="5" py="4" style={{ borderRadius: '36px', backgroundColor: 'var(--blue-9)' }}>
+                <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'white' }}><Text weight="bold">{ metrics.quantity }</Text> locked in <Text weight="bold">{ metrics.assets }</Text></Heading>
+              </Flex>
+              <Flex px="5" py="4" style={{ borderRadius: '36px', backgroundColor: 'var(--indigo-10)' }}>
+                <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'white' }}><Text weight="bold">{ metrics.volume }</Text> transacted</Heading>
+              </Flex>
+            </Flex>
+          </Box>
+        </Box>
+      }
       <Box style={{ padding: mobile ? '120px 0' : '200px 0' }}>
         <Box maxWidth="540px" mx="auto" px="4" py="4">
           <Flex justify="center" mb="6">
