@@ -1,10 +1,10 @@
-import { mdiAlertCircleOutline, mdiCancel, mdiCodeJson, mdiMinus, mdiPlus, mdiProfessionalHexagon } from "@mdi/js";
-import { Box, Button, Callout, Checkbox, DropdownMenu, Flex, Heading, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { mdiAlertCircleOutline, mdiCancel, mdiCodeJson, mdiMinus, mdiPlus, mdiProfessionalHexagon, mdiShovel, mdiTimelapse } from "@mdi/js";
+import { Box, Button, Callout, Checkbox, DropdownMenu, Flex, Heading, IconButton, Progress, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
-import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, TextUtil, TransactionOutput, Transactions, Uint256, Readability, Hashsig, Pubkeyhash, Pubkey, Seckey, SummaryState, EventResolver, Whitelist } from "tangentsdk";
+import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, TextUtil, TransactionOutput, Transactions, Uint256, Readability, Hashsig, Pubkeyhash, Pubkey, Seckey, SummaryState, EventResolver, Whitelist, Pow256 } from "tangentsdk";
 import { AppData } from "../core/app";
 import { AssetImage, AssetName } from "../components/asset";
 import { TransactionView } from "../components/transaction";
@@ -63,6 +63,50 @@ export class ApproveTransaction {
   instruction: Uint8Array | null = null;
 }
 
+let powChallengeCache: { blockHash: Uint256, solution: number } | null = null;
+async function toPowChallenge(ownerAddress: string, accountNonce: string | BigNumber | undefined, onProgress: (progress: number | null) => void): Promise<{ blockHash: Uint256, solution: number }> {
+  if (powChallengeCache != null) {
+    return powChallengeCache;
+  }
+
+  onProgress(0);
+  try {
+    const ownerNonce = new BigNumber(accountNonce || 0).toNumber();
+    const owner = Signing.decodeAddress(ownerAddress);
+    if (!owner) {
+      throw new Error('Failed to decode the account address');
+    }
+
+    let blockHash = new Uint256();
+    const blockNumber = new BigNumber(await RPC.getBlockTipNumber() || 0).toNumber();
+    if (blockNumber > 0) {
+      const block = await RPC.getBlockByNumber(blockNumber);
+      if (!block) {
+        throw new Error('Failed to fetch block ' + blockNumber);
+      } else {
+        blockHash = new Uint256(block.hash || 0);
+      }
+    }
+    
+    const solution = await Pow256.solve(blockHash, owner, ownerNonce, async (powNonce: number) => {
+      const progress = Math.max(0, Math.min(99, powNonce / 100));
+      onProgress(progress);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+      return true;
+    });
+    if (!solution) {
+      throw new Error('Failed to solve the pow256 challenge');
+    }
+
+    powChallengeCache = { blockHash: blockHash, solution: solution };
+    onProgress(100);
+    setTimeout(() => onProgress(null), 500);
+    return powChallengeCache;
+  } catch (exception) {
+    onProgress(null);
+    throw exception;
+  }
+}
 function toSimpleTransaction(input: any): Record<string, any> {
   let output: Record<string, any> = { };
   for (let key in input) {
@@ -100,6 +144,7 @@ export default function InteractionPage() {
   const [loadingGasPriceAndPrice, setLoadingGasPriceAndPrice] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
   const [program, setProgram] = useState<ProgramTransfer | ProgramSetup | ProgramRoute | ProgramWithdraw | ProgramAnticast | ApproveTransaction | null>(null);
+  const [powProgress, setPowProgress] = useState<number | null>(null);
   const navigate = useNavigate();
   const params = useMemo(() => ({
     type: query.get('type'),
@@ -420,12 +465,13 @@ export default function InteractionPage() {
     if (!programReady || loadingTransaction)
       return null;
     
+    const accountNonce = options?.prebuilt ? options.prebuilt.body.nonce.toString() : (nonce || undefined);
     setLoadingTransaction(true);
     try {
       const buildProgram = async (method: { type: Ledger.Transaction | Ledger.Commitment | Ledger.Unknown, args: { [key: string]: any } }) => {
         const output = await AppData.buildWalletTransaction({
           asset: new AssetId(assets[asset].asset.id),
-          nonce: options?.prebuilt ? options.prebuilt.body.nonce.toString() : (nonce || undefined),
+          nonce: accountNonce,
           gasPrice: options?.gasPrice ? options.gasPrice : gasPrice,
           gasLimit: options?.gasLimit ? options.gasLimit : (options?.prebuilt ? options.prebuilt.body.gasLimit.toString() : gasLimit),
           method: method
@@ -479,6 +525,7 @@ export default function InteractionPage() {
           }
         });
       } else if (program instanceof ProgramRoute) {
+        let powChallenge = await toPowChallenge(ownerAddress, accountNonce, setPowProgress);
         let includeRoutingAddress = true;
         if (program.routingAddress.length > 0) {
           try {
@@ -489,6 +536,9 @@ export default function InteractionPage() {
         return await buildProgram({
           type: new Transactions.Route(),
           args: {
+            powChallengeExtension: true,
+            powChallengeBlockHash: powChallenge.blockHash,
+            powChallengeSolution: powChallenge.solution,
             bridgeHash: new Uint256(params.vault || ''),
             routingAddress: includeRoutingAddress ? program.routingAddress : ''
           }
@@ -1321,6 +1371,29 @@ export default function InteractionPage() {
             )
           }
         </Box>
+      }
+      {
+        program instanceof ProgramRoute &&
+        <>
+          {
+            powProgress != null &&
+            <Box pt="3" px="3">
+              <Progress value={powProgress} size="3" color="jade" />
+              <Flex pt="2" gap="1" justify="center" align="center">
+                <Icon path={mdiShovel} size={0.6} />
+                <Text style={{ whiteSpace: 'pre-wrap' }} size="1">Solving the captcha { powProgress.toFixed(1) }%</Text>
+              </Flex>
+            </Box>
+          }
+          <Box px="3">
+            <Callout.Root size="1" variant="surface" mt="6" color="yellow" style={{ borderRadius: '24px' }}>
+              <Callout.Icon>
+                <Icon path={mdiTimelapse} size={1} />
+              </Callout.Icon>
+              <Callout.Text style={{ whiteSpace: 'pre-wrap' }}>Claim is free of charge but takes a bit more time to submit</Callout.Text>
+            </Callout.Root>
+          </Box>
+        </>
       }
       {
         params.note != null &&

@@ -251,7 +251,7 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
       return;
     }
 
-    navigate(`/interaction?asset=${blockchain.id}&type=register&vault=${bridge.instance.bridge_hash}&address=${routingAddressValue}&back=/&note=${encodeURIComponent('The address claim transaction is free of charge')}`);
+    navigate(`/interaction?asset=${blockchain.id}&type=register&vault=${bridge.instance.bridge_hash}&address=${routingAddressValue}&back=/`);
   }, [blockchain, bridges, routingAddressValue]);
   const withdraw = useCallback((assetIndex: number) => {
     const token = blockchainAssets[assetIndex];
@@ -333,7 +333,8 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
     }
   }, [props.blockchains, props.blockchain]);
 
-  const hasDepositButton = blockchain ? ((routingAddressIndex == -1 && blockchainAddress) || (blockchain.routing_policy != 'account' && !blockchainAddresses.bridge)) : false;
+  const hasDepositButton = blockchain ? routingAddressIndex == -1 || (blockchain.routing_policy != 'account' && !blockchainAddresses.bridge) : false;
+  const depositButtonActive = blockchain ? ((routingAddressIndex == -1 && blockchainAddress) || (blockchain.routing_policy != 'account' && !blockchainAddresses.bridge)) : false;
   return (
     <Box px={mobile ? '2' : undefined}>
       <Select.Root size="3" value={blockchainIndex.toString()} onValueChange={(e) => {
@@ -461,8 +462,12 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
                 </DropdownMenu.Root>
                 {
                   hasDepositButton &&
-                  <Button size="3" variant="surface" style={{ width: '50%', paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation" onClick={() => claim()}>
-                    { blockchainAddresses.bridge ? 'Claim' : 'Deposit' } <Icon path={mdiArrowBottomLeft} size={0.8}></Icon>
+                  <Button size="3" variant="surface" style={{ width: '50%', paddingLeft: '24px', paddingRight: '24px' }} className={ depositButtonActive ? "shadow-rainbow-animation" : undefined } disabled={!depositButtonActive} onClick={() => {
+                    if (depositButtonActive) {
+                      claim();
+                    }
+                  }}>
+                    Deposit <Icon path={mdiArrowBottomLeft} size={0.8}></Icon>
                   </Button>
                 }
               </Flex>
