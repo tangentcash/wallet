@@ -729,7 +729,7 @@ export class AppData {
     return import.meta.env.DEV;
   }
   static defaultNetwork(): NetworkType {
-    return NetworkType.Mainnet;//return this.isDev() ? NetworkType.Regtest : NetworkType.Mainnet;
+    return this.isDev() ? NetworkType.Regtest : NetworkType.Mainnet;
   }
 }
 

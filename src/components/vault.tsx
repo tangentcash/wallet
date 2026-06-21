@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Checkbox, DropdownMenu, Flex, Select, Spinner, Text, TextField } from "@radix-ui/themes";
+import { Badge, Box, Button, Checkbox, DropdownMenu, Flex, IconButton, Select, Spinner, Text, TextField } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { AssetId, RPC, Readability, Whitelist } from "tangentsdk";
@@ -7,7 +7,7 @@ import { AssetImage, AssetName } from "../components/asset";
 import { AddressView } from "../components/address";
 import { useNavigate } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowBottomLeft, mdiArrowTopRight, mdiArrowUpRight, mdiSafeSquare, mdiSetRight } from "@mdi/js";
+import { mdiArrowBottomLeft, mdiArrowTopRight, mdiArrowUpRight, mdiContentCopy, mdiSafeSquare, mdiSetRight } from "@mdi/js";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
 
@@ -333,8 +333,9 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
     }
   }, [props.blockchains, props.blockchain]);
 
-  const hasDepositButton = blockchain ? routingAddressIndex == -1 || (blockchain.routing_policy != 'account' && !blockchainAddresses.bridge) : false;
-  const depositButtonActive = blockchain ? ((routingAddressIndex == -1 && blockchainAddress) || (blockchain.routing_policy != 'account' && !blockchainAddresses.bridge)) : false;
+  const requiresSenderAddress = blockchain && blockchain.routing_policy == 'account';
+  const hasDepositButton = requiresSenderAddress ? routingAddressIndex == -1 : (blockchain && !blockchainAddresses.bridge);
+  const depositButtonActive = hasDepositButton && (requiresSenderAddress ? !!blockchainAddress : !blockchainAddresses.bridge);
   return (
     <Box px={mobile ? '2' : undefined}>
       <Select.Root size="3" value={blockchainIndex.toString()} onValueChange={(e) => {
@@ -363,49 +364,55 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
       {
         blockchain != null &&
         <Box>
-          <Flex gap="1" mt="2">
-            <Select.Root size="3" value={routingAddressIndex.toString()} onValueChange={(e) => {
-              setRoutingAddressIndex(parseInt(e));
-              setDisclaimer(false);
-            }}>
-              <Select.Trigger />
-              <Select.Content>
-                {
-                  loading &&
-                  <Select.Item value="-1">
-                    <Flex gap="2" align="center">
-                      <Spinner size="2"></Spinner>
-                      Loading...
-                    </Flex>
-                  </Select.Item>
-                }
-                {
-                  !loading &&
-                  <Select.Item value="-1">New wallet</Select.Item>
-                }
-                {
-                  blockchainAddresses.routing != null && blockchainAddresses.routing.addresses.map((x: any, index: number) =>
-                    <Select.Item value={index.toString()} key={x.address}>
+          {
+            requiresSenderAddress &&
+            <Flex gap="1" mt="2">
+              <Select.Root size="3" value={routingAddressIndex.toString()} onValueChange={(e) => {
+                setRoutingAddressIndex(parseInt(e));
+                setDisclaimer(false);
+              }}>
+                <Select.Trigger style={routingAddressIndex == -1 ? undefined : { width: '100%', flexShrink: 'initial' }} />
+                <Select.Content>
+                  {
+                    loading &&
+                    <Select.Item value="-1">
                       <Flex gap="2" align="center">
-                        <AssetImage asset={blockchain} size="1"></AssetImage>
-                        <Text>{ Readability.toAddress(x.address, 4) }</Text>
+                        <Spinner size="2"></Spinner>
+                        Loading...
                       </Flex>
                     </Select.Item>
-                  )
-                }
-              </Select.Content>
-            </Select.Root>
-            <TextField.Root style={{ width: '100%' }} size="3" placeholder={`Your address${blockchain.routing_policy != 'account' ? ' (opt.)' : ''}`} type="text" readOnly={loading || routingAddressIndex != -1} value={blockchainAddress || ''} onChange={(e) => {
-              if (routingAddressIndex == -1) {
-                setRoutingAddressValue(e.target.value);
+                  }
+                  {
+                    !loading &&
+                    <Select.Item value="-1">New wallet</Select.Item>
+                  }
+                  {
+                    blockchainAddresses.routing != null && blockchainAddresses.routing.addresses.map((x: any, index: number) =>
+                      <Select.Item value={index.toString()} key={x.address}>
+                        <Flex gap="2" align="center">
+                          <AssetImage asset={blockchain} size="1"></AssetImage>
+                          <Text>{ Readability.toAddress(x.address, 6) }</Text>
+                        </Flex>
+                      </Select.Item>
+                    )
+                  }
+                </Select.Content>
+              </Select.Root>
+              {
+                routingAddressIndex == -1 &&
+                <TextField.Root style={{ width: '100%' }} size="3" placeholder={`Your sender address`} type="text" readOnly={loading} value={blockchainAddress || ''} onChange={(e) => setRoutingAddressValue(e.target.value)} />
               }
-            }} onClick={() => {
-              if (routingAddressIndex != -1) {
-                navigator.clipboard.writeText(blockchainAddress || '');
-                AlertBox.open(AlertType.Info, 'Your address copied!')
+              {
+                routingAddressIndex != -1 &&
+                <IconButton variant="soft" color="indigo" size="3" onClick={() => {
+                  navigator.clipboard.writeText(blockchainAddress || '');
+                  AlertBox.open(AlertType.Info, 'Your address copied!');
+                }}>
+                  <Icon path={mdiContentCopy} size={0.8}></Icon>
+                </IconButton>
               }
-            }} />
-          </Flex>
+            </Flex>
+          }
           <Flex gap="2" mt="2" mb="4" px="1" wrap="wrap">
             <Badge size="2" color="red">Send { Readability.toAssetSymbol(blockchain) }{ blockchain.ext?.tokenStandard ? '/' + blockchain.ext.tokenStandard : '' } from { blockchain.routing_policy != 'account' ? 'any' : 'this' } wallet{ blockchain.routing_policy == 'account' ? <Icon path={mdiArrowUpRight} size={0.6}></Icon> : '' }</Badge>
             { blockchain.ext && <Badge size="2" color="yellow">Tx ETA { blockchain.ext.depositTime }-{ blockchain.ext.depositTime + 10 } min.</Badge> }

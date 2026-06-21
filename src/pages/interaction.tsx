@@ -802,6 +802,7 @@ export default function InteractionPage() {
     } catch { }
   }, [query]);
   useEffect(() => {
+    powChallengeCache = null;
     return () => {
       if (AppData.approveTransaction) {
         AppData.approveTransaction(null);
