@@ -1,19 +1,21 @@
-import { mdiCloudDownload } from "@mdi/js";
+import { mdiClose, mdiCloudDownload } from "@mdi/js";
 import { AlertDialog, Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Heading, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
-import { SafeStorage, StorageField } from "../core/storage";
 import { AppData, AppPermission, ConnectionState } from "../core/app";
 import { ByteUtil, RPC, Signing, Readability } from "tangentsdk";
 import { useNavigate, useSearchParams } from "react-router";
+import { useEffectAsync } from "../core/react";
 import Icon from "@mdi/react";
 import License from "../components/license";
 
 export default function ConfigurePage() {
+  const address = AppData.getWalletAddress();
   const mobile = document.body.clientWidth <= 600;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [counter, setCounter] = useState(0);
+  const [walletAddresses, setWalletAddresses] = useState<(string | null)[]>([]);
   const [validatorAddress, setValidatorAddress] = useState(AppData.props.validator || '');
   const [exchangeAddress, setExchangeAddress] = useState(AppData.props.exchange || '');
   const [loadingProps, setLoadingProps] = useState(false);
@@ -90,7 +92,7 @@ export default function ConfigurePage() {
     }
     switch (type) {
       case 'wallet': {
-        const mnemonic = await SafeStorage.get(StorageField.Mnemonic);
+        const mnemonic = AppData.getWalletMnemonic();
         const secretKey = AppData.getWalletSecretKey();
         const publicKey = AppData.getWalletPublicKey();
         const publicKeyHash = AppData.getWalletPublicKeyHash();
@@ -110,7 +112,7 @@ export default function ConfigurePage() {
         break;
       }
       case 'mnemonic': {
-        const mnemonic = await SafeStorage.get(StorageField.Mnemonic);
+        const mnemonic = AppData.getWalletMnemonic();
         if (!mnemonic) {
           AlertBox.open(AlertType.Error, 'Wallet has no recovery phrase');
           break;
@@ -175,6 +177,26 @@ export default function ConfigurePage() {
     setLoadingProps(false);
     return true;
   }, [loadingProps]);
+  const switchWallet = useCallback(async (index: number) => {
+    const status = await AppData.switchWallet(index);
+    if (status) {
+      setWalletAddresses(await AppData.getWalletAddresses());
+      AlertBox.open(AlertType.Info, 'Switched to wallet ' + (AppData.getWalletAddress() || (index + 1).toString()));
+    } else {
+      AlertBox.open(AlertType.Error, 'Failed to switch to wallet ' + (index + 1).toString());
+    }
+  }, []);
+  const destroyWallet = useCallback(async (fully: boolean) => {
+    const result = await AppData.destroyWallet(fully);
+    if (!result) {
+      AlertBox.open(AlertType.Error, 'Failed to wipe the wallet');
+    } else if (result == 'wipe') {
+      setTimeout(() => navigate('/'), 250);
+    }
+  }, []);
+  useEffectAsync(async () => {
+    setWalletAddresses(await AppData.getWalletAddresses());
+  }, []);
   useEffect(() => {
     const timeout = setInterval(() => setCounter(new Date().getTime()), 3000);
     return () => clearInterval(timeout);
@@ -192,14 +214,34 @@ export default function ConfigurePage() {
               <DataList.Label minWidth="88px">Wallet control</DataList.Label>
               <DataList.Value>
                 <Flex gap="2" wrap="wrap">
-                  <Button size="2" variant="solid" color={AppData.isWalletExists() && AppData.isWalletReady() ? 'yellow' : 'lime'} onClick={() => {
+                  <Button size="2" variant="solid" color={AppData.isWalletExists() && AppData.isWalletReady() ? 'red' : 'lime'} onClick={() => {
                     if (!AppData.isWalletExists() || !AppData.isWalletReady()) {
                       navigate(`/restore?to=${encodeURIComponent('/configure')}`);
+                    } else {
+                      AppData.clearWallet();
                     }
                   }}>
-                    { AppData.isWalletExists() ? (AppData.isWalletReady() ? (AppData.getWalletSecretKey() != null ? 'Full control' : 'Watch only') : 'Unlock to see') : 'Create to see' }
+                    { AppData.isWalletExists() ? (AppData.isWalletReady() ? <>{ (AppData.getWalletSecretKey() != null ? 'Full control' : 'Watch only') } <Icon path={mdiClose} size={0.7}></Icon></> : 'Unlock to see') : 'Create to see' }
                   </Button>
-                  <Button size="2" variant="surface" color="lime" disabled={!AppData.isWalletExists() || !AppData.isWalletReady()} onClick={() => AppData.clearWallet()}>Lock</Button>     
+                  <DropdownMenu.Root>
+                    <DropdownMenu.Trigger disabled={!AppData.isWalletExists() || !AppData.isWalletReady()}>
+                      <Button variant="surface" size="2" color="yellow">
+                        { address ? address.substring(address.length - 6) : 'Switch' }
+                        <DropdownMenu.TriggerIcon />
+                      </Button>
+                    </DropdownMenu.Trigger>
+                    <DropdownMenu.Content>
+                      {
+                        walletAddresses.map((item, index) =>
+                          <DropdownMenu.Item key={item || '' + '_select'} disabled={item != null && item == address} onClick={() => switchWallet(index)}>
+                            { index + 1 } - { item ? item.substring(item.length - 6) : 'UNKNOWN' }
+                          </DropdownMenu.Item>
+                        )
+                      }
+                      <DropdownMenu.Separator></DropdownMenu.Separator>
+                      <DropdownMenu.Item onClick={() => navigate(`/restore?add=1&to=${encodeURIComponent('/configure')}`)}>Add wallet</DropdownMenu.Item>
+                    </DropdownMenu.Content>
+                  </DropdownMenu.Root>
                 </Flex>
               </DataList.Value>
             </DataList.Item>
@@ -220,12 +262,29 @@ export default function ConfigurePage() {
                         <AlertDialog.Cancel>
                           <Button variant="solid" color="lime">Cancel</Button>
                         </AlertDialog.Cancel>
-                        <AlertDialog.Action>
-                          <Button variant="soft" color="red" onClick={() => {
-                            AppData.destroyWallet();
-                            navigate('/');
-                          }}>Destroy wallet</Button>
-                        </AlertDialog.Action>
+                        {
+                          walletAddresses.length > 1 &&
+                          <AlertDialog.Action>
+                            <DropdownMenu.Root>
+                              <DropdownMenu.Trigger>
+                                <Button variant="soft" color="red">
+                                  Destroy wallet
+                                  <DropdownMenu.TriggerIcon />
+                                </Button>
+                              </DropdownMenu.Trigger>
+                              <DropdownMenu.Content>
+                                <DropdownMenu.Item color="yellow" onClick={() => destroyWallet(false)}>Only active</DropdownMenu.Item>
+                                <DropdownMenu.Item color="red" onClick={() => destroyWallet(true)}>Wipe all data</DropdownMenu.Item>
+                              </DropdownMenu.Content>
+                            </DropdownMenu.Root>
+                          </AlertDialog.Action>
+                        }
+                        {
+                          walletAddresses.length <= 1 &&
+                          <AlertDialog.Action>
+                            <Button variant="soft" color="red" onClick={() => destroyWallet(true)}>Destroy wallet</Button>
+                          </AlertDialog.Action>
+                        }
                       </Flex>
                     </AlertDialog.Content>
                   </AlertDialog.Root>

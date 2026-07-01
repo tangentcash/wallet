@@ -28,6 +28,165 @@ const InteractionPage = lazy(() => import("./../pages/interaction"));
 const PortfolioPage = lazy(() => import("../pages/exchange/portfolio"));
 const OrderbookPage = lazy(() => import("../pages/exchange/orderbook"));
 
+export type ExtendedField = {
+  depositTime: number,
+  tokenStandard: string | null,
+  blocking: boolean
+};
+
+export const ASSET_INFORMATION: Record<string, ExtendedField> = {
+  "ADA": {
+    depositTime: 22,
+    tokenStandard: 'FT',
+    blocking: false
+  },
+  "ARB": {
+    depositTime: 1,
+    tokenStandard: 'ERC20',
+    blocking: false
+  },
+  "AVAX": {
+    depositTime: 3,
+    tokenStandard: 'ERC20',
+    blocking: false
+  },
+  "BASE": {
+    depositTime: 1,
+    tokenStandard: 'ERC20',
+    blocking: false
+  },
+  "BCH": {
+    depositTime: 60,
+    tokenStandard: null,
+    blocking: false
+  },
+  "BLAST": {
+    depositTime: 3,
+    tokenStandard: 'ERC20',
+    blocking: false
+  },
+  "BNB": {
+    depositTime: 1,
+    tokenStandard: 'BEP20',
+    blocking: false
+  },
+  "BSV": {
+    depositTime: 12,
+    tokenStandard: null,
+    blocking: false
+  },
+  "BTC": {
+    depositTime: 60,
+    tokenStandard: null,
+    blocking: false
+  },
+  "BTG": {
+    depositTime: 60,
+    tokenStandard: null,
+    blocking: false
+  },
+  "CELO": {
+    depositTime: 2,
+    tokenStandard: 'ERC20',
+    blocking: false
+  },
+  "DASH": {
+    depositTime: 15,
+    tokenStandard: null,
+    blocking: false
+  },
+  "DGB": {
+    depositTime: 2,
+    tokenStandard: null,
+    blocking: false
+  },
+  "DOGE": {
+    depositTime: 6,
+    tokenStandard: null,
+    blocking: false
+  },
+  "ETC": {
+    depositTime: 14,
+    tokenStandard: 'ERC20',
+    blocking: false
+  },
+  "ETH": {
+    depositTime: 14,
+    tokenStandard: 'ERC20',
+    blocking: false
+  },
+  "GNO": {
+    depositTime: 6,
+    tokenStandard: 'ERC20',
+    blocking: false
+  },
+  "LTC": {
+    depositTime: 15,
+    tokenStandard: null,
+    blocking: false
+  },
+  "LINEA": {
+    depositTime: 3,
+    tokenStandard: 'ERC20',
+    blocking: false
+  },
+  "MATIC": {
+    depositTime: 3,
+    tokenStandard: 'ERC20',
+    blocking: false
+  },
+  "OP": {
+    depositTime: 3,
+    tokenStandard: 'ERC20',
+    blocking: false
+  },
+  "S": {
+    depositTime: 1,
+    tokenStandard: 'ERC20',
+    blocking: false
+  },
+  "SOL": {
+    depositTime: 1,
+    tokenStandard: 'SPL',
+    blocking: false
+  },
+  "TRX": {
+    depositTime: 2,
+    tokenStandard: 'TRC20',
+    blocking: false
+  },
+  "XEC": {
+    depositTime: 60,
+    tokenStandard: null,
+    blocking: false
+  },
+  "XLM": {
+    depositTime: 1,
+    tokenStandard: null,
+    blocking: false
+  },
+  "XMR": {
+    depositTime: 40,
+    tokenStandard: null,
+    blocking: true
+  },
+  "XRP": {
+    depositTime: 1,
+    tokenStandard: null,
+    blocking: false
+  },
+  "ZEC": {
+    depositTime: 20,
+    tokenStandard: null,
+    blocking: false
+  },
+  "ZK": {
+    depositTime: 3,
+    tokenStandard: 'ERC20',
+    blocking: false
+  },
+}
+
 export type DecodedTransaction = {
   typename: string,
   type: number,
@@ -67,6 +226,7 @@ export type AppProps = {
 }
 
 export enum AppPermission {
+  Unchanged,
   ReadOnly,
   ReadWrite,
   Reset
@@ -97,46 +257,49 @@ export class AppData {
   static tauriRef: any = null;
   static approveTransaction: ((proof: { hash: Uint256, message: Uint8Array, signature: Hashsig } | null) => void) | null = null;
 
-  private static storeWalletKeychain(type: WalletType, secret: string | string[]): boolean {
+  private static verifyAccount(top: [WalletType, string | string[]]): boolean {
+    return top != null && Array.isArray(top) && top.length == 2 && typeof top[0] == 'string' && (Array.isArray(top[1]) || typeof top[1] == 'string');
+  }
+  private static tryWalletKeychain(type: WalletType, secret: string | string[]): WalletKeychain | null {
     let data: WalletKeychain | null = null;
     switch (type) {
       case WalletType.Mnemonic: {
-        if (!Array.isArray(secret))
-          return false;
+        if (!Array.isArray(secret) || typeof secret == 'string')
+          return null;
 
         data = WalletKeychain.fromMnemonic(secret);
         break;
       }
       case WalletType.SecretKey: {
-        if (Array.isArray(secret))
-          return false;
+        if (Array.isArray(secret) || typeof secret != 'string')
+          return null;
 
         data = WalletKeychain.fromSecretKey(secret);
         break;
       }
       case WalletType.PublicKey: {
-        if (Array.isArray(secret))
-          return false;
+        if (Array.isArray(secret) || typeof secret != 'string')
+          return null;
 
         data = WalletKeychain.fromPublicKey(secret);
         break;
       }
       case WalletType.Address: {
-        if (Array.isArray(secret))
-          return false;
+        if (Array.isArray(secret) || typeof secret != 'string')
+          return null;
 
         data = WalletKeychain.fromAddress(secret);
         break;
       }
     }
-
-    if (!data || !data.isValid())
-      return false;
-    
+    return data && data.isValid() ? data : null;
+  }
+  private static applyWalletKeychain(data: WalletKeychain, network: NetworkType | null, type: AppPermission): void {
     this.wallet = data;
     this.props.account = this.wallet.address;
+    if (type != AppPermission.Unchanged)
+      this.reconfigure(network, type);
     this.save();
-    return true;
   }
   private static nodeRequest(method: string, message: any, size: number): void {
     const bytes = 40 + size;
@@ -305,6 +468,7 @@ export class AppData {
   }
   static save(): void {
     AppStorage.set(StorageField.App, this.props);
+    this.setState();
   }
   private static render(): void {
     const element = document.getElementById("root") as HTMLElement;
@@ -327,83 +491,127 @@ export class AppData {
     return this.tauriRef;
   }
   static async restoreWallet(passphrase: string, network?: NetworkType): Promise<boolean> {
-    this.props.account = null;
-    this.reconfigure(network || null, AppPermission.ReadWrite);
-    this.save();
-
     const status = await SafeStorage.restore(passphrase);
     if (!status)
       return false;
-
-    const mnemonic: string[] | null = await SafeStorage.get(StorageField.Mnemonic);
-    if (!mnemonic || !this.storeWalletKeychain(WalletType.Mnemonic, mnemonic)) {
-      const secretKey: string | null = await SafeStorage.get(StorageField.SecretKey);
-      if (!secretKey || !this.storeWalletKeychain(WalletType.SecretKey, secretKey)) {
-        const publicKey: string | null = await SafeStorage.get(StorageField.PublicKey);
-        if (!publicKey || !this.storeWalletKeychain(WalletType.PublicKey, publicKey)) {
-          const address: string | null = await SafeStorage.get(StorageField.Address);
-          if (!address || !this.storeWalletKeychain(WalletType.Address, address)) {
-            return false;
+    
+    const deprecatedWalletMigration = true;
+    if (deprecatedWalletMigration) {
+      for (let item in WalletType) {
+        const type = (WalletType as any)[item];
+        const secret = await SafeStorage.get(`__${type}__`);
+        const target = this.tryWalletKeychain(type as WalletType, secret);
+        if (target != null) {
+          const accounts = (await SafeStorage.get(StorageField.Accounts)) || [];
+          if (await SafeStorage.set(StorageField.Accounts, Array.isArray(accounts) ? [[type, secret], ...accounts] : [type, secret])) {
+            this.applyWalletKeychain(target, network || null, AppPermission.ReadWrite);
+            for (let subitem in WalletType) {
+              await SafeStorage.set(`__${(WalletType as any)[subitem]}__`);
+            }
+            return true;
           }
         }
       }
     }
 
-    const address = this.getWalletAddress();
-    RPC.applyTopics(address ? [address] : []);
-    this.setState();
+    const accounts = (await SafeStorage.get(StorageField.Accounts)) || [];
+    const top = Array.isArray(accounts) && accounts.length > 0 ? accounts[0] || null : null;
+    const base = this.verifyAccount(top) ? this.tryWalletKeychain(top[0] as WalletType, top[1]) : null;
+    if (!base)
+      return false;
+
+    this.applyWalletKeychain(base, network || null, AppPermission.ReadWrite);
     return true;
   }
   static async resetWallet(secret: string | string[], type: WalletType, network?: NetworkType): Promise<boolean> {
-    this.props.account = null;
-    this.reconfigure(network || null, AppPermission.Reset);
-    this.save();
-    await SafeStorage.set(StorageField.Mnemonic);
-    await SafeStorage.set(StorageField.SecretKey);
-    await SafeStorage.set(StorageField.PublicKey);
-    await SafeStorage.set(StorageField.Address);
-    switch (type) {
-      case WalletType.Mnemonic: {
-        const status = await SafeStorage.set(StorageField.Mnemonic, secret);
-        if (!status || !this.storeWalletKeychain(type, secret))
-          return false;
-        break;
-      }
-      case WalletType.SecretKey: {
-        const status = await SafeStorage.set(StorageField.SecretKey, secret);
-        if (!status || !this.storeWalletKeychain(type, secret))
-          return false;
-        break;
-      }
-      case WalletType.PublicKey: {
-        const status = await SafeStorage.set(StorageField.PublicKey, secret);
-        if (!status || !this.storeWalletKeychain(type, secret))
-          return false;
-        break;
-      }
-      case WalletType.Address: {
-        const status = await SafeStorage.set(StorageField.Address, secret);
-        if (!status || !this.storeWalletKeychain(type, secret))
-          return false;
-        break;
-      }
-      default:
-        return false;
-    }
-    
-    this.setState();
-    return true;
+    const next = this.tryWalletKeychain(type, secret)
+    if (!next)
+      return false;
+
+    const accounts = (await SafeStorage.get(StorageField.Accounts)) || [];
+    const status = await SafeStorage.set(StorageField.Accounts, Array.isArray(accounts) ? [[type, secret], ...accounts] : [[type, secret]]);
+    if (!status)
+      return false;
+
+    this.applyWalletKeychain(next, network || null, AppPermission.Reset);
+    return !!status;
   }
   static clearWallet(): void {
     SafeStorage.clear();
     this.wallet = null;
     this.setState();
   }
-  static destroyWallet(): void {
-    SafeStorage.wipe();
-    this.wallet = null;
-    this.props.account = null;
-    this.setState();
+  static async switchWallet(index: number): Promise<boolean> {
+    const accounts = (await SafeStorage.get(StorageField.Accounts)) || [];
+    if (!Array.isArray(accounts) || index >= accounts.length) {
+      return false;
+    }
+
+    const next = accounts[index]; accounts.splice(index, 1);
+    const target = this.verifyAccount(next) ? this.tryWalletKeychain(next[0], next[1]) : null;
+    const status = await SafeStorage.set(StorageField.Accounts, target ? [next, ...accounts] : accounts);
+    if (!status || !target) {
+      this.save();
+      return false;
+    }
+
+    this.applyWalletKeychain(target, null, AppPermission.Unchanged);
+    return true;
+  }
+  static async destroyWallet(fully: boolean): Promise<boolean | 'wipe'> {
+    const destroyEverything = (): 'wipe' => {  
+      SafeStorage.wipe();
+      this.wallet = null;
+      this.props.account = null;
+      this.setState();
+      return 'wipe';
+    };
+    if (fully) {
+      return destroyEverything();
+    } else if (!SafeStorage.hasDecryptedKey()) {
+      return false;
+    }
+
+    const accounts = (await SafeStorage.get(StorageField.Accounts)) || [];
+    if (!Array.isArray(accounts)) {
+      return false;
+    } else if (accounts.length == 1) {
+      return destroyEverything();
+    }
+
+    let index = 0;
+    for (index = 1; index < accounts.length; index++) {
+      const top = accounts[index];
+      if (this.verifyAccount(top) && this.tryWalletKeychain(top[0], top[1])) {
+        break;
+      }
+    }
+    
+    const top = index < accounts.length ? this.tryWalletKeychain(accounts[index][0], accounts[index][1]) : null;
+    accounts.splice(0, index);
+    if (!top || !accounts.length) {
+      return destroyEverything();
+    }
+
+    const status = await SafeStorage.set(StorageField.Accounts, accounts);
+    if (!status) {
+      return false;
+    }
+
+    this.applyWalletKeychain(top, null, AppPermission.Unchanged);
+    return true;
+  }
+  static async getWalletAddresses(): Promise<(string | null)[]> {
+    const result: (string | null)[] = [];
+    const accounts = (await SafeStorage.get(StorageField.Accounts)) || [];
+    if (Array.isArray(accounts)) {
+      for (let i = 0; i < accounts.length; i++) {
+        const target = accounts[i];
+        const account = this.verifyAccount(target) ? this.tryWalletKeychain(target[0], target[1]) : null;
+        result.push(account?.address || null);
+      }
+    }
+    return result;
   }
   static decodeTransaction(data: string | Uint8Array): DecodedTransaction {
     const message = typeof data == 'string' ? Stream.decode(data) : new Stream(data);
@@ -589,9 +797,6 @@ export class AppData {
     let resetNetwork = type == AppPermission.Reset;
     if (network != null) {
       resetNetwork = resetNetwork || prevNetwork != network;
-      if (type == AppPermission.ReadWrite && resetNetwork) {
-        throw new Error('Must perform reset to change the network');
-      }
       Chain.props = Chain[network];
       AppStorage.set(StorageField.Network, network);
     } 
@@ -623,9 +828,6 @@ export class AppData {
     const address = this.getWalletAddress();
     RPC.applyTopics(address ? [address] : []);
     RPC.applyValidator(this.props.validator);
-    if (resetNetwork) {
-      AppStorage.set(StorageField.Validator);
-    }
   }
   static async openDevTools(): Promise<void> {
     if (this.isApp()) {
@@ -695,11 +897,13 @@ export class AppData {
   static setAppearance(value: 'dark' | 'light'): void {
     this.props.appearance = value;
     this.save();
-    this.setState();
   }
   static setState(): void {
     if (this.state.setState != null)
       this.state.setState(++this.state.count);
+  }
+  static getWalletMnemonic(): string[] | null | undefined {
+    return this.isWalletReady() ? this.wallet?.mnemonic : null;
   }
   static getWalletSecretKey(): Seckey | null | undefined {
     return this.isWalletReady() ? this.wallet?.secretKey : null;
@@ -730,6 +934,9 @@ export class AppData {
   }
   static defaultNetwork(): NetworkType {
     return this.isDev() ? NetworkType.Regtest : NetworkType.Mainnet;
+  }
+  static savedNetwork(): NetworkType | undefined {
+    return AppStorage.get(StorageField.Network);
   }
 }
 

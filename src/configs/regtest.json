@@ -1,6 +1,6 @@
 {
   "validatorUrl": "localhost:18419",
   "exchangeUrl": "http://localhost:19420",
-  "cachePrefix": "VRT",
+  "cachePrefix": "R00",
   "authorizer": true
 }

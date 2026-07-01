@@ -1,15 +1,16 @@
-import { Badge, Box, Button, Card, DataList, Flex, Heading, Select, Tabs, TextField, Tooltip } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, DataList, Flex, Heading, Select, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
-import { AppData } from "../core/app";
+import { AppData, ASSET_INFORMATION, ExtendedField } from "../core/app";
 import { AssetId, Chain, EventResolver, Readability, RPC, Signing, SummaryState, Uint256, Whitelist } from "tangentsdk";
-import { mdiMagnify, mdiOpenInNew } from "@mdi/js";
+import { mdiEye, mdiEyeOff, mdiMagnify, mdiOpenInNew } from "@mdi/js";
 import { useEffectAsync } from "../core/react";
 import { TransactionView } from "../components/transaction";
 import { AssetImage, AssetName } from "../components/asset";
 import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
+import BigNumber from "bignumber.js";
 
 const BLOCK_COUNT = 64;
 const TRANSACTION_COUNT = 16;
@@ -36,6 +37,13 @@ export default function ExplorerPage() {
   const blockNumber = useMemo((): BigNumber | null => {
     return AppData.tip;
   }, [counter]);
+  const blockchainExt = useMemo((): ExtendedField | null => {
+    if (!asset)
+      return null;
+
+    const ext = ASSET_INFORMATION[asset.chain || ''];
+    return ext ? ext : null;
+  }, [asset]);
   const navigateToSearch = useCallback(async () => {
     if (loading || !subject.trim().length)
       return;
@@ -138,10 +146,11 @@ export default function ExplorerPage() {
         return null;
       }
 
+      const showQueue = search.has('queue');
       const result = refresh ? data : data.concat(vaults);
       setVaults(result.map((x) => {
         const balance: BigNumber | null = x.balances.find((v: any) => v.asset.id == asset.id)?.supply || null;
-        x.withdrawable = balance ? balance.gte(x.instance.fee_rate) : false;   
+        x.withdrawable = balance ? balance.gte(x.instance.fee_rate) : false;
         x.balances = x.balances.map((y: any) => ({ ...y, whitelist: Whitelist.has(y.asset) })).sort((a: any, b: any) => {
           if ((a.whitelist && !b.whitelist) || (!a.asset.token && b.asset.token)) {
             return -1;
@@ -154,6 +163,8 @@ export default function ExplorerPage() {
             return comparison == 0 ? new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle) : comparison;
           }
         });
+        x.queue = x.queue.sort((a: any, b: any) => new BigNumber(a.index).minus(b.index).toNumber());
+        x.showQueue = showQueue;
         return x;
       }));
       setMoreVaults(data.length >= VAULT_COUNT);
@@ -164,7 +175,7 @@ export default function ExplorerPage() {
       setMoreVaults(false);
       return null;
     }
-  }, [asset, vaults]);
+  }, [asset, vaults, search]);
   useEffectAsync(async () => {
     await AppData.sync();
     switch (tab) {
@@ -321,7 +332,7 @@ export default function ExplorerPage() {
                                   <Flex gap="1" wrap="wrap">
                                     <Badge size="1" color="lime">{ Readability.toCount('signer', item.instance.security_level) }</Badge>
                                     <Badge size="1" color="blue">{ Readability.toCount('txn', item.instance.transaction_nonce) }</Badge>
-                                    <Badge size="1" color="blue">{ Readability.toCount('address', item.instance.account_nonce) }</Badge>
+                                    <Badge size="1" color="blue">{ Readability.toCount(new BigNumber(item.instance.account_nonce).gt(1) ? 'addresse' : 'address', item.instance.account_nonce) }</Badge>
                                     <Badge size="1" color="yellow">{ Readability.toMoney(new AssetId(asset.id), item.instance.fee_rate) } fee</Badge>
                                   </Flex>
                                 </DataList.Value>
@@ -344,26 +355,58 @@ export default function ExplorerPage() {
                                 </DataList.Value>
                               </DataList.Item>
                             </Tooltip>
+                            <Tooltip content="Withdrawal transactions queued for processing by selected attesters">
+                              <DataList.Item align={mobile ? undefined : 'center'}>
+                                <DataList.Label>Outgoing TX queue:</DataList.Label>
+                                <DataList.Value>
+                                  <Button size="1" variant={item.showQueue ? 'solid' : 'surface'} color={item.showQueue ? 'yellow' : 'gray'} onClick={() => {
+                                    let copy = [...vaults];
+                                    copy[index].showQueue = !copy[index].showQueue;
+                                    setVaults(copy);
+                                  }}>{ Readability.toCount('transaction', Array.isArray(item.queue) ? item.queue.length : null) } in queue <Icon path={item.showQueue ? mdiEye : mdiEyeOff} size={0.5}></Icon></Button>
+                                </DataList.Value>
+                              </DataList.Item>
+                            </Tooltip>
                             <DataList.Item align={mobile ? undefined : 'center'}>
                               <DataList.Label>Supply factory:</DataList.Label>
                               <DataList.Value>
                                 <Flex gap="2" wrap="wrap">
                                   <Tooltip content="Claim a deposit address and/or sender address">
-                                    <Button size="2" variant="soft" color="jade" className="shadow-rainbow-hover" onClick={() => {
+                                    <Button size="1" variant="soft" color="jade" className="shadow-rainbow-hover" onClick={() => {
                                       navigate(`/interaction?asset=${asset.id}&type=register&vault=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`);
-                                    }}>↙ Mint tokens <Icon path={mdiOpenInNew} size={0.6}></Icon></Button>
+                                    }}>↙ Mint tokens <Icon path={mdiOpenInNew} size={0.5}></Icon></Button>
                                   </Tooltip>
                                   <Tooltip content={(item.withdrawable ? 'Vault has enough ' : 'Vault doesn\'t have enough ') + Readability.toAssetSymbol(asset) + ' for a withdrawal'}>
-                                    <Button size="2" variant="soft" color="red" className="shadow-rainbow-hover" disabled={!item.withdrawable} onClick={() => {
+                                    <Button size="1" variant="soft" color="red" className="shadow-rainbow-hover" disabled={!item.withdrawable} onClick={() => {
                                       if (item.withdrawable) {
                                         navigate(`/interaction?asset=${asset.id}&type=withdraw&vault=${item.instance.bridge_hash}&fee=${item.instance.fee_rate.toString()}&back=${encodeURIComponent(location.pathname + location.search)}`);
                                       }
-                                    }}>↗ Redeem tokens <Icon path={mdiOpenInNew} size={0.6}></Icon></Button>
+                                    }}>↗ Redeem tokens <Icon path={mdiOpenInNew} size={0.5}></Icon></Button>
                                   </Tooltip>
                                 </Flex>
                               </DataList.Value>
                             </DataList.Item>
                           </DataList.Root>
+                          {
+                            item.showQueue &&
+                            <>
+                              <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
+                              {
+                                Array.isArray(item.queue) && item.queue.map((tx: any, index: number) =>
+                                  <Flex gap="2" wrap="wrap" justify="between" key={tx.hash.toString()} mb={index != item.queue.length - 1 ? '4' : undefined}>
+                                    <Badge size="2" color="yellow">{ blockchainExt != null ? `in ${(blockchainExt.blocking ? blockchainExt.depositTime * (index + 1) + '-' + (blockchainExt.depositTime * (index + 1) + 10).toString() : 10 * (index + 1))} min.` : `P${Readability.toValue(null, index + 1, false, false)}` }</Badge>
+                                    <Flex gap="2" align="center">
+                                      <Badge size="2" color="yellow">{ Readability.toHash(tx.transaction_hash, mobile ? 6 : 12) }</Badge>
+                                      <Link className="router-link" to={'/transaction/' + tx.transaction_hash} style={{ fontSize: '0.9rem' }}>▒▒</Link>
+                                    </Flex>
+                                  </Flex>
+                                )
+                              }
+                              <Flex justify="center" mt={Array.isArray(item.queue) && item.queue.length > 0 ? '4' : undefined}>
+                                <Text color={blockchainExt ? item.queue?.length > 0 ? 'red' : (blockchainExt.blocking ? 'yellow' : 'jade') : 'gray'} size="2">Max outgoing ETA: { blockchainExt ? (blockchainExt.blocking ? (blockchainExt.depositTime * (2 + item.queue?.length || 0) + '-' + (blockchainExt.depositTime * (2 + item.queue?.length || 0) + 10)) : (10 * ((item.queue?.length || 0) + 1))) + ' min.' : 'unknown' }</Text>
+                              </Flex>
+                            </>
+                          }
                         </Box>
                       </Card>
                     </Box>

@@ -85,6 +85,18 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
     }
     return result;
   }, [allAssets, verifiedAssetsOnly]);
+  const resolveTransactions = useCallback((offset: number, resolve: (tx: any) => boolean): any => {  
+    for (let i = 0; i < 1024; i++) {
+      const index = offset - i;
+      const top = index >= 0 && index < finalizedTransactions.length ? finalizedTransactions[index].transaction : null;
+      if (!top) {
+        return null;
+      } else if (resolve(top)) {
+        return top;
+      }
+    }
+    return null;
+  }, [finalizedTransactions]);
   const findTransactions = useCallback(async (refresh?: boolean) => {
     try {
       const data = await RPC.getTransactionsByOwner(ownerAddress, refresh ? 0 : finalizedTransactions.length, TRANSACTION_COUNT, 0, 2);
@@ -567,7 +579,7 @@ export default function Account(props: { ownerAddress: string, self?: boolean, n
                       </Box>
                     }
                     <Box mt="4">
-                      <TransactionView ownerAddress={ownerAddress} transaction={item.transaction} receipt={item.receipt} state={item.state}></TransactionView>
+                      <TransactionView ownerAddress={ownerAddress} transaction={item.transaction} receipt={item.receipt} state={item.state} resolveTransaction={(resolve: (tx: any) => boolean) => resolveTransactions(index, resolve)}></TransactionView>
                     </Box>
                   </Box>
                 )

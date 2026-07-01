@@ -1,4 +1,4 @@
-import { mdiArrowBottomLeft, mdiArrowBottomRight, mdiArrowDown, mdiContactlessPayment, mdiCreation, mdiFire, mdiFlash, mdiFlashAlert, mdiFlashOutline, mdiLightbulbOn, mdiLightbulbOutline, mdiLogin, mdiMenu, mdiPercent, mdiSale, mdiScaleBalance, mdiSchool } from "@mdi/js";
+import { mdiArrowBottomLeft, mdiArrowBottomRight, mdiArrowDown, mdiContactlessPayment, mdiCreation, mdiFire, mdiFlash, mdiFlashAlert, mdiFlashOutline, mdiLightbulbOn, mdiLightbulbOutline, mdiLogin, mdiMagnify, mdiMenu, mdiPercent, mdiSale, mdiScaleBalance, mdiSchool } from "@mdi/js";
 import { Avatar, Box, Button, DropdownMenu, Flex, Heading, IconButton, Text } from "@radix-ui/themes";
 import { Link, useNavigate } from "react-router";
 import { AssetId, Readability } from "tangentsdk";
@@ -13,6 +13,32 @@ type Metrics = { assets: string, pairs: string, accounts: string, actions: strin
 
 let cachedMetrics: Metrics | null | false = false; 
 
+function secondsToDuration(baseSeconds: number): string {
+  if (!baseSeconds)
+    return "0 seconds";
+
+  const SEC_PER_MIN = 60.0;
+  const SEC_PER_HOUR = 60.0 * SEC_PER_MIN;
+  const SEC_PER_DAY = 24.0 * SEC_PER_HOUR;
+  const SEC_PER_WEEK = 7.0 * SEC_PER_DAY;
+  const SEC_PER_MONTH = (365.2425 / 12.0) * SEC_PER_DAY;
+  const SEC_PER_YEAR = 365.2425 * SEC_PER_DAY;
+  const toDuration = (value: number, duration: string): string => `${Math.round(value)} ${duration}${value > 1 ? "s" : ""}`;
+  const seconds = Math.round(baseSeconds);
+  if (seconds >= SEC_PER_YEAR)
+    return toDuration(seconds / SEC_PER_YEAR, "year");
+  else if (seconds >= SEC_PER_MONTH)
+    return toDuration(seconds / SEC_PER_MONTH, "month");
+  else if (seconds >= SEC_PER_WEEK)
+    return toDuration(seconds / SEC_PER_WEEK, "week");
+  else if (seconds >= SEC_PER_DAY)
+    return toDuration(seconds / SEC_PER_DAY, "day");
+  else if (seconds >= SEC_PER_HOUR)
+    return toDuration(seconds / SEC_PER_HOUR, "hour");
+  else if (seconds >= SEC_PER_MIN)
+    return toDuration(seconds / SEC_PER_MIN, "minute");
+  return toDuration(seconds, "second");
+}
 function toNiceNumber(number: BigNumber): string {
   const stringify = (value: BigNumber) => value.integerValue().eq(value) ? value.toString() : value.toFixed(1);
   const compress = (rotation: number) => stringify(number.dividedBy(Math.pow(1000.0, rotation)));
@@ -36,6 +62,7 @@ function toNiceAmount(amount: BigNumber): string {
   return '$' + toNiceNumber(amount.integerValue());
 }
 
+const genesisTimeDEX = new Date(1772732892203);
 const blockchains = [
   'ADA',
   'BTC',
@@ -46,7 +73,8 @@ const blockchains = [
   'XLM',
   'BCH',
   'LTC',
-  'DOGE'
+  'DOGE',
+  'XMR'
 ].sort();
 
 export default function HypePage() {
@@ -134,6 +162,14 @@ export default function HypePage() {
                     </Flex>
                   </Link>
                 </DropdownMenu.Item>
+                <DropdownMenu.Item>
+                  <Link className="router-text-link" to="/explorer" style={{ textDecoration: 'none' }}>
+                    <Flex align="center" gap="2">
+                      <Icon path={mdiMagnify} size={0.6} /> 
+                      <Text size="2">Explorer</Text>
+                    </Flex>
+                  </Link>
+                </DropdownMenu.Item>
                 <DropdownMenu.Item onClick={() => AppData.setAppearance(AppData.props.appearance == 'light' ? 'dark' : 'light')}>
                   <Flex align="center" gap="2">
                     <Icon path={AppData.props.appearance == 'dark' ? mdiLightbulbOutline : mdiLightbulbOn} size={0.6}></Icon>
@@ -216,7 +252,15 @@ export default function HypePage() {
               <Heading align="center" size={mobile ? '7' : '8'}>Serving { metrics.accounts }</Heading>
             </Flex>
             <Flex justify="center" mb="8">
-              <Text align="center" size={mobile ? '3' : '4'}>On-chain all-time metrics.</Text>
+              <Text align="center" size={mobile ? '3' : '4'}><span style={{ 
+                  display: 'inline-block',
+                  width: '8px',
+                  height: '8px',
+                  backgroundColor: 'var(--lime-11)',
+                  borderRadius: '50%',
+                  marginRight: '8px',
+                  verticalAlign: 'middle'
+                }}></span>{ secondsToDuration((new Date().getTime() - genesisTimeDEX.getTime()) / 1000) } of on-chain metrics.</Text>
             </Flex>
             <Flex wrap="wrap" gap="3" justify="center">
               <Flex px="5" py="4" style={{ borderRadius: '36px', backgroundColor: 'var(--gray-12)' }}>

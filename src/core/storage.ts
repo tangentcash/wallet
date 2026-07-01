@@ -6,11 +6,7 @@ import { openDB, IDBPDatabase } from 'idb';
 export enum StorageField {
   Network = '__network__',
   Passphrase = '__passphrase__',
-  Mnemonic = '__mnemonic__',
-  SecretKey = '__secretkey__',
-  PublicKey = '__publickey__',
-  Address = '__address__',
-  Validator = '__validator__',
+  Accounts = '__accounts__',
   App = '__app__'
 }
 

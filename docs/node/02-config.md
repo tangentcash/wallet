@@ -4,7 +4,7 @@ An example configuration file that includes all possible fields.
 {
     "network": "mainnet",
     "keystate": "./keystate.sk",
-    "interactive": false,
+    "encrypted": false,
     "known_nodes": [],
     "bootstrap_nodes": [
         "https://p2p.tangent.cash:18420?consensus=1"
@@ -109,8 +109,8 @@ Specifies the consensus network type. `mainnet` is the main network, `testnet` i
 Path to the keystate file containing cryptographic keys for data encryption.
 - **keystate_for_encryption**: `string`
 Path to the keystate file that is not encrypted and can be used to create a new keystate with encryption applied.
-- **interactive**: `boolean`
-Enable interactive encryption of a keystate file that would require a password to be prompted at startup.
+- **encrypted**: `boolean`
+Enable encryption of a keystate file that would require a password to be prompted at startup.
 - **known_nodes**: `string[]`
 An array of consensus nodes considered always reachable. Example: `tcp://127.0.0.1:18418`.
 - **bootstrap_nodes**: `string[]`

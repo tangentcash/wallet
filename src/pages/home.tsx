@@ -68,7 +68,7 @@ export default function HomePage() {
 
   return (
     <Box pt="4" maxWidth="680px" mx="auto">
-      <Flex gap="2" align="center" justify="between" pl="5" pr="4" mb="2">
+      <Flex gap="2" align="center" justify="between" px="4" mb="2">
         <Flex align="center" gap="2">
           <Heading size={document.body.clientWidth < 450 ? '5' : '6'}>Home</Heading>
           <Button variant="surface" size="1" color={ AppData.isWalletReady() ? 'lime' : 'red' } onClick={() => AppData.isWalletReady() ? undefined : navigate('/restore')}>{ AppData.isWalletReady() ? '' : 'RO:' }{ ownerAddress.substring(ownerAddress.length - 6) }</Button>

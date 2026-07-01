@@ -1,6 +1,6 @@
 {
   "validatorUrl": "p2p.tangent.cash:18419",
   "exchangeUrl": "https://p2p.tangent.cash:19420",
-  "cachePrefix": "VMN",
+  "cachePrefix": "M00",
   "authorizer": true
 }

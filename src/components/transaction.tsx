@@ -4,14 +4,14 @@ import { AlertBox, AlertType } from "./alert";
 import { Link } from "react-router";
 import { AppData } from "../core/app";
 import { useMemo, useState } from "react";
-import { mdiAlert, mdiCheck, mdiInformationOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiReload } from "@mdi/js";
+import { mdiInformationOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiReload } from "@mdi/js";
 import { AssetImage } from "./asset";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 
-export function toTransactionLabel(transaction: any): string {
-  switch (Readability.toTransactionType(transaction.type)) {
+export function toTransactionLabel(transaction: any, type: string | null): string {
+  switch (type) {
     case 'transfer':
       return transaction.to.length > 1 ? 'Batch transfer' : 'Transfer';
     case 'deploy':
@@ -177,7 +177,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               transaction.transactions.map((item: any, index: number) =>
                 <Flex align="center" gap="2" key={'IF1' + item.action.hash + index} mb={index == transaction.transactions.length - 1 ? '0' : '4'}>     
                   <AssetImage asset={item.action.asset} size="1"></AssetImage>
-                  <Badge size="2" variant="soft">{ toTransactionLabel(item.action) }</Badge>
+                  <Badge size="2" variant="soft">{ toTransactionLabel(item.action, Readability.toTransactionType(item.type)) }</Badge>
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(item.action.hash);
                     AlertBox.open(AlertType.Info, 'Internal transaction hash copied!')
@@ -200,7 +200,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText((transaction.pow_challenge.block_hash || 'NULL') + ' + ' + transaction.pow_challenge.solution);
                   AlertBox.open(AlertType.Info, 'Proof of work copied!')
-                }}>{ Readability.toAddress(transaction.pow_challenge.block_hash) } / { Readability.toValue(null, transaction.pow_challenge.solution, false, false) }</Button>
+                }}>{ Readability.toAddress(transaction.pow_challenge.block_hash.toString()) } / { Readability.toValue(null, transaction.pow_challenge.solution, false, false) }</Button>
               </DataList.Value>
             </DataList.Item>
           }
@@ -1300,7 +1300,7 @@ export function TransactionDetailsView(props: { orientation: 'horizontal' | 'ver
     </Box>
   );
 }
-export function TransactionView(props: { ownerAddress: string, transaction: any, receipt?: any, state?: SummaryState, open?: boolean, preview?: string | boolean, summary?: boolean }) {
+export function TransactionView(props: { ownerAddress: string, transaction: any, receipt?: any, state?: SummaryState, open?: boolean, preview?: string | boolean, summary?: boolean, resolveTransaction?: (resolve: (tx: any) => boolean) => any }) {
   const transaction = props.transaction;
   const receipt = props.receipt || null;
   const state = props.state || null;
@@ -1308,7 +1308,17 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
   const finalized = !receipt || receipt.successful;
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [expanded, setExpanded] = useState(props.open || false);
-  const title = useMemo(() => toTransactionLabel(transaction), [transaction]);
+  const labels = useMemo((): { title: string, status: { title: string, color: string } | null } => {
+    let type = Readability.toTransactionType(transaction.type), status: { title: string, color: string } | null = null;
+    if (finalized && !transaction.error && (!transaction.proof || transaction.proof.success) && !props.preview && props.resolveTransaction && transaction.type == 'withdraw') {
+      const top = props.resolveTransaction((top: any) => top.withdraw_hash && top.withdraw_hash.toString() == transaction.hash.toString());
+      status = top ? { title: 'Finalized', color: top.error ? 'gray' : 'jade' } : { title: 'Queued', color: 'gray' };
+    }
+    return {
+      title: toTransactionLabel(transaction, type),
+      status: status
+    }
+  }, [transaction, finalized, props.preview, props.resolveTransaction]);
   const summary = useMemo((): {
     delta: { asset: AssetId, supply: BigNumber, reserve: BigNumber }[],
     volume: { asset: AssetId, value: BigNumber }[],
@@ -1355,7 +1365,7 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
           <AssetImage asset={transaction.asset}></AssetImage>
           <Box width="100%">
             <Flex justify="between" align="center" mb="1">
-              <Text as="div" size="2" weight="bold">{ title }</Text>       
+              <Text as="div" size="2" weight="bold">{ labels.title }</Text>       
               <Badge size="1" variant="soft" color={props.preview ? 'yellow' : 'gray'}>
                 <Icon path={mdiInformationOutline} size={0.65}></Icon>
                 <Box px="1" ml="-1">
@@ -1371,14 +1381,6 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
                 {
                   props.summary &&
                   <Badge size="1" color="lime">{ Readability.toAddress(transaction.hash, 6) }</Badge>
-                }
-                {
-                  !transaction.error && (!summary || summary.empty) &&
-                  <Badge size="1" color={receipt.successful ? 'lime' : 'red'}>{ receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Reverted' }<Icon path={receipt.successful ? mdiCheck : mdiAlert} size={0.55}></Icon></Badge>
-                }
-                {
-                  (transaction.error != null || (transaction.proof && !transaction.proof.success)) &&
-                  <Badge size="1" color="red">Reverted<Icon path={mdiAlert} size={0.55}></Icon></Badge>
                 }
                 {
                   summary && summary.delta.map((item) => 
@@ -1399,6 +1401,14 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
                       { <Badge size="1" color="gold"><Icon path={mdiReload} size={0.55}></Icon> { Readability.toMoney(item.asset, item.value) }</Badge> }
                     </Flex>
                   )
+                }
+                {
+                  (transaction.error != null || (transaction.proof && !transaction.proof.success) || (!summary || summary.empty)) &&
+                  <Badge size="1" color={!transaction.error && (!transaction.proof || !transaction.proof.success) && receipt.successful ? 'jade' : 'red'}>{ !transaction.error && (!transaction.proof || transaction.proof.success) && receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Reverted' }</Badge>
+                }
+                {
+                  labels.status && 
+                  <Badge size="1" color={labels.status.color as any}>{ labels.status.title }</Badge>
                 }
               </Flex>
             }
