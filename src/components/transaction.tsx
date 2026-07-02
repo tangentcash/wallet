@@ -1404,7 +1404,7 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
                 }
                 {
                   (transaction.error != null || (transaction.proof && !transaction.proof.success) || (!summary || summary.empty)) &&
-                  <Badge size="1" color={!transaction.error && (!transaction.proof || !transaction.proof.success) && receipt.successful ? 'jade' : 'red'}>{ !transaction.error && (!transaction.proof || transaction.proof.success) && receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Reverted' }</Badge>
+                  <Badge size="1" color={!transaction.error && (!transaction.proof || transaction.proof.success) && receipt.successful ? 'jade' : 'red'}>{ !transaction.error && (!transaction.proof || transaction.proof.success) && receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Reverted' }</Badge>
                 }
                 {
                   labels.status && 

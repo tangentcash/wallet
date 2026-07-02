@@ -1,4 +1,4 @@
-# Cryptography
+# Composition
 
 This section explores the process of multi-party computation (MPC) of DSAs used within bridging system: secp256k1, secp256k1-schnorr, ed25519 and ed25519-clsag.
 

@@ -1,5 +1,5 @@
 # Overview
-Tangent Swap is a decentralized exchange (DEX) built on smart contracts deployed on the blockchain. It integrates seamlessly with a wallet app, providing users with a comprehensive trading experience directly within their digital wallet.
+Tangent Swap is a decentralized exchange (DEX) built on smart contracts deployed on the blockchain. It integrates seamlessly with a wallet app, providing users with a comprehensive trading experience directly within their digital wallet. While main part of the wallet app works directly with network RPCs, this part of UI works only with exchange RPC. By default it uses the main exchange RPC server but you can also selfhost your exchange RPC along with node RPC to be fully independent of anyone.
 
 ## Key Features
 

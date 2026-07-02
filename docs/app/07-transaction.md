@@ -10,7 +10,7 @@ The transaction element is designed to be user-friendly yet informative. By defa
 
 When expanded, the transaction element reveals several detailed fields that provide a thorough breakdown of the transaction's attributes and status.
 
-![alt](./../../assets/account/02-transaction/1.png)
+![alt](./../assets/06-account/6.png)
 
 ### Transaction Hash
 A unique identifier for each transaction, serving as a digital fingerprint. This hash can be used to locate and reference the specific transaction within the blockchain network.

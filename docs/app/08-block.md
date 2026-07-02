@@ -27,7 +27,7 @@ The Block element contains comprehensive information about the internals of a bl
 - **Gas Limit**: The total gas limit for the block, calculated as the sum of the 'Gas limit' fields of all transactions within it.
 - **Gas Use**: The amount of gas used by this block, indicating the computational resources consumed.
 
-![alt](./../../assets/account/03-block/1.png)
+![alt](./../assets/06-account/7.png)
 
 ## Slot Section
 
@@ -39,7 +39,7 @@ The Slot section provides insights into the timing and performance of block crea
 - **Slot Gas Limit**: Max block gas limit multiplied by max slot length.
 - **Slot Gas Use**: The total gas use for a slot, calculated as the sum of the 'Gas use' fields of all blocks within it.
 
-![alt](./../../assets/account/03-block/2.png)
+![alt](./../assets/06-account/8.png)
 
 ## Transaction Section
 

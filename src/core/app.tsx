@@ -824,9 +824,6 @@ export class AppData {
       this.props.exchange = config.exchangeUrl;
     if (resetNetwork)
       RPC.clearCache();
-    
-    const address = this.getWalletAddress();
-    RPC.applyTopics(address ? [address] : []);
     RPC.applyValidator(this.props.validator);
   }
   static async openDevTools(): Promise<void> {

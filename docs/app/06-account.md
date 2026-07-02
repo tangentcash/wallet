@@ -10,7 +10,7 @@ At the top of the home page, you'll find a badge displaying the last 6 symbols o
 - **Wallet Unlock:** If your wallet is locked, clicking the badge will prompt you to unlock it.
 - **Find button:** You can find another account, transaction or block by utilizing the finder, you may also click on 'Last block' button to reveal latest block
 
-![alt](./../../assets/account/01-overview/1.png)
+![alt](./../assets/06-account/1.png)
 
 ## Main Window
 
@@ -24,7 +24,7 @@ The Fund tab displays a list of addresses linked to your shown account. By defau
 - **Bridge Addresses:** These addresses are marked with a blue bridge icon and are owned by bridges. They are off-chain addresses used for deposits.
 - **Address Details:** Clicking on any address will present you with a QR code and a description of the address's purpose, along with the address itself. Some bridge addresses also include memo/destination-tags, such as those for XRP and XLM.
 
-![alt](./../../assets/account/01-overview/2.png)
+![alt](./../assets/06-account/2.png)
 
 ### 2. Balance Tab
 
@@ -33,7 +33,7 @@ The Balance tab provides an overview of your asset balances, including detailed 
 - **Asset Details:** Each balance entry displays the asset name, icon, total balance, and available balance badge shown as a percentage.
 - **Detailed Information:** Hovering over the available balance badge reveals detailed balance and reserve values for that specific balance entry.
 
-![alt](./../../assets/account/01-overview/3.png)
+![alt](./../assets/06-account/3.png)
 
 ### 3. Node Tab
 
@@ -43,7 +43,7 @@ The Node tab offers governance-related statuses and information about your accou
 - **Bridge Participation:** This item displays the block in which bridge participation was activated and the associated stacking amount.
 - **Bridge Attestation:** A list of bridge attestation items, each containing the attestation blockchain, activation block number, and stacking amount.
 
-![alt](./../../assets/account/01-overview/4.png)
+![alt](./../assets/06-account/4.png)
 
 There are also two buttons:
 
@@ -57,4 +57,4 @@ Below the main window, you'll find a list of transactions related to your accoun
 - **Pending Transactions:** If there are any pending transactions, they will be displayed in a dedicated section.
 - **Collapsed View:** Each transaction is initially collapsed, showing only the changes made to your account. Clicking on a transaction will expand it to reveal more details.
 
-![alt](./../../assets/account/01-overview/5.png)
+![alt](./../assets/06-account/5.png)

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData } from "../core/app";
 import { Authorizer, RPC } from "tangentsdk";
+import { useEffectAsync } from "../core/react";
 import Account from "../components/account";
 import Icon from "@mdi/react";
 
@@ -35,6 +36,9 @@ export default function HomePage() {
     }
     setLoading(false);
   }, [loading]);
+  useEffectAsync(async () => {
+    await RPC.subscribeTopics(ownerAddress ? [ownerAddress] : []);
+  }, [ownerAddress]);
   useEffect(() => {
     const state: { blockId: any, transactionId: any } = { blockId: null, transactionId: null };
     RPC.onNodeMessage = (event) => {
