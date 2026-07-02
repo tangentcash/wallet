@@ -64,14 +64,13 @@ export class ApproveTransaction {
 }
 
 let powChallengeCache: { blockHash: Uint256, solution: number } | null = null;
-async function toPowChallenge(ownerAddress: string, accountNonce: string | BigNumber | undefined, onProgress: (progress: number | null) => void): Promise<{ blockHash: Uint256, solution: number }> {
+async function toPowChallenge(ownerAddress: string, onProgress: (progress: number | null) => void): Promise<{ blockHash: Uint256, solution: number }> {
   if (powChallengeCache != null) {
     return powChallengeCache;
   }
 
   onProgress(0);
   try {
-    const ownerNonce = new BigNumber(accountNonce || 0).toNumber();
     const owner = Signing.decodeAddress(ownerAddress);
     if (!owner) {
       throw new Error('Failed to decode the account address');
@@ -88,7 +87,9 @@ async function toPowChallenge(ownerAddress: string, accountNonce: string | BigNu
       }
     }
     
-    const solution = await Pow256.solve(blockHash, owner, ownerNonce, async (powNonce: number) => {
+    const nonce = await RPC.getNextAccountNonce(ownerAddress);
+    const ownerNonce = typeof nonce == 'string' ? new BigNumber(nonce, 16) : (nonce != null ? nonce : new BigNumber(0));
+    const solution = await Pow256.solve(blockHash, owner, ownerNonce.toNumber(), async (powNonce: number) => {
       const progress = Math.max(0, Math.min(99, powNonce / 100));
       onProgress(progress);
       await new Promise((resolve) => setTimeout(resolve, 150));
@@ -465,13 +466,12 @@ export default function InteractionPage() {
     if (!programReady || loadingTransaction)
       return null;
     
-    const accountNonce = options?.prebuilt ? options.prebuilt.body.nonce.toString() : (nonce || undefined);
     setLoadingTransaction(true);
     try {
       const buildProgram = async (method: { type: Ledger.Transaction | Ledger.Commitment | Ledger.Unknown, args: { [key: string]: any } }) => {
         const output = await AppData.buildWalletTransaction({
           asset: new AssetId(assets[asset].asset.id),
-          nonce: accountNonce,
+          nonce:  options?.prebuilt ? options.prebuilt.body.nonce.toString() : (nonce || undefined),
           gasPrice: options?.gasPrice ? options.gasPrice : gasPrice,
           gasLimit: options?.gasLimit ? options.gasLimit : (options?.prebuilt ? options.prebuilt.body.gasLimit.toString() : gasLimit),
           method: method
@@ -525,7 +525,7 @@ export default function InteractionPage() {
           }
         });
       } else if (program instanceof ProgramRoute) {
-        let powChallenge = await toPowChallenge(ownerAddress, accountNonce, setPowProgress);
+        let powChallenge = await toPowChallenge(ownerAddress, setPowProgress);
         let includeRoutingAddress = true;
         if (program.routingAddress.length > 0) {
           try {
