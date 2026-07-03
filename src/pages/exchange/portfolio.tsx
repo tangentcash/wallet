@@ -875,7 +875,7 @@ export default function PortfolioPage() {
   const [assetResync, setAssetResync] = useState(0);
   const [query, setQuery] = useState('');
   const [assets, setAssets] = useState<CachedBalance[]>([]);
-  const [viewer, setViewer] = useState<'swap' | 'trade' | 'assets' | 'history-open-orders' | 'history-closed-orders' | 'history-open-pools' | 'history-closed-pools' | 'history-best-pools'>('assets');
+  const [viewer, setViewer] = useState<'swap' | 'trade' | 'assets' | 'history-open-orders' | 'history-closed-orders' | 'history-open-pools' | 'history-closed-pools' | 'history-best-pools'>('trade');
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [todayProfits, setTodayProfits] = useState(true);

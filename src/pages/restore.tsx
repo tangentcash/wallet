@@ -217,6 +217,9 @@ export default function RestorePage() {
     setImportCandidate('');
   }, []);
   useEffect(() => {
+    Chain.props = Chain[networkType];
+  }, [networkType]);
+  useEffect(() => {
     setActivated(true);
     if (!titleRef.current)
       return;

@@ -191,7 +191,10 @@ export default function ConfigurePage() {
     if (!result) {
       AlertBox.open(AlertType.Error, 'Failed to wipe the wallet');
     } else if (result == 'wipe') {
-      setTimeout(() => navigate('/'), 250);
+      navigate('/');
+    } else if (result) {
+      AlertBox.open(AlertType.Info, 'Active wallet wiped!');
+      setWalletAddresses(await AppData.getWalletAddresses());
     }
   }, []);
   useEffectAsync(async () => {
@@ -264,25 +267,19 @@ export default function ConfigurePage() {
                         </AlertDialog.Cancel>
                         {
                           walletAddresses.length > 1 &&
-                          <AlertDialog.Action>
-                            <DropdownMenu.Root>
-                              <DropdownMenu.Trigger>
-                                <Button variant="soft" color="red">
-                                  Destroy wallet
-                                  <DropdownMenu.TriggerIcon />
-                                </Button>
-                              </DropdownMenu.Trigger>
-                              <DropdownMenu.Content>
-                                <DropdownMenu.Item color="yellow" onClick={() => destroyWallet(false)}>Only active</DropdownMenu.Item>
-                                <DropdownMenu.Item color="red" onClick={() => destroyWallet(true)}>Wipe all data</DropdownMenu.Item>
-                              </DropdownMenu.Content>
-                            </DropdownMenu.Root>
-                          </AlertDialog.Action>
+                          <>
+                            <AlertDialog.Action>
+                              <Button variant="soft" color="red" onClick={() => destroyWallet(true)}>Wipe all</Button>
+                            </AlertDialog.Action>
+                            <AlertDialog.Action>
+                              <Button variant="soft" color="yellow" onClick={() => destroyWallet(false)}>Wipe wallet</Button>
+                            </AlertDialog.Action>
+                          </>
                         }
                         {
                           walletAddresses.length <= 1 &&
                           <AlertDialog.Action>
-                            <Button variant="soft" color="red" onClick={() => destroyWallet(true)}>Destroy wallet</Button>
+                            <Button variant="soft" color="red" onClick={() => destroyWallet(true)}>Wipe wallet</Button>
                           </AlertDialog.Action>
                         }
                       </Flex>

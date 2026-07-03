@@ -304,7 +304,6 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
                 feeRate: ByteUtil.bigNumberToString(item.feeRate.multipliedBy(100)) + '%',
                 pool: true
               });
-              console.log(AppStorage.get(path))
               navigate(`/orderbook/${orderbook}?tab=pool`);
             }}>
               Add liquidity using this LP
