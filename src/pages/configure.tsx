@@ -8,6 +8,7 @@ import { useNavigate, useSearchParams } from "react-router";
 import { useEffectAsync } from "../core/react";
 import Icon from "@mdi/react";
 import License from "../components/license";
+import AddressAvatar from "../components/avatar";
 
 export default function ConfigurePage() {
   const address = AppData.getWalletAddress();
@@ -217,7 +218,7 @@ export default function ConfigurePage() {
               <DataList.Label minWidth="88px">Wallet control</DataList.Label>
               <DataList.Value>
                 <Flex gap="2" wrap="wrap">
-                  <Button size="2" variant="solid" color={AppData.isWalletExists() && AppData.isWalletReady() ? 'red' : 'lime'} onClick={() => {
+                  <Button size="2" variant="solid" color={AppData.isWalletExists() && AppData.isWalletReady() ? 'red' : undefined} onClick={() => {
                     if (!AppData.isWalletExists() || !AppData.isWalletReady()) {
                       navigate(`/restore?to=${encodeURIComponent('/configure')}`);
                     } else {
@@ -229,6 +230,7 @@ export default function ConfigurePage() {
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger disabled={!AppData.isWalletExists() || !AppData.isWalletReady()}>
                       <Button variant="surface" size="2" color="yellow">
+                        <AddressAvatar address={address || ''} size="1" style={{ width: '16px', height: '16px' }}></AddressAvatar>
                         { address ? address.substring(address.length - 6) : 'Switch' }
                         <DropdownMenu.TriggerIcon />
                       </Button>
@@ -237,7 +239,7 @@ export default function ConfigurePage() {
                       {
                         walletAddresses.map((item, index) =>
                           <DropdownMenu.Item key={item || '' + '_select'} disabled={item != null && item == address} onClick={() => switchWallet(index)}>
-                            { index + 1 } - { item ? item.substring(item.length - 6) : 'UNKNOWN' }
+                            <AddressAvatar address={item || ''} size="1" style={{ width: '16px', height: '16px', filter: item != null && item == address ? 'brightness(0.5)' : undefined }}></AddressAvatar> Use { Readability.toAddress(item || undefined, 6) }
                           </DropdownMenu.Item>
                         )
                       }
@@ -263,7 +265,7 @@ export default function ConfigurePage() {
                       </AlertDialog.Description>
                       <Flex gap="3" mt="4" justify="end">
                         <AlertDialog.Cancel>
-                          <Button variant="solid" color="lime">Cancel</Button>
+                          <Button variant="solid">Cancel</Button>
                         </AlertDialog.Cancel>
                         {
                           walletAddresses.length > 1 &&
@@ -336,7 +338,7 @@ export default function ConfigurePage() {
                 <Tooltip content="Specify the URL of Validator RPC server: read/write on-chain data">
                   <TextField.Root style={{ width: '100%' }} size="2" placeholder="Validator RPC server address" type="text" value={validatorAddress} onChange={(e) => setValidatorAddress(e.target.value.trim())} />
                 </Tooltip>
-                <Button size="2" ml="2" variant="soft" color="lime" onClick={() => setValidatorServer(validatorAddress)}>
+                <Button size="2" ml="2" variant="soft" onClick={() => setValidatorServer(validatorAddress)}>
                   <Icon path={mdiCloudDownload} size={0.85} />
                 </Button>
               </DataList.Value>
@@ -347,7 +349,7 @@ export default function ConfigurePage() {
                 <Tooltip content="Specify the URL of Exchange RPC server: read-only DEX data">
                   <TextField.Root style={{ width: '100%' }} size="2" placeholder="Exchange RPC server address" type="text" value={exchangeAddress} onChange={(e) => setExchangeAddress(e.target.value.trim())} />
                 </Tooltip>
-                <Button size="2" ml="2" variant="soft" color="lime" onClick={() => setExchangeServer(exchangeAddress)}>
+                <Button size="2" ml="2" variant="soft" onClick={() => setExchangeServer(exchangeAddress)}>
                   <Icon path={mdiCloudDownload} size={0.85} />
                 </Button>
               </DataList.Value>
@@ -356,8 +358,8 @@ export default function ConfigurePage() {
               <DataList.Label>RPC traffic</DataList.Label>
               <DataList.Value>
                 <Flex gap="1" wrap="wrap">
-                  <Badge size="3" color={networkInfo.active ? 'lime' : 'red'}>{ networkInfo.active ? 'ONLINE' : 'OFFLINE' }</Badge>
-                  <Badge size="3" color="lime">↓{ Readability.toCount('byte', networkInfo.receivedBytes) }</Badge>
+                  <Badge size="3" color={networkInfo.active ? undefined : 'red'}>{ networkInfo.active ? 'ONLINE' : 'OFFLINE' }</Badge>
+                  <Badge size="3">↓{ Readability.toCount('byte', networkInfo.receivedBytes) }</Badge>
                   <Badge size="3" color="blue">↑{ Readability.toCount('byte', networkInfo.sentBytes) }</Badge>
                 </Flex>
               </DataList.Value>

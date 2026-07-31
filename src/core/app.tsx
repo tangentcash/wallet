@@ -14,7 +14,6 @@ import BigNumber from "bignumber.js";
 
 BigNumber.config({ DECIMAL_PLACES: 18, ROUNDING_MODE: 1 });
 const RestorePage = lazy(() => import("./../pages/restore"));
-const HomePage = lazy(() => import("./../pages/home"));
 const ExplorerPage = lazy(() => import("./../pages/explorer"));
 const HypePage = lazy(() => import("./../pages/hype"));
 const LegalPage = lazy(() => import("./../pages/legal"));
@@ -250,6 +249,7 @@ export class AppData {
     account: null,
     appearance: 'dark'
   };
+  static mayResetBuilder: boolean = false;
   static mayNotify: boolean = false;
   static platform: 'desktop' | 'mobile' | 'unknown' = 'unknown';
   static wallet: WalletKeychain | null = null;
@@ -466,9 +466,11 @@ export class AppData {
       return [];
     }
   }
-  static save(): void {
+  static save(silent: boolean = false): void {
     AppStorage.set(StorageField.App, this.props);
-    this.setState();
+    if (!silent) {
+      this.setState();
+    }
   }
   private static render(): void {
     const element = document.getElementById("root") as HTMLElement;
@@ -495,25 +497,6 @@ export class AppData {
     if (!status)
       return false;
     
-    const deprecatedWalletMigration = true;
-    if (deprecatedWalletMigration) {
-      for (let item in WalletType) {
-        const type = (WalletType as any)[item];
-        const secret = await SafeStorage.get(`__${type}__`);
-        const target = this.tryWalletKeychain(type as WalletType, secret);
-        if (target != null) {
-          const accounts = (await SafeStorage.get(StorageField.Accounts)) || [];
-          if (await SafeStorage.set(StorageField.Accounts, Array.isArray(accounts) ? [[type, secret], ...accounts] : [type, secret])) {
-            this.applyWalletKeychain(target, network || null, AppPermission.ReadWrite);
-            for (let subitem in WalletType) {
-              await SafeStorage.set(`__${(WalletType as any)[subitem]}__`);
-            }
-            return true;
-          }
-        }
-      }
-    }
-
     const accounts = (await SafeStorage.get(StorageField.Accounts)) || [];
     const top = Array.isArray(accounts) && accounts.length > 0 ? accounts[0] || null : null;
     const base = this.verifyAccount(top) ? this.tryWalletKeychain(top[0] as WalletType, top[1]) : null;
@@ -767,8 +750,13 @@ export class AppData {
     const props: AppProps | null = AppStorage.get(StorageField.App);
     if (this.isApp())
       this.tauri().then((tauri) => tauri.invoke('platform_type').then((value: string) => this.platform = value as 'desktop' | 'mobile' | 'unknown'));
-    if (props != null)
+    if (!props) {
+      const systemThemeDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      this.props.appearance = systemThemeDark ? 'dark' : 'light';
+      this.save(true);
+    } else {
       this.props = props;
+    }
 
     Authorizer.applyImplementation({
       prompt: (entity) => this.authorizerPrompt(entity),
@@ -941,11 +929,6 @@ export function App() {
   const [state, setState] = useState(0);
   AppData.state.setState = setState;
   useEffect(() => {
-    const url = new URL(window.location.href);
-    const forceAppearance = url.searchParams.get('appearance');
-    if (forceAppearance == 'light' || forceAppearance == 'dark') {
-      AppData.setAppearance(forceAppearance);
-    }
     AppData.removeSplashscreen();
   }, []);
 
@@ -954,7 +937,7 @@ export function App() {
       <Box minHeight="100vh" minWidth="285px" style={{ paddingBottom: '192px' }}>
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={AppData.isWalletExists() ? <HomePage /> : (AppData.isApp() ? <RestorePage /> : <HypePage />)} />
+            <Route path="/" element={AppData.isWalletExists() ? <AccountPage /> : (AppData.isApp() ? <RestorePage /> : <HypePage />)} />
             <Route path="/configure" element={<ConfigurePage />} />
             <Route path="/explorer" element={<ExplorerPage />} />
             <Route path="/interaction" element={<InteractionPage />} />

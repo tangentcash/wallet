@@ -105,9 +105,9 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
           </Flex>
           <Flex justify="between" align="center">
             <Flex align="center" gap="2" pt="1">
-              <Badge variant="soft" color={item.active ? (item.side == OrderSide.Buy ? 'lime' : 'red') : 'gray'} size="2">{ side } — { condition }</Badge>
+              <Badge variant="soft" color={item.active ? (item.side == OrderSide.Buy ? undefined : 'red') : 'gray'} size="2">{ side } — { condition }</Badge>
             </Flex>
-            <Badge size="2" variant="soft" color={item.active ? (progress > 0 ? (progress >= 100 ? 'lime' : 'yellow') : 'gray') : 'gray'} mt="1">
+            <Badge size="2" variant="soft" color={item.active ? (progress > 0 ? (progress >= 100 ? undefined : 'yellow') : 'gray') : 'gray'} mt="1">
               <Icon path={mdiInformationOutline} size={0.65}></Icon>
               <Text size="1">{ progress.toFixed(1) }% fill</Text>
             </Badge>
@@ -125,7 +125,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
                 AlertBox.open(AlertType.Info, 'Address copied!')
               }}>{ Readability.toAddress(item.marketAccount || 'NULL') }</Button>
               <Box ml="2">
-                <Link className="router-link" to={'/portfolio/' + item.marketAccount + '?view=assets'}>▒▒</Link>
+                <Link className="router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}>▒▒</Link>
               </Box>
             </DataList.Value>
           </DataList.Item>
@@ -149,13 +149,13 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
           <DataList.Item>
             <DataList.Label>Status:</DataList.Label>
             <DataList.Value>
-              <Badge color={item.active ? (progress > 0 ? (progress >= 100 ? 'lime' : 'yellow') : 'gray') : 'gray'}>{ status }</Badge>
+              <Badge color={item.active ? (progress > 0 ? (progress >= 100 ? undefined : 'yellow') : 'gray') : 'gray'}>{ status }</Badge>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Side:</DataList.Label>
             <DataList.Value>
-              <Badge color={item.side == OrderSide.Buy ? 'lime' : 'red'}>{ side } order</Badge>
+              <Badge color={item.side == OrderSide.Buy ? undefined : 'red'}>{ side } order</Badge>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -257,8 +257,8 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
                     }
                   </Flex>
                   <Flex justify="between" wrap="wrap" gap="1">
-                    <Text size="2" color={ item.side == OrderSide.Buy ? 'lime' : 'red' }>{ item.side == OrderSide.Buy ? 'Buy' : 'Sell' }</Text>
-                    <Text size="2" color={ item.side == OrderSide.Buy ? 'lime' : 'red' }>{ Readability.toMoney(item.primaryAsset, leftoverQuantity) }</Text>
+                    <Text size="2" color={ item.side == OrderSide.Buy ? undefined : 'red' }>{ item.side == OrderSide.Buy ? 'Buy' : 'Sell' }</Text>
+                    <Text size="2" color={ item.side == OrderSide.Buy ? undefined : 'red' }>{ Readability.toMoney(item.primaryAsset, leftoverQuantity) }</Text>
                   </Flex>
                   {
                     leftoverQuantity && leftoverQuantity.isFinite() && possiblePrice && possiblePrice.isFinite() &&

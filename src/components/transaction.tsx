@@ -3,7 +3,7 @@ import { SummaryState, AssetId, Readability, EventType } from 'tangentsdk';
 import { AlertBox, AlertType } from "./alert";
 import { Link } from "react-router";
 import { AppData } from "../core/app";
-import { useMemo, useState } from "react";
+import { JSX, useMemo, useState } from "react";
 import { mdiInformationOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiReload } from "@mdi/js";
 import { AssetImage } from "./asset";
 import * as Collapsible from "@radix-ui/react-collapsible";
@@ -135,7 +135,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
           <DataList.Item>
             <DataList.Label>Callable:</DataList.Label>
             <DataList.Value>
-              <Button size="2" variant="ghost" color="lime" onClick={() => {
+              <Button size="2" variant="ghost" onClick={() => {
                 navigator.clipboard.writeText(origin);
                 AlertBox.open(AlertType.Info, 'Program function copied!')
               }}>{ Readability.toAddress(method, 20) }</Button>
@@ -177,7 +177,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               transaction.transactions.map((item: any, index: number) =>
                 <Flex align="center" gap="2" key={'IF1' + item.action.hash + index} mb={index == transaction.transactions.length - 1 ? '0' : '4'}>     
                   <AssetImage asset={item.action.asset} size="1"></AssetImage>
-                  <Badge size="2" variant="soft">{ toTransactionLabel(item.action, Readability.toTransactionType(item.type)) }</Badge>
+                  <Badge size="2" variant="soft">{ toTransactionLabel(item.action, Readability.toTransactionType(item.action.type)) }</Badge>
                   <Button size="2" variant="ghost" color="indigo" onClick={() => {
                     navigator.clipboard.writeText(item.action.hash);
                     AlertBox.open(AlertType.Info, 'Internal transaction hash copied!')
@@ -400,7 +400,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <DataList.Item>
                 <DataList.Label>Block production:</DataList.Label>
                 <DataList.Value>
-                  <Badge color={ typeof transaction.block_production == 'object' ? 'lime' : 'red' }>{ typeof transaction.block_production == 'object' ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.block_production) + ' locked' : 'Offline' }</Badge>
+                  <Badge color={ typeof transaction.block_production == 'object' ? undefined : 'red' }>{ typeof transaction.block_production == 'object' ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.block_production) + ' locked' : 'Offline' }</Badge>
                 </DataList.Value>
               </DataList.Item>
             }
@@ -409,7 +409,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <DataList.Item>
                 <DataList.Label>Vault participation:</DataList.Label>
                 <DataList.Value>
-                  <Badge color={ typeof transaction.bridge_participation == 'object' ? 'lime' : 'red' }>{ typeof transaction.bridge_participation == 'object' ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.bridge_participation) + ' locked' : 'Offline' }</Badge>
+                  <Badge color={ typeof transaction.bridge_participation == 'object' ? undefined : 'red' }>{ typeof transaction.bridge_participation == 'object' ? 'Online with ' + Readability.toMoney(new AssetId(), transaction.bridge_participation) + ' locked' : 'Offline' }</Badge>
                 </DataList.Value>
               </DataList.Item>
             }
@@ -421,7 +421,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
                 <DataList.Item>
                   <DataList.Label>{ item.asset.chain } attestation stake:</DataList.Label>
                   <DataList.Value>
-                    <Badge color={ item.stake != null ? 'lime' : 'red' }>{ item.stake != null ? 'Online with ' + Readability.toMoney(new AssetId(), item.stake) : 'Offline' }</Badge>
+                    <Badge color={ item.stake != null ? undefined : 'red' }>{ item.stake != null ? 'Online with ' + Readability.toMoney(new AssetId(), item.stake) : 'Offline' }</Badge>
                   </DataList.Value>
                 </DataList.Item>
                 {
@@ -634,14 +634,14 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               <DataList.Item>
                 <DataList.Label>Proof strength:</DataList.Label>
                 <DataList.Value>
-                  <Badge color="lime" mr="1">{ Readability.toCount('commitment', commitments) }</Badge>
-                  <Badge color="lime">{ Readability.toCount('signature', signatures) }</Badge>
+                  <Badge mr="1">{ Readability.toCount('commitment', commitments) }</Badge>
+                  <Badge>{ Readability.toCount('signature', signatures) }</Badge>
                 </DataList.Value>
               </DataList.Item>
               <DataList.Item>
                 <DataList.Label>Relay status:</DataList.Label>
                 <DataList.Value>
-                  <Badge color={transaction.proof.success ? 'lime' : 'red'}>{ transaction.proof.success ? 'Executed' : 'Reverted' }</Badge>
+                  <Badge color={transaction.proof.success ? undefined : 'red'}>{ transaction.proof.success ? 'Executed' : 'Reverted' }</Badge>
                 </DataList.Value>
               </DataList.Item>
             </DataList.Root>
@@ -695,7 +695,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
             <DataList.Item>
               <DataList.Label>On-chain assurance:</DataList.Label>
               <DataList.Value>
-                <Badge color="lime">{ Readability.toCount('signature', signatures) } in { Readability.toCount('commitment', commitments) }</Badge>
+                <Badge>{ Readability.toCount('signature', signatures) } in { Readability.toCount('commitment', commitments) }</Badge>
               </DataList.Value>
             </DataList.Item>
           </DataList.Root>
@@ -952,7 +952,7 @@ export function TransactionOutputFields(props: { orientation: 'horizontal' | 've
                     <DataList.Item>
                       <DataList.Label>Position:</DataList.Label>
                       <DataList.Value>
-                        <Badge color={event.size.gt(1) ? 'yellow' : 'lime'}>{ event.size.gt(1) ? 'Executes after ' + Readability.toCount('transaction', event.size) : 'Executes immediately' }</Badge>
+                        <Badge color={event.size.gt(1) ? 'yellow' : undefined}>{ event.size.gt(1) ? 'Executes after ' + Readability.toCount('transaction', event.size) : 'Executes immediately' }</Badge>
                       </DataList.Value>
                     </DataList.Item>
                   </DataList.Root>
@@ -1064,7 +1064,7 @@ export function TransactionOutputFields(props: { orientation: 'horizontal' | 've
                     <DataList.Item>
                       <DataList.Label>Address type:</DataList.Label>
                       <DataList.Value>
-                        <Badge color="lime">{ event.purpose[0].toUpperCase() + event.purpose.substring(1) } account</Badge>
+                        <Badge>{ event.purpose[0].toUpperCase() + event.purpose.substring(1) } account</Badge>
                       </DataList.Value>
                     </DataList.Item>
                   </DataList.Root>
@@ -1175,7 +1175,7 @@ export function TransactionDetailsView(props: { orientation: 'horizontal' | 'ver
     <Box>
       <DataList.Root orientation={orientation}>
         <DataList.Item>
-          <DataList.Label>Transaction hash:</DataList.Label>
+          <DataList.Label>Hash:</DataList.Label>
           <DataList.Value>
             <Button size="2" variant="ghost" color="indigo" onClick={() => {
               navigator.clipboard.writeText(transaction.hash);
@@ -1201,7 +1201,7 @@ export function TransactionDetailsView(props: { orientation: 'horizontal' | 'ver
             <DataList.Item>
               <DataList.Label>Status:</DataList.Label>
               <DataList.Value>
-                <Badge color={receipt.successful ? 'lime' : 'red'}>Execution { receipt.successful ? 'finalized' : 'reverted' }</Badge>
+                <Badge color={receipt.successful ? undefined : 'red'}>Execution { receipt.successful ? 'finalized' : 'reverted' }</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -1218,7 +1218,7 @@ export function TransactionDetailsView(props: { orientation: 'horizontal' | 'ver
               <DataList.Item>
                 <DataList.Label>Confidence:</DataList.Label>
                 <DataList.Value>
-                  <Badge color={AppData.tip.minus(receipt.block_number).gt(0) ? 'lime' : 'yellow'}>{ Readability.toCount('confirmation', AppData.tip.minus(receipt.block_number).plus(1)) }</Badge>
+                  <Badge color={AppData.tip.minus(receipt.block_number).gt(0) ? undefined : 'yellow'}>{ Readability.toCount('confirmation', AppData.tip.minus(receipt.block_number).plus(1)) }</Badge>
                 </DataList.Value>
               </DataList.Item>
             }
@@ -1241,7 +1241,7 @@ export function TransactionDetailsView(props: { orientation: 'horizontal' | 'ver
           </DataList.Item>
         }
         <DataList.Item>
-          <DataList.Label>Paying account:</DataList.Label>
+          <DataList.Label>Signer:</DataList.Label>
           <DataList.Value>
             <Button size="2" variant="ghost" color="indigo" onClick={() => {
               navigator.clipboard.writeText(receipt?.from || 'NULL');
@@ -1305,12 +1305,11 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
   const receipt = props.receipt || null;
   const state = props.state || null;
   const ownerAddress = props.ownerAddress;
-  const finalized = !receipt || receipt.successful;
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [expanded, setExpanded] = useState(props.open || false);
   const labels = useMemo((): { title: string, status: { title: string, color: string } | null } => {
     let type = Readability.toTransactionType(transaction.type), status: { title: string, color: string } | null = null;
-    if (finalized && !transaction.error && (!transaction.proof || transaction.proof.success) && !props.preview && props.resolveTransaction && transaction.type == 'withdraw') {
+    if (receipt && receipt.successful && !transaction.error && (!transaction.proof || transaction.proof.success) && !props.preview && props.resolveTransaction && transaction.type == 'withdraw') {
       const top = props.resolveTransaction((top: any) => top.withdraw_hash && top.withdraw_hash.toString() == transaction.hash.toString());
       status = top ? { title: 'Finalized', color: top.error ? 'gray' : 'jade' } : { title: 'Queued', color: 'gray' };
     }
@@ -1318,43 +1317,64 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
       title: toTransactionLabel(transaction, type),
       status: status
     }
-  }, [transaction, finalized, props.preview, props.resolveTransaction]);
-  const summary = useMemo((): {
-    delta: { asset: AssetId, supply: BigNumber, reserve: BigNumber }[],
-    volume: { asset: AssetId, value: BigNumber }[],
-    empty: boolean
-  } | null => {
-    if (!state || !finalized)
-      return null;
-
+  }, [transaction, receipt, props.preview, props.resolveTransaction]);
+  const badges = useMemo(() => {
+    if (!state || !receipt) {
+      return [<Badge size="1" color={props.preview ? 'yellow' : 'gray'}>{ props.preview ? (typeof props.preview == 'string' ? props.preview : 'Preview transaction!') : 'Pending transaction' }</Badge>];
+    }
+    
     const volumes: Record<string, { asset: AssetId, value: BigNumber }> = { };
-    for (let i = 0; i < state.events.length; i++) {
-      const event = state.events[i];
-      if (event.type == EventType.Transfer) {
-        volumes[event.asset.id] = { asset: event.asset, value: (volumes[event.asset.id]?.value || new BigNumber(0)).plus(event.value.abs()) };
-      } else if (event.type == EventType.TransferIsolated) {
-        volumes[event.asset.id] = { asset: event.asset, value: (volumes[event.asset.id]?.value || new BigNumber(0)).plus(BigNumber.max(event.supply.abs(), event.reserve.abs())) };
-      } else if (event.type == EventType.TransferFee) {
-        volumes[event.asset.id] = { asset: event.asset, value: (volumes[event.asset.id]?.value || new BigNumber(0)).plus(event.fee.abs()) };
-      } else if (event.type == EventType.BridgeTransfer) {
-        volumes[event.asset.id] = { asset: event.asset, value: (volumes[event.asset.id]?.value || new BigNumber(0)).plus(event.value.abs()) };
+    if (props.summary) {
+      for (let i = 0; i < state.events.length; i++) {
+        const event = state.events[i];
+        if (event.type == EventType.Transfer) {
+          volumes[event.asset.id] = { asset: event.asset, value: (volumes[event.asset.id]?.value || new BigNumber(0)).plus(event.value.abs()) };
+        } else if (event.type == EventType.TransferIsolated) {
+          volumes[event.asset.id] = { asset: event.asset, value: (volumes[event.asset.id]?.value || new BigNumber(0)).plus(BigNumber.max(event.supply.abs(), event.reserve.abs())) };
+        } else if (event.type == EventType.TransferFee) {
+          volumes[event.asset.id] = { asset: event.asset, value: (volumes[event.asset.id]?.value || new BigNumber(0)).plus(event.fee.abs()) };
+        } else if (event.type == EventType.BridgeTransfer) {
+          volumes[event.asset.id] = { asset: event.asset, value: (volumes[event.asset.id]?.value || new BigNumber(0)).plus(event.value.abs()) };
+        }
       }
     }
 
-    const balance = state.account.balances[ownerAddress];
-    return {
-      delta: balance ? Object.keys(balance).map((asset) => {
+    const balance = state.account.balances[ownerAddress] || { };
+    const successful = !transaction.error && (!transaction.proof || transaction.proof.success);
+    const threshold = (labels.status ? 1 : 0) + (props.summary ? 1 : 0);
+    const badges: JSX.Element[] = props.summary ? [<Badge size="1">{ Readability.toAddress(transaction.hash, 6) }</Badge>] : [];
+    if (receipt.successful) {
+      Object.keys(balance).map((asset) => {
         const target = balance[asset];
-        return {
-          asset: target.asset,
-          supply: target.supply,
-          reserve: target.reserve.lt(0) && target.supply.lt(0) ? target.reserve.minus(target.supply) : target.reserve
-        };
-      }).filter(x => !x.supply.eq(0) || !x.reserve.eq(0)) : [],
-      volume: Object.keys(volumes).map((id) => volumes[id]).filter((v) => v.value.gt(0)),
-      empty: !finalized || !Object.keys(balance || { }).length
-    };
-  }, [state, finalized, ownerAddress]);
+        return { asset: target.asset, supply: target.supply, reserve: target.reserve.lt(0) && target.supply.lt(0) ? target.reserve.minus(target.supply) : target.reserve };
+      }).filter(x => !x.supply.eq(0) || !x.reserve.eq(0)).forEach((item) => {
+        if (!item.supply.eq(0)) {
+          badges.push(<Badge size="1" color={item.supply.gt(0) ? undefined : (item.supply.isNegative() ? 'red' : 'gray')}>{ Readability.toMoney(item.asset, item.supply, true) }</Badge>);
+        }
+        if (!item.reserve.eq(0)) {
+          badges.push(
+            <Badge size="1" color={item.reserve.lt(0) ? 'gold' : (item.reserve.isPositive() ? 'amber' : 'gray')}>
+              <Icon path={item.reserve.lt(0) ? mdiLockOpenVariantOutline : mdiLockOutline} size={0.55}></Icon> { Readability.toMoney(item.asset, item.reserve.negated(), true) }
+            </Badge>
+          )
+        }
+      });
+      Object.keys(volumes).map((id) => volumes[id]).filter((v) => v.value.gt(0)).forEach(item => {
+        badges.push(<Badge size="1" color="gold"><Icon path={mdiReload} size={0.55}></Icon> { Readability.toMoney(item.asset, item.value) }</Badge>);
+      });
+      if (labels.status) {
+        badges.push(<Badge size="1" color={labels.status.color as any}>{ labels.status.title }</Badge>);
+      }
+    }
+    if (badges.length <= threshold) {
+      if (successful) {
+        badges.push(<Badge size="1" color="gray">{ receipt.events.length > 0 ? Readability.toCount('non-monetary event', receipt.events.length) : 'Non-monetary' }</Badge>);
+      } else {
+        badges.push(<Badge size="1" color="red">Reverted</Badge>);
+      }
+    }
+    return badges;
+  }, [state, receipt, ownerAddress, transaction, receipt, labels, props.summary]);
   if (!props.preview && receipt != null && (!AppData.tip || receipt.block_number.gt(AppData.tip)))
     AppData.tip = receipt.block_number;
   
@@ -1364,7 +1384,7 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
         <Flex gap="3" align="start" className="card-expander" onClick={() => props.open ? undefined : setExpanded(!expanded)}>
           <AssetImage asset={transaction.asset}></AssetImage>
           <Box width="100%">
-            <Flex justify="between" align="center" mb="1">
+            <Flex justify="between" align="center">
               <Text as="div" size="2" weight="bold">{ labels.title }</Text>       
               <Badge size="1" variant="soft" color={props.preview ? 'yellow' : 'gray'}>
                 <Icon path={mdiInformationOutline} size={0.65}></Icon>
@@ -1376,46 +1396,9 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
               </Badge>
             </Flex>
             {
-              state &&
+              badges &&
               <Flex gap="2" wrap="wrap">
-                {
-                  props.summary &&
-                  <Badge size="1" color="lime">{ Readability.toAddress(transaction.hash, 6) }</Badge>
-                }
-                {
-                  summary && summary.delta.map((item) => 
-                    <Flex key={'X0' + transaction.hash + item.asset.id} gap="2">
-                      { (!item.supply.eq(0)) && <Badge size="1" color={item.supply.gt(0) ? 'lime' : (item.supply.isNegative() ? 'red' : 'gray')}>{ Readability.toMoney(item.asset, item.supply, true) }</Badge> }
-                      {
-                        !item.reserve.eq(0) &&
-                        <Badge size="1" color={item.reserve.lt(0) ? 'gold' : (item.reserve.isPositive() ? 'amber' : 'gray')}>
-                          <Icon path={item.reserve.lt(0) ? mdiLockOpenVariantOutline : mdiLockOutline} size={0.55}></Icon> { Readability.toMoney(item.asset, item.reserve.negated(), true) }
-                        </Badge>
-                      }
-                    </Flex>
-                  )
-                }
-                {
-                  props.summary && summary && summary.volume.map((item) => 
-                    <Flex key={'XXX0' + transaction.hash + item.asset.id } gap="2">
-                      { <Badge size="1" color="gold"><Icon path={mdiReload} size={0.55}></Icon> { Readability.toMoney(item.asset, item.value) }</Badge> }
-                    </Flex>
-                  )
-                }
-                {
-                  (transaction.error != null || (transaction.proof && !transaction.proof.success) || (!summary || summary.empty)) &&
-                  <Badge size="1" color={!transaction.error && (!transaction.proof || transaction.proof.success) && receipt.successful ? 'jade' : 'red'}>{ !transaction.error && (!transaction.proof || transaction.proof.success) && receipt.successful ? (receipt.events.length > 0 ? Readability.toCount('event', receipt.events.length) : 'Successful') : 'Reverted' }</Badge>
-                }
-                {
-                  labels.status && 
-                  <Badge size="1" color={labels.status.color as any}>{ labels.status.title }</Badge>
-                }
-              </Flex>
-            }
-            {
-              state == null &&
-              <Flex gap="2" wrap="wrap" justify="between">
-                <Badge size="1" color={props.preview ? 'yellow' : 'gray'}>{ props.preview ? (typeof props.preview == 'string' ? props.preview : 'Preview transaction!') : 'Pending transaction' }</Badge>
+                { badges.map((item, index) => <Box key={index}>{ item }</Box>) }
               </Flex>
             }
           </Box>

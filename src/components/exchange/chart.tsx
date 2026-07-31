@@ -69,7 +69,9 @@ export type VolumeBar = GenericBar & {
 };
 
 const UP_COLOR = '#b3f42e';
+const UP_VCOLOR = UP_COLOR + '99';
 const DOWN_COLOR = '#f7525f';
+const DOWN_VCOLOR = DOWN_COLOR + '99';
 let colors: Record<string, string> = { };
 let styles: CSSStyleDeclaration | null = null;
 let appearance: string | null = null;
@@ -192,7 +194,7 @@ export function ChartView(props: {
       if (props.onCrosshairMove)
         props.onCrosshairMove(e);
       crosshairTimeout = null;
-    }, 10) as any;
+    }, 50) as any;
   }, [props.onCrosshairMove]);
   return (
     <Chart options={props.options} onInit={props.onInit} onCrosshairMove={onCrosshairMove}>
@@ -272,7 +274,7 @@ export function ChartTitle({
           <Box>
             <Text size={mobile ? '1' : '2'}>{ Readability.toValue(null, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true, true) }</Text>
             <Text size={mobile ? '1' : '2'} color="gray"> | </Text>
-            <Text size={mobile ? '1' : '2'} color={ (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'red' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'lime') }>{ Readability.toPercentageDelta(pair?.price.open || new BigNumber(0), pair?.price.close || new BigNumber(0)) }</Text>
+            <Text size={mobile ? '1' : '2'} style={{ color: (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'var(--red-11)' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'var(--accent-11)') }}>{ Readability.toPercentageDelta(pair?.price.open || new BigNumber(0), pair?.price.close || new BigNumber(0)) }</Text>
           </Box>
         </Flex>
       </Flex>
@@ -387,7 +389,7 @@ export function ChartWidget({
         volume.push({
           time: time,
           value: bar.volume.toNumber(),
-          color: bar.sentiment >= 0 ? UP_COLOR : DOWN_COLOR
+          color: bar.sentiment >= 0 ? UP_VCOLOR : DOWN_VCOLOR
         });
         min = Math.min(min, time as any);
         max = Math.max(max, time as any);
@@ -513,7 +515,7 @@ export function ChartWidget({
       const nextVolume: VolumeBar = {
         time: mergeVolume ? prevVolume.time : time as Time,
         value: mergeVolume ? prevVolume.value + quantity.toNumber() : quantity.toNumber(),
-        color: mergeVolume && prevVolume.value * 0.5 >= quantity.toNumber() ? prevVolume.color : (sentiment >= 0 ? UP_COLOR : DOWN_COLOR)
+        color: mergeVolume && prevVolume.value * 0.5 >= quantity.toNumber() ? prevVolume.color : (sentiment >= 0 ? UP_VCOLOR : DOWN_VCOLOR)
       };
       if (mergePrice) {
         priceSeries[priceSeries.length - 1] = nextPrice;
@@ -557,14 +559,18 @@ export function ChartWidget({
             <Text>{ Readability.toAssetSymbol(orderbook.primaryAsset) }/{ Readability.toAssetSymbol(orderbook.secondaryAsset) } { interval }</Text>
           }
           {
-            !mobile &&
+            !mobile && (options.view == ChartViewType.Bars || options.view == ChartViewType.Candles ?
             <Flex direction="column">
               <Text size="1"><Text color="gray" mr="1">O</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.open || null) }</Text>
               <Text size="1"><Text color="gray" mr="1">H</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.high || null) }</Text>
               <Text size="1"><Text color="gray" mr="1">L</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.low || null) }</Text>
               <Text size="1"><Text color="gray" mr="1">C</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.close || null) }</Text>
               <Text size="1"><Text color="gray" mr="1">V</Text>{ Readability.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text>
-            </Flex>
+            </Flex> :
+            <Flex direction="column">
+              <Text size="1"><Text color="gray" mr="1">C</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.value || null) }</Text>
+              <Text size="1"><Text color="gray" mr="1">V</Text>{ Readability.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text>
+            </Flex>)
           }
         </Box>
       </AspectRatio>

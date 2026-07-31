@@ -7,24 +7,83 @@ import { useEffectAsync } from "../../core/react";
 import { CrosshairMode, PriceScaleMode } from "lightweight-charts";
 import { mdiAlert, mdiArrowRightThin, mdiChartBox, mdiChartGantt, mdiCheck, mdiCurrencyUsd, mdiListBox, mdiShopping } from "@mdi/js";
 import { AlertBox, AlertType } from "../../components/alert";
-import { AssetId, Readability, Whitelist } from "tangentsdk";
+import { AssetId, LiquidityPool, Readability, Whitelist } from "tangentsdk";
 import { AppStorage } from "../../core/storage";
 import { Maker } from "../../components/exchange/maker";
 import { AssetImage } from "../../components/asset";
 import { ChartViewType, ChartWidget, SeriesOptions, PriceScope, ChartTitle } from "../../components/exchange/chart";
+import { PoolView } from "../../components/exchange/pool";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import BigNumber from "bignumber.js";
 import OrderView from "../../components/exchange/order";
 import Icon from "@mdi/react";
 import Clock from "../../components/exchange/clock";
-import PoolView from "../../components/exchange/pool";
 
 type AggregatedGroupedLevel = {
   ids: number[],
   price: BigNumber,
-  quantity: BigNumber
+  quantity: BigNumber,
+  curve?: {
+      minPrice: BigNumber | null,
+      maxPrice: BigNumber | null,
+      primaryValue: BigNumber,
+      secondaryValue: BigNumber,
+      feeRate: BigNumber
+  }
 }
 
+function unrollLevel(side: OrderSide, levels: number, step: number, exponent: number, feeRate: BigNumber, primaryValue: BigNumber, secondaryValue: BigNumber, feePrice: BigNumber, minPrice: BigNumber | null, maxPrice: BigNumber | null): { price: BigNumber, quantity: BigNumber }[] {
+    const result: { price: BigNumber, quantity: BigNumber }[] = [];
+    const concentrated = minPrice && maxPrice && minPrice.gt(0) && maxPrice.gt(0);
+    const price = feePrice.multipliedBy(new BigNumber(1).plus(side == OrderSide.Buy ? feeRate.negated() : feeRate)), threshold = new BigNumber("1e-9");
+    const liquidity = concentrated ? (side == OrderSide.Buy ? LiquidityPool.toLiquidity1(secondaryValue, price, minPrice) : LiquidityPool.toLiquidity0(primaryValue, price, maxPrice)) : primaryValue.multipliedBy(secondaryValue);
+    let percentage = new BigNumber(0);
+    for (let i = 0; i < levels; i++) {
+        const isolatedPercentage = BigNumber.max(feeRate, (i + 1) * step * Math.pow(1 + exponent, i));
+        percentage = percentage.plus(isolatedPercentage);
+        if (side == OrderSide.Sell) {
+          const primaryValue0 = primaryValue.minus(primaryValue.multipliedBy(percentage));
+          if (!primaryValue0.gt(threshold) || !liquidity.isFinite()) {
+            return [{ price: feePrice, quantity: primaryValue }];
+          } else {
+            result.push({
+                price: i > 0 ? (concentrated ? LiquidityPool.toPrice0(primaryValue0, liquidity, maxPrice) : liquidity.dividedBy(primaryValue0).dividedBy(primaryValue0)) : feePrice,
+                quantity: primaryValue.multipliedBy(i == levels - 1 ? new BigNumber(1).minus(percentage).plus(isolatedPercentage) : isolatedPercentage)
+            });
+          }
+        } else if (side == OrderSide.Buy) {
+          const secondaryValue1 = secondaryValue.minus(secondaryValue.multipliedBy(percentage));
+          if (!secondaryValue1.gt(threshold) || !liquidity.isFinite()) {
+            return [{ price: feePrice, quantity: secondaryValue }];
+          } else {
+            const price1 = i > 0 ? (concentrated ? LiquidityPool.toPrice1(secondaryValue1, liquidity, minPrice) : secondaryValue1.dividedBy(liquidity.dividedBy(secondaryValue1))) : feePrice;
+            result.push({
+                price: price1,
+                quantity: secondaryValue.multipliedBy(i == levels - 1 ? new BigNumber(1).minus(percentage).plus(isolatedPercentage) : isolatedPercentage).dividedBy(price1)
+            });
+          }
+        }
+    }
+    return result;
+}
+function unrollLevels(levels: (AggregatedGroupedLevel | AggregatedLevel)[], side: OrderSide): (AggregatedGroupedLevel | AggregatedLevel)[] {
+  const depth = 16, step = 0.002, exponent = 0.1125;
+  let unrolledLevels = [...levels.filter((v) => !v.curve)];
+  for (let i = 0; i < levels.length; i++) {
+    const level = levels[i];
+    const pool = level.curve;
+    if (pool) {
+      const pseudoLevels = unrollLevel(side, depth, step, exponent, pool.feeRate, pool.primaryValue, pool.secondaryValue, level.price, pool.minPrice, pool.maxPrice);
+      unrolledLevels = unrolledLevels.concat(pseudoLevels.map((v) => ({
+        id: (level as any).id || undefined,
+        ids: (level as any).ids || undefined,
+        price: v.price,
+        quantity: v.quantity
+      })));
+    }
+  }
+  return unrolledLevels;
+}
 function reduceLevels(levels: (AggregatedGroupedLevel | AggregatedLevel)[], range: number): AggregatedGroupedLevel[] {
   const groups: Record<string, AggregatedGroupedLevel> = { };
   levels.forEach((level) => {
@@ -54,9 +113,6 @@ function policyOf(market: Market | null): string {
       default:
         return 'Unknown';
     }
-}
-export function pathOfOrderbook(orderbook: string): string {
-  return `__orderbook:${orderbook}__`;
 }
 export function pathOfMaker(orderbook: string): string {
   return `__maker:${orderbook}__`;
@@ -122,9 +178,11 @@ export default function OrderbookPage() {
     return params.orderbook ? pathOfMaker(params.orderbook) : undefined;
   }, [params]);
   const liquidity = useMemo(() => {
+    const ask = levels.ask.reduce((p: AggregatedGroupedLevel | null, c) => !p || c.quantity.gt(p.quantity) ? c : p, null);
+    const bid = levels.bid.reduce((p: AggregatedGroupedLevel | null, c) => !p || c.quantity.gt(p.quantity) ? c : p, null);
     return {
-      ask: levels.ask.reduce((a, b) => [a[0].plus(b.quantity), a[1].plus(b.price.multipliedBy(b.quantity))], [new BigNumber(0), new BigNumber(0)]),
-      bid: levels.bid.reduce((a, b) => [a[0].plus(b.quantity), a[1].plus(b.price.multipliedBy(b.quantity))], [new BigNumber(0), new BigNumber(0)]),
+      ask: ask ? [ask.quantity, ask.price.multipliedBy(ask.quantity), levels.ask.reduce((a, b) => a.plus(b.quantity), new BigNumber(0))] : [new BigNumber(0), new BigNumber(0), new BigNumber(0)],
+      bid: bid ? [bid.quantity, bid.price.multipliedBy(bid.quantity), levels.bid.reduce((a, b) => a.plus(b.quantity), new BigNumber(0))] : [new BigNumber(0), new BigNumber(0), new BigNumber(0)]
     };
   }, [levels]);
   const spreads = useMemo((): { ask: BigNumber | null, bid: BigNumber | null } => {
@@ -170,6 +228,10 @@ export default function OrderbookPage() {
       bid: reduceLevels(levels.bid, range).sort((a, b) => b.price.minus(a.price).toNumber())
     }
   }, [seriesOptions.priceLevel, levels]);
+  const updateTab = useCallback((value: 'info' | 'maker' | 'book' | 'logs') => {
+    AppStorage.set('__orderbook_tab__', value);
+    setTab(value);
+  }, []);
   const updatePreset = useCallback((side: OrderSide, price: BigNumber) => {
     setPreset({
       id: (preset?.id || 0) + 1,
@@ -177,13 +239,13 @@ export default function OrderbookPage() {
       side: side,
       price: price.toString()
     });
-    setTab('maker');
+    updateTab('maker');
   }, [preset]);
   const updateSeriesOptions = useCallback((change: (prev: any) => any) => {
     setSeriesOptions(prev => {
       const result = change(prev);
       if (typeof params.orderbook == 'string' && params.orderbook.length > 0)
-        AppStorage.set(pathOfOrderbook(params.orderbook), result);
+        AppStorage.set('__orderbook__', result);
       return result;
     });
   }, [params]);
@@ -230,13 +292,6 @@ export default function OrderbookPage() {
         throw false;
 
       setPair(result);
-      if (typeof params.orderbook == 'string' && params.orderbook.length > 0) {
-        const memorizedSeriesOptions = AppStorage.get(pathOfOrderbook(params.orderbook));
-        if (memorizedSeriesOptions != null && typeof memorizedSeriesOptions == 'object') {
-          setSeriesOptions(prev => ({ ...prev, ...memorizedSeriesOptions }));
-        }
-      }
-      
       const marketId = orderbook.marketId;
       const updateAccount = async () => {
         const account = AppData.getWalletAddress();
@@ -283,8 +338,8 @@ export default function OrderbookPage() {
       try {
         const marketLevels = await levelsResult;
         setLevels({
-          ask: reduceLevels(marketLevels?.ask || [], 0).sort((a, b) => a.price.minus(b.price).toNumber()),
-          bid: reduceLevels(marketLevels?.bid || [], 0).sort((a, b) => b.price.minus(a.price).toNumber())
+          ask: reduceLevels(unrollLevels(marketLevels?.ask || [], OrderSide.Sell), 0).sort((a, b) => a.price.minus(b.price).toNumber()),
+          bid: reduceLevels(unrollLevels(marketLevels?.bid || [], OrderSide.Buy), 0).sort((a, b) => b.price.minus(a.price).toNumber())
         });
       } catch (exception: any) {
         AlertBox.open(AlertType.Error, 'Failed to fetch orderbook: ' + (exception.message || 'unknown error'));
@@ -328,46 +383,39 @@ export default function OrderbookPage() {
       for (let i = 0; i < incomingLevels.length; i++) {
         const data = incomingLevels[i].detail || null;
         const id = data && data.id != null ? parseInt(data.id) : NaN;
-        if (isNaN(id))
-          continue;
-
-        if (data.side != null && data.price != null && data.quantity != null) {
+        if (!isNaN(id) && data.side != null && data.price != null && data.quantity != null) {
           const target = data.side == OrderSide.Buy ? copy.bid : copy.ask;
-          const index = target.findIndex((v) => v.ids.indexOf(id) !== -1);
-          if (index == -1) {
-            target.push({
-              ids: [id],
-              price: new BigNumber(data.price),
-              quantity: new BigNumber(data.quantity)
-            });
-          } else {
-            const level = target[index];
-            level.price = new BigNumber(data.price);
-            level.quantity = new BigNumber(data.quantity);
-          }
-        } else {
-          const askIndex = copy.ask.findIndex((v) => v.ids.indexOf(id) !== -1);
-          const bidIndex = copy.bid.findIndex((v) => v.ids.indexOf(id) !== -1);
-          if (askIndex != -1) {
-            const ask = copy.ask[askIndex];
-            ask.ids.splice(ask.ids.indexOf(id), 1);
-            if (!ask.ids.length)
-              copy.ask.splice(askIndex, 1);
-          }
-          if (bidIndex != -1) {
-            const bid = copy.bid[bidIndex];
-            bid.ids.splice(bid.ids.indexOf(id), 1);
-            if (!bid.ids.length)
-              copy.bid.splice(bidIndex, 1);
-          }
+          target.forEach(l => l.ids = l.ids.filter(v => v != id));
+          target.push({
+            ids: [id],
+            price: new BigNumber(data.price),
+            quantity: new BigNumber(data.quantity),
+            curve: data.curve ? {
+              minPrice: new BigNumber(data.curve.minPrice),
+              maxPrice: new BigNumber(data.curve.maxPrice),
+              primaryValue: new BigNumber(data.curve.primaryValue),
+              secondaryValue: new BigNumber(data.curve.secondaryValue),
+              feeRate: new BigNumber(data.curve.feeRate),
+            } : undefined
+          });
         }
       }
-      copy.ask = reduceLevels(copy.ask, 0).sort((a, b) => a.price.minus(b.price).toNumber());
-      copy.bid = reduceLevels(copy.bid, 0).sort((a, b) => b.price.minus(a.price).toNumber());
+      copy.ask = reduceLevels(unrollLevels(copy.ask.filter(l => l.ids.length > 0), OrderSide.Sell), 0).sort((a, b) => a.price.minus(b.price).toNumber());
+      copy.bid = reduceLevels(unrollLevels(copy.bid.filter(l => l.ids.length > 0), OrderSide.Buy), 0).sort((a, b) => b.price.minus(a.price).toNumber());
       return copy;
     });
   }, [incomingLevels]);
   useEffect(() => {
+    const memorizedSeriesOptions = AppStorage.get('__orderbook__');
+    if (memorizedSeriesOptions != null && typeof memorizedSeriesOptions == 'object') {
+      setSeriesOptions(prev => ({ ...prev, ...memorizedSeriesOptions }));
+    }
+
+    const memorizedTab = AppStorage.get('__orderbook_tab__');
+    if (memorizedTab && ['info', 'maker', 'book', 'logs'].includes(memorizedTab)) {
+      setTab(memorizedTab);
+    }
+
     const updateChain = (event: any) => setBlockNumber(event.detail.tip);
     const updateTrades = (event: any) => setIncomingTrades(prev => ([...prev, event]));
     const updateLevels = (event: any) => setIncomingLevels(prev => ([...prev, event]));
@@ -381,9 +429,9 @@ export default function OrderbookPage() {
     };
   }, []);
   useEffect(() => {
-    const tab = search.get('tab');
+    const tab: any = search.get('tab');
     if (tab && ['info', 'maker', 'book', 'logs'].includes(tab)) {
-      setTab(tab as any);
+      updateTab(tab);
     }
   }, [search]);
 
@@ -406,12 +454,12 @@ export default function OrderbookPage() {
           }
           <Box width={ mobile ? '100%' : '460px'}>
             <Tabs.Root value={tab} onValueChange={(e) => {
-              setTab(e as any);
+              updateTab(e as any);
               if (e != 'maker')
                 setPreset(null);
             }}>
               { mobile && <ChartTitle orderbook={orderbook} pair={pair} whitelisted={whitelisted}></ChartTitle> }
-              <Tabs.List size="2" justify="center" color="lime" style={mobile ? { paddingTop: '10px' } : { }}>
+              <Tabs.List size="2" justify="center" style={mobile ? { paddingTop: '10px' } : { }}>
                 <Tabs.Trigger value="info" className="tab-padding-erase">
                   <Badge size="3" radius="large">
                     <Flex align="center" gap="1">
@@ -494,7 +542,7 @@ export default function OrderbookPage() {
                         <Flex direction="column" mt="4">
                           <Text size="2" color="gray">{ Readability.toAssetSymbol(valuation.secondary) } cost of { Readability.toAssetSymbol(valuation.primary) }</Text>
                           <Text size="4">{ Readability.toMoney(valuation.secondary, valuation.worth) }</Text>
-                          <Text size="2" color={valuation.relativePL.gt(0) ? 'lime' : (valuation.relativePL.lt(0) ? 'red' : 'gray')}>{ Readability.toValue(null, valuation.absolutePL, true, true) } ({ valuation.relativePL.gt(0) ? '+' : '' }{ valuation.relativePL.multipliedBy(100).toFixed(2) }%)</Text>
+                          <Text size="2" style={{ color: valuation.relativePL.gt(0) ? 'var(--accent-11)' : (valuation.relativePL.lt(0) ? 'var(--red-11)' : 'var(--gray-11)') }}>{ Readability.toValue(null, valuation.absolutePL, true, true) } ({ valuation.relativePL.gt(0) ? '+' : '' }{ valuation.relativePL.multipliedBy(100).toFixed(2) }%)</Text>
                         </Flex>
                       </Card>
                       <Card mb="3" variant="surface" style={{ borderRadius: '22px' }}>
@@ -517,8 +565,8 @@ export default function OrderbookPage() {
                           <Tooltip side="left" content="Risk metric based on asset pair combination">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Risk</Text>
-                              <Text size="2" style={{ color: whitelisted === true ? 'var(--lime-11)' : (whitelisted === false ? 'var(--red-11)' : 'var(--gray-11)') }}>
-                                { typeof whitelisted == 'boolean' && <Icon path={whitelisted === true ? mdiCheck : mdiAlert} color={whitelisted === true ? 'var(--lime-10)' : 'var(--yellow-9)'} size={0.7} style={{ transform: 'translateY(3px)', marginRight: '5px' }}></Icon> }
+                              <Text size="2" style={{ color: whitelisted === true ? 'var(--accent-11)' : (whitelisted === false ? 'var(--red-11)' : 'var(--gray-11)') }}>
+                                { typeof whitelisted == 'boolean' && <Icon path={whitelisted === true ? mdiCheck : mdiAlert} color={whitelisted === true ? 'var(--accent-10)' : 'var(--yellow-9)'} size={0.7} style={{ transform: 'translateY(3px)', marginRight: '5px' }}></Icon> }
                                 { whitelisted === true ? 'Low risk pair' : (whitelisted === false ? 'High risk pair' : 'Loading...') }
                               </Text>
                             </Flex>
@@ -532,7 +580,7 @@ export default function OrderbookPage() {
                                   AlertBox.open(AlertType.Info, 'Program account address copied!')
                                 }}>{ Readability.toAddress(market?.account || 'NULL', 5) }</Button>
                                 <Box ml="2">
-                                  <Link className="router-link" to={'/portfolio/' + market?.account + '?view=assets'}>▒▒</Link>
+                                  <Link className="router-link" to={'/portfolio/' + market?.account + '?view=wallet-total-assets'}>▒▒</Link>
                                 </Box>
                               </Flex>
                             </Flex>
@@ -552,7 +600,7 @@ export default function OrderbookPage() {
                           <Tooltip side="left" content="Absolute difference between price open and price close">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Delta</Text>
-                              <Text size="2" color={ (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'red' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'lime') }>{ Readability.toMoney(orderbook.secondaryAsset, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true) }</Text>
+                              <Text size="2" style={{ color: (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'var(--red-11)' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'var(--accent-11)')}}>{ Readability.toMoney(orderbook.secondaryAsset, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true) }</Text>
                             </Flex>
                           </Tooltip>
                           <Tooltip side="left" content="Actual amount traded within last 24 hours">
@@ -663,20 +711,20 @@ export default function OrderbookPage() {
                       </TextField.Root>
                     </Box>
                     <Flex justify={
-                      seriesOptions.priceScope == PriceScope.All ? 'between' : (seriesOptions.priceScope == PriceScope.Bid ? 'start' : 'end')
+                      seriesOptions.priceScope == PriceScope.All ? 'between' : (seriesOptions.priceScope == PriceScope.Bid ? 'end' : 'start')
                     } style={{ borderTopLeftRadius: '12px', borderTopRightRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--gray-3)' }} px="1" py="2" position="relative">
                       {
                         seriesOptions.priceScope != PriceScope.Ask &&
                         <>
-                          <Box position="absolute" top="0" left="0" right={`${seriesOptions.priceScope == PriceScope.All ? liquidity.ask[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--lime-a5)' }}></Box>
-                          <Text size="2" style={{ zIndex: 1, color: 'var(--lime-11)' }}>{ Readability.toMoney(orderbook?.primaryAsset || null, liquidity.bid[0]) }</Text>
+                          <Box position="absolute" top="0" left="0" right={`${seriesOptions.priceScope == PriceScope.All ? liquidity.ask[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--accent-a5)' }}></Box>
+                          <Text size="2" style={{ zIndex: 1, color: 'var(--accent-11)' }}>{ Readability.toMoney(orderbook?.primaryAsset || null, liquidity.bid[2]) }</Text>
                         </>
                       }
                       {
                         seriesOptions.priceScope != PriceScope.Bid &&
                         <>
                           <Box position="absolute" top="0" left={`${seriesOptions.priceScope == PriceScope.All ? liquidity.bid[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--red-a5)' }}></Box>
-                          <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ Readability.toMoney(orderbook?.primaryAsset || null, liquidity.ask[0]) }</Text>
+                          <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ Readability.toMoney(orderbook?.primaryAsset || null, liquidity.ask[2]) }</Text>
                         </>
                       }
                     </Flex>
@@ -688,9 +736,13 @@ export default function OrderbookPage() {
                             groupedLevels.bid.map((item) =>
                               <Tooltip side="left" key={item.price.toString()} content={`Buy ${Readability.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≤ ${Readability.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
                                 <Button variant="ghost" radius="none" style={{ width: '100%', height: 'auto', padding: 0, margin: 0 }} onClick={() => updatePreset(OrderSide.Buy, item.price)}>
-                                  <Flex width="100%" justify="start" px="1" py="1" position="relative">
-                                    <Box position="absolute" top="0" left={`${100 - 100 * item.quantity.dividedBy(liquidity.bid[0]).toNumber()}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--lime-7)' }}></Box>
-                                    <Text size="2" style={{ zIndex: 1, color: 'var(--lime-11)' }}>{ Readability.toValue(null, item.price, false, true) }</Text>
+                                  <Flex width="100%" justify="between" px="1" py="1" position="relative">
+                                    <Box position="absolute" top="0" left={`${100 - 100 * item.quantity.dividedBy(liquidity.bid[0]).toNumber()}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--accent-7)' }}></Box>
+                                    <Text size="2" style={{ zIndex: 1, color: 'var(--accent-11)' }}>{ Readability.toValue(null, item.price, false, true) }</Text>
+                                    {
+                                      seriesOptions.priceScope != PriceScope.All &&
+                                      <Text size="2" style={{ zIndex: 1, color: 'var(--accent-11)' }}>{ Readability.toValue(null, item.quantity, false, true) }</Text>
+                                    }
                                   </Flex>
                                 </Button>
                               </Tooltip>)
@@ -708,8 +760,12 @@ export default function OrderbookPage() {
                             groupedLevels.ask.map((item) =>
                               <Tooltip side="left" key={item.price.toString()} content={`Sell ${Readability.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≥ ${Readability.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
                                 <Button variant="ghost" radius="none" style={{ width: '100%', height: 'auto', padding: 0, margin: 0 }} onClick={() => updatePreset(OrderSide.Sell, item.price)}>
-                                  <Flex width="100%" justify="end" px="1" py="1" position="relative">
+                                  <Flex width="100%" justify={seriesOptions.priceScope != PriceScope.All ? 'between' : 'end'} px="1" py="1" position="relative">
                                     <Box position="absolute" top="0" left="0" right={`${100 - 100 * item.quantity.dividedBy(liquidity.ask[0]).toNumber()}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--red-7)' }}></Box>
+                                    {
+                                      seriesOptions.priceScope != PriceScope.All &&
+                                      <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ Readability.toValue(null, item.quantity, false, true) }</Text>
+                                    }
                                     <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ Readability.toValue(null, item.price, false, true) }</Text>
                                   </Flex>
                                 </Button>
@@ -731,7 +787,7 @@ export default function OrderbookPage() {
                         logs.map((item, index) => {
                           const pool = item.side == 'lp';
                           const action = pool ? (item.quantity.gt(0) ? 'Push' : 'Pull') : (item.side == OrderSide.Buy ? 'Buy' : 'Sell');
-                          const color = pool ? (item.quantity.gt(0) ? 'cyan' : 'orange') : (item.side == OrderSide.Buy ? 'lime' : 'red');
+                          const color = pool ? (item.quantity.gt(0) ? 'cyan' : 'orange') : (item.side == OrderSide.Buy ? 'var(--accent-11)' : 'var(--red-11)');
                           return (
                             <Box key={item.account + item.time.getTime().toString() + index.toString()} mb="3" className="rt-Card" style={{ width: '100%', height: 'auto', backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
                               <Flex direction="column" gap="2" style={{ padding: '12px' }}>
@@ -740,8 +796,8 @@ export default function OrderbookPage() {
                                   <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook?.secondaryAsset || null, item.price) }</Text>
                                 </Flex>
                                 <Flex justify="between" wrap="wrap" gap="1">
-                                  <Text size="2" color={color}>{ action }</Text>
-                                  <Text size="2" color={color}>{ Readability.toMoney(orderbook?.primaryAsset || null, item.quantity, pool) }</Text>
+                                  <Text size="2" style={{ color: color }}>{ action }</Text>
+                                  <Text size="2" style={{ color: color }}>{ Readability.toMoney(orderbook?.primaryAsset || null, item.quantity, pool) }</Text>
                                 </Flex>
                                 <Flex justify="between" wrap="wrap" gap="1">
                                   <Text size="2" style={{ color: 'var(--gray-12)' }}>From</Text>
@@ -751,7 +807,7 @@ export default function OrderbookPage() {
                                       AlertBox.open(AlertType.Info, 'Account address copied!')
                                     }}>{ Readability.toAddress(item.account || 'NULL', 5) }</Button>
                                     <Box ml="2">
-                                      <Link className="router-link" to={'/portfolio/' + item.account + '?view=assets'}>▒▒</Link>
+                                      <Link className="router-link" to={'/portfolio/' + item.account + '?view=wallet-total-assets'}>▒▒</Link>
                                     </Box>
                                   </Flex>
                                 </Flex>

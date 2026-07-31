@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Checkbox, DropdownMenu, Flex, IconButton, Select, Spinner, Text, TextField } from "@radix-ui/themes";
+import { Box, Button, DropdownMenu, Flex, Select, Separator, Text } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { AssetId, RPC, Readability, Whitelist } from "tangentsdk";
@@ -7,7 +7,7 @@ import { AssetImage, AssetName } from "../components/asset";
 import { AddressView } from "../components/address";
 import { Link, useNavigate } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowBottomLeft, mdiArrowTopRight, mdiArrowUpRight, mdiContentCopy, mdiOpenInNew, mdiSafeSquare, mdiSetRight } from "@mdi/js";
+import { mdiArrowBottomLeft, mdiArrowTopRight, mdiSafeSquare, mdiSetRight } from "@mdi/js";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
 
@@ -24,12 +24,10 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
   const ownerAddress = AppData.getWalletAddress() || '';
   const mobile = document.body.clientWidth < 500;
   const navigate = useNavigate();
-  const [routingAddressValue, setRoutingAddressValue] = useState<string>('');
   const [routingAddressIndex, setRoutingAddressIndex] = useState<number>(-1);
   const [blockchainIndex, setBlockchainIndex] = useState<number>(-1);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [bridges, setBridges] = useState<any[]>([]);
-  const [disclaimer, setDisclaimer] = useState(false);
   const [loading, setLoading] = useState(false);
   const blockchains = useMemo((): ExtendedBlockchainInfo[] => {
     if (!Array.isArray(props.blockchains))
@@ -93,11 +91,9 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
     return result;
   }, [blockchain, blockchains, addresses, bridges]);
   const blockchainAddress = useMemo((): string | null => {
-    if (blockchainAddresses.routing != null && routingAddressIndex >= 0 && routingAddressIndex < blockchainAddresses.routing.addresses.length)
-      return blockchainAddresses.routing.addresses[routingAddressIndex].address
-
-    return routingAddressValue || null;
-  }, [routingAddressIndex, routingAddressValue, blockchainAddresses]);
+    const routingAddress = blockchainAddresses.routing != null && routingAddressIndex >= 0 && routingAddressIndex < blockchainAddresses.routing.addresses.length;
+    return routingAddress ? blockchainAddresses.routing.addresses[routingAddressIndex].address : null;
+  }, [routingAddressIndex, blockchainAddresses]);
   const blockchainAssets = useMemo((): any[] => {
     const results = props.assets.filter(x => x.asset.chain == blockchain?.chain);
     return !blockchain || results.length > 0 ? results : [{
@@ -107,6 +103,8 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
       supply: new BigNumber(0)
     }];
   }, [blockchain, props.assets]);
+  const requiresSenderAddress = useMemo(() => blockchain && blockchain.routing_policy == 'account', [blockchain]);
+  const hasDepositButton = useMemo(() => requiresSenderAddress ? true : (blockchain && !blockchainAddresses.bridge), [requiresSenderAddress, blockchain, blockchainAddresses]);
   const claim = useCallback(() => {
     if (!blockchain) {
       AlertBox.open(AlertType.Error, 'Must select a network');
@@ -119,12 +117,12 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
       return balanceA.comparedTo(balanceB) || 0; 
     })[0];
     if (!bridge) {
-      AlertBox.open(AlertType.Error, 'Failed to find a bridge for this claim');
+      AlertBox.open(AlertType.Error, 'Failed to find a vault for this claim');
       return;
     }
 
-    navigate(`/interaction?asset=${blockchain.id}&type=register&vault=${bridge.instance.bridge_hash}&address=${routingAddressValue}&back=/`);
-  }, [blockchain, bridges, routingAddressValue]);
+    navigate(`/interaction?asset=${blockchain.id}&type=register&vault=${bridge.instance.bridge_hash}&back=/`);
+  }, [blockchain, bridges]);
   const withdraw = useCallback((assetIndex: number) => {
     const token = blockchainAssets[assetIndex];
     if (!blockchain || !token) {
@@ -133,14 +131,14 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
     }
 
     const feeToken = blockchainAssets.filter((x) => x.asset.chain == blockchain.chain)[0];
-    const targets = bridges.filter((x: any) => x.withdrawable).sort((a: any, b: any) => {
+    const sortedBridges = bridges.sort((a: any, b: any) => {
       const balanceA: BigNumber = a.balances.find((x: any) => x.asset.id == token.asset.id)?.supply || new BigNumber(0);
       const balanceB: BigNumber = b.balances.find((x: any) => x.asset.id == token.asset.id)?.supply || new BigNumber(0);
       return balanceB.comparedTo(balanceA) || 0; 
     });
-    const bridge = targets.filter((x: any) => feeToken && feeToken.balance.gt(0) ? feeToken.balance.gte(x.instance.fee_rate) : false)[0];
+    const bridge = sortedBridges.filter((x: any) => feeToken && feeToken.balance.gt(0) ? feeToken.balance.gte(x.instance.fee_rate) : false)[0] || sortedBridges[0];
     if (!bridge) {
-      AlertBox.open(AlertType.Error, targets.length > 0 ? `Not enough balance to cover network fees - ${Readability.toMoney(feeToken.asset, targets[0].instance.fee_rate)} required` : 'Failed to find a bridge to process this withdrawal');
+      AlertBox.open(AlertType.Error, 'Failed to find a vault to process this withdrawal');
       return;
     }
     
@@ -148,7 +146,6 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
   }, [blockchain, bridges, blockchainAssets, blockchainAddress]);
   useEffectAsync(async () => {
     setLoading(true);
-    setRoutingAddressValue('');
     setRoutingAddressIndex(-1);
     try {
       const asset = blockchain;
@@ -164,8 +161,6 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
       }
       if (asset && Array.isArray(bridgeData)) {
         setBridges(bridgeData.map((x) => {
-          const balance: BigNumber | null = x.balances.find((v: any) => v.asset.id == asset.id)?.supply || null;
-          x.withdrawable = balance ? balance.gte(x.instance.fee_rate) : false;
           x.balances = x.balances.map((y: any) => ({ ...y, whitelist: Whitelist.has(y.asset) })).sort((a: any, b: any) => {
             if ((a.whitelist && !b.whitelist) || (!a.asset.token && b.asset.token)) {
               return -1;
@@ -197,168 +192,137 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
     setLoading(false);
   }, [blockchain]);
   useEffect(() => {
+    if (props.blockchain != null)
+      setBlockchainIndex(props.blockchains.sort((a, b) => new AssetId(a.id).handle.localeCompare(new AssetId(b.id).handle)).findIndex((x) => x.id == props.blockchain?.id))
+  }, [props.blockchains, props.blockchain]);
+  useEffect(() => {
     setRoutingAddressIndex(blockchainAddresses.routing?.addresses.length > 0 ? 0 : -1);
   }, [blockchainAddresses]);
-  useEffect(() => {
-    if (props.blockchain != null) {
-      setBlockchainIndex(props.blockchains.sort((a, b) => new AssetId(a.id).handle.localeCompare(new AssetId(b.id).handle)).findIndex((x) => x.id == props.blockchain?.id))
-    }
-  }, [props.blockchains, props.blockchain]);
 
-  const requiresSenderAddress = blockchain && blockchain.routing_policy == 'account';
-  const hasDepositButton = requiresSenderAddress ? routingAddressIndex == -1 : ((blockchain && !blockchainAddresses.bridge) || (routingAddressIndex == -1 && !!blockchainAddress));
-  const depositButtonActive = hasDepositButton && (requiresSenderAddress ? !!blockchainAddress : (!blockchainAddresses.bridge || (routingAddressIndex == -1 && !!blockchainAddress)));
   return (
     <Box px={mobile ? '2' : undefined}>
-      <Select.Root size="3" value={blockchainIndex.toString()} onValueChange={(e) => {
-        setBlockchainIndex(parseInt(e));
-        setDisclaimer(false);
-      }}>
-        <Select.Trigger style={{ width: '100%' }} />
-        <Select.Content>
+      <Select.Root size="3" value={blockchainIndex.toString()} onValueChange={(e) => setBlockchainIndex(parseInt(e))}>
+        <Select.Trigger style={{ width: '100%', flexShrink: 'initial' }} />
+        <Select.Content color="gray">
           <Select.Item value="-1">
             <Flex align="center" gap="2">
               <Icon path={mdiSetRight} size={0.8}></Icon> Deposit & Withdraw
             </Flex>
           </Select.Item>
-          {
-            blockchains.map((item, index) =>
-              <Select.Item value={index.toString()} key={item.id}>
-                <Flex gap="2">
-                  <AssetImage asset={item} size="1"></AssetImage>
-                  <AssetName asset={item} size="3"></AssetName>
-                </Flex>
-              </Select.Item>
-            )
-          }
+          <Select.Group>
+            <Select.Label>
+              <Text size="3">Network / token standard</Text>
+            </Select.Label>
+            {
+              blockchains.map((item, index) =>
+                <Select.Item value={index.toString()} key={item.id}>
+                  <Flex gap="2">
+                    <AssetImage asset={item} size="1"></AssetImage>
+                    <AssetName asset={item} size="3" text={item.ext?.tokenStandard ? '/ ' + item.ext.tokenStandard : undefined} badge={false}></AssetName>
+                  </Flex>
+                </Select.Item>
+              )
+            }
+          </Select.Group>
         </Select.Content>
       </Select.Root>
       {
-        blockchain != null &&
+        blockchain != null && !loading &&
         <Box>
-          <Flex gap="1" mt="2">
-            <Select.Root size="3" value={routingAddressIndex.toString()} onValueChange={(e) => {
-              setRoutingAddressIndex(parseInt(e));
-              setDisclaimer(false);
-            }}>
-              <Select.Trigger style={routingAddressIndex == -1 ? undefined : { width: '100%', flexShrink: 'initial' }} />
-              <Select.Content>
+          {
+            blockchainAddresses.bridge && (routingAddressIndex != -1 || blockchain.routing_policy != 'account') &&
+            <Box mt="6">
+              <AddressView address={blockchainAddresses.bridge}></AddressView>
+            </Box>
+          }
+          <Flex mt="2" gap="2">
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger>
+                <Button variant="surface" size="3" color="gray" className="rt-r-gap-2" style={{ flex: 'auto', width: hasDepositButton ? '50%' : '100%', color: 'var(--gray-12)', backgroundColor: 'var(--gray-2)' }}>
+                  <Icon path={mdiArrowTopRight} size={0.8}></Icon> Withdraw
+                </Button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content color="gray">
                 {
-                  loading &&
-                  <Select.Item value="-1">
-                    <Flex gap="2" align="center">
-                      <Spinner size="2"></Spinner>
-                      Loading...
-                    </Flex>
-                  </Select.Item>
-                }
-                {
-                  !loading &&
-                  <Select.Item value="-1">New wallet</Select.Item>
-                }
-                {
-                  blockchainAddresses.routing != null && blockchainAddresses.routing.addresses.map((x: any, index: number) =>
-                    <Select.Item value={index.toString()} key={x.address}>
-                      <Flex gap="2" align="center">
-                        <AssetImage asset={blockchain} size="1"></AssetImage>
-                        <Text>{ Readability.toAddress(x.address, 6) }</Text>
+                  blockchainAssets.map((item, index) =>
+                    <DropdownMenu.Item key={item.asset.id + '_select'} onClick={() => withdraw(index)}>
+                      <Flex align="center" gap="2">
+                        <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
+                        <Text size="4">Send</Text>
+                        <Flex gap="2" align="center">
+                          <Text size="4">{ Readability.toMoney(null, item.balance) }</Text>
+                          <AssetName asset={item.asset} size="4" badgeSize={0.8} badgeOffset={2} symbol={true} tokenOnly={true}></AssetName>
+                        </Flex>
                       </Flex>
-                    </Select.Item>
+                    </DropdownMenu.Item>
                   )
                 }
-              </Select.Content>
-            </Select.Root>
+                <DropdownMenu.Separator />
+                <DropdownMenu.Item onClick={() => navigate('/explorer?view=vaults&asset=' + AssetId.fromHandle(blockchain.chain || '').toHex())}>
+                  <Icon path={mdiSafeSquare} size={1}></Icon>
+                  <Text size="4">Vault list</Text>
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
             {
-              routingAddressIndex == -1 &&
-              <TextField.Root style={{ width: '100%' }} size="3" placeholder={`Your sender address${requiresSenderAddress ? '' : ' (opt.)'}`} type="text" readOnly={loading} value={blockchainAddress || ''} onChange={(e) => setRoutingAddressValue(e.target.value)} />
+              hasDepositButton && (!requiresSenderAddress || !blockchainAddresses.routing) &&
+              <Button size="3" variant="surface" className="rt-r-gap-2" style={{ width: '50%', paddingLeft: '24px', paddingRight: '24px' }} onClick={() => claim()}>
+                <Icon path={mdiArrowBottomLeft} size={0.8}></Icon> Deposit
+              </Button>
             }
             {
-              routingAddressIndex != -1 &&
-              <IconButton variant="soft" color="indigo" size="3" onClick={() => {
-                navigator.clipboard.writeText(blockchainAddress || '');
-                AlertBox.open(AlertType.Info, 'Your address copied!');
-              }}>
-                <Icon path={mdiContentCopy} size={0.8}></Icon>
-              </IconButton>
-            }
-          </Flex>
-          <Flex gap="2" mt="2" mb="4" px="1" wrap="wrap">
-            <Badge size="2" color="red">Send { Readability.toAssetSymbol(blockchain) }{ blockchain.ext?.tokenStandard ? '/' + blockchain.ext.tokenStandard : '' } from { blockchain.routing_policy != 'account' ? 'any' : 'this' } wallet{ blockchainAddress ? <>{ blockchain.routing_policy == 'account' ? '' : ' inc.' } <Icon path={mdiArrowUpRight} size={0.6}></Icon></> : '' }</Badge>
-            { blockchain.ext && <Badge size="2" color="yellow">Tx ETA { blockchain.ext.depositTime }-{ blockchain.ext.depositTime + 10 } min.</Badge> }
-          </Flex>
-          {
-            !loading &&
-            <>
-              {
-                blockchainAddresses.bridge && (routingAddressIndex != -1 || blockchain.routing_policy != 'account') &&
-                <Box mt="6">
-                  { (disclaimer || blockchain.routing_policy != 'account') && <AddressView address={blockchainAddresses.bridge}></AddressView> }
-                  {
-                    (!disclaimer && blockchain.routing_policy == 'account') &&
-                    <Flex justify="center" align="center" direction="column" my="8">
-                      <Text as="label" size="2">
-                        <Flex gap="2" wrap="wrap">
-                          <Checkbox checked={disclaimer} onCheckedChange={(e) => setDisclaimer(!!e.valueOf())} />
-                          <Text>I'll deposit from</Text>
-                          <Badge>{ Readability.toAddress(blockchainAddress || '', 6) }</Badge>
-                        </Flex>
-                      </Text>
-                    </Flex>
-                  }
-                </Box>
-              }
-              <Flex mt="2" gap="2">
-                <DropdownMenu.Root>
-                  <DropdownMenu.Trigger>
-                    <Button variant="surface" size="3" color="gray" style={{ flex: 'auto', width: hasDepositButton ? '50%' : '100%', color: 'var(--gray-12)', backgroundColor: 'var(--gray-2)' }}>
-                      Withdraw <Icon path={mdiArrowTopRight} size={0.8}></Icon>
-                    </Button>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content>
-                    {
-                      blockchainAssets.map((item, index) =>
-                        <DropdownMenu.Item key={item.asset.id + '_select'} onClick={() => withdraw(index)}>
-                          <Flex align="center" gap="2">
-                            <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
-                            <Text size="4">Send</Text>
-                            <Flex gap="2" align="center">
-                              <Text size="4">{ Readability.toMoney(null, item.balance) }</Text>
-                              <AssetName asset={item.asset} size="4" badgeSize={0.8} badgeOffset={2} symbol={true} tokenOnly={true}></AssetName>
-                            </Flex>
-                          </Flex>
-                        </DropdownMenu.Item>
-                      )
-                    }
-                    <DropdownMenu.Separator />
-                    <DropdownMenu.Item onClick={() => navigate('/explorer?view=vaults&asset=' + AssetId.fromHandle(blockchain.chain || '').toHex())}>
-                      <Icon path={mdiSafeSquare} size={1}></Icon>
-                      <Text size="4">Vault list</Text>
-                    </DropdownMenu.Item>
-                  </DropdownMenu.Content>
-                </DropdownMenu.Root>
-                {
-                  hasDepositButton &&
-                  <Button size="3" variant="surface" style={{ width: '50%', paddingLeft: '24px', paddingRight: '24px' }} className={ depositButtonActive ? "shadow-rainbow-animation" : undefined } disabled={!depositButtonActive} onClick={() => {
-                    if (depositButtonActive) {
-                      claim();
-                    }
-                  }}>
-                    { requiresSenderAddress || !blockchainAddress ? 'Deposit' : 'Save address' } <Icon path={mdiArrowBottomLeft} size={0.8}></Icon>
-                  </Button>
+              hasDepositButton && requiresSenderAddress && blockchainAddresses.routing &&
+              <Select.Root size="3" value={routingAddressIndex.toString()} onValueChange={(e) => {
+                const index = parseInt(e);
+                if (index == -2) {
+                  claim();
+                } else {
+                  setRoutingAddressIndex(index);
                 }
-              </Flex>
-              {
-                blockchain.ext.blocking &&
-                <Flex justify="center" align="center" gap="1" mt="3">
-                  <Link style={{ textDecoration: 'none'}} to={'/explorer?view=vaults&queue=1&asset=' + AssetId.fromHandle(blockchain.chain || '').toHex()}>
-                    <Text size="1" color="red">Unconfirmed outgoing TXs affect ETA</Text>
-                  </Link>
-                   <Icon path={mdiOpenInNew} size={0.5} color="var(--red-11)" style={{ transform: 'translateY(1px)' }}></Icon>
-                </Flex>
-              }
-            </>
-          }
+              }}>
+                <Select.Trigger className="rt-r-gap-2 select-plain" style={{ width: '50%', paddingLeft: '24px', paddingRight: '24px', justifyContent: 'center' }} />
+                <Select.Content color="gray">
+                  <Select.Item value="-1">
+                    <Flex align="center" justify="center" gap="2" width="100%"><Icon path={mdiArrowBottomLeft} size={0.8}></Icon> Deposit</Flex>
+                  </Select.Item>
+                  {
+                    blockchainAddresses.routing != null && blockchainAddresses.routing.addresses.map((x: any, index: number) =>
+                      <Select.Item value={index.toString()} key={x.address}>
+                        <Flex gap="2" align="center">
+                          <AssetImage asset={blockchain} size="1"></AssetImage>
+                          <Text>{ Readability.toAddress(x.address, 6) }</Text>
+                        </Flex>
+                      </Select.Item>
+                    )
+                  }
+                  <Box px="3">
+                    <Separator my="3" size="4" />
+                  </Box>
+                  <Select.Item value="-2">
+                    <Flex align="center" justify="center" gap="2" width="100%">New sender address</Flex>
+                  </Select.Item>
+                </Select.Content>
+              </Select.Root>
+            }
+          </Flex>
         </Box>
+      }
+      {
+        blockchain?.ext &&
+        <Flex justify="center" mt="4" px="2">
+          <Text align="center" size="1">
+            <Text>Confirmation in <Text style={{ color: 'var(--accent-11)' }}>{blockchain.ext.depositTime}-{blockchain.ext.depositTime + 5} min</Text>, never withdraw to CEXes</Text>
+            { blockchain.ext.blocking && ', very slow withdrawal queue' }
+            { blockchain.routing_policy == 'memo' && <Text>, <Text color="red">deposit with memo only</Text></Text> }
+            {
+              requiresSenderAddress && blockchainAddress &&
+              <Text>, <Text color="red">deposit from</Text> <Link to="#" onClick={() => {
+                navigator.clipboard.writeText(blockchainAddress);
+                AlertBox.open(AlertType.Info, 'Your address copied!')
+              }}>{Readability.toAddress(blockchainAddress, 6)}</Link> <Text color="red">only</Text></Text>
+            }
+          </Text>
+        </Flex>
       }
     </Box>
   )

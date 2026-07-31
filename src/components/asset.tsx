@@ -4,7 +4,7 @@ import { AssetId, Readability, Whitelist } from "tangentsdk";
 import { CSSProperties } from "react";
 import Icon from "@mdi/react";
 
-export function AssetName(props: { asset?: AssetId, size?: string, badgeSize?: number, badgeOffset?: number, symbol?: boolean, tokenOnly?: boolean, style?: CSSProperties }) {
+export function AssetName(props: { asset?: AssetId, text?: string, size?: string, badgeSize?: number, badgeOffset?: number, symbol?: boolean, badge?: boolean, tokenOnly?: boolean, style?: CSSProperties }) {
   const size = (props.size || '3') as any;
   if (!props.asset) {
     return (
@@ -23,14 +23,14 @@ export function AssetName(props: { asset?: AssetId, size?: string, badgeSize?: n
           fake &&
           <Text as="div" size={size} weight="light">
             { (!props.tokenOnly && props.asset.token ? props.asset.chain + ' ' : '') + Readability.toAssetSymbol(props.asset) }
-            { props.asset.checksum ? ` (${ props.asset.checksum.substring(0, 4) })` : '' }
+            { props.asset.checksum ? ` (${ props.asset.checksum.substring(0, 4) })` : '' }{ props.text ? ' ' + props.text : '' }
           </Text>
         }
         {
           !fake &&
           <Text as="div" size={size} weight="light">
-            { props.symbol ? Readability.toAssetSymbol(props.asset) + (!props.tokenOnly && props.asset.token ? ` (${ props.asset.chain })` : '') : Readability.toAssetName(props.asset, false, props.tokenOnly) }
-            { contractAddress && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={props.badgeSize || 0.7} style={{ transform: `translateY(${props.badgeOffset || 2}px)`, paddingLeft: '2px' }}></Icon> }
+            { props.symbol ? Readability.toAssetSymbol(props.asset) + (!props.tokenOnly && props.asset.token ? ` (${ props.asset.chain })` : '') : Readability.toAssetName(props.asset, false, props.tokenOnly) }{ props.text ? ' ' + props.text : '' }
+            { contractAddress && (props.badge !== false) && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={props.badgeSize || 0.7} style={{ transform: `translateY(${props.badgeOffset || 2}px)`, paddingLeft: '2px' }}></Icon> }
           </Text>
         }
       </Flex>

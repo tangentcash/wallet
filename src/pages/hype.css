@@ -1,0 +1,3 @@
+.fancy-icon-filter img {
+  filter: url(#fancy-icon-filter);
+}

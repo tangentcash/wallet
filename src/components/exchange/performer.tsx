@@ -3,8 +3,9 @@ import { CSSProperties, useCallback, useEffect, useState } from "react";
 import { OrderCondition, OrderPolicy, OrderSide, Exchange, RouterPath, Market, AggregatedPair } from "../../core/exchange";
 import { AlertBox, AlertType } from "./../alert";
 import { mdiArrowRight, mdiBlur, mdiBlurOff, mdiCancel, mdiCashRefund, mdiClose, mdiCollage, mdiSwapHorizontalVariant, mdiWater, mdiWaterOff } from "@mdi/js";
-import { AssetId, DEX, Hashsig, Readability, SchemaUtil, Signing, Stream, Transactions, Uint256 } from "tangentsdk";
-import { useNavigate, useSearchParams } from "react-router";
+import { AssetId, Hashsig, Readability, SchemaUtil, Signing, Spot, Stream, Transactions, Uint256 } from "tangentsdk";
+import { useNavigate } from "react-router";
+import { AppData } from "../../core/app";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 
@@ -37,7 +38,11 @@ export class Builder {
             throw new Error('Not enough balance to build a swap');
         }
 
-        const market = await Exchange.market(args.marketId);
+        const marketId = typeof args.marketId == 'string' || typeof args.marketId == 'number' ? new BigNumber(args.marketId) : null;
+        if (!marketId)
+            throw new Error('Market id must be set');
+
+        const market = Exchange.markets.find((v) => v.id.eq(marketId));
         if (!market || !market.account)
             throw new Error('Market ' + args.marketId.toString() + ' account cannot be found');
 
@@ -63,7 +68,7 @@ export class Builder {
                 body: {
                     callable: marketAccount,
                     pays: swapIndex == 0 ? payment.pays : [{ asset: tokenIn, value: swap.input.max }],
-                    function: (swapIndex > 0 ? '>' : '') + Readability.toFunction(DEX.Spot.marketOrder),
+                    function: (swapIndex > 0 ? '>' : '') + Readability.toFunction(Spot.DEX.marketOrder),
                     args: [primaryAsset?.toUint256(), secondaryAsset?.toUint256(), swap.side, OrderPolicy.Immediate, slippagePrice]
                 }
             }
@@ -87,7 +92,11 @@ export class Builder {
         if (!payment)
             throw new Error('Order value must be positive');
         
-        const market = await Exchange.market(args.marketId);
+        const marketId = typeof args.marketId == 'string' || typeof args.marketId == 'number' ? new BigNumber(args.marketId) : null;
+        if (!marketId)
+            throw new Error('Market id must be set');
+
+        const market = Exchange.markets.find((v) => v.id.eq(marketId));
         if (!market || !market.account)
             throw new Error('Market ' + args.marketId.toString() + ' account cannot be found');
 
@@ -134,7 +143,7 @@ export class Builder {
         const targetPrice = price || stopPrice || levelPrice;
         const targetValue = payment.value;
         const toText = (order: { primaryAsset: AssetId, secondaryAsset: AssetId, condition: OrderCondition, side: OrderSide, slippage?: BigNumber, stopPrice?: BigNumber, trailingStep?: BigNumber, trailingDistance?: BigNumber, price?: BigNumber, value: BigNumber }, targetPrice?: BigNumber | null) => {
-            const toPercentile = (asset: AssetId, value?: BigNumber | null) => value ? (value.gte(0) ? value.toString() + ' ' + asset.handle : value.negated().multipliedBy(100).toFixed(2) + '%') : 'N/A';
+            const toPercentile = (asset: AssetId, value?: BigNumber | null) => value ? (value.gte(0) ? Readability.toMoney(asset, value) : value.negated().multipliedBy(100).toFixed(2) + '%') : 'N/A';
             const buying = order.side == OrderSide.Buy;
             const primaryValue = buying ? (targetPrice ? order.value.dividedBy(targetPrice) : null) : order.value;
             const secondaryValue = buying ? order.value : (targetPrice ? order.value.multipliedBy(targetPrice) : null);
@@ -171,7 +180,7 @@ export class Builder {
 
                 const distance = slippage.lt(0) ? slippage.multipliedBy(levelPrice.negated()) : slippage;
                 const slippagePrice = side == OrderSide.Buy ? levelPrice.plus(distance) : BigNumber.max(levelPrice.minus(distance), 0);
-                method = DEX.Spot.marketOrder;
+                method = Spot.DEX.marketOrder;
                 parameters = [primaryAsset.toUint256(), secondaryAsset.toUint256(), side, policy, slippagePrice];
                 text = toText({
                     primaryAsset: primaryAsset,
@@ -187,7 +196,7 @@ export class Builder {
                 if (!price || !price.gt(0))
                     throw new Error('Order price must be positive');
 
-                method = DEX.Spot.limitOrder;
+                method = Spot.DEX.limitOrder;
                 parameters = [primaryAsset.toUint256(), secondaryAsset.toUint256(), side, policy, price];
                 text = toText({
                     primaryAsset: primaryAsset,
@@ -207,7 +216,7 @@ export class Builder {
                 if (!slippage)
                     throw new Error('Order slippage must be set');
 
-                method = DEX.Spot.stopOrder;
+                method = Spot.DEX.stopOrder;
                 parameters = [primaryAsset.toUint256(), secondaryAsset.toUint256(), side, policy, stopPrice, slippage];
                 text = toText({
                     primaryAsset: primaryAsset,
@@ -227,7 +236,7 @@ export class Builder {
                 if (!price || !price.gt(0))
                     throw new Error('Order price must be positive');
 
-                method = DEX.Spot.stopLimitOrder;
+                method = Spot.DEX.stopLimitOrder;
                 parameters = [primaryAsset.toUint256(), secondaryAsset.toUint256(), side, policy, stopPrice, price];
                 text = toText({
                     primaryAsset: primaryAsset,
@@ -256,7 +265,7 @@ export class Builder {
                 if (!slippage)
                     throw new Error('Order slippage must be set');
 
-                method = DEX.Spot.trailingStopOrder;
+                method = Spot.DEX.trailingStopOrder;
                 parameters = [primaryAsset.toUint256(), secondaryAsset.toUint256(), side, policy, stopPrice, slippage, trailingStep, trailingDistance];
                 text = toText({
                     primaryAsset: primaryAsset,
@@ -286,7 +295,7 @@ export class Builder {
                 if (!trailingDistance)
                     throw new Error('Order trailing distance must be set');
 
-                method = DEX.Spot.trailingStopLimitOrder;
+                method = Spot.DEX.trailingStopLimitOrder;
                 parameters = [primaryAsset.toUint256(), secondaryAsset.toUint256(), side, policy, stopPrice, price, trailingStep, trailingDistance];
                 text = toText({
                     primaryAsset: primaryAsset,
@@ -335,7 +344,7 @@ export class Builder {
             body: {
               callable: marketAccount,
               pays: [],
-              function: Readability.toFunction(DEX.Spot.withdrawOrder),
+              function: Readability.toFunction(Spot.DEX.withdrawOrder),
               args: [new Uint256(order.orderId.toString())]
             }
         };
@@ -362,7 +371,7 @@ export class Builder {
         if (!secondaryPayment)
             throw new Error('Secondary pool value must be positive');
         
-        const marketId = typeof args.marketId == 'string' || typeof args.marketId == 'number' ? new Uint256(args.marketId) : null;
+        const marketId = typeof args.marketId == 'string' || typeof args.marketId == 'number' ? new BigNumber(args.marketId) : null;
         if (!marketId)
             throw new Error('Market id must be set');
 
@@ -390,7 +399,7 @@ export class Builder {
         if (maxPrice && minPrice && (maxPrice.lt(price) || maxPrice.eq(minPrice)))
             throw new Error('Pool max price must be lower or equal to price');
 
-        const market = ref ? ref.market : await Exchange.market(marketId.toString());
+        const market = Exchange.markets.find((v) => v.id.eq(marketId));
         if (!market || !market.account)
             throw new Error('Market ' + marketId.toString() + ' account cannot be found');
 
@@ -411,7 +420,7 @@ export class Builder {
             body: {
               callable: marketAccount,
               pays: [...primaryPayment.pays, ...secondaryPayment.pays],
-              function: Readability.toFunction(DEX.Spot.depositPool),
+              function: Readability.toFunction(Spot.DEX.depositPool),
               args: [primaryAsset.toUint256(), secondaryAsset.toUint256(), price, concentrated ? minPrice : new BigNumber(-1), concentrated ? maxPrice : new BigNumber(-1), feeRate]
             }
         };
@@ -435,7 +444,7 @@ export class Builder {
             body: {
               callable: marketAccount,
               pays: [],
-              function: Readability.toFunction(DEX.Spot.withdrawPool),
+              function: Readability.toFunction(Spot.DEX.withdrawPool),
               args: [new Uint256(pool.poolId.toString())]
             }
         };
@@ -453,11 +462,11 @@ export class Builder {
         if (!value || !value.gt(0))
             throw new Error('Value must be positive');
 
-        const marketId = typeof args.marketId == 'string' || typeof args.marketId == 'number' ? new Uint256(args.marketId) : null;
+        const marketId = typeof args.marketId == 'string' || typeof args.marketId == 'number' ? new BigNumber(args.marketId) : null;
         if (!marketId)
             throw new Error('Market id must be set');
 
-        const market = await Exchange.market(marketId.toString());
+        const market = Exchange.markets.find((v) => v.id.eq(marketId));
         if (!market || !market.account)
             throw new Error('Market ' + marketId.toString() + ' account cannot be found');
 
@@ -471,8 +480,110 @@ export class Builder {
             body: {
               callable: marketAccount,
               pays: [{ asset: paymentAsset, value: value }],
-              function: Readability.toFunction(DEX.Spot.repayAsset),
+              function: Readability.toFunction(Spot.DEX.repayAsset),
               args: [repaymentAsset.toUint256()]
+            }
+        };
+    }
+    static async depositLiquidity(args: { delegatorId: string, primaryAssetHash: string, secondaryAssetHash: string, primaryValue: string, secondaryValue: string }): Promise<BuilderResult> {
+        const primaryAsset = typeof args.primaryAssetHash == 'string' || typeof args.primaryAssetHash == 'number' ? new AssetId(args.primaryAssetHash) : null;
+        if (!primaryAsset || !primaryAsset.isValid())
+            throw new Error('Primary asset must be set');
+
+        const secondaryAsset = typeof args.secondaryAssetHash == 'string' || typeof args.secondaryAssetHash == 'number' ? new AssetId(args.secondaryAssetHash) : null;
+        if (!secondaryAsset || !secondaryAsset.isValid())
+            throw new Error('Secondary asset must be set');
+
+        const primaryValue = typeof args.primaryValue == 'string' || typeof args.primaryValue == 'number' ? new BigNumber(args.primaryValue) : null;
+        if (!primaryValue?.gte(0))
+            throw new Error('Primary value must be set');
+
+        const secondaryValue = typeof args.secondaryValue == 'string' || typeof args.secondaryValue == 'number' ? new BigNumber(args.secondaryValue) : null;
+        if (!secondaryValue?.gte(0))
+            throw new Error('Secondary value must be set');
+
+        if (!primaryValue.gt(0) && !secondaryValue.gt(0))
+            throw new Error('Primary/secondary value must greater than zero');
+
+        const delegatorId = typeof args.delegatorId == 'string' || typeof args.delegatorId == 'number' ? new BigNumber(args.delegatorId) : null;
+        if (!delegatorId)
+            throw new Error('Market id must be set');
+
+        const delegator = Exchange.delegators.find((v) => v.id.eq(delegatorId));
+        if (!delegator || !delegator.account)
+            throw new Error('Delegator ' + delegatorId.toString() + ' account cannot be found');
+
+        const delegatorAccount = Signing.decodeAddress(delegator.account || '');
+        if (!delegatorAccount)
+            throw new Error('Delegator ' + delegatorId.toString() + ' account cannot be found');
+
+        let liquidityText = '';
+        if (primaryValue.gt(0)) liquidityText += Readability.toMoney(primaryAsset, primaryValue);
+        if (secondaryValue.gt(0)) liquidityText += (liquidityText.length > 0 ? ' + ' : '') + Readability.toMoney(secondaryAsset, secondaryValue);
+        return {
+            icon: mdiWater,
+            text: `Deposit ${liquidityText} liquidity into delegated ${Readability.toAssetSymbol(primaryAsset)}/${Readability.toAssetSymbol(secondaryAsset)} LP`,
+            body: {
+              callable: delegatorAccount,
+              pays: [{ asset: primaryAsset, value: primaryValue }, { asset: secondaryAsset, value: secondaryValue }].filter((v) => v.value.gt(0)),
+              function: Readability.toFunction(Spot.DLP.depositLiquidity),
+              args: [primaryAsset.toUint256(), secondaryAsset.toUint256()]
+            }
+        };
+    }
+    static async withdrawLiquidity(args: { delegatorId: string, primaryAssetHash: string, secondaryAssetHash: string, primaryValue: string, secondaryValue: string }): Promise<BuilderResult> {
+        const primaryAsset = typeof args.primaryAssetHash == 'string' || typeof args.primaryAssetHash == 'number' ? new AssetId(args.primaryAssetHash) : null;
+        if (!primaryAsset || !primaryAsset.isValid())
+            throw new Error('Primary asset must be set');
+
+        const secondaryAsset = typeof args.secondaryAssetHash == 'string' || typeof args.secondaryAssetHash == 'number' ? new AssetId(args.secondaryAssetHash) : null;
+        if (!secondaryAsset || !secondaryAsset.isValid())
+            throw new Error('Secondary asset must be set');
+
+        const primaryValueFull = typeof args.primaryValue == 'string' && !args.primaryValue.length;
+        const primaryValue = typeof args.primaryValue == 'string' || typeof args.primaryValue == 'number' ? new BigNumber(args.primaryValue) : null;
+        if (!primaryValueFull && !primaryValue?.gte(0))
+            throw new Error('Primary value must be set');
+
+        const secondaryValueFull = typeof args.secondaryValue == 'string' && !args.secondaryValue.length;
+        const secondaryValue = typeof args.secondaryValue == 'string' || typeof args.secondaryValue == 'number' ? new BigNumber(args.secondaryValue) : null;
+        if (!secondaryValueFull && !secondaryValue?.gte(0))
+            throw new Error('Secondary value must be set');
+
+        if (!primaryValueFull && !primaryValue?.gt(0) && !secondaryValueFull && !secondaryValue?.gt(0))
+            throw new Error('Primary/secondary value must greater than zero');
+
+        const delegatorId = typeof args.delegatorId == 'string' || typeof args.delegatorId == 'number' ? new BigNumber(args.delegatorId) : null;
+        if (!delegatorId)
+            throw new Error('Market id must be set');
+
+        const delegator = Exchange.delegators.find((v) => v.id.eq(delegatorId));
+        if (!delegator || !delegator.account)
+            throw new Error('Delegator ' + delegatorId.toString() + ' account cannot be found');
+
+        const delegatorAccount = Signing.decodeAddress(delegator.account || '');
+        if (!delegatorAccount)
+            throw new Error('Delegator ' + delegatorId.toString() + ' account cannot be found');
+
+        let liquidityText = '';
+        if (primaryValue?.gte(0)) {
+          liquidityText += Readability.toMoney(primaryAsset, primaryValue);
+        } else if (primaryValueFull) {
+          liquidityText += '100% ' + Readability.toAssetSymbol(primaryAsset);
+        }
+        if (secondaryValue?.gte(0)) {
+          liquidityText += (liquidityText.length > 0 ? ' + ' : '') + Readability.toMoney(secondaryAsset, secondaryValue);
+        } else {
+          liquidityText += (liquidityText.length > 0 ? ' + ' : '') + '100% ' + Readability.toAssetSymbol(secondaryAsset);
+        }
+        return {
+            icon: mdiWater,
+            text: `Withdraw ${liquidityText} liquidity delegated to ${Readability.toAssetSymbol(primaryAsset)}/${Readability.toAssetSymbol(secondaryAsset)} LP`,
+            body: {
+              callable: delegatorAccount,
+              pays: [],
+              function: Readability.toFunction(Spot.DLP.withdrawLiquidity),
+              args: [primaryAsset.toUint256(), secondaryAsset.toUint256(), primaryValueFull ? new BigNumber(NaN) : primaryValue, secondaryValueFull ? new BigNumber(NaN) : secondaryValue]
             }
         };
     }
@@ -491,7 +602,6 @@ export class BuilderQueue {
 }
 
 export function PerformerButton(props: { title: string, description: string, disabled?: boolean, variant?: string, color?: string, style?: CSSProperties, onBuild: () => Promise<BuilderResult | BuilderResult[] | null> }) {
-  const [searchParams, setSearchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState(0);
   const navigate = useNavigate();
@@ -551,24 +661,21 @@ export function PerformerButton(props: { title: string, description: string, dis
         }, new Transactions.Call());
       }
 
-      navigate(`/interaction?type=approve&transaction=${stream.encode()}&back=${encodeURIComponent(location.pathname + location.search + (location.search.startsWith('?') ? (location.search.length > 1 ? '&' : '') : '?') + 'cleanup=1')}`);
+      navigate(`/interaction?type=approve&transaction=${stream.encode()}&back=${encodeURIComponent(location.pathname + location.search)}`);
     } catch (exception: any) {
       AlertBox.open(AlertType.Error, 'Serialization failed: ' + exception.message);
     }
   }, [loading, props.onBuild]);
   useEffect(() => {
+    if (AppData.mayResetBuilder) {
+      BuilderQueue.set([]);
+      AppData.mayResetBuilder = false;
+    }
+
     const updateState = () => setState(new Date().getTime());
     window.addEventListener('update:builder', updateState);
     return () => window.removeEventListener('update:builder', updateState);
   }, []);
-  useEffect(() => {
-    if (searchParams.has('cleanup')) {
-      const copy = new URLSearchParams(searchParams);
-      copy.delete('cleanup');
-      BuilderQueue.set([]);
-      setSearchParams(copy);
-    }
-  }, [searchParams]);
 
   return (
     <Tooltip content={props.description}>
@@ -577,9 +684,8 @@ export function PerformerButton(props: { title: string, description: string, dis
           <Dialog.Trigger disabled={props.disabled || loading}>
             <Flex style={props.style}>
               <Button style={{ flex: 1, width: '100%', borderTopRightRadius: 0, borderBottomRightRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any} disabled={props.disabled || loading} onClick={() => append()}>
-                { loading ? 'Building...' : props.title }
                 <Spinner loading={loading}>
-                  <Icon path={mdiArrowRight} size={0.75}></Icon>
+                  { props.title }
                 </Spinner>
               </Button>
               <Button style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any} disabled={props.disabled || loading}>
@@ -592,7 +698,7 @@ export function PerformerButton(props: { title: string, description: string, dis
             <Box key={state.toString()}>
               {
                 BuilderQueue.get().map((item, index) =>
-                  <Box px="2" py="2" position="relative" style={{ backgroundColor: item.recent ? 'var(--lime-a3)' : 'var(--color-panel)', borderRadius: '22px' }} mb={index == BuilderQueue.get().length - 1 ? undefined : '3'} key={item.result.text + index}>
+                  <Box px="2" py="2" position="relative" style={{ backgroundColor: item.recent ? 'var(--accent-a3)' : 'var(--color-panel)', borderRadius: '22px' }} mb={index == BuilderQueue.get().length - 1 ? undefined : '3'} key={item.result.text + index}>
                     <Flex gap="2">
                       <Flex px="4" py="4" justify="center">
                         <Icon path={item.result.icon} size={1.5}></Icon>
@@ -623,7 +729,7 @@ export function PerformerButton(props: { title: string, description: string, dis
                 Clear all <Icon path={mdiCancel} size={0.65}></Icon>
               </Button>
               <Dialog.Close>
-                <Button variant={props.variant as any || 'soft'} color="lime" onClick={() => BuilderQueue.get().length ? checkout() : undefined} disabled={!BuilderQueue.get().length}>
+                <Button variant={props.variant as any || 'soft'} onClick={() => BuilderQueue.get().length ? checkout() : undefined} disabled={!BuilderQueue.get().length}>
                   Checkout <Icon path={mdiArrowRight} size={0.65}></Icon>
                 </Button>
               </Dialog.Close>

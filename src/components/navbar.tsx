@@ -10,12 +10,13 @@ type Route = {
   name: string,
   tip: string,
   icon: string,
+  nested?: boolean,
   disabled?: (path: string) => boolean
 };
 
 const types: Route[] = [
   { path: ['/', '/explorer', '/block', '/transaction', '/account', '/program'], name: 'Hub', tip: 'Account & Blockchain', icon: mdiSquareRoundedBadgeOutline },
-  { path: ['/portfolio', '/orderbook'], name: 'Swap', tip: 'Trade & Analyze', icon: mdiRulerSquareCompass },
+  { path: ['/portfolio', '/orderbook'], name: 'Dex', tip: 'Trade & Analyze', icon: mdiRulerSquareCompass, nested: true },
   { path: ['/interaction', '/restore'], name: 'Pay', tip: 'Pay & Interact', icon: mdiContactlessPaymentCircleOutline, disabled: (path: string) => path.startsWith('/restore') && !AppData.isWalletReady() },
   { path: ['/configure', '/legal', '/app'], name: 'App', tip: 'Info & Settings', icon: mdiDotsCircle }
 ]
@@ -55,7 +56,7 @@ export function Navbar() {
     return types.map((item) => ({
       ...item,
       selected: item.path == selected,
-      inner: item.path == selected ? (typeof item.path == 'string' || (item.path[0] == '/' ? location.pathname != '/' : !location.pathname.startsWith(item.path[0]))) : false
+      inner: item.path == selected ? (typeof item.path == 'string' || (item.path[0] == '/' ? location.pathname != '/' : !(item.nested ? item.path[0].startsWith(location.pathname) : location.pathname.startsWith(item.path[0])))) : false
     }));
   }, [location.pathname]);
 
@@ -79,7 +80,7 @@ export function Navbar() {
                 routes.map((item) =>
                   <Box key={typeof item.path == 'string' ? item.path : item.path[0]}>
                     <Tooltip content={item.tip}>
-                      <Button size="3" variant="outline" style={{ boxShadow: item.inner ? undefined : 'none', backgroundColor: item.selected && !item.inner ? 'var(--lime-a3)' : undefined, height: 'auto' }} color="lime" disabled={item.disabled ? item.disabled(location.pathname) : false} onClick={() => {
+                      <Button size="3" variant="outline" style={{ boxShadow: item.inner ? undefined : 'none', backgroundColor: item.selected && !item.inner ? 'var(--accent-a3)' : undefined, height: 'auto' }} disabled={item.disabled ? item.disabled(location.pathname) : false} onClick={() => {
                         if (!item.selected || item.inner) {
                           navigate(typeof item.path == 'string' ? item.path : item.path[0]);
                         }

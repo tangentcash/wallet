@@ -2,8 +2,8 @@ import { Box, Flex, IconButton, Text } from "@radix-ui/themes";
 import { AppData } from "../core/app";
 import { mdiDownload, mdiEmail } from "@mdi/js";
 import { CSSProperties } from "react";
-import Icon from "@mdi/react";
 import { Link } from "react-router";
+import Icon from "@mdi/react";
 
 export default function License(props: { style?: CSSProperties, app?: boolean }) {
   return (   
@@ -32,14 +32,14 @@ export default function License(props: { style?: CSSProperties, app?: boolean })
         {
           props.app &&
           <Link to="/app">
-            <IconButton variant="solid" color="lime" size="3" style={{ width: '38px', height: '38px' }}>
+            <IconButton variant="solid" size="3" style={{ width: '38px', height: '38px' }}>
               <Icon path={mdiDownload} size={0.975}></Icon>
             </IconButton>
           </Link>
         }
       </Flex>
       <Flex justify="center" mt="7">
-        <Text size="2" color="lime">Tangent Cash { new Date().getFullYear() } / MIT License</Text>
+        <Text size="2" style={{ color: 'var(--accent-11)' }}>Tangent Cash { new Date().getFullYear() } / MIT License</Text>
       </Flex>
     </Box>
   )

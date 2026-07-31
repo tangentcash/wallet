@@ -1,4 +1,4 @@
-import { mdiAlertCircleOutline, mdiCancel, mdiCodeJson, mdiMinus, mdiPlus, mdiProfessionalHexagon, mdiShovel, mdiTimelapse } from "@mdi/js";
+import { mdiAlertCircleOutline, mdiCodeJson, mdiMinus, mdiPlus, mdiProfessionalHexagon, mdiShovel, mdiTimelapse } from "@mdi/js";
 import { Box, Button, Callout, Checkbox, DropdownMenu, Flex, Heading, IconButton, Progress, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
@@ -141,6 +141,7 @@ export default function InteractionPage() {
   const [paidGas, setPaidGas] = useState(false);
   const [gasPrice, setGasPrice] = useState('');
   const [gasLimit, setGasLimit] = useState('');
+  const [simulationError, setSimulationError] = useState('');
   const [loadingTransaction, setLoadingTransaction] = useState(false);
   const [loadingGasPriceAndPrice, setLoadingGasPriceAndPrice] = useState(false);
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
@@ -236,36 +237,41 @@ export default function InteractionPage() {
     }
     return new BigNumber(0);
   }, [assets, asset, program]);
-  const programReady = useMemo((): boolean => {
+  const programError = useMemo((): string | null => {
     if (asset == -1)
-      return false;
+      return 'Select paying asset';
 
     if (program instanceof ProgramTransfer) {
       for (let i = 0; i < program.to.length; i++) {
         const payment = program.to[i];
         if (payment.address.trim() == ownerAddress)
-          return false;
+          return `Payment ${i + 1}: paying to yourself`;
   
         const publicKeyHash = Signing.decodeAddress(payment.address.trim());
         if (!publicKeyHash || publicKeyHash.data.length != 20)
-          return false;
+          return `Payment ${i + 1}: not a valid address`;
 
         try {
           const numeric = new BigNumber(payment.value.trim());
           if (numeric.isNaN() || !numeric.isPositive())
-            return false;
+            throw false;
         } catch {
-          return false;
+            return `Payment ${i + 1}: not a valid value`;
         }
       }
   
-      return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
+      if (!sendingValue.gt(0))
+        return 'Spending too little';
+      else if (sendingValue.gt(assets[asset].balance))
+        return 'Spending too much';
+
+      return null;
     } else if (program instanceof ProgramSetup) {
       const migrationReservations = new Set<string>();
       for (let i = 0; i < program.migrations.length; i++) {
         const migration = program.migrations[i];
         if (!migration.broadcastHash || !migration.participant)
-          return false;
+          return `Migration ${i + 1} invalid broadcast hash and/or participant address`;
 
         try {
           const hash = new Uint256(migration.broadcastHash);
@@ -278,7 +284,7 @@ export default function InteractionPage() {
 
           migrationReservations.add(id);
         } catch {
-          return false;
+          return `Migration ${i + 1} invalid broadcast hash`;
         }
 
         try {
@@ -286,7 +292,7 @@ export default function InteractionPage() {
           if (!participant)
             throw false;
         } catch {
-          return false;
+          return `Migration ${i + 1} invalid participant address`;
         }
       }
 
@@ -298,15 +304,15 @@ export default function InteractionPage() {
           
           const numeric = new BigNumber(item.stake.trim());
           if (numeric.isNaN())
-            return false;
+            return `Attestation ${i + 1} invalid stake value`;
           
           if (item.minFee.length > 0) {
             const numeric = new BigNumber(item.minFee.trim());
             if (numeric.isNaN() || numeric.isNegative())
-              return false;
+              return `Attestation ${i + 1} invalid min fee value`;
           }
         } catch {
-          return false;
+            return `Attestation ${i + 1} invalid stake and/or min fee value`;
         }
       }
 
@@ -314,17 +320,14 @@ export default function InteractionPage() {
         let item = program.bridges[i];
         try {
           let numeric = new BigNumber(item.securityLevel.trim());
-          if (numeric.isNaN() || numeric.isNegative() || numeric.integerValue().toString() != numeric.toString())
-            return false;
-
-          if (numeric.lt(Chain.policy.PARTICIPATION_COMMITTEE[0]) || numeric.gt(Chain.policy.PARTICIPATION_COMMITTEE[1]))
-            return false;
+          if (numeric.isNaN() || numeric.isNegative() || numeric.integerValue().toString() != numeric.toString() || numeric.lt(Chain.policy.PARTICIPATION_COMMITTEE[0]) || numeric.gt(Chain.policy.PARTICIPATION_COMMITTEE[1]))
+            return `Bridge ${i + 1} invalid security level`;
 
           numeric = new BigNumber(item.feeRate.trim());
           if (numeric.isNaN() || numeric.lte(0))
-            return false;
+            return `Bridge ${i + 1} invalid fee rate`;
         } catch {
-          return false;
+            return `Bridge ${i + 1} invalid security level and/or fee rate`;
         }
       }
 
@@ -332,9 +335,9 @@ export default function InteractionPage() {
         try {
           const numeric = new BigNumber(program.blockProductionStake.trim());
           if (!numeric.gte(0))
-            return false;
+            throw false;
         } catch {
-          return false;
+            return `Invalid block production stake value`;
         }
       }
 
@@ -342,96 +345,123 @@ export default function InteractionPage() {
         try {
           const numeric = new BigNumber(program.bridgeParticipationStake.trim());
           if (!numeric.gte(0))
-            return false;
+            throw false;
         } catch {
-          return false;
+            return `Invalid bridge participation stake value`;
         }
       }
 
-      return program.blockProduction != 'standby' || program.bridgeParticipation != 'standby' || program.attestations.length > 0 || program.bridges.length > 0 || program.migrations.length > 0;
+      if (program.blockProduction == 'standby' && program.bridgeParticipation == 'standby' && !program.attestations.length && !program.bridges.length && !program.migrations.length)
+        return 'Setup transaction is empty';
+
+      return null;
     } else if (program instanceof ProgramRoute) {
       const routing = program.routing.find((item) => item.chain == assets[asset].asset.chain);
       if (routing?.policy == 'account' && !program.routingAddress.length)
-        return false;
+        return 'Type in the sender address';
 
       if (params.vault == null)
-        return false;
+        return 'URL must include a vault hash';
   
-      return true;
+      return null;
     } else if (program instanceof ProgramWithdraw) {
-      if (program.address.trim() == ownerAddress)
-        return false;
+      const child = assets[asset];
+      try {
+        if (program.address.trim() == ownerAddress)
+          throw false;
 
-      const publicKeyHash = Signing.decodeAddress(program.address.trim());
-      if (publicKeyHash != null || !program.address.length)
-        return false;
+        const publicKeyHash = Signing.decodeAddress(program.address.trim());
+        if (publicKeyHash != null || !program.address.length)
+          throw false;
+      } catch {
+        return `Type in the ${Readability.toAssetName(AssetId.fromHandle(child.asset.chain))} address to withdraw to`;
+      }
 
       try {
         const numeric = new BigNumber(program.value.trim());
         if (numeric.isNaN() || !numeric.isPositive())
-          return false;
+          throw false;
       } catch {
-        return false;
+        return `Type in the valid ${Readability.toAssetSymbol(child.asset)} amount to withdraw`;
       }
       
       if (params.vault == null)
-        return false;
-  
-      const child = assets[asset];
+        return 'URL must include a vault hash';
+
+      if (!sendingValue.gt(0))
+        return `Withdrawing too little of ${Readability.toAssetSymbol(child.asset)}`;
+      else if (sendingValue.gt(assets[asset].balance))
+        return `Withdrawing too much ${Readability.toAssetSymbol(child.asset)}`;
+ 
       if (child.asset.token != null && program.fee != null) {
+        const base = AssetId.fromHandle(child.asset.chain);
         const parent = assets.find(x => x.asset.chain == child.asset.chain && x.asset.token == null);
-        if (!parent || parent.balance.lt(BigNumber.max(0, program.fee))) {
-          return false;
-        }
+        if (!parent || parent.balance.lt(BigNumber.max(0, program.fee)))
+          return `Not enough ${Readability.toAssetSymbol(base)} in your account: ${Readability.toMoney(base, program.fee)} required`
       }
 
-      return sendingValue.gt(0) && sendingValue.lte(assets[asset].balance);
+      return null;
     } else if (program instanceof ProgramAnticast) {
       try {
         const hash = new Uint256(program.broadcastHash);
         if (!hash.gt(0))
           throw false;
 
-        return true;
+        return null;
       } catch {
-        return false;
+        return 'Invalid broadcash hash';
       }
     } else if (program instanceof ApproveTransaction) {
-      return program.hexMessage != null && program.transaction != null;
+      if (!program.hexMessage)
+        return 'Specify the transaction hex: use browse button';
+
+      if (!program.transaction)
+        return 'Invalid transaction data';
+      
+      return null;
     }
-    return false;
+    return 'Unknown transaction type';
   }, [asset, gasPrice, gasLimit, assets, program]);
-  const transactionReady = useMemo((): boolean => {
-    if (!programReady)
-      return false;
+  const transactionError = useMemo((): string | null => {
+    if (programError)
+      return programError;
 
     try {
       const numeric = new BigNumber(gasPrice.trim());
       if (numeric.isNaN() || !numeric.gte(0))
-        return false;
+        throw false;
 
       if (paidGas && !numeric.gt(0))
-        return false;
+        return 'Required to pay for gas: specify the gas price (pro)';
     } catch {
-      return false;
+      return '"Review action" to set gas price/limit';
     }
     
     try {
       const numeric = new BigNumber(gasLimit.trim());
       if (numeric.isNaN() || !numeric.gt(0) || !numeric.isInteger())
-        return false;
+        throw false;
     } catch {
-      return false;
+      return 'Invalid gas limit';
     }
 
     const payAsset = assets[asset];
     if (payAsset.asset.id != (gasAsset ? gasAsset.id : null)) {
       const gasAssetBalance = (gasAsset ? assets.find((v) => v.asset.id == gasAsset.id)?.balance : null) || new BigNumber(0);
-      return maxFeeValue.lte(gasAssetBalance) && sendingValue.lte(payAsset.balance);
+      if (maxFeeValue.gt(gasAssetBalance))
+        return `Not enough balance to pay for gas: ${Readability.toMoney(gasAsset, maxFeeValue)} required`;
+      else if (sendingValue.gt(payAsset.balance))
+        return `Not enough balance to spend: ${Readability.toMoney(gasAsset, payAsset.balance)} required`;
+      return null;
     } else {
-      return maxFeeValue.plus(sendingValue).lte(payAsset.balance);
+      const totalValue = maxFeeValue.plus(sendingValue);
+      if (maxFeeValue.gt(payAsset.balance))
+        return `Not enough balance to pay for gas: ${Readability.toMoney(gasAsset, maxFeeValue)} required`;
+      else if (totalValue.gt(payAsset.balance))
+        return `Not enough balance to spend: ${Readability.toMoney(gasAsset, totalValue)} required`;
+      return null;
     }
-  }, [programReady, paidGas, gasPrice, gasLimit, gasAsset, maxFeeValue, sendingValue]);
+  }, [programError, paidGas, gasPrice, gasLimit, gasAsset, maxFeeValue, sendingValue]);
   const readOnlyApproval = useMemo((): boolean => {
     return program != null && program instanceof ApproveTransaction && params.transaction != null;
   }, [program]);
@@ -463,7 +493,7 @@ export default function InteractionPage() {
     }
   }, [assets, asset, program]);
   const buildTransaction = useCallback(async (options?: { prebuilt?: TransactionOutput, gasPrice?: BigNumber, gasLimit?: BigNumber }): Promise<TransactionOutput | null> => {
-    if (!programReady || loadingTransaction)
+    if (programError || loadingTransaction)
       return null;
     
     setLoadingTransaction(true);
@@ -576,79 +606,61 @@ export default function InteractionPage() {
       setLoadingTransaction(false);
       return null;
     }
-  }, [programReady, loadingTransaction, assets, asset, nonce, gasPrice, gasLimit, program]);
+  }, [programError, loadingTransaction, assets, asset, nonce, gasPrice, gasLimit, program]);
   const calculateTransactionGas = useCallback(async (percentile: number) => {
-    if (!programReady || loadingGasPriceAndPrice)
+    if (programError || loadingGasPriceAndPrice)
       return false;
-
+    
     let presetGasPrice = new BigNumber(-1);
-    if (gasPrice.length > 0) {
-      try {
-        const numeric = new BigNumber(gasPrice.trim());
-        if (!numeric.isNaN() && numeric.gte(0))
-          presetGasPrice = numeric;
-      } catch { }
-    }
-
     let presetGasLimit = new BigNumber(-1);
-    if (gasLimit.length > 0) {
-      try {
-        const numeric = new BigNumber(gasLimit.trim());
-        if (!numeric.isNaN() && numeric.gte(0))
-          presetGasLimit = numeric;
-      } catch { }
-    }
+    setLoadingGasPriceAndPrice(true);
+    setSimulationError('');
+    try {
+      const gas = await RPC.getGasPrice(new AssetId(assets[asset].asset.id), percentile);
+      if (!gas)
+        throw false;
+      
+      setPaidGas(gas.paid);
+      if (gas.paid && !gas.price.gt(0)) {
+        gas.price = new BigNumber(Chain.policy.MIN_GAS_PRICE);
+      }
 
-    const loadingRequired = presetGasPrice.eq(-1) || presetGasLimit.eq(-1);
-    setLoadingGasPriceAndPrice(loadingRequired);
-    if (presetGasPrice.eq(-1)) {
-      try {
-        const gas = await RPC.getGasPrice(new AssetId(assets[asset].asset.id), percentile);
-        if (!gas)
-          throw false;
-        
-        setPaidGas(gas.paid);
-        if (gas.paid && !gas.price.gt(0)) {
-          gas.price = new BigNumber(Chain.policy.MIN_GAS_PRICE);
-        }
+      presetGasPrice = gas.price;
+      presetGasPrice = presetGasPrice != null && BigNumber.isBigNumber(presetGasPrice) && presetGasPrice.gte(0) ? presetGasPrice : new BigNumber(0);
+    } catch { }
+    
+    try {
+      let output = await buildTransaction({ gasPrice: presetGasPrice });
+      if (!output)
+        throw new Error('cannot build transaction');
 
-        presetGasPrice = gas.price;
-        presetGasPrice = presetGasPrice != null && BigNumber.isBigNumber(presetGasPrice) && presetGasPrice.gte(0) ? presetGasPrice : new BigNumber(0);
-      } catch { }
-    }
-
-    if (presetGasLimit.eq(-1)) {
-      try {
-        let output = await buildTransaction({ gasPrice: presetGasPrice });
+      if (!presetGasPrice.gt(0) && output.data.length / 2 > Chain.policy.ZERO_GAS_PRICE_SIZE_LIMIT) {
+        presetGasPrice = new BigNumber(Chain.policy.MIN_GAS_PRICE);
+        output = await buildTransaction({ gasPrice: presetGasPrice });
         if (!output)
           throw new Error('cannot build transaction');
-
-        if (!presetGasPrice.gt(0) && output.data.length / 2 > Chain.policy.ZERO_GAS_PRICE_SIZE_LIMIT) {
-          presetGasPrice = new BigNumber(Chain.policy.MIN_GAS_PRICE);
-          output = await buildTransaction({ gasPrice: presetGasPrice });
-          if (!output)
-            throw new Error('cannot build transaction');
-        }
-
-        let receipt = await RPC.simulateTransaction(output.data);
-        presetGasLimit = receipt ? typeof receipt.relative_gas_use == 'string' ? new BigNumber(receipt.relative_gas_use, 16) : (BigNumber.isBigNumber(receipt.relative_gas_use) ? receipt.relative_gas_use : new BigNumber(-1)) : new BigNumber(-1);
-        if (presetGasLimit.lt(0)) {
-          AlertBox.open(AlertType.Error, 'Failed to fetch transaction gas limit');
-        } else if (receipt != null && receipt.events != null) {
-          let transaction: any = null;
-          try {
-            const preview = await RPC.decodeTransaction(output.data);
-            transaction = preview.transaction || null;
-          } catch (exception) {
-            AlertBox.open(AlertType.Error, 'Failed to decode transaction: ' + (exception as Error).message);
-          }
-          setSimulation({ transaction: transaction, receipt: receipt, state: EventResolver.calculateSummaryState(receipt.events) });
-        }
-      } catch (exception) {
-        const message = (exception as Error).message;
-        const stacktrace = message.match(/\n  #\d+ at \S+:\d+:\d+ in /);
-        AlertBox.open(AlertType.Error, 'Simulation failed: ' + (typeof stacktrace?.index == 'number' && stacktrace.index > 0 ? message.substring(0, stacktrace.index) : message));
       }
+
+      let receipt = await RPC.simulateTransaction(output.data);
+      presetGasLimit = receipt ? typeof receipt.relative_gas_use == 'string' ? new BigNumber(receipt.relative_gas_use, 16) : (BigNumber.isBigNumber(receipt.relative_gas_use) ? receipt.relative_gas_use : new BigNumber(-1)) : new BigNumber(-1);
+      if (presetGasLimit.lt(0)) {
+        AlertBox.open(AlertType.Error, 'Failed to fetch transaction gas limit');
+      } else if (receipt != null && receipt.events != null) {
+        let transaction: any = null;
+        try {
+          const preview = await RPC.decodeTransaction(output.data);
+          transaction = preview.transaction || null;
+        } catch (exception) {
+          AlertBox.open(AlertType.Error, 'Failed to decode transaction: ' + (exception as Error).message);
+        }
+        setSimulation({ transaction: transaction, receipt: receipt, state: EventResolver.calculateSummaryState(receipt.events) });
+      }
+    } catch (exception) {
+      const message = (exception as Error).message;
+      const stacktrace = message.match(/\n  #\d+ at \S+:\d+:\d+ in /);
+      const fullErrorMessage = (typeof stacktrace?.index == 'number' && stacktrace.index > 0 ? message.substring(0, stacktrace.index) : message);
+      AlertBox.open(AlertType.Error, 'Simulation failed: ' + fullErrorMessage);
+      setSimulationError(fullErrorMessage[0].toUpperCase() + fullErrorMessage.substring(1));
     }
     
     try {
@@ -662,10 +674,9 @@ export default function InteractionPage() {
     
     setGasPrice(presetGasPrice.gte(0) ? ByteUtil.bigNumberToString(presetGasPrice) : '');
     setGasLimit(presetGasLimit.gte(0) ? ByteUtil.bigNumberToString(presetGasLimit) : '');
-    if (loadingRequired)
-      setLoadingGasPriceAndPrice(false);
+    setLoadingGasPriceAndPrice(false);
     return true;
-  }, [loadingGasPriceAndPrice, programReady, transactionReady, loadingTransaction, gasPrice, gasLimit, nonce, assets, asset, program, buildTransaction]);
+  }, [loadingGasPriceAndPrice, programError, transactionError, loadingTransaction, nonce, assets, asset, program, buildTransaction]);
   const submitTransaction = useCallback(async () => {
     if (loadingTransaction)
       return false;
@@ -681,11 +692,14 @@ export default function InteractionPage() {
       const hash = await RPC.submitTransaction(output.data);
       if (hash != null) {
         AlertBox.open(AlertType.Info, 'Transaction ' + hash + ' sent!');
+        AppData.mayResetBuilder = true;
         if (AppData.approveTransaction) {
           AppData.approveTransaction({ hash: new Uint256(hash), message: ByteUtil.hexStringToUint8Array(output.data), signature: output.body.signature });
         }
+
         setNonce(null);
         setSimulation(null);
+        setSimulationError('');
         setGasPrice('');
         setGasLimit('');
         setTransactionData(null);
@@ -702,7 +716,7 @@ export default function InteractionPage() {
     }
     setLoadingTransaction(false);
     return true;
-  }, [loadingTransaction, transactionReady, loadingTransaction, nonce, assets, asset, program, buildTransaction]);
+  }, [loadingTransaction, transactionError, loadingTransaction, nonce, assets, asset, program, buildTransaction]);
   const decodeApprovableTransaction = useCallback(async (data: string, applyOnlyIfSuccessful: boolean): Promise<void> => {
     const result = new ApproveTransaction();
     result.hexMessage = data;
@@ -797,8 +811,14 @@ export default function InteractionPage() {
         assetIndex = assetData.findIndex((item) => item.asset.chain == initial.asset.chain);
       }
 
-      setAssets(assetData.map(x => ({ ...x, contractAddress: Whitelist.contractAddressOf(x.asset) })));
-      setAsset(assetIndex);
+      const next = assetData.map(x => ({ ...x, contractAddress: Whitelist.contractAddressOf(x.asset) }));
+      setAssets(prev => {
+        const prevAsset = assetIndex < prev.length ? prev[assetIndex] : null, nextAsset = next[assetIndex];
+        if (!prevAsset || prevAsset.asset?.id != nextAsset.asset?.id) {
+          setAsset(assetIndex);
+        }
+        return next;
+      });
     } catch { }
   }, [query]);
   useEffect(() => {
@@ -822,13 +842,13 @@ export default function InteractionPage() {
       </Box>
       <Box className="rt-Card" style={mobile ? { border: 'none' } : {
         backgroundColor: 'var(--color-panel)',
-        borderRadius: '24px',
-        padding: '12px 16px'
+        borderRadius: '28px',
+        padding: '16px'
       }}>
         <Flex justify="between" align="center" mb="2" px="1">
           <Heading size="4">From account</Heading>
           <Flex gap="2" align="center">
-            <Button variant="ghost" size="3" color={proMode ? 'lime' : 'gray'} onClick={() => setProMode(!proMode)}>
+            <Button variant="ghost" size="3" color={proMode ? undefined : 'gray'} onClick={() => setProMode(!proMode)}>
               <Icon path={mdiProfessionalHexagon} size={0.9}></Icon>
             </Button>
             <DropdownMenu.Root>
@@ -927,8 +947,8 @@ export default function InteractionPage() {
                   </Tooltip>
                 </Box>
                 {
-                  programReady &&
-                  <Button size="3" variant="outline" color="gray" disabled={!programReady}>
+                  !programError &&
+                  <Button size="3" variant="outline" color="gray">
                     <Link className="router-link" to={'/account/' + item.address}>▒▒</Link>
                   </Button>
                 }
@@ -947,7 +967,7 @@ export default function InteractionPage() {
                   omniTransaction &&
                   <Flex justify="between" gap="1">
                     <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
-                    <IconButton variant="soft" size="3" color={index != 0 ? 'red' : 'lime'} disabled={!omniTransaction && index == 0} onClick={() => {
+                    <IconButton variant="soft" size="3" color={index != 0 ? 'red' : undefined} disabled={!omniTransaction && index == 0} onClick={() => {
                       const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                       if (index == 0) {
                         copy.to.push({ address: '', derivation: null, value: '' });
@@ -982,7 +1002,7 @@ export default function InteractionPage() {
               <Select.Content color="gray">
                 <Select.Item value="standby">Block production unchanged</Select.Item>
                 <Select.Item value="enable">
-                  <Text color="lime">ENABLE</Text> block production
+                  <Text style={{ color: 'var(--lime-11)' }}>ENABLE</Text> block production
                 </Select.Item>
                 <Select.Item value="disable">
                   <Text color="red">DISABLE</Text> block production
@@ -1013,7 +1033,7 @@ export default function InteractionPage() {
                 <Select.Content color="gray">
                   <Select.Item value="standby">Vault participation unchanged</Select.Item>
                   <Select.Item value="enable">
-                    <Text color="lime">ENABLE</Text> vault participation
+                    <Text style={{ color: 'var(--accent-11)' }}>ENABLE</Text> vault participation
                   </Select.Item>
                   <Select.Item value="disable">
                     <Text color="red">DISABLE</Text> vault participation
@@ -1074,7 +1094,7 @@ export default function InteractionPage() {
                           setProgram(copy);
                         }}>Cancel changes</Button>
                         <Tooltip content="Unlock stake">
-                          <Text as="label" size="2" color={item.stake != null ? 'lime' : 'red'}>
+                          <Text as="label" size="2" style={{ color: item.stake != null ? 'var(--accent-11)' : 'var(--red-11)' }}>
                             <Flex gap="2" justify="end">
                               <Checkbox size="3" checked={item.stake == null} onCheckedChange={(value) => {
                                 const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
@@ -1234,7 +1254,7 @@ export default function InteractionPage() {
                           }} />
                         </Tooltip>
                       </Box>
-                      <IconButton variant="soft" size="3" color="lime" onClick={() => {
+                      <IconButton variant="soft" size="3" onClick={() => {
                         const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                         copy.migrations.splice(index, 1);
                         setProgram(copy);
@@ -1263,7 +1283,7 @@ export default function InteractionPage() {
           asset != -1 && program instanceof ProgramRoute &&
           <Box mt="4" width="100%">
             <Tooltip content={'Register ' + assets[asset].asset.chain + ' wallet address that you own to ' + (program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'deposit assets from or ' : '') + 'withdraw assets to'}>
-              <TextField.Root size="3" placeholder={(program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'Sender ' : 'Your opt. ') + assets[asset].asset.chain + " address"} type="text" value={program.routingAddress} onChange={(e) => {
+              <TextField.Root size="3" placeholder={assets[asset].asset.chain + (program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? ' sender address' : 'address (opt., yours)')} type="text" value={program.routingAddress} onChange={(e) => {
                 const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                 copy.routingAddress = e.target.value;
                 setProgram(copy);
@@ -1317,9 +1337,15 @@ export default function InteractionPage() {
         {
           proMode &&
           <Box mt="5">
-            <Box px="1">
-              <Heading size="4" mb="2">Priority & cost</Heading>
-            </Box>
+            <Flex px="1" align="center" justify="between" gap="2" mb="2">
+              <Heading size="4">Advanced mode</Heading>
+              <IconButton variant="soft" color="indigo" size="2" onClick={() => {
+                navigator.clipboard.writeText(JSON.stringify(toSimpleTransaction(transactionData), null, 4));
+                AlertBox.open(AlertType.Info, 'Transaction JSON data copied!')
+              }}>
+                <Icon path={mdiCodeJson} size={1}></Icon>
+              </IconButton>
+            </Flex>
             <Tooltip content="Higher gas price increases transaction priority">
               <TextField.Root mt="3" mb="3" size="3" placeholder={"Custom gas price " + Readability.toAssetSymbol(gasAsset || new AssetId())} type="number" disabled={loadingGasPriceAndPrice} value={gasPrice} onChange={(e) => setGasPrice(e.target.value)} />
             </Tooltip>
@@ -1337,17 +1363,17 @@ export default function InteractionPage() {
               </Box>
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger>
-                  <Button size="3" variant="outline" color="gray" style={{ outlineColor: 'red' }} disabled={!programReady || loadingTransaction || loadingGasPriceAndPrice} loading={loadingGasPriceAndPrice}>
+                  <Button size="3" variant="outline" color="gray" style={{ outlineColor: 'red' }} disabled={!!programError || loadingTransaction || loadingGasPriceAndPrice} loading={loadingGasPriceAndPrice}>
                     Auto
                     <DropdownMenu.TriggerIcon />
                   </Button>
                 </DropdownMenu.Trigger>
                 <DropdownMenu.Content>
-                  <DropdownMenu.Item disabled={!programReady || loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.95)} shortcut="> 95%">Fastest</DropdownMenu.Item>
-                  <DropdownMenu.Item disabled={!programReady || loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.75)} shortcut="> 75%">Fast</DropdownMenu.Item>
-                  <DropdownMenu.Item disabled={!programReady || loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.50)} shortcut="> 50%">Medium</DropdownMenu.Item>
-                  <DropdownMenu.Item disabled={!programReady || loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.25)} shortcut="> 25%">Slow</DropdownMenu.Item>
-                  <DropdownMenu.Item disabled={!programReady || loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.10)} shortcut="> 10%">Slowest</DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={!!programError || loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.95)} shortcut="> 95%">Fastest</DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={!!programError || loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.75)} shortcut="> 75%">Fast</DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={!!programError || loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.50)} shortcut="> 50%">Medium</DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={!!programError || loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.25)} shortcut="> 25%">Slow</DropdownMenu.Item>
+                  <DropdownMenu.Item disabled={!!programError || loadingTransaction || loadingGasPriceAndPrice} onClick={() => calculateTransactionGas(0.10)} shortcut="> 10%">Slowest</DropdownMenu.Item>
                 </DropdownMenu.Content>
               </DropdownMenu.Root>
             </Flex>
@@ -1408,24 +1434,25 @@ export default function InteractionPage() {
         </Box>
       }
       {
-        programReady &&
-        <Flex direction="column" align="center" gap="2" mt="6">
-          <Button variant="surface" size="4" color="lime" className="shadow-rainbow-animation" loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => transactionReady ? submitTransaction() : calculateTransactionGas(0.60)}>{transactionReady ? 'Submit' : 'Review'} action</Button>
-          <Flex gap="3" mt="4">
-            <IconButton variant="soft" color="indigo" size="3" onClick={() => {
-              navigator.clipboard.writeText(JSON.stringify(toSimpleTransaction(transactionData), null, 4));
-              AlertBox.open(AlertType.Info, 'JSON data copied!')
-            }}>
-              <Icon path={mdiCodeJson} size={1}></Icon>
-            </IconButton>
-            <IconButton variant="soft" color="brown" size="3" disabled={!transactionReady} onClick={() => {
+        !programError &&
+        <Flex direction="column" justify="center" align="center" gap="4" mt="8">
+          <Button variant="surface" size="4" className={simulationError ? undefined : 'shadow-rainbow-animation'} loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => transactionError ? calculateTransactionGas(0.60) : submitTransaction()}>{transactionError ? (simulationError ? 'Retry' : 'Review') : 'Submit'} action</Button>   
+          {
+            !transactionError &&
+            <Button variant="ghost" color="gray" size="1" onClick={() => {
               setSimulation(null);
+              setSimulationError('');
+              setGasPrice('');
               setGasLimit('');
               AlertBox.open(AlertType.Info, 'Back to review!')
-            }}>
-              <Icon path={mdiCancel} size={1}></Icon>
-            </IconButton>
-          </Flex>
+            }}>Back to review</Button>
+          }
+        </Flex>
+      }
+      {
+        (programError || transactionError || simulationError) &&
+        <Flex justify="center" mt="6">
+          <Text color="gray" size="1">{ programError || simulationError || transactionError }</Text>
         </Flex>
       }
     </Box>

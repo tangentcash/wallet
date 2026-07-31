@@ -1,19 +1,22 @@
-import { Badge, Box, Button, Card, DataList, Dialog, Flex, Select, Text, Tooltip } from "@radix-ui/themes";
-import { AssetId, ByteUtil, Readability } from "tangentsdk";
-import { Pool, Exchange, Balance } from "../../core/exchange";
+import { Badge, Box, Button, Card, DataList, Dialog, Flex, SegmentedControl, Select, Slider, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { AssetId, ByteUtil, Chain, LiquidityPool, Readability, TextUtil } from "tangentsdk";
+import { Pool, Exchange, Balance, PseudoDelegatedPool, DelegatedPool } from "../../core/exchange";
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { AlertBox, AlertType } from "../alert";
-import { mdiArrowRight, mdiClose, mdiScaleBalance, mdiScaleUnbalanced } from "@mdi/js";
+import { mdiArrowRight, mdiClose, mdiCurrencyUsd, mdiScaleBalance, mdiScaleUnbalanced } from "@mdi/js";
 import { AssetImage } from "../asset";
 import { PerformerButton, Builder, BuilderResult } from "./performer";
-import { defaultMakerState, LiquidityPool } from "./maker";
-import * as Collapsible from "@radix-ui/react-collapsible";
-import Icon from "@mdi/react";
-import BigNumber from "bignumber.js";
+import { defaultMakerState } from "./maker";
 import { AppData } from "../../core/app";
 import { AppStorage } from "../../core/storage";
 import { pathOfMaker } from "../../pages/exchange/orderbook";
+import { useEffectAsync } from "../../core/react";
+import * as Collapsible from "@radix-ui/react-collapsible";
+import Icon from "@mdi/react";
+import BigNumber from "bignumber.js";
+
+const DLP_DEFAULT_FEE_RATE_MAYBE = 0.0005;
 
 function toRateColor(value: number) {
   const clampedValue = Math.max(0, Math.min(100, value));
@@ -24,7 +27,7 @@ function toRateColor(value: number) {
   return colorPalette[index % colorPalette.length];
 }
 
-export default function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, readOnly?: boolean }) {
+export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, readOnly?: boolean }) {
   const item = props.item;
   const concentrated = item.minPrice?.gt(0) && item.maxPrice?.gt(0);
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
@@ -39,15 +42,13 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
     const primaryPrice = Exchange.priceOf(item.primaryAsset), secondaryPrice = Exchange.priceOf(item.secondaryAsset);
     const isolatedLiquidity = item.primaryValue.multipliedBy(primaryPrice.close || new BigNumber(0)).plus(item.secondaryValue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
     const revenueLiquidity = item.primaryRevenue.multipliedBy(primaryPrice.close || new BigNumber(0)).plus(item.secondaryRevenue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
-    let staleness = 0;
+    let staleness: { score: number, dev: number } | null = null;
     if (item.active && item.price) {
       const marketPrice = Exchange.priceOf(item.primaryAsset, item.secondaryAsset);
-      if (marketPrice.close != null && (!item.minPrice || item.minPrice.lte(marketPrice.close)) && (!item.maxPrice || item.maxPrice.gte(marketPrice.close))) {
-        const marketDelta = marketPrice.close.minus(item.price).dividedBy(item.price).abs();
-        staleness = marketDelta.dividedBy(item.feeRate.plus(0.01)).toNumber();
-      } else {
-        staleness = marketPrice.close ? 1 : 0;
-      }
+      const deviation = marketPrice.close != null && (!item.minPrice || item.minPrice.lte(marketPrice.close)) && (!item.maxPrice || item.maxPrice.gte(marketPrice.close));
+      const delta = deviation ? (marketPrice as any).close.minus(item.price).dividedBy(item.price).abs().toNumber() : (marketPrice.close ? 1 : 0);
+      const score = 100 * delta / item.feeRate.plus(0.01).toNumber();
+      staleness = { score: score, dev: delta };
     }
     return {
       absoluteRevenue: revenueLiquidity,
@@ -56,6 +57,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
       staleness: staleness
     }
   }, [item]);
+  const revenue = useMemo(() => Exchange.toAPY(item.feeRate, state.liquidity, item.volume), [item.feeRate, state.liquidity, item.volume]);
   const rebalance = useCallback(async (cross: boolean): Promise<BuilderResult[]> => {
     const price = Exchange.priceOf(item.primaryAsset, item.secondaryAsset).close;
     if (!price)
@@ -153,13 +155,14 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
             </Flex>
           </Flex>
           <Flex justify="between" align="center">
-            <Flex align="center" gap="2" pt="1">
-              <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ Exchange.toFeeBasedAPY(item.primaryRevenue.multipliedBy(item.price).plus(item.secondaryRevenue), item.primaryValue.multipliedBy(item.price).plus(item.secondaryValue)).toFixed(2) }% APY</Badge>
+            <Flex gap="2">
+              <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ revenue.toFixed(2) }% APY</Badge>
+              <Badge variant="soft" color={item.active ? undefined : 'gray'} size="2">{ Readability.toMoney(Exchange.equityAsset, state.liquidity.multipliedBy(revenue.dividedBy(100 * 365))) } per day</Badge>
             </Flex>
-            <Tooltip content={`Degradation rate (lower = better): market price ± ${item.feeRate.plus(0.01).multipliedBy(100).toFixed(2)}% delta, degraded LP's revenue may decrease, use reopen to optimize the r factor`}>
-              <Badge variant="soft" color={item.active ? toRateColor(state.staleness * 100) as any : 'gray'} size="2">    
-                <Icon path={state.staleness >= 0.8 ? mdiScaleUnbalanced : (item.active ? mdiScaleBalance : mdiClose)} size={0.65}></Icon>
-                <Text>{ (state.staleness * 5).toFixed(1) }r</Text>
+            <Tooltip content={`Market price deviation: market price ± ${item.feeRate.plus(0.01).multipliedBy(100).toFixed(2)}% delta, degraded LP's revenue may decrease, use reopen to optimize the dev factor`}>
+              <Badge variant="soft" color={item.active ? toRateColor(state.staleness?.score || 0) as any : 'gray'} size="2">
+                <Icon path={state.staleness?.score || 0 >= 0.8 ? mdiScaleUnbalanced : (item.active ? mdiScaleBalance : mdiClose)} size={0.65}></Icon>
+                <Text>+{ (100 * (state.staleness?.dev || 0)).toFixed(1) }% dev</Text>
               </Badge>
             </Tooltip>
           </Flex>
@@ -176,7 +179,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
                 AlertBox.open(AlertType.Info, 'Address copied!')
               }}>{ Readability.toAddress(item.marketAccount || 'NULL') }</Button>
               <Box ml="2">
-                <Link className="router-link" to={'/exchange/' + item.marketAccount}>▒▒</Link>
+                <Link className="router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}>▒▒</Link>
               </Box>
             </DataList.Value>
           </DataList.Item>
@@ -200,14 +203,14 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
           <DataList.Item>
             <DataList.Label>Status:</DataList.Label>
             <DataList.Value>
-              <Badge color={item.active ? (inLowerRange && inUpperRange ? 'lime' : 'yellow') : 'gray'}>{ item.active ? (inLowerRange && inUpperRange ? (concentrated ? 'Active (fully in range)' : 'Active') : 'Partially active (out of range)') : 'Inactive' }</Badge>
+              <Badge color={item.active ? (inLowerRange && inUpperRange ? undefined : 'yellow') : 'gray'}>{ item.active ? (inLowerRange && inUpperRange ? (concentrated ? 'Active (fully in range)' : 'Active') : 'Partially active (out of range)') : 'Inactive' }</Badge>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Spread:</DataList.Label>
             <DataList.Value>
               <Flex wrap="wrap" gap="2">
-                { inLowerRange && <Badge color="lime">BID { Readability.toMoney(item.secondaryAsset, bidPrice) }</Badge> }
+                { inLowerRange && <Badge>BID { Readability.toMoney(item.secondaryAsset, bidPrice) }</Badge> }
                 { inUpperRange && <Badge color="red">ASK { Readability.toMoney(item.secondaryAsset, askPrice) }</Badge> }
               </Flex>
             </DataList.Value>
@@ -218,8 +221,8 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
               <DataList.Label>Fees:</DataList.Label>
               <DataList.Value>
                 <Flex wrap="wrap" gap="2">
-                  { item.primaryRevenue.gt(0) && <Badge color="lime">{ Readability.toMoney(item.primaryAsset, item.primaryRevenue) }</Badge> }
-                  { item.secondaryRevenue.gt(0) && <Badge color="lime">{ Readability.toMoney(item.secondaryAsset, item.secondaryRevenue) }</Badge> }
+                  { item.primaryRevenue.gt(0) && <Badge>{ Readability.toMoney(item.primaryAsset, item.primaryRevenue) }</Badge> }
+                  { item.secondaryRevenue.gt(0) && <Badge>{ Readability.toMoney(item.secondaryAsset, item.secondaryRevenue) }</Badge> }
                 </Flex>
               </DataList.Value>
             </DataList.Item>
@@ -287,7 +290,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
             }
             {
               mode == 'cross-rebalancer' &&
-              <PerformerButton title="Do" description="Smart contract will re-balance this pool based on current market price and pool liquidity plus available balance" color="lime" onBuild={() => rebalance(true)}></PerformerButton>
+              <PerformerButton title="Do" description="Smart contract will re-balance this pool based on current market price and pool liquidity plus available balance" onBuild={() => rebalance(true)}></PerformerButton>
             }
           </Flex>
         }
@@ -324,8 +327,8 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
               <Button variant="surface" color="gray" style={{ display: 'block', width: '100%', height: 'auto', padding: '4px', backgroundColor: 'transparent', boxShadow: 'none' }}>
                 <Flex direction="column" gap="2">
                   <Flex justify="between" wrap="wrap" gap="1" style={{ textDecoration: inLowerRange ? undefined : 'line-through', color: 'var(--gray-11)' }}>
-                    <Text size="2" color="lime">Buy at</Text>
-                    <Text size="2" color="lime">≤ { Readability.toMoney(item.secondaryAsset, bidPrice) }</Text>
+                    <Text size="2" style={{ color: 'var(--accent-11)' }}>Buy at</Text>
+                    <Text size="2" style={{ color: 'var(--accent-11)' }}>≤ { Readability.toMoney(item.secondaryAsset, bidPrice) }</Text>
                   </Flex>
                   <Flex justify="between" wrap="wrap" gap="1" style={{ textDecoration: inUpperRange ? undefined : 'line-through', color: 'var(--gray-11)' }}>
                     <Text size="2" color="red">Sell at</Text>
@@ -369,7 +372,7 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
               }
               {
                 mode == 'cross-rebalancer' &&
-                <PerformerButton title="Do" description="Smart contract will re-balance this pool based on current market price and pool liquidity plus available balance" color="lime" onBuild={() => rebalance(true)}></PerformerButton>
+                <PerformerButton title="Do" description="Smart contract will re-balance this pool based on current market price and pool liquidity plus available balance" onBuild={() => rebalance(true)}></PerformerButton>
               }
             </Flex>
           }
@@ -381,6 +384,372 @@ export default function PoolView(props: { item: Pool, open?: boolean, flash?: bo
           <FullPoolView></FullPoolView>
         </Box>
       }
+    </Card>
+  );
+}
+
+export function DelegatedPoolView(props: { item: DelegatedPool, readOnly?: boolean }) {
+  const item = props.item;
+  const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
+  const [mode, setMode] = useState<'deposit' | 'withdraw'>('withdraw');
+  const [assets, setAssets] = useState<{ primary: BigNumber, secondary: BigNumber } | null>(null);
+  const [primaryReserve, setPrimaryReserve] = useState<string>('');
+  const [secondaryReserve, setSecondaryReserve] = useState<string>('');
+  const [expanded, setExpanded] = useState(false);
+  const extra = useMemo(() => {
+    const delegator = Exchange.delegators.find((v) => v.id.eq(item.delegatorId));
+    return mode == 'withdraw' ? {
+      primary: item.primaryValue,
+      secondary: item.secondaryValue,
+      delegator: delegator
+    } : {
+      primary: assets?.primary || new BigNumber(0),
+      secondary: assets?.secondary || new BigNumber(0),
+      delegator: delegator
+    };
+  }, [item, assets, mode]);
+  const slider = useMemo(() => {
+    const primaryValue = new BigNumber(primaryReserve || '0');
+    const secondaryValue = new BigNumber(secondaryReserve || '0');
+    return {
+      primary: { overpulling: mode == 'withdraw' ? item.primaryTotal.minus(item.primaryReserve).minus(primaryValue).lt(0) : false, value: [extra.primary.gt(0) ? primaryValue.multipliedBy(100).dividedBy(extra.primary).toNumber() : 0] },
+      secondary: { overpulling: mode == 'withdraw' ? item.secondaryTotal.minus(item.secondaryReserve).minus(secondaryValue).lt(0) : false, value: [extra.secondary.gt(0) ? secondaryValue.multipliedBy(100).dividedBy(extra.secondary).toNumber() : 0] }
+    };
+  }, [extra, mode, item, primaryReserve, secondaryReserve]);
+  const state = useMemo(() => {
+    const primaryPrice = Exchange.priceOf(item.primaryAsset), secondaryPrice = Exchange.priceOf(item.secondaryAsset);
+    const initialLiquidity = item.initialPrimaryValue.multipliedBy(item.allocationPrice ? item.allocationPrice.multipliedBy(secondaryPrice.close || new BigNumber(0)) : primaryPrice.close || new BigNumber(0)).plus(item.initialSecondaryValue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
+    const currentLiquidity = item.primaryValue.multipliedBy(primaryPrice.close || new BigNumber(0)).plus(item.secondaryValue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
+    const revenueLiquidity = currentLiquidity.minus(initialLiquidity);
+    return {
+      absoluteRevenue: revenueLiquidity,
+      relativeRevenue: initialLiquidity.gt(0) ? revenueLiquidity.dividedBy(initialLiquidity) : new BigNumber(0),
+      initialLiquidity: initialLiquidity,
+      currentLiquidity: currentLiquidity
+    }
+  }, [item]);
+  const payload = useMemo(() => {
+    const primary = new BigNumber(primaryReserve || '0');
+    const secondary = new BigNumber(secondaryReserve || '0');
+    if (primary.gt(extra.primary) || secondary.gt(extra.secondary) || (!primary.gt(0) && !secondary.gt(0)))
+      return null;
+
+    return {
+      delegatorId: item.delegatorId.toString(),
+      primaryAssetHash: item.primaryAsset.id,
+      secondaryAssetHash: item.secondaryAsset.id,
+      primaryValue: mode == 'withdraw' && primary.eq(extra.primary) ? '' : primary.toString(),
+      secondaryValue: mode == 'withdraw' && secondary.eq(extra.secondary) ? '' : secondary.toString()
+    };
+  }, [primaryReserve, secondaryReserve, extra, item, mode]);
+  const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, state.currentLiquidity, item.volume.multipliedBy(item.share)), [item.volume, item.share, state.currentLiquidity]);
+  useEffectAsync(async () => {
+    if (!props.readOnly && !assets && mode == 'deposit') {
+      const address = AppData.getWalletAddress();
+      if (address) {
+        try {
+          const results = await Exchange.accountBalances({ address: address });
+          setAssets({
+            primary: results.find((v) => v.asset.id == item.primaryAsset.id)?.available || new BigNumber(0),
+            secondary: results.find((v) => v.asset.id == item.secondaryAsset.id)?.available || new BigNumber(0),
+          });
+        } catch { }
+      }
+    }
+  }, [mode, item, assets, props.readOnly]);
+
+  return (
+    <Card variant="surface" style={{ borderRadius: '22px', position: "relative" }}>
+      <Collapsible.Root open={expanded}>
+        <Flex justify="start" align="center" gap="3" className="card-expander" onClick={() => setExpanded(!expanded)}>
+          <Box style={{ position: 'relative' }}>
+            <AssetImage asset={item.secondaryAsset} size="2" style={{ position: 'absolute', top: '24px', left: '-6px' }}></AssetImage>
+            <AssetImage asset={item.primaryAsset} size="4"></AssetImage>
+          </Box>
+          <Box width="100%">
+            <Flex justify="between" align="center">
+              <Flex align="center">
+                <Text size="2">{ item.primaryAsset.token || item.primaryAsset.chain }</Text>
+                <Text size="2" color="gray">x</Text>
+                <Text size="2">{ item.secondaryAsset.token || item.secondaryAsset.chain }</Text>
+              </Flex>
+              <Flex align="center" style={{ textDecoration: item.active ? undefined : 'line-through' }}>
+                <Text size="2">{ Readability.toMoney(Exchange.equityAsset, state.currentLiquidity) }</Text>
+              </Flex>
+            </Flex>
+            <Flex gap="2">
+              <Badge color={item.active ? 'purple' : 'gray'} variant="soft" size="2">{ revenue.toFixed(2) }% APY</Badge>
+              <Badge color={item.active ? undefined : 'gray'} variant="soft" size="2">{ Readability.toMoney(Exchange.equityAsset, state.currentLiquidity.multipliedBy(revenue.dividedBy(100 * 365))) } per day</Badge>
+            </Flex>
+          </Box>
+        </Flex>
+        <Collapsible.Content>
+          <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
+          <DataList.Root orientation={orientation}>
+            <DataList.Item>
+              <DataList.Label>Delegator account:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(item.delegatorAccount || 'NULL');
+                  AlertBox.open(AlertType.Info, 'Address copied!')
+                }}>{ Readability.toAddress(item.delegatorAccount || 'NULL') }</Button>
+                <Box ml="2">
+                  <Link className="router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet-total-assets'}>▒▒</Link>
+                </Box>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Market account:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(item.marketAccount || 'NULL');
+                  AlertBox.open(AlertType.Info, 'Address copied!')
+                }}>{ Readability.toAddress(item.marketAccount || 'NULL') }</Button>
+                <Box ml="2">
+                  <Link className="router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}>▒▒</Link>
+                </Box>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Primary asset:</DataList.Label>
+              <DataList.Value>{ Readability.toAssetName(item.primaryAsset) }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Secondary asset:</DataList.Label>
+              <DataList.Value>{ Readability.toAssetName(item.secondaryAsset) }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Status:</DataList.Label>
+              <DataList.Value>
+                <Badge color={item.active ? undefined : 'gray'}>{ item.active ? 'Active' : 'Inactive' }</Badge>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Share:</DataList.Label>
+              <DataList.Value>{ item.share.multipliedBy(100).toFixed(2) }%</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Revenue (est.):</DataList.Label>
+              <DataList.Value>
+                <Flex wrap="wrap" gap="2">
+                  <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ Readability.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</Badge> 
+                  <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ state.relativeRevenue.gt(0) ? '+' : '' }{ state.relativeRevenue.multipliedBy(100).toFixed(2) }%</Badge>
+                </Flex>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>{ Readability.toAssetSymbol(item.primaryAsset) } reserve (est.):</DataList.Label>
+              <DataList.Value>{ Readability.toMoney(item.primaryAsset, item.primaryValue) }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>{ Readability.toAssetSymbol(item.secondaryAsset) } reserve (est.):</DataList.Label>
+              <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.secondaryValue) }</DataList.Value>
+            </DataList.Item>
+            <Tooltip content="TAN subsidy gets allocated based on DLP position share each time underlying LP gets rebalanced">
+              <DataList.Item>
+                <DataList.Label>{ Readability.toAssetSymbol(new AssetId()) }:</DataList.Label>
+                <DataList.Value>{ Readability.toMoney(new AssetId(), item.rewardValue) }</DataList.Value>
+              </DataList.Item>
+            </Tooltip>
+          </DataList.Root>
+          {
+            item.active &&
+            <>
+              <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
+              <Tooltip side="left" content={`Reserve value in ${Readability.toAssetSymbol(item.primaryAsset)} to ${mode}`}>
+                <Box mb="3">
+                  <TextField.Root placeholder={Readability.toAssetName(item.primaryAsset) + ' to ' + mode} size="2" value={primaryReserve} onChange={(e) => setPrimaryReserve(TextUtil.toValue(primaryReserve, e.target.value))}>
+                    <TextField.Slot>
+                      <Icon path={mdiCurrencyUsd} size={0.8} />
+                    </TextField.Slot>
+                  </TextField.Root>
+                  <Box px="2" pt="2">
+                    <Slider color={slider.primary.overpulling ? 'red' : undefined} step={1} value={slider.primary.value} onValueChange={(v) => setPrimaryReserve(new BigNumber(v[0] / 100).multipliedBy(extra.primary).toString())} />
+                  </Box>
+                </Box>
+              </Tooltip>
+              <Tooltip side="left" content={`Reserve value in ${Readability.toAssetSymbol(item.secondaryAsset)} to ${mode}`}>
+                <Box mb="3">
+                  <TextField.Root placeholder={Readability.toAssetName(item.secondaryAsset) + ' to ' + mode} size="2" value={secondaryReserve} onChange={(e) => setSecondaryReserve(TextUtil.toValue(secondaryReserve, e.target.value))}>
+                    <TextField.Slot>
+                      <Icon path={mdiCurrencyUsd} size={0.8} />
+                    </TextField.Slot>
+                  </TextField.Root>
+                  <Box px="2" pt="2">
+                    <Slider color={slider.secondary.overpulling ? 'red' : undefined} step={1} value={slider.secondary.value} onValueChange={(v) => setSecondaryReserve(new BigNumber(v[0] / 100).multipliedBy(extra.secondary).toString())} />
+                  </Box>
+                </Box>
+              </Tooltip>
+              {
+                (slider.primary.overpulling || slider.secondary.overpulling) &&
+                <Flex justify="end" mb="2">
+                  <Text size="1" color="gray">Underlying LP will be withdrawn</Text>
+                </Flex>
+              }
+              <Flex pt="2" justify="between">
+                <SegmentedControl.Root value={mode} radius="full" size="2" onValueChange={(value) => setMode(value as any)}>
+                  <SegmentedControl.Item value="deposit">Push</SegmentedControl.Item>
+                  <SegmentedControl.Item value="withdraw">Pull</SegmentedControl.Item>
+                </SegmentedControl.Root>
+                <PerformerButton title="Do" description={mode == 'deposit' ? "Smart contract will add your deposit into the delegated LP and allocate your position" : "Smart contract will re-pay your deposit and deallocate the position"} color={mode == 'deposit' ? 'jade' : 'red'} disabled={!payload} onBuild={async () => {      
+                  return payload ? (mode == 'deposit' ? await Builder.depositLiquidity(payload) : await Builder.withdrawLiquidity(payload)) : null;
+                }}></PerformerButton>
+              </Flex>
+            </>
+          }
+        </Collapsible.Content>
+      </Collapsible.Root>
+    </Card>
+  );
+}
+
+export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, assets: Balance[] }) {
+  const item = props.item;
+  const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
+  const [expanded, setExpanded] = useState(false);
+  const [primaryReserve, setPrimaryReserve] = useState<string>('');
+  const [secondaryReserve, setSecondaryReserve] = useState<string>('');
+  const extra = useMemo(() => {
+    const delegator = Exchange.delegators.find((v) => v.id.eq(item.delegatorId));
+    const primary = props.assets.find((v) => v.asset.id == item.primaryAsset.id);
+    const secondary = props.assets.find((v) => v.asset.id == item.secondaryAsset.id);
+    const absoluteRevenue = item.currentValue.minus(item.initialValue);
+    const relativeRevenue = item.initialValue.gt(0) ? absoluteRevenue.dividedBy(item.initialValue) : new BigNumber(0);
+    return {
+      primary: primary?.available || new BigNumber(0),
+      secondary: secondary?.available || new BigNumber(0),
+      delegator: delegator,
+      absoluteRevenue: absoluteRevenue,
+      relativeRevenue: relativeRevenue
+    }
+  }, [item, props.assets]);
+  const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, item.currentValue, item.volume), [item.currentValue, item.volume]);
+  const payload = useMemo(() => {
+    const primary = new BigNumber(primaryReserve || '0');
+    const secondary = new BigNumber(secondaryReserve || '0');
+    if (primary.gt(extra.primary) || secondary.gt(extra.secondary) || (!primary.gt(0) && !secondary.gt(0)))
+      return null;
+
+    return {
+      delegatorId: item.delegatorId.toString(),
+      primaryAssetHash: item.primaryAsset.id,
+      secondaryAssetHash: item.secondaryAsset.id,
+      primaryValue: primary.toString(),
+      secondaryValue: secondary.toString()
+    };
+  }, [primaryReserve, secondaryReserve, extra, item]);
+
+  return (
+    <Card variant="surface" style={{ borderRadius: '22px', position: "relative" }}>
+      <Collapsible.Root open={expanded}>
+        <Flex justify="start" align="center" gap="2" className="card-expander" onClick={() => setExpanded(!expanded)}>
+          <Box style={{ position: 'relative' }}>
+            <AssetImage asset={item.secondaryAsset} size="2" style={{ position: 'absolute', top: '24px', left: '-6px' }}></AssetImage>
+            <AssetImage asset={item.primaryAsset} size="4"></AssetImage>
+          </Box>
+          <Box width="100%">
+            <Flex justify="between" align="center">
+              <Flex align="center">
+                <Text size="2">{ item.primaryAsset.token || item.primaryAsset.chain }</Text>
+                <Text size="2" color="gray">x</Text>
+                <Text size="2">{ item.secondaryAsset.token || item.secondaryAsset.chain }</Text>
+              </Flex>
+              <Flex align="center">
+                <Text size="2">{ Readability.toMoney(Exchange.equityAsset, item.currentValue) }</Text>
+              </Flex>
+            </Flex>
+            <Flex justify="between" align="center" gap="2" pt="1" wrap="wrap">
+              <Flex gap="2">
+                <Badge color="purple" variant="soft" size="2">{ revenue.toFixed(2) }% APY</Badge>
+                <Badge variant="soft" size="2">{ Readability.toMoney(Exchange.equityAsset, item.currentValue.multipliedBy(revenue.dividedBy(100 * 365))) } per day</Badge>
+              </Flex>
+              <Badge variant="soft" color="jade" size="2">{ item.delegatorAccount.substring(item.delegatorAccount.length - 6) }</Badge>
+            </Flex>
+          </Box>
+        </Flex>
+        <Collapsible.Content>
+          <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
+          <DataList.Root orientation={orientation}>
+            <DataList.Item>
+              <DataList.Label>Delegator account:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(item.delegatorAccount || 'NULL');
+                  AlertBox.open(AlertType.Info, 'Address copied!')
+                }}>{ Readability.toAddress(item.delegatorAccount || 'NULL') }</Button>
+                <Box ml="2">
+                  <Link className="router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet-total-assets'}>▒▒</Link>
+                </Box>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Market account:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(item.marketAccount || 'NULL');
+                  AlertBox.open(AlertType.Info, 'Address copied!')
+                }}>{ Readability.toAddress(item.marketAccount || 'NULL') }</Button>
+                <Box ml="2">
+                  <Link className="router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}>▒▒</Link>
+                </Box>
+              </DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Primary asset:</DataList.Label>
+              <DataList.Value>{ Readability.toAssetName(item.primaryAsset) }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Secondary asset:</DataList.Label>
+              <DataList.Value>{ Readability.toAssetName(item.secondaryAsset) }</DataList.Value>
+            </DataList.Item>
+            {
+              extra.delegator &&
+              <DataList.Item>
+                <DataList.Label>TAN subsidy:</DataList.Label>
+                <DataList.Value>{ Readability.toMoney(new AssetId(), extra.delegator.rewardEmission.dividedBy(extra.delegator.permissions.length).multipliedBy(86400000 / Chain.policy.BLOCK_TIME)) } per day</DataList.Value>
+              </DataList.Item>
+            }
+            <DataList.Item>
+              <DataList.Label>Liquidity:</DataList.Label>
+              <DataList.Value>{ Readability.toMoney(Exchange.equityAsset, item.currentValue) }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
+              <DataList.Label>Revenue:</DataList.Label>
+              <DataList.Value>{ Readability.toMoney(Exchange.equityAsset, item.currentValue.minus(item.initialValue)) }</DataList.Value>
+            </DataList.Item>
+          </DataList.Root>
+          <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
+          <Tooltip side="left" content={`Reserve value in ${Readability.toAssetSymbol(item.primaryAsset)} to deposit`}>
+            <Box mb="3">
+              <TextField.Root placeholder={Readability.toAssetName(item.primaryAsset) + ' deposit'} size="2" value={primaryReserve} onChange={(e) => setPrimaryReserve(TextUtil.toValue(primaryReserve, e.target.value))}>
+                <TextField.Slot>
+                  <Icon path={mdiCurrencyUsd} size={0.8} />
+                </TextField.Slot>
+              </TextField.Root>
+              <Box px="2" pt="2">
+                <Slider step={1} value={[extra.primary.gt(0) ? new BigNumber(primaryReserve || '0').multipliedBy(100).dividedBy(extra.primary).toNumber() : 0]} onValueChange={(v) => setPrimaryReserve(new BigNumber(v[0] / 100).multipliedBy(extra.primary).toString())} />
+              </Box>
+            </Box>
+          </Tooltip>
+          <Tooltip side="left" content={`Reserve value in ${Readability.toAssetSymbol(item.secondaryAsset)} to deposit`}>
+            <Box mb="3">
+              <TextField.Root placeholder={Readability.toAssetName(item.secondaryAsset) + ' deposit'} size="2" value={secondaryReserve} onChange={(e) => setSecondaryReserve(TextUtil.toValue(secondaryReserve, e.target.value))}>
+                <TextField.Slot>
+                  <Icon path={mdiCurrencyUsd} size={0.8} />
+                </TextField.Slot>
+              </TextField.Root>
+              <Box px="2" pt="2">
+                <Slider step={1} value={[extra.secondary.gt(0) ? new BigNumber(secondaryReserve || '0').multipliedBy(100).dividedBy(extra.secondary).toNumber() : 0]} onValueChange={(v) => setSecondaryReserve(new BigNumber(v[0] / 100).multipliedBy(extra.secondary).toString())} />
+              </Box>
+            </Box>
+          </Tooltip>
+          <Flex pt="2" justify="center">
+            <PerformerButton title="Deposit" description="Smart contract will add your deposit into the delegated LP and allocate your position" color="jade" disabled={!payload} onBuild={async () => {
+              return payload ? await Builder.depositLiquidity(payload) : null;
+            }}></PerformerButton>
+          </Flex>
+        </Collapsible.Content>
+      </Collapsible.Root>
     </Card>
   );
 }

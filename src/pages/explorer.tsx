@@ -305,7 +305,7 @@ export default function ExplorerPage() {
                         <Box px="2" py="2">
                           <Flex align="center" justify="between" gap="2" mb="4">
                             <Heading size="5">Vault</Heading>
-                            <Button size="2" variant="surface" color="lime" onClick={() => {
+                            <Button size="2" variant="surface" onClick={() => {
                               navigator.clipboard.writeText(item.instance.bridge_hash);
                               AlertBox.open(AlertType.Info, 'Vault hash copied!')
                             }}>{ Readability.toHash(item.instance.bridge_hash, 4) }</Button>
@@ -330,7 +330,7 @@ export default function ExplorerPage() {
                                 <DataList.Label>Public params:</DataList.Label>
                                 <DataList.Value>
                                   <Flex gap="1" wrap="wrap">
-                                    <Badge size="1" color="lime">{ Readability.toCount('signer', item.instance.security_level) }</Badge>
+                                    <Badge size="1">{ Readability.toCount('signer', item.instance.security_level) }</Badge>
                                     <Badge size="1" color="blue">{ Readability.toCount('txn', item.instance.transaction_nonce) }</Badge>
                                     <Badge size="1" color="blue">{ Readability.toCount(new BigNumber(item.instance.account_nonce).gt(1) ? 'addresse' : 'address', item.instance.account_nonce) }</Badge>
                                     <Badge size="1" color="yellow">{ Readability.toMoney(new AssetId(asset.id), item.instance.fee_rate) } fee</Badge>
@@ -394,7 +394,7 @@ export default function ExplorerPage() {
                               {
                                 Array.isArray(item.queue) && item.queue.map((tx: any, index: number) =>
                                   <Flex gap="2" wrap="wrap" justify="between" key={tx.hash.toString()} mb={index != item.queue.length - 1 ? '4' : undefined}>
-                                    <Badge size="2" color="yellow">{ blockchainExt != null ? `in ${(blockchainExt.blocking ? blockchainExt.depositTime * (index + 1) + '-' + (blockchainExt.depositTime * (index + 1) + 10).toString() : 10 * (index + 1))} min.` : `P${Readability.toValue(null, index + 1, false, false)}` }</Badge>
+                                    <Badge size="2" color="yellow">{ blockchainExt != null ? `in ${(blockchainExt.blocking ? blockchainExt.depositTime * (index + 1) + '-' + (blockchainExt.depositTime * (index + 1) + 5).toString() : 5 * (index + 1))} min.` : `P${Readability.toValue(null, index + 1, false, false)}` }</Badge>
                                     <Flex gap="2" align="center">
                                       <Badge size="2" color="yellow">{ Readability.toHash(tx.transaction_hash, mobile ? 6 : 12) }</Badge>
                                       <Link className="router-link" to={'/transaction/' + tx.transaction_hash} style={{ fontSize: '0.9rem' }}>▒▒</Link>
@@ -403,7 +403,7 @@ export default function ExplorerPage() {
                                 )
                               }
                               <Flex justify="center" mt={Array.isArray(item.queue) && item.queue.length > 0 ? '4' : undefined}>
-                                <Text color={blockchainExt ? item.queue?.length > 0 ? 'red' : (blockchainExt.blocking ? 'yellow' : 'jade') : 'gray'} size="2">Max outgoing ETA: { blockchainExt ? (blockchainExt.blocking ? (blockchainExt.depositTime * (2 + item.queue?.length || 0) + '-' + (blockchainExt.depositTime * (2 + item.queue?.length || 0) + 10)) : (10 * ((item.queue?.length || 0) + 1))) + ' min.' : 'unknown' }</Text>
+                                <Text color={blockchainExt ? item.queue?.length > 0 ? 'red' : (blockchainExt.blocking ? 'yellow' : 'jade') : 'gray'} size="2">Max outgoing ETA: { blockchainExt ? (blockchainExt.blocking ? (blockchainExt.depositTime * (2 + item.queue?.length || 0) + '-' + (blockchainExt.depositTime * (2 + item.queue?.length || 0) + 5)) : (5 * ((item.queue?.length || 0) + 1))) + ' min.' : 'unknown' }</Text>
                               </Flex>
                             </>
                           }

@@ -78,6 +78,9 @@ export type Pool = {
     marketAccount: string;
     accountId: BigNumber;
     blockNumber: BigNumber;
+    initialPrice: BigNumber;
+    initialPrimaryValue: BigNumber;
+    initialSecondaryValue: BigNumber;
     primaryValue: BigNumber;
     secondaryValue: BigNumber;
     primaryRevenue: BigNumber;
@@ -88,8 +91,36 @@ export type Pool = {
     maxPrice?: BigNumber;
     feeRate: BigNumber;
     exitFee: BigNumber;
+    volume: BigNumber;
     lastAskPrice: BigNumber;
     lastBidPrice: BigNumber;
+    active: boolean;
+}
+
+export type DelegatedPool = {
+    id: BigNumber;
+    pairId: BigNumber;
+    marketId: BigNumber;
+    marketAccount: string;
+    delegatorId: BigNumber;
+    delegatorAccount: string;
+    accountId: BigNumber;
+    primaryAsset: AssetId;
+    secondaryAsset: AssetId;
+    blockNumber: BigNumber;
+    rewardValue: BigNumber;
+    initialPrimaryValue: BigNumber;
+    initialSecondaryValue: BigNumber;
+    primaryValue: BigNumber;
+    secondaryValue: BigNumber;
+    primaryTotal: BigNumber;
+    secondaryTotal: BigNumber;
+    primaryReserve: BigNumber;
+    secondaryReserve: BigNumber;
+    volume: BigNumber;
+    allocationPrice?: BigNumber;
+    feeRate?: BigNumber;
+    share: BigNumber;
     active: boolean;
 }
 
@@ -124,6 +155,38 @@ export type Market = {
   marketPolicy: BigNumber;
 }
 
+export type Delegator = {
+  id: BigNumber;
+  marketId: BigNumber;
+  accountId: BigNumber;
+  account: string;
+  deployerAccountId: BigNumber;
+  deployerAccount: string;
+  blockNumber: BigNumber;
+  rewardEmission: BigNumber;
+  rewardBalance: BigNumber;
+  permissions: {
+      primaryAssetId: BigNumber;
+      primaryAsset: AssetId;
+      secondaryAssetId: BigNumber;
+      secondaryAsset: AssetId;
+  }[];
+}
+
+export type PseudoDelegatedPool = {
+    marketId: BigNumber;
+    pairId: BigNumber;
+    delegatorId: BigNumber;
+    marketAccount: string;
+    delegatorAccount: string;
+    primaryAsset: AssetId;
+    secondaryAsset: AssetId;
+    initialValue: BigNumber;
+    currentValue: BigNumber;
+    volume: BigNumber;
+    feeRate?: BigNumber;
+}
+
 export type AggregatedPair = {
   id: BigNumber,
   primaryAsset: AssetId,
@@ -156,7 +219,14 @@ export type AggregatedLog = {
 export type AggregatedLevel = {
   id: number,
   price: BigNumber,
-  quantity: BigNumber
+  quantity: BigNumber,
+  curve?: {
+      minPrice: BigNumber | null,
+      maxPrice: BigNumber | null,
+      primaryValue: BigNumber,
+      secondaryValue: BigNumber,
+      feeRate: BigNumber
+  }
 }
 
 export type AccountTier = {
@@ -221,7 +291,8 @@ export enum ExchangeField {
 export class Exchange {
   static location: string = '';
   static prices: PriceDescriptors = { };
-  static contracts: Market[] = [];
+  static markets: Market[] = [];
+  static delegators: Delegator[] = [];
   static descriptors: BlockchainInfo[] = [];
   static equityAsset: AssetId = AssetId.fromHandle('USD');
   static orderbook:  string | null = null;
@@ -339,7 +410,8 @@ export class Exchange {
       try {
         const portfolio = await this.assetsPortfolio();
         this.prices = portfolio?.prices || { };
-        this.contracts = portfolio?.markets || [];
+        this.markets = portfolio?.markets || [];
+        this.delegators = portfolio?.delegators || [];
         this.descriptors = (portfolio?.descriptors || []).sort((a, b) => Readability.toAssetSymbol(a).localeCompare(Readability.toAssetSymbol(b)));
         
         const base = this.prices['__BASE__']?.base || null;
@@ -363,7 +435,7 @@ export class Exchange {
       await this.connectSocket();
 
     if (this.socket) {
-      console.log('[exchange-rpc]', `${this.location.replace('http', 'ws')}/${location}`, 'call', args);
+      console.log('[erpc]', `${this.location.replace('http', 'ws')}/${location}`, 'call', args);
       const id = (++this.requests.count).toString();
       const data: any | Error = await new Promise((resolve, reject) => {
         const context = { resolve: (_: any) => { } };
@@ -387,10 +459,10 @@ export class Exchange {
           context.resolve(new Error('connection reset'));
         }
       });
-      console.log('[exchange-rpc]', `${this.location.replace('http', 'ws')}/${location}`, 'return', data);
+      console.log('[erpc]', `${this.location.replace('http', 'ws')}/${location}`, 'return', data);
       return this.fetchData(data instanceof Error ? { error: data.toString() } : data);
     } else {
-      console.log('[exchange-rpc]', `${this.location}/${location}`, 'call', args);
+      console.log('[erpc]', `${this.location}/${location}`, 'call', args);
       const body = method != 'GET';
       const search = new URLSearchParams();
       if (!body && args != null && typeof args == 'object')
@@ -403,7 +475,7 @@ export class Exchange {
         body: body && args != null ? JSON.stringify(args) : undefined,
       });
       const data = await response.json();
-      console.log('[exchange-rpc]', `${this.location}/${location}`, 'return', data);
+      console.log('[erpc]', `${this.location}/${location}`, 'return', data);
       return this.fetchData(data);
     }
   }
@@ -478,11 +550,13 @@ export class Exchange {
 
     return true;
   }
-  static async assetsPortfolio(): Promise<{ prices: PriceDescriptors, descriptors: BlockchainInfo[], markets: Market[] } | null> {
+  static async assetsPortfolio(): Promise<{ prices: PriceDescriptors, descriptors: BlockchainInfo[], markets: Market[], delegators: Delegator[] } | null> {
     const result = await this.fetch('GET', `assets/portfolio`, { }, false);
-    if (!result)
+    if (!result) {
       return null;
-
+    } else if (Array.isArray(result.delegators)) {
+      result.delegators = result.delegators.map((x: any) => this.toDelegator(x));
+    }
     return result;
   }
   static async assetQuery(query: string): Promise<AssetId[]> {
@@ -497,8 +571,10 @@ export class Exchange {
     const result = await this.fetch('GET', `asset/descriptors`, { });
     return result;
   }
-  static async markets(): Promise<Market[]> {
+  static async marketContracts(): Promise<Market[]> {
     const result = await this.fetch('GET', `markets`, { });
+    if (Array.isArray(result.delegators))
+      result.delegators = result.delegators.map((x: any) => this.toDelegator(x));
     return result;
   }
   static async market(marketId: number | string | BigNumber): Promise<Market> {
@@ -518,6 +594,26 @@ export class Exchange {
     });
     return result.map((v: any) => this.toPool(v));
   }
+  static async marketDelegatedPool(poolId: number | string | BigNumber): Promise<DelegatedPool> {
+    const result = await this.fetch('GET', `market/pool/delegated`, { id: poolId.toString() });
+    return this.toDelegatedPool(result);
+  }
+  static async marketDelegatedPools(): Promise<PseudoDelegatedPool[]> {
+    const result = await this.fetch('GET', `market/pools/delegated`, { });
+    return result.map((v: any): PseudoDelegatedPool => ({
+      marketId: new BigNumber(v.marketId),
+      pairId: new BigNumber(v.pairId),
+      delegatorId: new BigNumber(v.delegatorId),
+      marketAccount: v.marketAccount,
+      delegatorAccount: v.delegatorAccount,
+      primaryAsset: new AssetId(v.primaryAsset),
+      secondaryAsset: new AssetId(v.secondaryAsset),
+      initialValue: new BigNumber(v.initialValue),
+      currentValue: new BigNumber(v.currentValue),
+      volume: new BigNumber(v.volume),
+      feeRate: v.feeRate ? new BigNumber(v.feeRate) : undefined
+    }));
+  }
   static async marketAssets(asset: AssetId, liquidity?: boolean): Promise<PolyAsset[]> {
     const result = await this.fetch('GET', `market/assets`, {
       assetHash: asset.id.toString(),
@@ -531,6 +627,21 @@ export class Exchange {
         updated.liquidity = item.liquidity;
       return updated;
     });
+  }
+  static async marketPriceHistory(assets: AssetId[], interval: number, points: number): Promise<Record<string, AssetId & { history: [number, BigNumber][] }>> {
+    const result = await this.fetch('GET', `market/price/history`, {
+      assetHashes: assets.map(v => v.id).join(','),
+      interval: interval,
+      points: points
+    });
+    const keys = Object.keys(result);
+    for (let i = 0; i < keys.length; i++) {
+      const item = result[keys[i]];
+      const pseudoAsset: AssetId & { history: [number, BigNumber][] } = new AssetId(item.id) as any;
+      pseudoAsset.history = item.history;
+      result[keys[i]] = pseudoAsset;
+    }
+    return result;
   }
   static async marketPaths(marketId: number | string | BigNumber, assetIn: AssetId, assetOut: AssetId, amountIn: number | string | BigNumber, slippage: number | string | BigNumber): Promise<RouterPath[]> {
     const result = await this.fetch('GET', `market/paths`, { marketId: marketId.toString(), assetHashIn: assetIn.id.toString(), assetHashOut: assetOut.id.toString(), amountIn: amountIn.toString(), slippage: slippage.toString() });
@@ -573,11 +684,20 @@ export class Exchange {
     }));
   }
   static async marketPairPriceLevels(marketId: number | string | BigNumber, pairId: number | string | BigNumber, levels: number): Promise<{ ask: AggregatedLevel[], bid: AggregatedLevel[] }> {
-    const toAggregatedLevel = (v: any[]) => ({
-      id: v[0].toNumber(),
-      price: v[1],
-      quantity: v[2]
-    });
+    const toAggregatedLevel = (v: any[]): AggregatedLevel => {
+      return {
+        id: v[0].toNumber(),
+        price: v[1],
+        quantity: v[2],
+        curve: v.length == 8 ? {
+          minPrice: v[3],
+          maxPrice: v[4],
+          primaryValue: v[5],
+          secondaryValue: v[6],
+          feeRate: v[7]
+        } : undefined
+      };
+    };
     const result = await this.fetch('GET', `market/pair/price/levels`, { marketId: marketId.toString(), pairId: pairId.toString(), levels: levels });
     return {
       ask: result.ask.map(toAggregatedLevel),
@@ -645,6 +765,17 @@ export class Exchange {
     });
     return result.map((v: any) => this.toPool(v));
   }
+  static async accountDelegatedPools(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber, active?: boolean } & AccountQuery & PageQuery): Promise<DelegatedPool[]> {
+    const result = await this.fetch('GET', `account/pools/delegated`, {
+      id: account.id,
+      marketId: account.marketId?.toString(),
+      pairId: account.pairId?.toString(),
+      active: account.active,
+      account: account.address,
+      page: account.page
+    });
+    return result.map((v: any) => this.toDelegatedPool(v));
+  }
   static async accountTiers(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber } & AccountQuery): Promise<AccountTier> {
     const result = await this.fetch('GET', `account/tiers`, {
       id: account.id,
@@ -696,6 +827,9 @@ export class Exchange {
       marketAccount: value.marketAccount,
       accountId: new BigNumber(value.accountId),
       blockNumber: new BigNumber(value.blockNumber),
+      initialPrice: new BigNumber(value.initialPrice),
+      initialPrimaryValue: new BigNumber(value.initialPrimaryValue),
+      initialSecondaryValue: new BigNumber(value.initialSecondaryValue),
       primaryValue: new BigNumber(value.primaryValue),
       secondaryValue: new BigNumber(value.secondaryValue),
       primaryRevenue: new BigNumber(value.primaryRevenue),
@@ -708,7 +842,55 @@ export class Exchange {
       exitFee: new BigNumber(value.exitFee),
       lastAskPrice: new BigNumber(value.lastAskPrice),
       lastBidPrice: new BigNumber(value.lastBidPrice),
+      volume: new BigNumber(value.volume),
       active: value.active
+    }
+  }
+  static toDelegatedPool(value: any): DelegatedPool {
+    return {
+      id: new BigNumber(value.id),
+      delegatorId: new BigNumber(value.delegatorId),
+      delegatorAccount: value.delegatorAccount,
+      pairId: new BigNumber(value.pairId),
+      marketId: new BigNumber(value.marketId),
+      marketAccount: value.marketAccount,
+      accountId: new BigNumber(value.accountId),
+      primaryAsset: new AssetId(value.primaryAsset),
+      secondaryAsset: new AssetId(value.secondaryAsset),
+      blockNumber: new BigNumber(value.blockNumber),
+      rewardValue: new BigNumber(value.rewardValue),
+      initialPrimaryValue: new BigNumber(value.initialPrimaryValue),
+      initialSecondaryValue: new BigNumber(value.initialSecondaryValue),
+      primaryValue: new BigNumber(value.primaryValue),
+      secondaryValue: new BigNumber(value.secondaryValue),
+      primaryReserve: new BigNumber(value.primaryReserve),
+      secondaryReserve: new BigNumber(value.secondaryReserve),
+      primaryTotal: new BigNumber(value.primaryTotal),
+      secondaryTotal: new BigNumber(value.secondaryTotal),
+      share: new BigNumber(value.share),
+      volume: new BigNumber(value.volume),
+      feeRate: value.feeRate ? new BigNumber(value.feeRate) : undefined,
+      allocationPrice: value.allocationPrice ? new BigNumber(value.allocationPrice) : undefined,
+      active: value.active
+    }
+  }
+  static toDelegator(value: any): Delegator {
+    return {
+      id: new BigNumber(value.id),
+      marketId: new BigNumber(value.marketId),
+      accountId: new BigNumber(value.accountId),
+      account: value.account,
+      deployerAccountId: new BigNumber(value.deployerAccountId),
+      deployerAccount: value.deployerAccount,
+      blockNumber: new BigNumber(value.blockNumber),
+      rewardEmission: new BigNumber(value.rewardEmission),
+      rewardBalance: new BigNumber(value.rewardBalance),
+      permissions: Array.isArray(value.permissions) ? value.permissions.map((x: any) => ({
+          primaryAssetId: new BigNumber(x.primaryAssetId),
+          primaryAsset: new AssetId(x.primaryAsset),
+          secondaryAssetId: new BigNumber(x.secondaryAssetId),
+          secondaryAsset: new AssetId(x.secondaryAsset),
+      })) : []
     }
   }
   static marketPolicyOf(market: Market | null): string {
@@ -721,11 +903,12 @@ export class Exchange {
         return 'Unknown';
     }
   }
-  static toAPY(feeRate: BigNumber, liquidity: BigNumber, volume: BigNumber): BigNumber {
+  static toAPY(feeRate: BigNumber | number, liquidity: BigNumber, volume: BigNumber): BigNumber {
     return this.toFeeBasedAPY(volume.multipliedBy(feeRate), liquidity);
   }
   static toFeeBasedAPY(fee: BigNumber, liquidity: BigNumber): BigNumber {
-    return new BigNumber(1).plus(fee.dividedBy(liquidity)).pow(365).minus(1).multipliedBy(100);
+    const result = liquidity?.gt(0) ? new BigNumber(1).plus(BigNumber.min(fee.dividedBy(liquidity), 1.025)).pow(365).minus(1).multipliedBy(100) : new BigNumber(0);
+    return result.isFinite() ? result : new BigNumber(0);
   }
   static toPayment(leftover: BigNumber, balances: Balance[]): Record<string, string> {
     const pays: Record<string, string> = { };
@@ -733,7 +916,8 @@ export class Exchange {
       const balance = balances[i];
       const change = BigNumber.min(balance.available, leftover);
       leftover = leftover.minus(change);
-      pays[balance.asset.id] = ByteUtil.bigNumberToString(change);
+      if (change.gt(0))
+        pays[balance.asset.id] = ByteUtil.bigNumberToString(change);
       if (!leftover.gt(0))
           break;
     }

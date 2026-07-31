@@ -1,10 +1,24 @@
-import { mdiAlphabeticalVariant, mdiCancel, mdiConsole, mdiMagnify, mdiPlus } from "@mdi/js";
+import { mdiAlphabeticalVariant, mdiCancel, mdiConsole, mdiHistory, mdiMagnify, mdiPlus } from "@mdi/js";
 import { Badge, Box, Button, Dialog, Flex, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { AssetId, Readability, Whitelist } from "tangentsdk";
 import { Exchange, BlockchainInfo } from "../../core/exchange";
 import { AssetImage, AssetName } from "../asset";
 import Icon from "@mdi/react";
+import { AppStorage } from "../../core/storage";
+
+function assetSort(a: { asset: AssetId, contractAddress: boolean | string }, b: { asset: AssetId, contractAddress: boolean | string }): number {
+  if ((a.contractAddress && !b.contractAddress) || (!a.asset.token && b.asset.token)) {
+    return -1;
+  } else if ((!a.contractAddress && b.contractAddress) || (a.asset.token && !b.asset.token)) {
+    return 1;
+  } else {
+    const nameA = a.asset.token || a.asset.chain || a.asset.handle;
+    const nameB = b.asset.token || b.asset.chain || b.asset.handle;
+    const comparison = nameA.localeCompare(nameB);
+    return comparison == 0 ? a.asset.handle.localeCompare(b.asset.handle) : comparison;
+  }
+}
 
 export default function AssetSelector(props: { children: ReactNode, title?: string, value?: AssetId | null, onChange?: (asset: AssetId | null) => void }) {
   const [launching, setLaunching] = useState(false);
@@ -13,6 +27,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
   const [symbol, setSymbol] = useState('');
   const [address, setAddress] = useState('');
   const [query, setQuery] = useState('');
+  const [history, setHistory] = useState<{ asset: AssetId, contractAddress: boolean | string }[]>([]);
   const [assets, setAssets] = useState<{ asset: AssetId, contractAddress: boolean | string }[]>([]);
   const policy = useMemo((): BlockchainInfo | null => policyIndex != null ? Exchange.descriptors[policyIndex] : null, [policyIndex]);
   const customToken = useMemo((): (AssetId & { contractAddress: boolean | string }) | null => {
@@ -33,21 +48,10 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
       setLoading(setTimeout(async () => {
         try {
           const result = await Exchange.assetQuery(value);
-          setAssets(result.map((x) => ({ asset: x, contractAddress: Whitelist.contractAddressOf(x) })).sort((a, b) => {
-            if ((a.contractAddress && !b.contractAddress) || (!a.asset.token && b.asset.token)) {
-              return -1;
-            } else if ((!a.contractAddress && b.contractAddress) || (a.asset.token && !b.asset.token)) {
-              return 1;
-            } else {
-              const nameA = a.asset.token || a.asset.chain || a.asset.handle;
-              const nameB = b.asset.token || b.asset.chain || b.asset.handle;
-              const comparison = nameA.localeCompare(nameB);
-              return comparison == 0 ? a.asset.handle.localeCompare(b.asset.handle) : comparison;
-            }
-          }));
+          setAssets(result.map((x) => ({ asset: x, contractAddress: Whitelist.contractAddressOf(x) })).sort(assetSort));
         } catch { }
         setLoading(null);
-      }, 300) as any);
+      }, 150) as any);
     } else {
       setLoading(null);
     }
@@ -55,6 +59,22 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
   const useAsset = useCallback((asset: AssetId | null) => {
     if (props.onChange)
       props.onChange(asset ? new AssetId(asset.id) : null);
+
+    if (asset != null) {
+      let prev = (AppStorage.get('__assets_history__') || []).filter((v: any) => typeof v == 'string');
+      if (!Array.isArray(prev)) {
+        prev = [];
+      } else if (prev.find((v) => v == asset.id)) {
+        return;
+      }
+
+      const next = [asset.id, ...prev.slice(0, 7)];
+      AppStorage.set(`__assets_history__`, next);
+      setHistory(next.map((v) => {
+        const x = new AssetId(v);
+        return { asset: x, contractAddress: Whitelist.contractAddressOf(x) }
+      }));
+    }
   }, []);
   useEffect(() => {
     if (props.value === undefined)
@@ -75,6 +95,15 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
       setAssets([]);
     }
   }, [props.value]);
+  useEffect(() => {
+    const prev = AppStorage.get('__assets_history__');
+    if (Array.isArray(prev)) {
+      setHistory(prev.filter((v: any) => typeof v == 'string').map((v: string) => {
+        const x = new AssetId(v);
+        return { asset: x, contractAddress: Whitelist.contractAddressOf(x) }
+      }));
+    }
+  }, []);
 
   return (
 	<Dialog.Root>
@@ -92,13 +121,22 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
               </TextField.Slot>
             </TextField.Root>
           </Tooltip>
-          <Tooltip content="Add a new token using public information">
-            <IconButton variant="soft" size="3" onClick={() => setLaunching(true)} loading={!!loading}>
-              <Icon path={mdiPlus} size={0.8}></Icon>
+          {
+            !props.value &&
+            <Tooltip content="Add a new token using public information">
+              <IconButton variant="soft" size="3" onClick={() => setLaunching(true)} loading={!!loading}>
+                <Icon path={mdiPlus} size={0.8}></Icon>
+              </IconButton>
+            </Tooltip>
+          }
+          {
+            props.value &&
+            <IconButton variant="soft" color="red" size="3" onClick={() => useAsset(null)} loading={!!loading}>
+              <Icon path={mdiCancel} size={0.8}></Icon>
             </IconButton>
-          </Tooltip>
+          }
         </Flex>
-        <Box px="2" pt="1">
+        <Box px="1" pt="1">
           {
             assets.map((item) =>
               <Dialog.Close key={item.asset.id}>
@@ -112,6 +150,28 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
                         { typeof item.contractAddress == 'string' && <Badge color="amber" size="1" radius="full">{ Readability.toAddress(item.contractAddress, 8) }</Badge> }
                       </Flex>
                     </Flex>
+                  </Flex>
+                </Button>
+              </Dialog.Close>)
+          }
+          {
+            !assets.length && !loading && !query.length && history.map((item) =>
+              <Dialog.Close key={item.asset.id}>
+                <Button variant="ghost" color="gray" size="4" radius="none" style={{ width: '100%', padding: '8px 8px', display: 'block', borderRadius: '24px' }} mt="4" onClick={() => useAsset(item.asset)}>
+                  <Flex align="center" justify="between">
+                    <Flex align="center" gap="2">
+                      <AssetImage asset={item.asset} size="2" iconSize="48px"></AssetImage>
+                      <Flex align="start" direction="column">
+                        <Flex gap="1" align="center">
+                          <AssetName asset={item.asset}></AssetName>
+                        </Flex>
+                        <Flex gap="2" align="center" wrap="wrap">
+                          <Text size="2">{ Readability.toAssetSymbol(item.asset) }</Text>
+                          { typeof item.contractAddress == 'string' && <Badge color="amber" size="1" radius="full">{ Readability.toAddress(item.contractAddress, 8) }</Badge> }
+                        </Flex>
+                      </Flex>
+                    </Flex>
+                    <Icon path={mdiHistory} size={0.7}></Icon>
                   </Flex>
                 </Button>
               </Dialog.Close>)

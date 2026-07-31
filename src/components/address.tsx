@@ -148,7 +148,7 @@ export function AddressView(props: { address: any, onExit?: () => any }) {
       <Flex align="center" justify="center" mt="3" gap="2">
         <AssetImage asset={props.address.asset} size="1"></AssetImage>
         <Badge size="2" color={props.address.purpose != 'witness' ? 'yellow' : 'red'} style={{ textTransform: 'uppercase' }}>{ toAddressType(props.address.purpose) }</Badge>
-        { props.address.purpose != 'bridge' && <Badge size="2" color="lime" style={{ textTransform: 'uppercase' }}>Your wallet</Badge> }
+        { props.address.purpose != 'bridge' && <Badge size="2" style={{ textTransform: 'uppercase' }}>Your wallet</Badge> }
         { props.address.purpose == 'bridge' && <Badge size="2" color="blue" style={{ textTransform: 'uppercase' }}>Vault wallet</Badge> }
       </Flex>
       <Box mt="6">

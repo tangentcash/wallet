@@ -113,7 +113,7 @@ export default function BlockPage() {
                 <Box ml="2">
                   <Link className="router-link" to={'/block/' + block.hash}>▒▒</Link>
                 </Box>
-                <Badge ml="2" color={priority > 0 ? (possibility > 50 ? 'red' : 'yellow') : 'lime'}>{ 'Fork possibility ≈ ' + possibility.toFixed(2) }%</Badge>
+                <Badge ml="2" color={priority > 0 ? (possibility > 50 ? 'red' : 'yellow') : undefined}>{ 'Fork possibility ≈ ' + possibility.toFixed(2) }%</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -293,7 +293,7 @@ export default function BlockPage() {
             <DataList.Item>
               <DataList.Label>Slot congestion:</DataList.Label>
               <DataList.Value>
-                <Badge color={block.slot.congestion ? 'red' : 'lime'}>{ block.slot.congestion ? 'Min gas price applies' : 'No min gas price' }</Badge>
+                <Badge color={block.slot.congestion ? 'red' : undefined}>{ block.slot.congestion ? 'Min gas price applies' : 'No min gas price' }</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>

@@ -5,9 +5,17 @@ import { AssetId, Readability } from "tangentsdk";
 import { AppData } from "../core/app";
 import { useEffectAsync } from "../core/react";
 import { useState } from "react";
+import { getGPUTier } from "../core/gpu";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 import License from "../components/license";
+import DarkVeil from "../components/dark-veil";
+import Strands from "../components/strands";
+import GlassSurface from "../components/glass-surface";
+import Particles from "../components/particles";
+import Plasma from "../components/plasma";
+import Threads from "../components/threads";
+import './hype.css';
 
 type Metrics = { assets: string, pairs: string, accounts: string, actions: string, quantity: string, volume: string };
 
@@ -80,9 +88,12 @@ const blockchains = [
 export default function HypePage() {
   const mobile = document.body.clientWidth < 510;
   const navigate = useNavigate();
+  const [unoptimzed, setUnoptimized] = useState(false);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   useEffectAsync(async () => {
-    if (cachedMetrics === false) {   
+    const gpu = await getGPUTier();
+    setUnoptimized(gpu.tier == 'BAD');
+    if (cachedMetrics === false) {
       try {
         const response = await fetch('https://p2p.tangent.cash:19420/market/metrics');
         const result = (await response.json()).result;
@@ -107,7 +118,7 @@ export default function HypePage() {
         zIndex: -1,
         backgroundImage: 'linear-gradient(var(--gray-a3) 1px, transparent 1px), linear-gradient(90deg, var(--gray-a3) 1px, transparent 1px)',
         backgroundSize: '64px 64px',
-        filter: 'drop-shadow(0px 0px 3px var(--gray-a9))'
+        filter: 'drop-shadow(0px 0px 2.5px var(--accent-a11))'
       }}></Box>
       <Box position="absolute" top="0" left="0" right="0" height="300px" style={{
         zIndex: -1,
@@ -125,19 +136,19 @@ export default function HypePage() {
         zIndex: -1,
         backgroundImage: 'linear-gradient(to left, transparent 0%, var(--color-background) 100%)'
       }}></Box>
-      <Box position="fixed" top="0" left="0" right="0" px="2" py="4" style={{ zIndex: 9999 }}>
-        <Box maxWidth="840px" mx="auto" px="4" py="3" style={{
-            backgroundColor: 'var(--color-panel)',
-            border: '1px solid var(--gray-a5)',
-            borderRadius: "24px",
-            filter: "brightness(1.1)",
-            WebkitBackdropFilter: "blur(24px)",
-            backdropFilter: "blur(24px)"
-          }}>
-          <Flex justify="between" align="center">
+      <Box position="fixed" top="0" left="0" right="0" px="2" py="6" style={{ zIndex: 9999 }}>
+        <Box maxWidth="840px" mx="auto" style={{
+          backgroundColor: 'var(--color-panel)',
+          border: '1px solid var(--gray-a5)',
+          borderRadius: "24px",
+          filter: "brightness(1.1)",
+          WebkitBackdropFilter: "blur(24px)",
+          backdropFilter: "blur(24px)"
+        }}>
+          <Flex px="4" py="3" justify="between" align="center">
             <Flex align="center" gap="3">
               <Avatar size="3" radius="none" fallback="TC" src="/favicon.svg"></Avatar>
-              <Heading size="5" weight="bold" style={{ letterSpacing: '1.25px' }}>TANGENT<Text color="lime">CASH</Text></Heading>
+              <Heading size="5" weight="bold" style={{ letterSpacing: '1.25px' }}>TANGENT<Text style={{ color: 'var(--accent-11)' }}>CASH</Text></Heading>
             </Flex>
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>
@@ -181,16 +192,34 @@ export default function HypePage() {
           </Flex>
         </Box>
       </Box>
-      <Box style={{ padding: mobile ? '120px 0' : '200px 0', paddingTop: '360px' }}>
+      <Box style={{ padding: mobile ? '120px 0' : '200px 0', paddingTop: '360px', position: 'relative' }}>
+        {
+          !unoptimzed &&
+          <div style={{ width: '100%', height: '900px', position: 'absolute', top: '0', zIndex: -1, mixBlendMode: 'difference' }}>
+            <DarkVeil
+              hueShift={AppData.props.appearance == 'dark' ? 60 : 0}
+              noiseIntensity={0}
+              scanlineIntensity={0}
+              speed={0.25}
+              scanlineFrequency={0}
+              warpAmount={0}
+            />
+          </div>
+        }
         <Box maxWidth="840px" mx="auto" px="4" py="4">
           <Flex justify="center" mb="6">
-            <Heading align="center" size={mobile ? '7' : '8'}>Gain The Control</Heading>
+            <Heading align="center" size={mobile ? '7' : '9'}>Gain The Control</Heading>
           </Flex>
           <Flex justify="center" mb="8">
-            <Text align="center" size={mobile ? '3' : '4'}>Trade, stake, bridge, pay staying truly on-chain.</Text>
+            <Text align="center" size={mobile ? '3' : '4'}>Your DeFi staying truly on-chain.</Text>
           </Flex>
           <Flex justify="center" align="center" direction="column" mb="3">
-            <Button size="4" variant="surface" style={{ paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation shadow-blur" onClick={() => navigate('/restore')}>
+            <Button size="4" variant="surface" style={{
+              paddingLeft: '24px',
+              paddingRight: '24px',
+              WebkitBackdropFilter: "blur(24px)",
+              backdropFilter: "blur(24px)",
+            }} className="shadow-rainbow-animation shadow-blur" onClick={() => navigate('/restore')}>
               { AppData.isWalletExists() ? 'Back to app' : 'Create a wallet' } <Icon path={mdiLogin} size={1}></Icon>
             </Button>
           </Flex>
@@ -200,10 +229,10 @@ export default function HypePage() {
           </Flex>
         </Box>
       </Box>
-      <Box style={{ padding: mobile ? '120px 0' : '200px 0' }}>
+      <Box style={{ padding: mobile ? '120px 0' : '300px 0' }} position="relative">
         <Box maxWidth="840px" mx="auto" px="4" py="4">
           <Flex justify="center" mb="6">
-            <Heading align="center" size={mobile ? '7' : '8'}>True Sovereignty</Heading>
+            <Heading align="center" size={mobile ? '7' : '9'}>True Sovereignty</Heading>
           </Flex>
           <Flex justify="center" mb="8">
             <Text align="center" size={mobile ? '3' : '4'}>Forget about KYC abuse and frozen accounts.</Text>
@@ -215,26 +244,73 @@ export default function HypePage() {
             <Flex px="4" py="4" style={{ borderRadius: '28px', backgroundColor: 'var(--gray-12)' }}>
               <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'var(--gray-1)' }}>Powered by P2P Network</Heading>
             </Flex>
-            <Flex px="4" py="4" style={{ borderRadius: '28px', backgroundColor: 'var(--lime-9)' }}>
-              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'black' }}>Verified by Open Source</Heading>
-            </Flex>
+            <GlassSurface borderRadius={28} width="auto" height="auto" style={{ padding: '8px' }}>
+              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'var(--gray-12)' }}>Verified by Open Source</Heading>
+            </GlassSurface>
           </Flex>
         </Box>
+        {
+          !unoptimzed &&
+          <>
+            <div style={{ width: '100%', height: '500px', position: 'absolute', bottom: '10px', zIndex: -2 }}>
+              <div style={{ width: '100%', maxWidth: '1200px', margin: '0 auto', height: '100%' }}>
+                <Strands
+                  colors={["#F97316","#7C3AED","#06B6D4"]}
+                  count={3}
+                  speed={0.15}
+                  amplitude={1}
+                  waviness={1}
+                  thickness={0.7}
+                  glow={2.6}
+                  taper={3}
+                  spread={1}
+                  intensity={0.6}
+                  saturation={2}
+                  opacity={1}
+                  scale={2}
+                  glass={false}
+                  refraction={1}
+                  dispersion={1}
+                  glassSize={1}
+                  hueShift={0}
+                />
+              </div>
+            </div>
+            <Box position="absolute" bottom="0" left="0" right="0" height="150px" style={{
+              backgroundImage: 'linear-gradient(transparent 0%, var(--color-background) 100%)', zIndex: -2
+            }}></Box>
+          </>
+        }
       </Box>
-      <Box style={{ padding: mobile ? '120px 0' : '200px 0' }}>
+      <Box style={{ padding: mobile ? '120px 0' : '200px 0' }} position="relative">
         <Box maxWidth="840px" mx="auto" px="4" py="4">
           <Box position="relative">
             <Flex justify="center" wrap="wrap" align="center" mb="6" gap="6">
-              <Heading align="center" size={mobile ? '7' : '8'}>Bridging { blockchains.length } Networks</Heading>
+              <Heading align="center" size={mobile ? '7' : '9'}>{ blockchains.length } Networks</Heading>
             </Flex>
             <Flex justify="center" mb="8">
               <Text align="center" size={mobile ? '3' : '4'}>Coins, tokens, just works.</Text>
             </Flex>
+            <svg style={{ display: 'none' }}>
+              <filter id="fancy-icon-filter" x="-50%" y="-50%" width="200%" height="200%">
+                <feColorMatrix type="matrix" 
+                  values="1 0 0 0 0
+                          0 1 0 0 0
+                          0 0 1 0 0
+                          0 0 0 0.5 0"
+                  result="WhiteSource" />
+                <feGaussianBlur stdDeviation="15" result="ColoredBlur" />
+                <feMerge>
+                  <feMergeNode in="ColoredBlur" />
+                  <feMergeNode in="SourceGraphic" />
+                </feMerge>
+              </filter>
+            </svg>
             <Flex wrap="wrap" justify="center" gap="9" pt="6">
               {
                 blockchains.map((chain) =>
                   <Flex key={chain} direction="column" gap="4" align="center" justify="center" width="120px">
-                    <Avatar size="5" fallback={chain} src={`/cryptocurrency/${chain.toLowerCase().replace(/ /g, '')}.svg`}></Avatar>
+                    <Avatar className="fancy-icon-filter" size="5" fallback={chain} src={`/cryptocurrency/${chain.toLowerCase().replace(/ /g, '')}.svg`}></Avatar>
                     <Flex gap="1">
                       <Text size="1">{ Readability.toAssetName(AssetId.fromHandle(chain)) }</Text>
                     </Flex>
@@ -246,26 +322,50 @@ export default function HypePage() {
       </Box>
       {
         metrics != null &&
-        <Box style={{ padding: mobile ? '120px 0' : '200px 0' }}>
-          <Box maxWidth="540px" mx="auto" px="4" py="4">
+        <Box style={{ padding: mobile ? '120px 0' : '200px 0' }} position="relative">
+          {
+            !unoptimzed &&
+            <>
+              <div style={{ position: 'absolute', bottom: '0', top: '0', left: '0', right: '0', zIndex: -2 }}>
+                <Particles
+                  particleColors={["#b0f406"]}
+                  particleCount={200}
+                  particleSpread={10}
+                  speed={0.01}
+                  particleBaseSize={300}
+                  moveParticlesOnHover={false}
+                  disableRotation={false}
+                  pixelRatio={1}
+                />
+                <Box position="absolute" top="0" left="0" right="0" height="100px" style={{
+                  backgroundImage: 'linear-gradient(var(--color-background) 0%, transparent 100%)', zIndex: -2
+                }}></Box>
+                <Box position="absolute" bottom="0" left="0" right="0" height="100px" style={{
+                  backgroundImage: 'linear-gradient(transparent 0%, var(--color-background) 100%)', zIndex: -2
+                }}></Box>
+              </div>
+            </>
+          }
+          <Box mx="auto" px="4" py="4">
             <Flex justify="center" mb="6">
-              <Heading align="center" size={mobile ? '7' : '8'}>Serving { metrics.accounts }</Heading>
+              <Heading align="center" size={mobile ? '7' : '9'}>{ metrics.accounts }</Heading>
             </Flex>
             <Flex justify="center" mb="8">
               <Text align="center" size={mobile ? '3' : '4'}><span style={{ 
                   display: 'inline-block',
                   width: '8px',
                   height: '8px',
-                  backgroundColor: 'var(--lime-11)',
+                  backgroundColor: '#b0f406',
                   borderRadius: '50%',
-                  marginRight: '8px',
-                  verticalAlign: 'middle'
+                  marginRight: '5px',
+                  verticalAlign: 'middle',
+                  transform: 'translateY(-1.5px)'
                 }}></span>{ secondsToDuration((new Date().getTime() - genesisTimeDEX.getTime()) / 1000) } of on-chain metrics.</Text>
             </Flex>
-            <Flex wrap="wrap" gap="3" justify="center">
-              <Flex px="5" py="4" style={{ borderRadius: '36px', backgroundColor: 'var(--gray-12)' }}>
-                <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'var(--gray-1)' }}><Text weight="bold">{ metrics.actions }</Text> on <Text weight="bold">{ metrics.pairs }</Text></Heading>
-              </Flex>
+            <Flex mx="auto" maxWidth="540px" wrap="wrap" gap="3" justify="center">
+              <GlassSurface borderRadius={28} width="auto" height="auto" style={{ padding: '8px' }}>
+                <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'var(--gray-12)' }}><Text weight="bold">{ metrics.actions }</Text> on <Text weight="bold">{ metrics.pairs }</Text></Heading>
+              </GlassSurface>
               <Flex px="5" py="4" style={{ borderRadius: '36px', backgroundColor: 'var(--blue-9)' }}>
                 <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'white' }}><Text weight="bold">{ metrics.quantity }</Text> locked in <Text weight="bold">{ metrics.assets }</Text></Heading>
               </Flex>
@@ -279,7 +379,7 @@ export default function HypePage() {
       <Box style={{ padding: mobile ? '120px 0' : '200px 0' }}>
         <Box maxWidth="540px" mx="auto" px="4" py="4">
           <Flex justify="center" mb="6">
-            <Heading align="center" size={mobile ? '7' : '8'}>Spot Trading</Heading>
+            <Heading align="center" size={mobile ? '7' : '9'}>Spot Trading</Heading>
           </Flex>
           <Flex justify="center" mb="8">
             <Text align="center" size={mobile ? '3' : '4'}>Trade on your conditions.</Text>
@@ -288,22 +388,47 @@ export default function HypePage() {
             <Flex px="4" py="4" style={{ borderRadius: '28px', backgroundColor: 'var(--blue-9)' }}>
               <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'white' }}>Tickers by People</Heading>
             </Flex>
-            <Flex px="4" py="4" style={{ borderRadius: '28px', backgroundColor: 'var(--gray-12)' }}>
-              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'var(--gray-1)' }}>Powered by Order Book</Heading>
-            </Flex>
+            <GlassSurface borderRadius={28} width="auto" height="auto" style={{ padding: '8px' }}>
+              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'var(--gray-12)' }}>Powered by Order Book</Heading>
+            </GlassSurface>
             <Flex px="4" py="4" style={{ borderRadius: '28px', backgroundColor: 'var(--indigo-10)' }}>
               <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'white' }}>Liquditity by AMM</Heading>
             </Flex>
-            <Flex px="4" py="4" style={{ borderRadius: '28px', backgroundColor: 'var(--lime-9)' }}>
+            <Flex px="4" py="4" style={{ borderRadius: '28px', backgroundColor: 'var(--accent-9)' }}>
               <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'black' }}>Prices by Oracle</Heading>
             </Flex>
           </Flex>
         </Box>
       </Box>
-      <Box style={{ padding: mobile ? '120px 0' : '200px 0' }}>
+      <Box style={{ padding: mobile ? '120px 0' : '200px 0' }} position="relative">
+        {
+          !unoptimzed &&
+          <>
+            <div style={{ position: 'absolute', bottom: '200px', top: '200px', left: '0', right: '0', zIndex: -2 }}>
+              <Plasma
+                color="#0090FF"
+                speed={0.25}
+                direction="reverse"
+                scale={1}
+                opacity={0.8}
+                mouseInteractive={false}
+                renderScale={0.55}
+                maxDpr={1.5}
+                targetFps={30}
+                iterations={60}
+              />
+            </div>
+            <Box position="absolute" top="200px" left="0" right="0" height="100px" style={{
+              backgroundImage: 'linear-gradient(var(--color-background) 0%, transparent 100%)', zIndex: -2
+            }}></Box>
+            <Box position="absolute" bottom="200px" left="0" right="0" height="100px" style={{
+              backgroundImage: 'linear-gradient(transparent 0%, var(--color-background) 100%)', zIndex: -2
+            }}></Box>
+          </>
+        }
         <Box maxWidth="840px" mx="auto" px="4" py="4">
           <Flex justify="center" mb="6">
-            <Heading align="center" size={mobile ? '7' : '8'}>Unified Liquidity</Heading>
+            <Heading align="center" size={mobile ? '7' : '9'}>Unified Liquidity</Heading>
           </Flex>
           <Flex justify="center" mb="8">
             <Text align="center" size={mobile ? '3' : '4'}>Never pay for a network change.</Text>
@@ -345,40 +470,58 @@ export default function HypePage() {
       <Box style={{ padding: mobile ? '120px 0' : '200px 0', paddingBottom: '100px' }}>
         <Box maxWidth="800px" mx="auto" px="4" py="4">
           <Flex justify="center" mb="6">
-            <Heading align="center" size={mobile ? '7' : '8'}>Effective Bridging</Heading>
+            <Heading align="center" size={mobile ? '7' : '9'}>Effective Bridging</Heading>
           </Flex>
           <Flex justify="center" mb="8">
-            <Text align="center" size={mobile ? '3' : '4'}>Pay network fees, not bank transfer fees.</Text>
+            <Text align="center" size={mobile ? '3' : '4'}>Pay network fees, not bank fees.</Text>
           </Flex>
           <Flex wrap="wrap" gap="3" justify="center">
-            <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--lime-9)' }}>
+            <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--accent-9)' }}>
               <Icon path={mdiCreation} color="black" size={mobile ? 0.7 : 1}></Icon> 
               <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'black' }}>No Fee Deposit</Heading>
             </Flex>
-            <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--blue-9)' }}>
-              <Icon path={mdiContactlessPayment} color="white" size={mobile ? 0.7 : 1}></Icon> 
-              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'white' }}>Pay & Stake & Trade</Heading>
+            <Flex className="rt-BaseButton rt-variant-surface" data-accent-color="blue" px="4" py="4" gap="2" style={{
+              borderRadius: '28px',
+              WebkitBackdropFilter: "blur(14px)",
+              backdropFilter: "blur(14px)"
+            }}>
+              <Icon path={mdiContactlessPayment} size={mobile ? 0.7 : 1}></Icon> 
+              <Heading size={mobile ? '2' : '4'} weight="regular">Pay & Stake & Trade</Heading>
             </Flex>
-            <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--ruby-9)' }}>
-              <Icon path={mdiFire} color="white" size={mobile ? 0.7 : 1}></Icon>
-              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'white' }}>Fixed Withdrawal Fee</Heading>
+            <Flex className="rt-BaseButton rt-variant-surface" data-accent-color="ruby" px="4" py="4" gap="2" style={{
+              borderRadius: '28px',
+              WebkitBackdropFilter: "blur(14px)",
+              backdropFilter: "blur(14px)"
+            }}>
+              <Icon path={mdiFire} size={mobile ? 0.7 : 1}></Icon>
+              <Heading size={mobile ? '2' : '4'} weight="regular">Fixed Withdrawal Fee</Heading>
             </Flex>
           </Flex>
         </Box>
       </Box>
-      <Box style={{ padding: mobile ? '120px 0' : '200px 0', paddingBottom: '100px' }}>
+      <Box style={{ padding: mobile ? '120px 0' : '200px 0', paddingBottom: '100px' }} position="relative">
+        {
+          !unoptimzed &&
+          <div style={{ position: 'absolute', bottom: '0', top: '0', left: '0', right: '0', zIndex: -2 }}>
+            <Threads
+              amplitude={1}
+              distance={0.5}
+              enableMouseInteraction
+            />
+          </div>
+        }
         <Box maxWidth="800px" mx="auto" px="4" py="4">
           <Flex justify="center" mb="6">
-            <Heading align="center" size={mobile ? '7' : '8'}>Trading Fees</Heading>
+            <Heading align="center" size={mobile ? '7' : '9'}>Trading Fees</Heading>
           </Flex>
           <Flex justify="center" mb="8">
             <Text align="center" size={mobile ? '3' : '4'}>Optimal setup for spot trading.</Text>
           </Flex>
           <Flex wrap="wrap" gap="3" justify="center">
-            <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--gray-12)' }}>
-              <Icon path={mdiSale} color="var(--gray-1)" size={mobile ? 0.7 : 1}></Icon> 
-              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'var(--gray-1)' }}>0.01% Spread</Heading>
-            </Flex>
+            <GlassSurface backgroundOpacity={0.3} saturation={0} borderRadius={28} width="auto" height="auto" style={{ padding: '8px' }}>
+              <Icon path={mdiSale} color="var(--gray-12)" size={mobile ? 0.7 : 1}></Icon> 
+              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'var(--gray-12)' }}>0.01% Spread</Heading>
+            </GlassSurface>
             <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--indigo-10)' }}>
               <Icon path={mdiPercent} color="white" size={mobile ? 0.7 : 1}></Icon> 
               <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'white' }}>0.00% Fee</Heading>
@@ -387,25 +530,37 @@ export default function HypePage() {
         </Box>
       </Box>
       <Box style={{ padding: mobile ? '120px 0' : '200px 0', paddingBottom: '100px' }}>
-        <Box maxWidth="500px" mx="auto" px="4" py="4">
+        <Box mx="auto" px="4" py="4">
           <Flex justify="center" mb="6">
-            <Heading align="center" size={mobile ? '7' : '8'}>Withdrawal Fees</Heading>
+            <Heading align="center" size={mobile ? '7' : '9'}>Withdrawal Fees</Heading>
           </Flex>
           <Flex justify="center" mb="8">
             <Text align="center" size={mobile ? '3' : '4'}>Pay the cost of the network you are using.</Text>
           </Flex>
-          <Flex wrap="wrap" gap="3" justify="center">
-            <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--grass-9)' }}>
-              <Icon path={mdiFlashOutline} color="white" size={mobile ? 0.7 : 1}></Icon> 
-              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'white' }}>Modern L1s/L2s &lt; $0.90</Heading>
+          <Flex maxWidth="600px" mx="auto" wrap="wrap" gap="3" justify="center">
+            <Flex className="rt-BaseButton rt-variant-surface" data-accent-color="green" px="4" py="4" gap="2" style={{
+              borderRadius: '28px',
+              WebkitBackdropFilter: "blur(14px)",
+              backdropFilter: "blur(14px)"
+            }}>
+              <Icon path={mdiFlashOutline} size={mobile ? 0.7 : 1}></Icon> 
+              <Heading size={mobile ? '2' : '4'} weight="regular">Modern L1s/L2s &lt; $0.90</Heading>
             </Flex>
-            <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--amber-9)' }}>
-              <Icon path={mdiFlash} color="black" size={mobile ? 0.7 : 1}></Icon> 
-              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'black' }}>Standard L1s/L2s &lt; $1.50</Heading>
+            <Flex className="rt-BaseButton rt-variant-surface" data-accent-color="amber" px="4" py="4" gap="2" style={{
+              borderRadius: '28px',
+              WebkitBackdropFilter: "blur(14px)",
+              backdropFilter: "blur(14px)"
+            }}>
+              <Icon path={mdiFlash} size={mobile ? 0.7 : 1}></Icon> 
+              <Heading size={mobile ? '2' : '4'} weight="regular">Standard L1s/L2s &lt; $1.50</Heading>
             </Flex>
-            <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--red-9)' }}>
-              <Icon path={mdiFlashAlert} color="white" size={mobile ? 0.7 : 1}></Icon> 
-              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'white' }}>Legacy L1s &lt; $20.00</Heading>
+            <Flex className="rt-BaseButton rt-variant-surface" data-accent-color="red" px="4" py="4" gap="2" style={{
+              borderRadius: '28px',
+              WebkitBackdropFilter: "blur(14px)",
+              backdropFilter: "blur(14px)"
+            }}>
+              <Icon path={mdiFlashAlert} size={mobile ? 0.7 : 1}></Icon> 
+              <Heading size={mobile ? '2' : '4'} weight="regular">Legacy L1s &lt; $20.00</Heading>
             </Flex>
           </Flex>
         </Box>

@@ -1,0 +1,351 @@
+@font-face {
+  font-family: 'PT Mono';
+  src: url('./fonts/ptmono-regular.ttf');
+}
+
+.shadow-rainbow,
+.shadow-rainbow-animation,
+.shadow-rainbow-hover,
+.shadow-rainbow-alt-hover {
+  position: relative;
+}
+
+.shadow-rainbow::before,
+.shadow-rainbow-animation::before,
+.shadow-rainbow-hover::before,
+.shadow-rainbow-alt-hover::before {
+  content: "";
+  border-radius: inherit;
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  opacity: 0;
+  box-shadow: -15px 0 30px -10px var(--yellow-a7), 0 0 30px -10px var(--lime-a7), 15px 0 30px -10px var(--blue-a7), 0 0 0 1px var(--lime-a4);
+  transition: all 0.2s linear;
+}
+
+.shadow-rainbow::before,
+.shadow-rainbow-hover:not(:disabled):hover::before,
+.shadow-rainbow-alt-hover:not(:disabled):hover::before {
+  opacity: 0.65;
+}
+
+.shadow-rainbow-animation::before {
+  animation-name: shadow-rainbow-animation-clip;
+  animation-duration: 3s;
+  animation-delay: 0.2s;
+  animation-iteration-count: infinite;
+  opacity: 1.0;
+}
+
+.shadow-rainbow-progress {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  transition: right 500ms linear;
+  box-shadow: 0px 0px 4px 2.2px var(--lime-a6);
+}
+
+.shadow-blur {
+  backdrop-filter: blur(3px);
+}
+
+@keyframes shadow-rainbow-animation-clip {
+  25% { box-shadow: -15px 0 30px -10px var(--lime-a7), 0 0 30px -10px var(--blue-a7), 15px 0 30px -10px var(--lime-a4), 0 0 0 1px var(--yellow-a7); opacity: 0.5; }
+  50% { box-shadow: -15px 0 30px -10px var(--blue-a7), 0 0 30px -10px var(--lime-a4), 15px 0 30px -10px var(--yellow-a7), 0 0 0 1px var(--lime-a7); opacity: 1.0; }
+  75% { box-shadow: -15px 0 30px -10px var(--lime-a4), 0 0 30px -10px var(--yellow-a7), 15px 0 30px -10px var(--lime-a7), 0 0 0 1px var(--blue-a7); opacity: 0.5; }
+  100% { box-shadow: -15px 0 30px -10px var(--yellow-a7), 0 0 30px -10px var(--lime-a7), 15px 0 30px -10px var(--blue-a7), 0 0 0 1px var(--lime-a4); opacity: 1.0; }
+}
+
+.tab-padding-erase {
+  height: auto;
+  padding-bottom: 9px;
+}
+
+.tab-padding-erase > span {
+  padding: 0;
+}
+
+.card-expander:hover {
+  cursor: pointer;
+}
+
+.card-expander:hover::before,
+.card-expander:active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: var(--gray-a2);
+  border-radius: 22px;
+  pointer-events: none;
+}
+
+.select-plain > svg {
+  display: none;
+}
+
+.rt-Card {
+  --card-border-width: 0px;
+  border: 1px solid var(--gray-6);
+}
+
+.rt-Card::before {
+  background-color: transparent;
+  backdrop-filter: none;
+}
+
+.rt-SegmentedControlRoot {
+  background-color: var(--gray-a1);
+}
+
+.rt-TextFieldRoot {
+  background-image: none;
+}
+
+.rt-TooltipText {
+  -webkit-user-select: initial;
+  user-select: initial;
+  cursor: initial;
+}
+
+.router-link {
+  color: var(--indigo-11);
+}
+
+.router-text-link {
+  color: unset;
+}
+
+.radix-themes {
+	--default-font-family: "PT Mono", monospace;
+}
+
+.rt-TextAreaRoot:where(.rt-variant-soft):not(:hover):not(:active):not(:focus),
+.rt-BaseButton:where(.rt-variant-soft):not(:hover):not(:active):not(:focus),
+.rt-SelectTrigger:where(.rt-variant-soft):not(:hover):not(:active):not(:focus),
+.rt-TextFieldRoot:where(.rt-variant-soft):not(:hover):not(:active):not(:focus) {
+  background-color: transparent;
+  box-shadow: inset 0 0 0 1px var(--gray-a6);
+}
+
+:root, .light, .light-theme {
+  --gray-surface: #f0f4f0;
+  --color-panel: transparent;
+  --color-panel-solid: #f0f4f0;
+  --color-panel-translucent: transparent;
+  --color-background: #f0f4f0;
+  --color-surface: transparent;
+  
+  --lime-1: #fcfdfa;
+  --lime-2: #f7faf3;
+  --lime-3: #eaf8d9;
+  --lime-4: #ddf2c2;
+  --lime-5: #cfe9ad;
+  --lime-6: #bfdb98;
+  --lime-7: #abc981;
+  --lime-8: #92b55c;
+  --lime-9: #bdee70;
+  --lime-10: #b2e55d;
+  --lime-11: #607b34;
+  --lime-12: #344122;
+
+  --lime-a1: #66990005;
+  --lime-a2: #5595000c;
+  --lime-a3: #73d10026;
+  --lime-a4: #71c9003d;
+  --lime-a5: #6abb0052;
+  --lime-a6: #61a60067;
+  --lime-a7: #5592007e;
+  --lime-a8: #558c00a3;
+  --lime-a9: #8ae1008f;
+  --lime-a10: #86d600a2;
+  --lime-a11: #375900cb;
+  --lime-a12: #152400dd;
+
+  --lime-contrast: #1c250f;
+  --lime-surface: #f5f9f0cc;
+  --lime-indicator: #bdee70;
+  --lime-track: #bdee70;
+
+  --gray-1: #fcfcfc;
+  --gray-2: #f9f9f9;
+  --gray-3: #f0f0f0;
+  --gray-4: #e8e8e8;
+  --gray-5: #e1e1e1;
+  --gray-6: #d9d9d9;
+  --gray-7: #cecece;
+  --gray-8: #bbb;
+  --gray-9: #8d8d8d;
+  --gray-10: #828282;
+  --gray-11: #646464;
+  --gray-12: #202020;
+
+  --gray-a1: #00000003;
+  --gray-a2: #00000006;
+  --gray-a3: #0000000f;
+  --gray-a4: #00000017;
+  --gray-a5: #0000001e;
+  --gray-a6: #00000026;
+  --gray-a7: #00000031;
+  --gray-a8: #00000044;
+  --gray-a9: #00000072;
+  --gray-a10: #0000007d;
+  --gray-a11: #0000009b;
+  --gray-a12: #000000df;
+
+  --gray-contrast: #FFFFFF;
+  --gray-surface: #ffffffcc;
+  --gray-indicator: #8d8d8d;
+  --gray-track: #8d8d8d;
+}
+
+@supports (color: color(display-p3 1 1 1)) {
+  @media (color-gamut: p3) {
+    :root, .light, .light-theme {
+      --lime-1: oklch(99.2% 0.0039 127);
+      --lime-2: oklch(98.2% 0.01 127);
+      --lime-3: oklch(96% 0.0426 127);
+      --lime-4: oklch(93.3% 0.0666 127);
+      --lime-5: oklch(89.9% 0.0836 127);
+      --lime-6: oklch(85.5% 0.0936 127);
+      --lime-7: oklch(79.7% 0.1024 127);
+      --lime-8: oklch(72.6% 0.1238 127);
+      --lime-9: oklch(89% 0.1641 127);
+      --lime-10: oklch(86% 0.1731 127);
+      --lime-11: oklch(54.6% 0.1037 127);
+      --lime-12: oklch(35.4% 0.0522 127);
+
+      --lime-a1: color(display-p3 0.4118 0.6078 0.0196 / 0.02);
+      --lime-a2: color(display-p3 0.3765 0.5569 0.0196 / 0.044);
+      --lime-a3: color(display-p3 0.4902 0.8039 0.0078 / 0.138);
+      --lime-a4: color(display-p3 0.4784 0.7569 0.0039 / 0.224);
+      --lime-a5: color(display-p3 0.4392 0.698 0.0039 / 0.299);
+      --lime-a6: color(display-p3 0.3882 0.6157 0.0039 / 0.377);
+      --lime-a7: color(display-p3 0.3412 0.5373 0.0039 / 0.463);
+      --lime-a8: color(display-p3 0.3294 0.5059 0 / 0.597);
+      --lime-a9: color(display-p3 0.5569 0.8588 0.0039 / 0.495);
+      --lime-a10: color(display-p3 0.5294 0.8118 0 / 0.557);
+      --lime-a11: color(display-p3 0.2039 0.3098 0 / 0.757);
+      --lime-a12: color(display-p3 0.0784 0.1255 0 / 0.851);
+
+      --lime-contrast: #1c250f;
+      --lime-surface: color(display-p3 0.9647 0.9765 0.9451 / 0.8);
+      --lime-indicator: oklch(89% 0.1641 127);
+      --lime-track: oklch(89% 0.1641 127);
+
+      --gray-1: oklch(99.2% 0 none);
+      --gray-2: oklch(98.1% 0 none);
+      --gray-3: oklch(95.4% 0 none);
+      --gray-4: oklch(93% 0 none);
+      --gray-5: oklch(90.8% 0 none);
+      --gray-6: oklch(88.4% 0 none);
+      --gray-7: oklch(85.1% 0 none);
+      --gray-8: oklch(79.1% 0 none);
+      --gray-9: oklch(64.3% 0 none);
+      --gray-10: oklch(60.8% 0 none);
+      --gray-11: oklch(50.2% 0 none);
+      --gray-12: oklch(24.3% 0 none);
+
+      --gray-a1: color(display-p3 0 0 0 / 0.0118);
+      --gray-a2: color(display-p3 0 0 0 / 0.0235);
+      --gray-a3: color(display-p3 0 0 0 / 0.0588);
+      --gray-a4: color(display-p3 0 0 0 / 0.0902);
+      --gray-a5: color(display-p3 0 0 0 / 0.1176);
+      --gray-a6: color(display-p3 0 0 0 / 0.149);
+      --gray-a7: color(display-p3 0 0 0 / 0.1922);
+      --gray-a8: color(display-p3 0 0 0 / 0.2667);
+      --gray-a9: color(display-p3 0 0 0 / 0.4471);
+      --gray-a10: color(display-p3 0 0 0 / 0.4902);
+      --gray-a11: color(display-p3 0 0 0 / 0.6078);
+      --gray-a12: color(display-p3 0 0 0 / 0.8745);
+
+      --gray-contrast: #FFFFFF;
+      --gray-surface: color(display-p3 1 1 1 / 80%);
+      --gray-indicator: oklch(64.3% 0 none);
+      --gray-track: oklch(64.3% 0 none);
+    }
+  }
+}
+
+.dark, .dark-theme {
+  --gray-surface: #000;
+  --color-panel: #00000000;
+  --color-panel-solid: #000;
+  --color-panel-translucent: #00000000;
+  --color-background: #000;
+  --color-surface: #00000000;
+  
+  --lime-1: #000;
+  --lime-2: #0f1309;
+  --lime-3: #1d2511;
+  --lime-4: #293517;
+  --lime-5: #34431c;
+  --lime-6: #3f5221;
+  --lime-7: #4c6227;
+  --lime-8: #5a752c;
+  --lime-9: #b3eb4b;
+  --lime-10: #addf57;
+  --lime-11: #b5e860;
+  --lime-12: #ddf9b7;
+
+  --lime-a1: #00000000;
+  --lime-a2: #caff7913;
+  --lime-a3: #c8ff7625;
+  --lime-a4: #c6ff6f35;
+  --lime-a5: #c6ff6b43;
+  --lime-a6: #c4ff6752;
+  --lime-a7: #c6ff6662;
+  --lime-a8: #c5ff6075;
+  --lime-a9: #c2ff51eb;
+  --lime-a10: #c6ff64df;
+  --lime-a11: #c7ff6ae8;
+  --lime-a12: #e2ffbbf9;
+
+  --lime-contrast: #1c250f;
+  --lime-surface: #1e261280;
+  --lime-indicator: #b3eb4b;
+  --lime-track: #b3eb4b;
+}
+
+@supports (color: color(display-p3 1 1 1)) {
+  @media (color-gamut: p3) {
+    .dark, .dark-theme {
+      --lime-1: oklch(0% 0.0159 126.8);
+      --lime-2: oklch(17.8% 0.0214 126.8);
+      --lime-3: oklch(25.1% 0.0379 126.8);
+      --lime-4: oklch(30.9% 0.0519 126.8);
+      --lime-5: oklch(35.9% 0.0639 126.8);
+      --lime-6: oklch(40.9% 0.0758 126.8);
+      --lime-7: oklch(46.3% 0.0884 126.8);
+      --lime-8: oklch(52.4% 0.1044 126.8);
+      --lime-9: oklch(87.2% 0.1932 126.8);
+      --lime-10: oklch(84.1% 0.172 126.8);
+      --lime-11: oklch(86.8% 0.172 126.8);
+      --lime-12: oklch(94.6% 0.0905 126.8);
+
+      --lime-a1: color(display-p3 0 0 0 / 0);
+      --lime-a2: color(display-p3 0.8392 0.9961 0.5255 / 0.075);
+      --lime-a3: color(display-p3 0.8353 0.9961 0.5137 / 0.146);
+      --lime-a4: color(display-p3 0.8118 1 0.5098 / 0.208);
+      --lime-a5: color(display-p3 0.8235 1 0.4941 / 0.263);
+      --lime-a6: color(display-p3 0.8275 1 0.4941 / 0.318);
+      --lime-a7: color(display-p3 0.8235 1 0.4863 / 0.381);
+      --lime-a8: color(display-p3 0.8196 1 0.4745 / 0.455);
+      --lime-a9: color(display-p3 0.8196 1 0.4392 / 0.914);
+      --lime-a10: color(display-p3 0.8235 1 0.4824 / 0.871);
+      --lime-a11: color(display-p3 0.8275 1 0.498 / 0.906);
+      --lime-a12: color(display-p3 0.9098 1 0.7647 / 0.973);
+
+      --lime-contrast: #1c250f;
+      --lime-surface: color(display-p3 0.1176 0.149 0.0784 / 0.5);
+      --lime-indicator: oklch(87.2% 0.1932 126.8);
+      --lime-track: oklch(87.2% 0.1932 126.8);
+    }
+  }
+}

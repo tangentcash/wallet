@@ -13,7 +13,7 @@ function ExtendedTransaction(props: { data: any, focused: boolean }) {
   const data = props.data;
   const ownerAddress = AppData.getWalletAddress() || '';
   return (
-    <>
+    <Box mt="4">
       <TransactionView ownerAddress={ownerAddress} transaction={data.transaction} receipt={data.receipt} state={data.state} open={props.focused || undefined} summary={true}></TransactionView>
       {
         Array.isArray(data.transaction.transactions) && data.transaction.transactions.map((subtransaction: any, index: number) =>
@@ -32,7 +32,7 @@ function ExtendedTransaction(props: { data: any, focused: boolean }) {
           </Box>
         )
       }
-    </>
+    </Box>
   )
 }
 
