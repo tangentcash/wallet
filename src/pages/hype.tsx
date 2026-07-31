@@ -114,6 +114,21 @@ export default function HypePage() {
 
   return (
     <Box position="relative">
+      <svg style={{ display: 'none' }}>
+        <filter id="fancy-icon-filter" x="-50%" y="-50%" width="200%" height="200%">
+          <feColorMatrix type="matrix" 
+            values="1 0 0 0 0
+                    0 1 0 0 0
+                    0 0 1 0 0
+                    0 0 0 0.5 0"
+            result="WhiteSource" />
+          <feGaussianBlur stdDeviation="15" result="ColoredBlur" />
+          <feMerge>
+            <feMergeNode in="ColoredBlur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+      </svg>
       <Box position="absolute" top="0" bottom="0" left="0" right="0" style={{
         zIndex: -1,
         backgroundImage: 'linear-gradient(var(--gray-a3) 1px, transparent 1px), linear-gradient(90deg, var(--gray-a3) 1px, transparent 1px)',
@@ -147,7 +162,7 @@ export default function HypePage() {
         }}>
           <Flex px="4" py="3" justify="between" align="center">
             <Flex align="center" gap="3">
-              <Avatar size="3" radius="none" fallback="TC" src="/favicon.svg"></Avatar>
+              <Avatar size="3" radius="none" fallback="TA" src="/favicon.svg"></Avatar>
               <Heading size="5" weight="bold" style={{ letterSpacing: '1.25px' }}>TANGENT<Text style={{ color: 'var(--accent-11)' }}>CASH</Text></Heading>
             </Flex>
             <DropdownMenu.Root>
@@ -252,7 +267,7 @@ export default function HypePage() {
         {
           !unoptimzed &&
           <>
-            <div style={{ width: '100%', height: '500px', position: 'absolute', bottom: '10px', zIndex: -2 }}>
+            <div style={{ width: '100%', height: '500px', position: 'absolute', bottom: '10px', zIndex: -3 }}>
               <div style={{ width: '100%', maxWidth: '1200px', margin: '0 auto', height: '100%' }}>
                 <Strands
                   colors={["#F97316","#7C3AED","#06B6D4"]}
@@ -276,6 +291,9 @@ export default function HypePage() {
                 />
               </div>
             </div>
+            <Box position="absolute" top="400px" left="0" right="0" height="100px" style={{
+              backgroundImage: 'linear-gradient(var(--color-background) 0%, transparent 100%)', zIndex: -2
+            }}></Box>
             <Box position="absolute" bottom="0" left="0" right="0" height="150px" style={{
               backgroundImage: 'linear-gradient(transparent 0%, var(--color-background) 100%)', zIndex: -2
             }}></Box>
@@ -291,21 +309,6 @@ export default function HypePage() {
             <Flex justify="center" mb="8">
               <Text align="center" size={mobile ? '3' : '4'}>Coins, tokens, just works.</Text>
             </Flex>
-            <svg style={{ display: 'none' }}>
-              <filter id="fancy-icon-filter" x="-50%" y="-50%" width="200%" height="200%">
-                <feColorMatrix type="matrix" 
-                  values="1 0 0 0 0
-                          0 1 0 0 0
-                          0 0 1 0 0
-                          0 0 0 0.5 0"
-                  result="WhiteSource" />
-                <feGaussianBlur stdDeviation="15" result="ColoredBlur" />
-                <feMerge>
-                  <feMergeNode in="ColoredBlur" />
-                  <feMergeNode in="SourceGraphic" />
-                </feMerge>
-              </filter>
-            </svg>
             <Flex wrap="wrap" justify="center" gap="9" pt="6">
               {
                 blockchains.map((chain) =>
@@ -326,7 +329,13 @@ export default function HypePage() {
           {
             !unoptimzed &&
             <>
-              <div style={{ position: 'absolute', bottom: '0', top: '0', left: '0', right: '0', zIndex: -2 }}>
+              <Box position="absolute" top="0" left="0" right="0" height="100px" style={{
+                backgroundImage: 'linear-gradient(var(--color-background) 0%, transparent 100%)', zIndex: -2
+              }}></Box>
+              <Box position="absolute" bottom="0" left="0" right="0" height="100px" style={{
+                backgroundImage: 'linear-gradient(transparent 0%, var(--color-background) 100%)', zIndex: -2
+              }}></Box>
+              <div style={{ position: 'absolute', bottom: '0', top: '0', left: '0', right: '0', zIndex: -3 }}>
                 <Particles
                   particleColors={["#b0f406"]}
                   particleCount={200}
@@ -337,12 +346,6 @@ export default function HypePage() {
                   disableRotation={false}
                   pixelRatio={1}
                 />
-                <Box position="absolute" top="0" left="0" right="0" height="100px" style={{
-                  backgroundImage: 'linear-gradient(var(--color-background) 0%, transparent 100%)', zIndex: -2
-                }}></Box>
-                <Box position="absolute" bottom="0" left="0" right="0" height="100px" style={{
-                  backgroundImage: 'linear-gradient(transparent 0%, var(--color-background) 100%)', zIndex: -2
-                }}></Box>
               </div>
             </>
           }
@@ -410,7 +413,7 @@ export default function HypePage() {
                 speed={0.25}
                 direction="reverse"
                 scale={1}
-                opacity={0.8}
+                opacity={0.9}
                 mouseInteractive={false}
                 renderScale={0.55}
                 maxDpr={1.5}
@@ -437,24 +440,24 @@ export default function HypePage() {
             !mobile &&
             <>
               <Flex justify="center" wrap="wrap" gap="8" mb="4">
-                <Avatar size="5" fallback="US" src={`/cryptocurrency/op.svg`}></Avatar>
-                <Avatar size="5" fallback="US" src={`/cryptocurrency/linea.svg`}></Avatar>
-                <Avatar size="5" fallback="US" src={`/cryptocurrency/matic.svg`}></Avatar>
-                <Avatar size="5" fallback="US" src={`/favicon.svg`}></Avatar>
-                <Avatar size="5" fallback="US" src={`/cryptocurrency/zk.svg`}></Avatar>
+                <Avatar size="5" fallback="OP" className="fancy-icon-filter" src={`/cryptocurrency/op.svg`}></Avatar>
+                <Avatar size="5" fallback="LI" className="fancy-icon-filter" src={`/cryptocurrency/linea.svg`}></Avatar>
+                <Avatar size="5" fallback="MA" className="fancy-icon-filter" src={`/cryptocurrency/matic.svg`}></Avatar>
+                <Avatar size="5" fallback="TA" className="fancy-icon-filter" src={`/favicon.svg`}></Avatar>
+                <Avatar size="5" fallback="ZK" className="fancy-icon-filter" src={`/cryptocurrency/zk.svg`}></Avatar>
               </Flex>
               <Flex justify="center" wrap="wrap" gap="8" mb="4">
-                <Avatar size="5" fallback="US" src={`/cryptocurrency/algo.svg`}></Avatar>
-                <Avatar size="5" fallback="US" src={`/cryptocurrency/arb.svg`}></Avatar>
-                <Avatar size="5" fallback="US" src={`/cryptocurrency/avax.svg`}></Avatar>
-                <Avatar size="5" fallback="US" src={`/cryptocurrency/base.svg`}></Avatar>
+                <Avatar size="5" fallback="AL" className="fancy-icon-filter" src={`/cryptocurrency/algo.svg`}></Avatar>
+                <Avatar size="5" fallback="AR" className="fancy-icon-filter" src={`/cryptocurrency/arb.svg`}></Avatar>
+                <Avatar size="5" fallback="AV" className="fancy-icon-filter" src={`/cryptocurrency/avax.svg`}></Avatar>
+                <Avatar size="5" fallback="BA" className="fancy-icon-filter" src={`/cryptocurrency/base.svg`}></Avatar>
               </Flex>
             </>
           }
           <Flex justify="center" wrap="wrap" gap="8">
-            <Avatar size="5" fallback="US" src={`/cryptocurrency/sol.svg`}></Avatar>
-            <Avatar size="5" fallback="US" src={`/cryptocurrency/eth.svg`}></Avatar>
-            <Avatar size="5" fallback="US" src={`/cryptocurrency/trx.svg`}></Avatar>
+            <Avatar size="5" fallback="SO" className="fancy-icon-filter" src={`/cryptocurrency/sol.svg`}></Avatar>
+            <Avatar size="5" fallback="ET" className="fancy-icon-filter" src={`/cryptocurrency/eth.svg`}></Avatar>
+            <Avatar size="5" fallback="TR" className="fancy-icon-filter" src={`/cryptocurrency/trx.svg`}></Avatar>
           </Flex>
           <Flex justify="center" gap="2" py="4">
             <Icon path={mdiArrowBottomRight} size={3}></Icon>
@@ -462,8 +465,8 @@ export default function HypePage() {
             <Icon path={mdiArrowBottomLeft} size={3}></Icon>
           </Flex>
           <Flex justify="center" gap="4">
-            <Avatar size="5" fallback="US" src={`/cryptocurrency/usdc.svg`}></Avatar>
-            <Avatar size="5" fallback="US" src={`/cryptocurrency/usdt.svg`}></Avatar>
+            <Avatar size="5" fallback="US" className="fancy-icon-filter" src={`/cryptocurrency/usdc.svg`}></Avatar>
+            <Avatar size="5" fallback="US" className="fancy-icon-filter" src={`/cryptocurrency/usdt.svg`}></Avatar>
           </Flex>
         </Box>
       </Box>
