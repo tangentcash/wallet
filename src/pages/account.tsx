@@ -1,6 +1,6 @@
 import { Box, Button, Flex, Avatar, Badge, Card, SegmentedControl, Spinner, Tabs, Text, Tooltip, DropdownMenu } from "@radix-ui/themes";
 import { useNavigate, useParams, Link } from "react-router";
-import { mdiAlertDecagram, mdiCheckDecagram, mdiChevronDown, mdiLock, mdiLockOpen, mdiMagnifyScan, mdiQrcodeScan } from "@mdi/js";
+import { mdiAlertDecagram, mdiCheckDecagram, mdiChevronDown, mdiLock, mdiLockOpen, mdiMagnifyScan, mdiQrcode, mdiQrcodeScan } from "@mdi/js";
 import { useCallback, useState, useMemo, useRef } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData } from "../core/app";
@@ -376,6 +376,13 @@ export default function AccountPage() {
           }}>
             <Icon path={verifiedAssetsOnly ? mdiAlertDecagram : mdiCheckDecagram } size={0.8} />
             <Text>{ verifiedAssetsOnly ? 'Show unverified assets' : 'Show verified assets' }</Text>
+          </DropdownMenu.Item>
+          <DropdownMenu.Item onClick={() => {
+              navigator.clipboard.writeText(ownerAddress);
+              AlertBox.open(AlertType.Info, (self ? 'Your ' : '') + ownerAddress + ' address copied!')
+            }}>
+            <Icon path={mdiQrcode} size={0.8} />
+            <Text>Copy { self ? 'my ' : ''}address</Text>
           </DropdownMenu.Item>
           <DropdownMenu.Separator />
           <DropdownMenu.Item onClick={() => navigate('/explorer')}>
