@@ -16,5 +16,14 @@
   right: 0;
   border-radius: inherit;
   background-color: inherit;
+  box-shadow: inherit;
   filter: blur(30px) brightness(1.5);
+}
+
+.light .fancy-pseudo-button {
+  filter: initial;
+}
+
+.light .fancy-pseudo-button::before {
+  opacity: 0.8;
 }

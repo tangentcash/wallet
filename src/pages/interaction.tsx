@@ -1283,7 +1283,7 @@ export default function InteractionPage() {
           asset != -1 && program instanceof ProgramRoute &&
           <Box mt="4" width="100%">
             <Tooltip content={'Register ' + assets[asset].asset.chain + ' wallet address that you own to ' + (program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'deposit assets from or ' : '') + 'withdraw assets to'}>
-              <TextField.Root size="3" placeholder={assets[asset].asset.chain + (program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? ' sender address' : 'address (opt., yours)')} type="text" value={program.routingAddress} onChange={(e) => {
+              <TextField.Root size="3" placeholder={assets[asset].asset.chain + (program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? ' sender address' : ' address (opt., yours)')} type="text" value={program.routingAddress} onChange={(e) => {
                 const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                 copy.routingAddress = e.target.value;
                 setProgram(copy);
@@ -1400,38 +1400,36 @@ export default function InteractionPage() {
         </Box>
       }
       {
+        params.note != null &&
+        <Callout.Root size="1" variant="surface" mt="2" color="yellow" style={{ borderRadius: '28px' }}>
+          <Callout.Icon>
+            <Icon path={mdiAlertCircleOutline} size={1} />
+          </Callout.Icon>
+          <Callout.Text style={{ whiteSpace: 'pre-wrap' }}>{ params.note }</Callout.Text>
+        </Callout.Root>
+      }
+      {
         program instanceof ProgramRoute &&
         <>
-          {
-            powProgress != null &&
-            <Box pt="3" px="3">
-              <Progress value={powProgress} size="3" color="jade" />
-              <Flex pt="2" gap="1" justify="center" align="center">
-                <Icon path={mdiShovel} size={0.6} />
-                <Text style={{ whiteSpace: 'pre-wrap' }} size="1">Solving the captcha { powProgress.toFixed(1) }%</Text>
-              </Flex>
-            </Box>
-          }
-          <Box px="3">
-            <Callout.Root size="1" variant="surface" mt="6" color="yellow" style={{ borderRadius: '24px' }}>
+          <Box px="0">
+            <Callout.Root size="1" variant="surface" mt="2" color="yellow" style={{ borderRadius: '28px' }}>
               <Callout.Icon>
                 <Icon path={mdiTimelapse} size={1} />
               </Callout.Icon>
               <Callout.Text style={{ whiteSpace: 'pre-wrap' }}>Claim is free of charge but takes a bit more time to submit</Callout.Text>
             </Callout.Root>
+            {
+              powProgress != null &&
+              <Box pt="3" px="3">
+                <Progress value={powProgress} size="3" color="jade" />
+                <Flex pt="2" gap="1" justify="center" align="center">
+                  <Icon path={mdiShovel} size={0.6} />
+                  <Text style={{ whiteSpace: 'pre-wrap' }} size="1">Solving the captcha { powProgress.toFixed(1) }%</Text>
+                </Flex>
+              </Box>
+            }
           </Box>
         </>
-      }
-      {
-        params.note != null &&
-        <Box px="3">
-          <Callout.Root size="1" variant="surface" mt="6" color="yellow" style={{ borderRadius: '24px' }}>
-            <Callout.Icon>
-              <Icon path={mdiAlertCircleOutline} size={1} />
-            </Callout.Icon>
-            <Callout.Text style={{ whiteSpace: 'pre-wrap' }}>{ params.note }</Callout.Text>
-          </Callout.Root>
-        </Box>
       }
       {
         !programError &&
