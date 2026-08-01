@@ -1,3 +1,20 @@
 .fancy-icon-filter img {
   filter: url(#fancy-icon-filter);
 }
+
+.fancy-pseudo-button {
+  position: relative;
+  filter: brightness(1.5)
+}
+
+.fancy-pseudo-button::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  border-radius: inherit;
+  background-color: inherit;
+  filter: blur(30px) brightness(1.5);
+}

@@ -266,8 +266,8 @@ export default function HypePage() {
         </Box>
         {
           !unoptimzed &&
-          <>
-            <div style={{ width: '100%', height: '500px', position: 'absolute', bottom: '10px', zIndex: -3 }}>
+          <div style={{ width: '100%', height: '500px', position: 'absolute', bottom: '10px', zIndex: -2 }}>
+            <div style={{ width: '100%', height: '100%', position: 'relative' }}>
               <div style={{ width: '100%', maxWidth: '1200px', margin: '0 auto', height: '100%' }}>
                 <Strands
                   colors={["#F97316","#7C3AED","#06B6D4"]}
@@ -289,15 +289,15 @@ export default function HypePage() {
                   glassSize={1}
                   hueShift={0}
                 />
+                <Box position="absolute" top="0" left="0" right="0" height="100px" style={{
+                  backgroundImage: 'linear-gradient(var(--color-background) 0%, transparent 100%)', zIndex: 0
+                }}></Box>
+                <Box position="absolute" bottom="0" left="0" right="0" height="100px" style={{
+                  backgroundImage: 'linear-gradient(transparent 0%, var(--color-background) 100%)', zIndex: 0
+                }}></Box>
               </div>
             </div>
-            <Box position="absolute" top="400px" left="0" right="0" height="100px" style={{
-              backgroundImage: 'linear-gradient(var(--color-background) 0%, transparent 100%)', zIndex: -2
-            }}></Box>
-            <Box position="absolute" bottom="0" left="0" right="0" height="150px" style={{
-              backgroundImage: 'linear-gradient(transparent 0%, var(--color-background) 100%)', zIndex: -2
-            }}></Box>
-          </>
+          </div>
         }
       </Box>
       <Box style={{ padding: mobile ? '120px 0' : '200px 0' }} position="relative">
@@ -328,26 +328,26 @@ export default function HypePage() {
         <Box style={{ padding: mobile ? '120px 0' : '200px 0' }} position="relative">
           {
             !unoptimzed &&
-            <>
-              <Box position="absolute" top="0" left="0" right="0" height="100px" style={{
-                backgroundImage: 'linear-gradient(var(--color-background) 0%, transparent 100%)', zIndex: -2
-              }}></Box>
-              <Box position="absolute" bottom="0" left="0" right="0" height="100px" style={{
-                backgroundImage: 'linear-gradient(transparent 0%, var(--color-background) 100%)', zIndex: -2
-              }}></Box>
-              <div style={{ position: 'absolute', bottom: '0', top: '0', left: '0', right: '0', zIndex: -3 }}>
+            <div style={{ position: 'absolute', bottom: '0', top: '0', left: '0', right: '0', zIndex: -2 }}>
+              <div style={{ width: '100%', height: '100%', position: 'relative' }}>
                 <Particles
                   particleColors={["#b0f406"]}
                   particleCount={200}
                   particleSpread={10}
                   speed={0.01}
-                  particleBaseSize={300}
+                  particleBaseSize={150}
                   moveParticlesOnHover={false}
                   disableRotation={false}
                   pixelRatio={1}
                 />
+                <Box position="absolute" top="0" left="0" right="0" height="100px" style={{
+                  backgroundImage: 'linear-gradient(var(--color-background) 0%, transparent 100%)', zIndex: 0
+                }}></Box>
+                <Box position="absolute" bottom="0" left="0" right="0" height="100px" style={{
+                  backgroundImage: 'linear-gradient(transparent 0%, var(--color-background) 100%)', zIndex: 0
+                }}></Box>
               </div>
-            </>
+            </div>
           }
           <Box mx="auto" px="4" py="4">
             <Flex justify="center" mb="6">
@@ -413,7 +413,7 @@ export default function HypePage() {
                 speed={0.25}
                 direction="reverse"
                 scale={1}
-                opacity={0.9}
+                opacity={1}
                 mouseInteractive={false}
                 renderScale={0.55}
                 maxDpr={1.5}
@@ -483,7 +483,7 @@ export default function HypePage() {
               <Icon path={mdiCreation} color="black" size={mobile ? 0.7 : 1}></Icon> 
               <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'black' }}>No Fee Deposit</Heading>
             </Flex>
-            <Flex className="rt-BaseButton rt-variant-surface" data-accent-color="blue" px="4" py="4" gap="2" style={{
+            <Flex className="rt-BaseButton rt-variant-surface fancy-pseudo-button" data-accent-color="blue" px="4" py="4" gap="2" style={{
               borderRadius: '28px',
               WebkitBackdropFilter: "blur(14px)",
               backdropFilter: "blur(14px)"
@@ -491,7 +491,7 @@ export default function HypePage() {
               <Icon path={mdiContactlessPayment} size={mobile ? 0.7 : 1}></Icon> 
               <Heading size={mobile ? '2' : '4'} weight="regular">Pay & Stake & Trade</Heading>
             </Flex>
-            <Flex className="rt-BaseButton rt-variant-surface" data-accent-color="ruby" px="4" py="4" gap="2" style={{
+            <Flex className="rt-BaseButton rt-variant-surface fancy-pseudo-button" data-accent-color="ruby" px="4" py="4" gap="2" style={{
               borderRadius: '28px',
               WebkitBackdropFilter: "blur(14px)",
               backdropFilter: "blur(14px)"
@@ -538,32 +538,32 @@ export default function HypePage() {
             <Heading align="center" size={mobile ? '7' : '9'}>Withdrawal Fees</Heading>
           </Flex>
           <Flex justify="center" mb="8">
-            <Text align="center" size={mobile ? '3' : '4'}>Pay the cost of the network you are using.</Text>
+            <Text align="center" size={mobile ? '3' : '4'}>Pay the fixed fee of your network.</Text>
           </Flex>
           <Flex maxWidth="600px" mx="auto" wrap="wrap" gap="3" justify="center">
-            <Flex className="rt-BaseButton rt-variant-surface" data-accent-color="green" px="4" py="4" gap="2" style={{
+            <Flex className="rt-BaseButton rt-variant-surface fancy-pseudo-button" data-accent-color="green" px="4" py="4" gap="2" style={{
               borderRadius: '28px',
               WebkitBackdropFilter: "blur(14px)",
               backdropFilter: "blur(14px)"
             }}>
               <Icon path={mdiFlashOutline} size={mobile ? 0.7 : 1}></Icon> 
-              <Heading size={mobile ? '2' : '4'} weight="regular">Modern L1s/L2s &lt; $0.90</Heading>
+              <Heading size={mobile ? '2' : '4'} weight="regular">Modern L1s/L2s &lt; $0.99</Heading>
             </Flex>
-            <Flex className="rt-BaseButton rt-variant-surface" data-accent-color="amber" px="4" py="4" gap="2" style={{
+            <Flex className="rt-BaseButton rt-variant-surface fancy-pseudo-button" data-accent-color="amber" px="4" py="4" gap="2" style={{
               borderRadius: '28px',
               WebkitBackdropFilter: "blur(14px)",
               backdropFilter: "blur(14px)"
             }}>
               <Icon path={mdiFlash} size={mobile ? 0.7 : 1}></Icon> 
-              <Heading size={mobile ? '2' : '4'} weight="regular">Standard L1s/L2s &lt; $1.50</Heading>
+              <Heading size={mobile ? '2' : '4'} weight="regular">Standard L1s/L2s &lt; $1.49</Heading>
             </Flex>
-            <Flex className="rt-BaseButton rt-variant-surface" data-accent-color="red" px="4" py="4" gap="2" style={{
+            <Flex className="rt-BaseButton rt-variant-surface fancy-pseudo-button" data-accent-color="red" px="4" py="4" gap="2" style={{
               borderRadius: '28px',
               WebkitBackdropFilter: "blur(14px)",
               backdropFilter: "blur(14px)"
             }}>
               <Icon path={mdiFlashAlert} size={mobile ? 0.7 : 1}></Icon> 
-              <Heading size={mobile ? '2' : '4'} weight="regular">Legacy L1s &lt; $20.00</Heading>
+              <Heading size={mobile ? '2' : '4'} weight="regular">Legacy L1s &lt; $15.99</Heading>
             </Flex>
           </Flex>
         </Box>
