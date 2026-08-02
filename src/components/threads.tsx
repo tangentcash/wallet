@@ -32,8 +32,8 @@ uniform vec2 uMouse;
 
 #define PI 3.1415926538
 
-const int u_line_count = 40;
-const float u_line_width = 7.0;
+const int u_line_count = 30;
+const float u_line_width = 20.0;
 const float u_line_blur = 10.0;
 
 float Perlin2D(vec2 P) {
@@ -219,12 +219,17 @@ const Threads: React.FC<ThreadsProps> = ({
     );
     intersectionObserver.observe(container);
 
+    let lastTime = performance.now();
+    const INTERVAL = 1000 / 16;
     function update(t: number) {
       animationFrameId.current = requestAnimationFrame(update);
-      if (!isVisible || document.hidden) return;
+      const now = performance.now();
+      const elapsed = now - lastTime;
+      if (!isVisible || document.hidden || elapsed < INTERVAL) return;
 
       const { color, amplitude, distance, enableMouseInteraction } = propsRef.current;
-
+      lastTime = now;
+      
       program.uniforms.uColor.value.set(...color);
       program.uniforms.uAmplitude.value = amplitude;
       program.uniforms.uDistance.value = distance;

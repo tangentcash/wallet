@@ -417,7 +417,7 @@ export default function HypePage() {
                 mouseInteractive={false}
                 renderScale={0.55}
                 maxDpr={1.5}
-                targetFps={30}
+                targetFps={20}
                 iterations={60}
               />
             </div>
@@ -509,7 +509,7 @@ export default function HypePage() {
             <Threads
               amplitude={1}
               distance={0.5}
-              enableMouseInteraction
+              color={[231 / 255, 245 / 255, 196 / 255]}
             />
           </div>
         }
@@ -522,8 +522,10 @@ export default function HypePage() {
           </Flex>
           <Flex wrap="wrap" gap="3" justify="center">
             <GlassSurface backgroundOpacity={0.3} saturation={0} borderRadius={28} width="auto" height="auto" style={{ padding: '8px' }}>
-              <Icon path={mdiSale} color="var(--gray-12)" size={mobile ? 0.7 : 1}></Icon> 
-              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'var(--gray-12)' }}>0.01% Spread</Heading>
+              <Flex gap="2">
+                <Icon path={mdiSale} color="var(--gray-12)" size={mobile ? 0.7 : 1}></Icon> 
+                <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'var(--gray-12)' }}>0.01% Spread</Heading>
+              </Flex>
             </GlassSurface>
             <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--indigo-10)' }}>
               <Icon path={mdiPercent} color="white" size={mobile ? 0.7 : 1}></Icon> 

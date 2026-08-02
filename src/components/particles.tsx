@@ -198,13 +198,20 @@ const Particles: React.FC<ParticlesProps> = ({
     const particles = new Mesh(gl, { mode: gl.POINTS, geometry, program });
 
     let animationFrameId: number;
+    const INTERVAL = 1000 / 16;
     let lastTime = performance.now();
+    let lastTimeBase = performance.now();
     let elapsed = 0;
 
     const update = (t: number) => {
       animationFrameId = requestAnimationFrame(update);
+      const now = performance.now();
+      const elapsedBase = now - lastTimeBase;
+      if (elapsedBase < INTERVAL) return;
+
       const delta = t - lastTime;
       lastTime = t;
+      lastTimeBase = now;
       elapsed += delta * speed;
 
       program.uniforms.uTime.value = elapsed * 0.001;

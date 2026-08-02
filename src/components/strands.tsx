@@ -349,8 +349,15 @@ export default function Strands({
     resize();
 
     let animateId = 0;
+    let lastTime = performance.now();
+    const INTERVAL = 1000 / 30;
     const update = (t: number) => {
       animateId = requestAnimationFrame(update);
+      const now = performance.now();
+      const elapsed = now - lastTime;
+      if (elapsed < INTERVAL) return;
+
+      lastTime = now;
       const current = propsRef.current;
       program.uniforms.uTime.value = t * 0.001;
       program.uniforms.uColors.value = buildPalette(current.colors);

@@ -134,9 +134,17 @@ export default function DarkVeil({
     resize();
 
     const start = performance.now();
+    let lastTime = performance.now();
+    const INTERVAL = 1000 / 20;
     let frame = 0;
 
     const loop = () => {
+      frame = requestAnimationFrame(loop);
+      const now = performance.now();
+      const elapsed = now - lastTime;
+      if (elapsed < INTERVAL) return;
+
+      lastTime = now;
       program.uniforms.uTime.value = ((performance.now() - start) / 1000) * speed;
       program.uniforms.uHueShift.value = hueShift;
       program.uniforms.uNoise.value = noiseIntensity;
@@ -144,7 +152,6 @@ export default function DarkVeil({
       program.uniforms.uScanFreq.value = scanlineFrequency;
       program.uniforms.uWarp.value = warpAmount;
       renderer.render({ scene: mesh });
-      frame = requestAnimationFrame(loop);
     };
 
     loop();
