@@ -385,8 +385,8 @@ function MarketRouter(props: {
     const assetOut = props.pair.secondary ? assets.find((x) => x.asset.id == props.pair.secondary?.id) : null;
     const finalAmountIn = TextUtil.toNumericValueOrPercent(state.amountIn);
     const finalAmountOut = TextUtil.toNumericValue(state.amountOut);
-    const priceIn = props.pair.secondary ? Exchange.priceOf(props.pair.secondary).close : null;
-    const priceOut = props.pair.primary ? Exchange.priceOf(props.pair.primary).close : null;
+    const priceIn = props.pair.primary ? Exchange.priceOf(props.pair.primary).close : null;
+    const priceOut = props.pair.secondary ? Exchange.priceOf(props.pair.secondary).close : null;
     const amountIn = finalAmountIn.relative?.gt(0) ? finalAmountIn.relative.multipliedBy(assetIn) : (finalAmountIn.absolute?.gt(0) ? finalAmountIn.absolute : new BigNumber(0));
     const amountOut = finalAmountOut.gt(0) ? finalAmountOut : new BigNumber(0);
     const slippage = TextUtil.toNumericValueOrPercent(state.slippage);
@@ -406,8 +406,8 @@ function MarketRouter(props: {
     setState(prev => {
       const result = change(prev);
       AppStorage.set('__market_router__', {
-        tokenIn: props.pair.secondary?.id || null,
-        tokenOut: props.pair.primary?.id || null,
+        primary: props.pair.primary?.id || null,
+        secondary: props.pair.secondary?.id || null,
         amountIn: result.amountIn,
         amountOut: result.amountOut,
         slippage: result.slippage
@@ -423,8 +423,8 @@ function MarketRouter(props: {
         amountIn.absolute = amountIn.relative.multipliedBy(assetIn?.available || new BigNumber(0));
       }
       if (amountIn.absolute && amountIn.absolute.gte(0) && amountIn.absolute.isFinite()) {
-        const priceIn = props.pair.secondary ? Exchange.priceOf(props.pair.secondary).close : null;
-        const priceOut = props.pair.primary ? Exchange.priceOf(props.pair.primary).close : null;
+        const priceIn = props.pair.primary ? Exchange.priceOf(props.pair.primary).close : null;
+        const priceOut = props.pair.secondary ? Exchange.priceOf(props.pair.secondary).close : null;
         if (priceIn?.gt(0) && priceOut?.gt(0)) {
           amountOut = ByteUtil.bigNumberToString(amountIn.absolute.dividedBy(priceOut.dividedBy(priceIn)));
         }
@@ -433,8 +433,8 @@ function MarketRouter(props: {
     } else if (type == 'amount-out') {
       const amountOut = TextUtil.toNumericValue(value); let amountIn = '';
       if (amountOut.gte(0) && amountOut.isFinite()) {
-        const priceIn = props.pair.secondary ? Exchange.priceOf(props.pair.secondary).close : null;
-        const priceOut = props.pair.primary ? Exchange.priceOf(props.pair.primary).close : null;
+        const priceIn = props.pair.primary ? Exchange.priceOf(props.pair.primary).close : null;
+        const priceOut = props.pair.secondary ? Exchange.priceOf(props.pair.secondary).close : null;
         if (priceIn?.gt(0) && priceOut?.gt(0)) {
           amountIn = ByteUtil.bigNumberToString(amountOut.multipliedBy(priceOut.dividedBy(priceIn)));
         }
@@ -463,8 +463,7 @@ function MarketRouter(props: {
       setLoadingPath(false);
     }
 
-    const tokenIn = props.pair.secondary, tokenOut = props.pair.primary;
-    if (props.market != null && tokenIn != null && tokenOut != null && tokenIn.id != tokenOut.id) {
+    if (props.market != null && props.pair.primary != null && props.pair.secondary != null && props.pair.secondary.id != props.pair.primary.id) {
       const balanceIn = assetsIn.reduce((a, b) => a.plus(b.available), new BigNumber(0));
       const finalAmountIn = TextUtil.toNumericValueOrPercent(state.amountIn);
       const amountIn = finalAmountIn.relative?.gt(0) ? finalAmountIn.relative.multipliedBy(balanceIn) : (finalAmountIn.absolute?.gt(0) ? finalAmountIn.absolute : new BigNumber(0));
@@ -473,7 +472,7 @@ function MarketRouter(props: {
         setLoadingPath(true);
         swapPathTimeoutId = setTimeout(async () => {
           try {
-            const paths = (await Exchange.marketPaths(props.market?.id || '', tokenIn, tokenOut, amountIn, slippage)).filter(x => x.length > 0);
+            const paths = (await Exchange.marketPaths(props.market?.id || '', props.pair.primary || new AssetId(), props.pair.secondary || new AssetId(), amountIn, slippage)).filter(x => x.length > 0);
             const best = paths.length > 0 ? paths[0] : [];
             setBestPaths(paths);
             if (best.length > 0) {
@@ -506,16 +505,16 @@ function MarketRouter(props: {
         slippage: prev.slippage || ''
       });
       props.setPair({
-        primary: prev.tokenOut ? new AssetId(prev.tokenOut) : null,
-        secondary: prev.tokenIn ? new AssetId(prev.tokenIn) : null,
+        primary: prev.primary ? new AssetId(prev.primary) : null,
+        secondary: prev.secondary ? new AssetId(prev.secondary) : null,
       });
     }
   }, []);
   useEffect(() => {
     setState(prev => {
       AppStorage.set('__market_router__', {
-        tokenIn: props.pair.secondary?.id || null,
-        tokenOut: props.pair.primary?.id || null,
+        primary: props.pair.primary?.id || null,
+        secondary: props.pair.secondary?.id || null,
         amountIn: prev.amountIn,
         amountOut: prev.amountOut,
         slippage: prev.slippage
@@ -648,8 +647,8 @@ function MarketRouter(props: {
                     const pays: Record<string, string> = Exchange.toPayment(new BigNumber(swapInfo.amountIn), assetsIn);
                     return Builder.swap({
                       ...state,
-                      tokenOut: props.pair.primary,
-                      tokenIn: props.pair.secondary,
+                      tokenIn: props.pair.primary,
+                      tokenOut: props.pair.secondary,
                       marketId: props.market?.id.toString() || '',
                       path: path,
                       pays: pays,
@@ -664,7 +663,7 @@ function MarketRouter(props: {
       {
         !loadingPoly && !bestPaths?.length &&
         <Flex px="4" justify="center">
-          <Text size="2" align="center">{ loadingPath ? 'Optimizing swap routes...' : (bestPaths ? 'No routes for the swap.' : 'Missing swap details.') }</Text>
+          <Text size="2" align="center">{ loadingPath ? 'Optimizing swap routes...' : (bestPaths ? 'No routes for the swap.' : 'Invalid swap action.') }</Text>
         </Flex>
       }
     </Box>
