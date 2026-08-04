@@ -680,11 +680,11 @@ export class Exchange {
     const result = await this.fetch('GET', `market/pair/price/series`, { pairId: pairId.toString(), interval: interval.toString(), page: page.toString() });
     return result.map((v: any[]) => ({
       time: v[0].toNumber(),
-      volume: v[2],
-      open: v[3],
-      low: v[4],
-      high: v[5],
-      close: v[6]
+      volume: v[1],
+      open: v[2],
+      low: v[3],
+      high: v[4],
+      close: v[5]
     }));
   }
   static async marketPairPriceLevels(marketId: number | string | BigNumber, pairId: number | string | BigNumber, levels: number): Promise<{ ask: AggregatedLevel[], bid: AggregatedLevel[] }> {
