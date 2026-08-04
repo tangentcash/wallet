@@ -6,6 +6,7 @@ import { AppData } from "../core/app";
 import { useEffectAsync } from "../core/react";
 import { useState } from "react";
 import { getGPUTier } from "../core/gpu";
+import { secondsToDuration } from "../core/utils";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 import License from "../components/license";
@@ -21,32 +22,6 @@ type Metrics = { assets: string, pairs: string, accounts: string, actions: strin
 
 let cachedMetrics: Metrics | null | false = false; 
 
-function secondsToDuration(baseSeconds: number): string {
-  if (!baseSeconds)
-    return "0 seconds";
-
-  const SEC_PER_MIN = 60.0;
-  const SEC_PER_HOUR = 60.0 * SEC_PER_MIN;
-  const SEC_PER_DAY = 24.0 * SEC_PER_HOUR;
-  const SEC_PER_WEEK = 7.0 * SEC_PER_DAY;
-  const SEC_PER_MONTH = (365.2425 / 12.0) * SEC_PER_DAY;
-  const SEC_PER_YEAR = 365.2425 * SEC_PER_DAY;
-  const toDuration = (value: number, duration: string): string => `${Math.round(value)} ${duration}${value > 1 ? "s" : ""}`;
-  const seconds = Math.round(baseSeconds);
-  if (seconds >= SEC_PER_YEAR)
-    return toDuration(seconds / SEC_PER_YEAR, "year");
-  else if (seconds >= SEC_PER_MONTH)
-    return toDuration(seconds / SEC_PER_MONTH, "month");
-  else if (seconds >= SEC_PER_WEEK)
-    return toDuration(seconds / SEC_PER_WEEK, "week");
-  else if (seconds >= SEC_PER_DAY)
-    return toDuration(seconds / SEC_PER_DAY, "day");
-  else if (seconds >= SEC_PER_HOUR)
-    return toDuration(seconds / SEC_PER_HOUR, "hour");
-  else if (seconds >= SEC_PER_MIN)
-    return toDuration(seconds / SEC_PER_MIN, "minute");
-  return toDuration(seconds, "second");
-}
 function toNiceNumber(number: BigNumber): string {
   const stringify = (value: BigNumber) => value.integerValue().eq(value) ? value.toString() : value.toFixed(1);
   const compress = (rotation: number) => stringify(number.dividedBy(Math.pow(1000.0, rotation)));
@@ -481,7 +456,7 @@ export default function HypePage() {
           <Flex wrap="wrap" gap="3" justify="center">
             <Flex px="4" py="4" gap="2" style={{ borderRadius: '28px', backgroundColor: 'var(--accent-9)' }}>
               <Icon path={mdiCreation} color="black" size={mobile ? 0.7 : 1}></Icon> 
-              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'black' }}>No Fee Deposit</Heading>
+              <Heading size={mobile ? '2' : '4'} weight="regular" style={{ color: 'black' }}>Receive Without Fees</Heading>
             </Flex>
             <Flex className="rt-BaseButton rt-variant-surface fancy-pseudo-button" data-accent-color="blue" px="4" py="4" gap="2" style={{
               borderRadius: '28px',
@@ -497,7 +472,7 @@ export default function HypePage() {
               backdropFilter: "blur(14px)"
             }}>
               <Icon path={mdiFire} size={mobile ? 0.7 : 1}></Icon>
-              <Heading size={mobile ? '2' : '4'} weight="regular">Fixed Withdrawal Fee</Heading>
+              <Heading size={mobile ? '2' : '4'} weight="regular">Send With Fixed Fee</Heading>
             </Flex>
           </Flex>
         </Box>
@@ -537,7 +512,7 @@ export default function HypePage() {
       <Box style={{ padding: mobile ? '120px 0' : '200px 0', paddingBottom: '100px' }}>
         <Box mx="auto" px="4" py="4">
           <Flex justify="center" mb="6">
-            <Heading align="center" size={mobile ? '7' : '9'}>Withdrawal Fees</Heading>
+            <Heading align="center" size={mobile ? '7' : '9'}>Vault Sending Fees</Heading>
           </Flex>
           <Flex justify="center" mb="8">
             <Text align="center" size={mobile ? '3' : '4'}>Pay the fixed fee of your network.</Text>

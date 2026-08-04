@@ -10,9 +10,9 @@ import QRCode from "react-qr-code";
 function toAddressType(type: string): string {
   switch (type) {
     case 'routing':
-      return 'Deposit sender / receiver';
+      return 'Inout address';
     case 'bridge':
-      return 'Deposit receiver';
+      return 'In address';
     case 'witness':
       return 'Archive address';
     default:

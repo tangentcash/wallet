@@ -431,52 +431,57 @@ export class Exchange {
     }
   }
   static async fetch(method: 'GET' | 'POST' | 'DELETE', location: string, args: Record<string, any>, awaitable: boolean = true) {
-    if (awaitable)
-      await this.connectSocket();
+    try {
+      if (awaitable)
+        await this.connectSocket();
 
-    if (this.socket) {
-      console.log('[erpc]', `${this.location.replace('http', 'ws')}/${location}`, 'call', args);
-      const id = (++this.requests.count).toString();
-      const data: any | Error = await new Promise((resolve, reject) => {
-        const context = { resolve: (_: any) => { } };
-        const timeout = setTimeout(() => context.resolve(new Error('connection timed out')), WEBSOCKET_TIMEOUT);
-        context.resolve = (data: any | Error) => {
-          this.requests.pending.delete(id);
-          clearTimeout(timeout);
-          if (data instanceof Error)
-            reject(data);
-          else
-            resolve(data);
-        };
-        this.requests.pending.set(id, context);
-        if (this.socket != null) {
-          this.socket.send(JSON.stringify({
-            id: id,
-            method: method.toLowerCase() + '://' + location,
-            params: args
-          }));
-        } else {
-          context.resolve(new Error('connection reset'));
-        }
-      });
-      console.log('[erpc]', `${this.location.replace('http', 'ws')}/${location}`, 'return', data);
-      return this.fetchData(data instanceof Error ? { error: data.toString() } : data);
-    } else {
-      console.log('[erpc]', `${this.location}/${location}`, 'call', args);
-      const body = method != 'GET';
-      const search = new URLSearchParams();
-      if (!body && args != null && typeof args == 'object')
-        Object.keys(args).forEach(key => this.storeURL(search, key, args[key]));
+      if (this.socket) {
+        const id = (++this.requests.count).toString();
+        const data: any | Error = await new Promise((resolve, reject) => {
+          const context = { resolve: (_: any) => { } };
+          const timeout = setTimeout(() => context.resolve(new Error('connection timed out')), WEBSOCKET_TIMEOUT);
+          context.resolve = (data: any | Error) => {
+            this.requests.pending.delete(id);
+            clearTimeout(timeout);
+            if (data instanceof Error)
+              reject(data);
+            else
+              resolve(data);
+          };
+          this.requests.pending.set(id, context);
+          if (this.socket != null) {
+            this.socket.send(JSON.stringify({
+              id: id,
+              method: method.toLowerCase() + '://' + location,
+              params: args
+            }));
+          } else {
+            context.resolve(new Error('connection reset'));
+          }
+        });
+        const result = this.fetchData(data instanceof Error ? { error: data.toString() } : data);
+        console.log('[erpc]', location, { args: args, result: result });
+        return result;
+      } else {
+        const body = method != 'GET';
+        const search = new URLSearchParams();
+        if (!body && args != null && typeof args == 'object')
+          Object.keys(args).forEach(key => this.storeURL(search, key, args[key]));
 
-      const url = new URL(`${this.location}/${location}${search.size > 0 ? '?' : ''}${search.toString()}`);
-      const response = await fetch(url, {
-        method: method,
-        headers: body && args != null ? { 'Content-Type': 'application/json' } : undefined,
-        body: body && args != null ? JSON.stringify(args) : undefined,
-      });
-      const data = await response.json();
-      console.log('[erpc]', `${this.location}/${location}`, 'return', data);
-      return this.fetchData(data);
+        const url = new URL(`${this.location}/${location}${search.size > 0 ? '?' : ''}${search.toString()}`);
+        const response = await fetch(url, {
+          method: method,
+          headers: body && args != null ? { 'Content-Type': 'application/json' } : undefined,
+          body: body && args != null ? JSON.stringify(args) : undefined,
+        });
+        const data = await response.json();
+        const result = this.fetchData(data);
+        console.log('[erpc]', location, { args: args, result: result });
+        return result;
+      }
+    } catch (exception) {
+      console.log('[erpc]', location, { args: args, error: exception });
+      throw exception;
     }
   }
   static async channel(addresses: string[] | null): Promise<boolean> {
@@ -671,11 +676,10 @@ export class Exchange {
     result.secondaryAsset = new AssetId(result.secondaryAsset);
     return result;
   }
-  static async marketPairPriceSeries(pairId: number | string | BigNumber, interval: string | number | BigNumber, page: string | number | BigNumber): Promise<{ time: number, sentiment: number, volume: BigNumber, open: BigNumber, low: BigNumber, high: BigNumber, close: BigNumber }[]> {
+  static async marketPairPriceSeries(pairId: number | string | BigNumber, interval: string | number | BigNumber, page: string | number | BigNumber): Promise<{ time: number, volume: BigNumber, open: BigNumber, low: BigNumber, high: BigNumber, close: BigNumber }[]> {
     const result = await this.fetch('GET', `market/pair/price/series`, { pairId: pairId.toString(), interval: interval.toString(), page: page.toString() });
     return result.map((v: any[]) => ({
       time: v[0].toNumber(),
-      sentiment: v[1].toNumber(),
       volume: v[2],
       open: v[3],
       low: v[4],

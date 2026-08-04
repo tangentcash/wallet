@@ -73,7 +73,7 @@ async function toPowChallenge(ownerAddress: string, onProgress: (progress: numbe
   try {
     const owner = Signing.decodeAddress(ownerAddress);
     if (!owner) {
-      throw new Error('Failed to decode the account address');
+      throw new Error('Failed to decode the tangent address');
     }
 
     let blockHash = new Uint256();
@@ -206,11 +206,11 @@ export default function InteractionPage() {
     } else if (program instanceof ProgramSetup) {
       return 'Validator setup';
     } else if (program instanceof ProgramRoute) {
-        return 'Claim address';
+        return 'Claim your address';
     } else if (program instanceof ProgramWithdraw) {
-      return 'Withdraw to address';
+      return 'Send to your address';
     } else if (program instanceof ProgramAnticast) {
-        return 'Protest withdrawal';
+        return 'Protest transaction';
     } else if (program instanceof ApproveTransaction) {
       return 'Approve action';
     }
@@ -249,7 +249,7 @@ export default function InteractionPage() {
   
         const publicKeyHash = Signing.decodeAddress(payment.address.trim());
         if (!publicKeyHash || publicKeyHash.data.length != 20)
-          return `Payment ${i + 1}: not a valid address`;
+          return `Payment ${i + 1}: not a valid tangent address`;
 
         try {
           const numeric = new BigNumber(payment.value.trim());
@@ -271,7 +271,7 @@ export default function InteractionPage() {
       for (let i = 0; i < program.migrations.length; i++) {
         const migration = program.migrations[i];
         if (!migration.broadcastHash || !migration.participant)
-          return `Migration ${i + 1} invalid broadcast hash and/or participant address`;
+          return `Migration ${i + 1} invalid broadcast hash and/or participant tangent address`;
 
         try {
           const hash = new Uint256(migration.broadcastHash);
@@ -292,7 +292,7 @@ export default function InteractionPage() {
           if (!participant)
             throw false;
         } catch {
-          return `Migration ${i + 1} invalid participant address`;
+          return `Migration ${i + 1} invalid participant tangent address`;
         }
       }
 
@@ -358,7 +358,7 @@ export default function InteractionPage() {
     } else if (program instanceof ProgramRoute) {
       const routing = program.routing.find((item) => item.chain == assets[asset].asset.chain);
       if (routing?.policy == 'account' && !program.routingAddress.length)
-        return 'Type in the sender address';
+        return `Type in the sender ${Readability.toAssetName(AssetId.fromHandle(assets[asset].asset.chain))} address`;
 
       if (params.vault == null)
         return 'URL must include a vault hash';
@@ -374,7 +374,7 @@ export default function InteractionPage() {
         if (publicKeyHash != null || !program.address.length)
           throw false;
       } catch {
-        return `Type in the ${Readability.toAssetName(AssetId.fromHandle(child.asset.chain))} address to withdraw to`;
+        return `Type in the ${Readability.toAssetName(AssetId.fromHandle(child.asset.chain))} address to send to`;
       }
 
       try {
@@ -382,16 +382,16 @@ export default function InteractionPage() {
         if (numeric.isNaN() || !numeric.isPositive())
           throw false;
       } catch {
-        return `Type in the valid ${Readability.toAssetSymbol(child.asset)} amount to withdraw`;
+        return `Type in the valid ${Readability.toAssetSymbol(child.asset)} amount to send`;
       }
       
       if (params.vault == null)
         return 'URL must include a vault hash';
 
       if (!sendingValue.gt(0))
-        return `Withdrawing too little of ${Readability.toAssetSymbol(child.asset)}`;
+        return `Sending too little of ${Readability.toAssetSymbol(child.asset)}`;
       else if (sendingValue.gt(assets[asset].balance))
-        return `Withdrawing too much ${Readability.toAssetSymbol(child.asset)}`;
+        return `Sending too much ${Readability.toAssetSymbol(child.asset)}`;
  
       if (child.asset.token != null && program.fee != null) {
         const base = AssetId.fromHandle(child.asset.chain);
@@ -862,7 +862,7 @@ export default function InteractionPage() {
                 <Tooltip content="Approve and submit transaction from unverified source">
                   <DropdownMenu.Item onClick={() => navigate(`/interaction?type=approve${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Approve</DropdownMenu.Item>
                 </Tooltip>
-                <Tooltip content="Protest a withdrawal broadcast transaction to get a refund">
+                <Tooltip content="Protest a cross-chain transaction to get a refund">
                   <DropdownMenu.Item onClick={() => navigate(`/interaction?type=protest${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Protest</DropdownMenu.Item>
                 </Tooltip>
                 <Tooltip content="For validator: change block production and/or participation/attestation stake(s)">
@@ -905,7 +905,7 @@ export default function InteractionPage() {
         {
           proMode && asset != -1 && params.vault != null &&
           <Box width="100%" mt="3">
-            <Tooltip content="Vault that will process the withdrawal">
+            <Tooltip content="Vault that will process the transaction">
               <TextField.Root size="3" type="text" color="red" value={'Vault: ' + Readability.toAddress(params.vault, 16)} readOnly={true} />
             </Tooltip>
           </Box>
@@ -938,8 +938,8 @@ export default function InteractionPage() {
             } : undefined}>
               <Flex gap="2" mb="3">
                 <Box width="100%">
-                  <Tooltip content="Send to account address">
-                    <TextField.Root size="3" placeholder={'Send to account' + (program.to.length > 1 ? ' #' + (index + 1) : '')} type="text" value={item.address} onChange={(e) => {
+                  <Tooltip content="Send to tangent address">
+                    <TextField.Root size="3" placeholder={'Send to tangent' + (program.to.length > 1 ? ' #' + (index + 1) : '')} type="text" value={item.address} onChange={(e) => {
                       const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                       copy.to[index].address = e.target.value;
                       setProgram(copy);
@@ -1171,7 +1171,7 @@ export default function InteractionPage() {
                       </Tooltip>
                     </Box>
                     <Box width="100%" mt="3">
-                      <Tooltip content="Fee charged for withdrawals (absolute value)">
+                      <Tooltip content="Fee charged for outgoing txns (absolute value)">
                         <TextField.Root size="3" placeholder="Absolute fee 0.0-∞" type="text" value={item.feeRate} onChange={(e) => {
                           const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                           copy.bridges[index].feeRate = e.target.value;
@@ -1236,7 +1236,7 @@ export default function InteractionPage() {
                       padding: '12px 16px'
                     }}>
                     <Box width="100%">
-                      <Tooltip content="Transaction hash of broadcast transaction that has off-chain relay fault and was initiated by this validator">
+                      <Tooltip content="Transaction hash of withdraw transaction that has cross-chain relay fault and was initiated by this validator">
                         <TextField.Root mb="3" size="3" placeholder={'Failed transaction hash'} type="text" value={item.broadcastHash || ''} onChange={(e) => {
                           const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                           copy.migrations[index].broadcastHash = e.target.value;
@@ -1282,7 +1282,7 @@ export default function InteractionPage() {
         {
           asset != -1 && program instanceof ProgramRoute &&
           <Box mt="4" width="100%">
-            <Tooltip content={'Register ' + assets[asset].asset.chain + ' wallet address that you own to ' + (program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'deposit assets from or ' : '') + 'withdraw assets to'}>
+            <Tooltip content={'Register ' + assets[asset].asset.chain + ' wallet address that you own to ' + (program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'send assets from or to ' : '') + 'send assets to'}>
               <TextField.Root size="3" placeholder={assets[asset].asset.chain + (program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? ' sender address' : ' address (opt., yours)')} type="text" value={program.routingAddress} onChange={(e) => {
                 const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                 copy.routingAddress = e.target.value;
@@ -1295,8 +1295,8 @@ export default function InteractionPage() {
           asset != -1 && program instanceof ProgramWithdraw &&  
           <Box mt="4">
             <Box width="100%" mb="3">
-              <Tooltip content="Withdraw to off-chain address">
-                <TextField.Root size="3" placeholder="Withdraw to address" type="text" value={program.address} onChange={(e) => {
+              <Tooltip content={`Send to ${Readability.toAssetName(AssetId.fromHandle(assets[asset].asset.chain))} address`}>
+                <TextField.Root size="3" placeholder={`${Readability.toAssetName(AssetId.fromHandle(assets[asset].asset.chain))} address`} type="text" value={program.address} onChange={(e) => {
                   const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                   copy.address = e.target.value;
                   setProgram(copy);
@@ -1316,7 +1316,7 @@ export default function InteractionPage() {
               <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(0) }>Remaining</Button>
             </Flex>
             <Box width="100%">
-              <Tooltip content="Withdrawal fee to be deducted from account balance">
+              <Tooltip content="Fee to be deducted from account balance">
                 <TextField.Root size="3" type="text" color="red" value={'Cost: ' + Readability.toMoney(AssetId.fromHandle(assets[asset].asset.chain), params.fee)} readOnly={true} />
               </Tooltip>
             </Box>
@@ -1325,8 +1325,8 @@ export default function InteractionPage() {
         {
           asset != -1 && program instanceof ProgramAnticast &&
           <Box mt="4" width="100%">
-            <Tooltip content="Transaction hash of broadcast transaction that has off-chain relay success but no off-chain withdrawal received">
-              <TextField.Root size="3" placeholder={'Vault broadcast transaction hash'} type="text" value={program.broadcastHash || ''} onChange={(e) => {
+            <Tooltip content="Transaction hash of relay vault transfer transaction that has relay success but no cross-chain transaction received">
+              <TextField.Root size="3" placeholder={'Relay vault transfer transaction hash'} type="text" value={program.broadcastHash || ''} onChange={(e) => {
                 const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                 copy.broadcastHash = e.target.value;
                 setProgram(copy);

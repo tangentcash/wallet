@@ -299,7 +299,7 @@ export default function AccountPage() {
   }, [self, blockchains, finalizedTransactions]);
   useEffectAsync(async () => {
     const state: { blockId: any, transactionId: any } = { blockId: null, transactionId: null };
-    RPC.onNodeMessage = (event) => {
+    RPC.onNodeEvent = (event) => {
       switch (event.type) {
         case 'block': {
           if (state.blockId != null)
@@ -325,7 +325,7 @@ export default function AccountPage() {
     };
 
     await RPC.subscribeTopics(ownerAddress ? [ownerAddress] : []);
-    return () => { RPC.onNodeMessage = null; };
+    return () => { RPC.onNodeEvent = null; };
   }, [ownerAddress, ownerBaseAddress]);
 
   return (
@@ -338,7 +338,7 @@ export default function AccountPage() {
                 <Flex align="center" gap="2">
                   <AddressAvatar address={ownerAddress} size="3"></AddressAvatar>
                   <Flex direction="column">
-                    { self && AppData.isWalletReady() ? <Text color="red" size="2">Full control</Text> : <Text color="gray" size="2">Watch only</Text> }
+                    { self && AppData.isWalletReady() ? <Text color="red" size="2">{ (AppData.hasWalletSecretKey() ? 'Full control' : 'Watch control') }</Text> : <Text color="gray" size="2">Watch only</Text> }
                     <Text style={{ color: 'var(--gray-12)' }} weight="bold" size="2">{ Readability.toAddress(ownerAddress, 6) }</Text>
                   </Flex>
                 </Flex>
@@ -616,7 +616,7 @@ export default function AccountPage() {
                     <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                       <AssetImage asset={new AssetId()} size="2"></AssetImage>
                       <Box width="100%" style={{ marginLeft: '2px' }}>
-                        <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by vault participation as a signer of withdrawal transactions"}>
+                        <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by vault participation as a signer of outgoing transactions"}>
                           <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), participation.stake) }</Text>
                         </Tooltip>
                       </Box>
@@ -628,7 +628,7 @@ export default function AccountPage() {
                         <Flex key={item.asset.id + '_participation'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                           <AssetImage asset={item.asset} size="2"></AssetImage>
                           <Box width="100%" style={{ marginLeft: '2px' }}>
-                            <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by vault participation as a signer of withdrawal transactions'}>
+                            <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by vault participation as a signer of outgoing transactions'}>
                               <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
                             </Tooltip>
                           </Box>
@@ -657,7 +657,7 @@ export default function AccountPage() {
                       <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                         <AssetImage asset={new AssetId()} size="2"></AssetImage>
                         <Box width="100%" style={{ marginLeft: '2px' }}>
-                          <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by vault attestation as a off-chain transaction notification and participant coordination"}>
+                          <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by vault attestation as a cross-chain transaction notification and participant coordination"}>
                             <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), attestation.stake) }</Text>
                           </Tooltip>
                         </Box>
@@ -669,7 +669,7 @@ export default function AccountPage() {
                           <Flex key={item.asset.id + '_attestation'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                             <AssetImage asset={item.asset} size="2"></AssetImage>
                             <Box width="100%" style={{ marginLeft: '2px' }}>
-                              <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by vault attestation as a off-chain transaction notification and participant coordination'}>
+                              <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by vault attestation as a cross-chain transaction notification and participant coordination'}>
                                 <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
                               </Tooltip>
                             </Box>

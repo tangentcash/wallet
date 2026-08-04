@@ -25,10 +25,8 @@ export default function ConfigurePage() {
   }, [searchParams]);
   const networkInfo = useMemo<ConnectionState>(() => {
     return AppData.server || {
-      sentBytes: 0,
-      receivedBytes: 0,
-      requests: 0,
-      responses: 0,
+      traffic: 0,
+      messages: 0,
       time: null,
       active: false
     };
@@ -225,7 +223,7 @@ export default function ConfigurePage() {
                       AppData.clearWallet();
                     }
                   }}>
-                    { AppData.isWalletExists() ? (AppData.isWalletReady() ? <>{ (AppData.getWalletSecretKey() != null ? 'Full control' : 'Watch only') } <Icon path={mdiClose} size={0.7}></Icon></> : 'Unlock to see') : 'Create to see' }
+                    { AppData.isWalletExists() ? (AppData.isWalletReady() ? <>{ (AppData.hasWalletSecretKey() ? 'Full control' : 'Watch control') } <Icon path={mdiClose} size={0.7}></Icon></> : 'Unlock to see') : 'Create to see' }
                   </Button>
                   <DropdownMenu.Root>
                     <DropdownMenu.Trigger disabled={!AppData.isWalletExists() || !AppData.isWalletReady()}>
@@ -359,8 +357,7 @@ export default function ConfigurePage() {
               <DataList.Value>
                 <Flex gap="1" wrap="wrap">
                   <Badge size="3" color={networkInfo.active ? undefined : 'red'}>{ networkInfo.active ? 'ONLINE' : 'OFFLINE' }</Badge>
-                  <Badge size="3">↓{ Readability.toCount('byte', networkInfo.receivedBytes) }</Badge>
-                  <Badge size="3" color="blue">↑{ Readability.toCount('byte', networkInfo.sentBytes) }</Badge>
+                  <Badge size="3">↓↑{ Readability.toCount('byte', networkInfo.traffic) }</Badge>
                 </Flex>
               </DataList.Value>
             </DataList.Item>

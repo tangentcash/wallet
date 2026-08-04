@@ -150,7 +150,7 @@ export default function ExplorerPage() {
       const result = refresh ? data : data.concat(vaults);
       setVaults(result.map((x) => {
         const balance: BigNumber | null = x.balances.find((v: any) => v.asset.id == asset.id)?.supply || null;
-        x.withdrawable = balance ? balance.gte(x.instance.fee_rate) : false;
+        x.sendable = balance ? balance.gte(x.instance.fee_rate) : false;
         x.balances = x.balances.map((y: any) => ({ ...y, whitelist: Whitelist.has(y.asset) })).sort((a: any, b: any) => {
           if ((a.whitelist && !b.whitelist) || (!a.asset.token && b.asset.token)) {
             return -1;
@@ -316,7 +316,7 @@ export default function ExplorerPage() {
                               <DataList.Item>
                                 <DataList.Label>Master address:</DataList.Label>
                                 <DataList.Value>
-                                  <Tooltip content="This is a deposit address shared by all users (master deposit address), send only from addresses you explicitly registered">
+                                  <Tooltip content="This is an address shared by all users (master address), send only from addresses you explicitly registered">
                                     <Button size="2" variant="ghost" color="indigo" onClick={() => {
                                       navigator.clipboard.writeText(item.master.addresses[0]);
                                       AlertBox.open(AlertType.Info, 'Address copied!')
@@ -325,7 +325,7 @@ export default function ExplorerPage() {
                                 </DataList.Value>
                               </DataList.Item>
                             }
-                            <Tooltip content={'Participants (signers) to involve in each created account but no less than ' + Chain.policy.PARTICIPATION_COMMITTEE[0] + ' and no more than ' + Chain.policy.PARTICIPATION_COMMITTEE[1] + ' per account, txn/account nonces and the redeem fee to be deduced from each withdrawal to cover off-chain network fees and to pay to vault attesters and participants'}>
+                            <Tooltip content={'Participants (signers) to involve in each created account but no less than ' + Chain.policy.PARTICIPATION_COMMITTEE[0] + ' and no more than ' + Chain.policy.PARTICIPATION_COMMITTEE[1] + ' per account, txn/account nonces and the redeem fee to be deduced from each outgoing tx to cover cross-chain network fees and to pay to vault attesters and participants'}>
                               <DataList.Item>
                                 <DataList.Label>Public params:</DataList.Label>
                                 <DataList.Value>
@@ -338,7 +338,7 @@ export default function ExplorerPage() {
                                 </DataList.Value>
                               </DataList.Item>
                             </Tooltip>
-                            <Tooltip content="Unspent balance of a vault usable as withdrawal liquidity">
+                            <Tooltip content="Unspent balance of a vault usable as sendable liquidity">
                               <DataList.Item>
                                 <DataList.Label>Asset TVL:</DataList.Label>
                                 <DataList.Value>
@@ -355,7 +355,7 @@ export default function ExplorerPage() {
                                 </DataList.Value>
                               </DataList.Item>
                             </Tooltip>
-                            <Tooltip content="Withdrawal transactions queued for processing by selected attesters">
+                            <Tooltip content="Transactions queued for processing by selected attesters">
                               <DataList.Item align={mobile ? undefined : 'center'}>
                                 <DataList.Label>Outgoing TX queue:</DataList.Label>
                                 <DataList.Value>
@@ -371,14 +371,14 @@ export default function ExplorerPage() {
                               <DataList.Label>Supply factory:</DataList.Label>
                               <DataList.Value>
                                 <Flex gap="2" wrap="wrap">
-                                  <Tooltip content="Claim a deposit address and/or sender address">
+                                  <Tooltip content="Claim an address and/or sender address">
                                     <Button size="1" variant="soft" color="jade" className="shadow-rainbow-hover" onClick={() => {
                                       navigate(`/interaction?asset=${asset.id}&type=register&vault=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`);
                                     }}>↙ Mint tokens <Icon path={mdiOpenInNew} size={0.5}></Icon></Button>
                                   </Tooltip>
-                                  <Tooltip content={(item.withdrawable ? 'Vault has enough ' : 'Vault doesn\'t have enough ') + Readability.toAssetSymbol(asset) + ' for a withdrawal'}>
-                                    <Button size="1" variant="soft" color="red" className="shadow-rainbow-hover" disabled={!item.withdrawable} onClick={() => {
-                                      if (item.withdrawable) {
+                                  <Tooltip content={(item.sendable ? 'Vault has enough ' : 'Vault doesn\'t have enough ') + Readability.toAssetSymbol(asset) + ' to send a transaction'}>
+                                    <Button size="1" variant="soft" color="red" className="shadow-rainbow-hover" disabled={!item.sendable} onClick={() => {
+                                      if (item.sendable) {
                                         navigate(`/interaction?asset=${asset.id}&type=withdraw&vault=${item.instance.bridge_hash}&fee=${item.instance.fee_rate.toString()}&back=${encodeURIComponent(location.pathname + location.search)}`);
                                       }
                                     }}>↗ Redeem tokens <Icon path={mdiOpenInNew} size={0.5}></Icon></Button>
@@ -394,7 +394,7 @@ export default function ExplorerPage() {
                               {
                                 Array.isArray(item.queue) && item.queue.map((tx: any, index: number) =>
                                   <Flex gap="2" wrap="wrap" justify="between" key={tx.hash.toString()} mb={index != item.queue.length - 1 ? '4' : undefined}>
-                                    <Badge size="2" color="yellow">{ blockchainExt != null ? `in ${(blockchainExt.blocking ? blockchainExt.depositTime * (index + 1) + '-' + (blockchainExt.depositTime * (index + 1) + 5).toString() : 5 * (index + 1))} min.` : `P${Readability.toValue(null, index + 1, false, false)}` }</Badge>
+                                    <Badge size="2" color="yellow">{ blockchainExt != null ? `in ${(blockchainExt.blocking ? blockchainExt.transactionTime * (index + 1) + '-' + (blockchainExt.transactionTime * (index + 1) + 5).toString() : 5 * (index + 1))} min.` : `P${Readability.toValue(null, index + 1, false, false)}` }</Badge>
                                     <Flex gap="2" align="center">
                                       <Badge size="2" color="yellow">{ Readability.toHash(tx.transaction_hash, mobile ? 6 : 12) }</Badge>
                                       <Link className="router-link" to={'/transaction/' + tx.transaction_hash} style={{ fontSize: '0.9rem' }}>▒▒</Link>
@@ -403,7 +403,7 @@ export default function ExplorerPage() {
                                 )
                               }
                               <Flex justify="center" mt={Array.isArray(item.queue) && item.queue.length > 0 ? '4' : undefined}>
-                                <Text color={blockchainExt ? item.queue?.length > 0 ? 'red' : (blockchainExt.blocking ? 'yellow' : 'jade') : 'gray'} size="2">Max outgoing ETA: { blockchainExt ? (blockchainExt.blocking ? (blockchainExt.depositTime * (2 + item.queue?.length || 0) + '-' + (blockchainExt.depositTime * (2 + item.queue?.length || 0) + 5)) : (5 * ((item.queue?.length || 0) + 1))) + ' min.' : 'unknown' }</Text>
+                                <Text color={blockchainExt ? item.queue?.length > 0 ? 'red' : (blockchainExt.blocking ? 'yellow' : 'jade') : 'gray'} size="2">Max outgoing ETA: { blockchainExt ? (blockchainExt.blocking ? (blockchainExt.transactionTime * (2 + item.queue?.length || 0) + '-' + (blockchainExt.transactionTime * (2 + item.queue?.length || 0) + 5)) : (5 * ((item.queue?.length || 0) + 1))) + ' min.' : 'unknown' }</Text>
                               </Flex>
                             </>
                           }

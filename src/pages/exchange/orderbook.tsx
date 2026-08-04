@@ -245,7 +245,7 @@ export default function OrderbookPage() {
     setSeriesOptions(prev => {
       const result = change(prev);
       if (typeof params.orderbook == 'string' && params.orderbook.length > 0)
-        AppStorage.set('__orderbook__', result);
+        AppStorage.set('__orderbook_data__', result);
       return result;
     });
   }, [params]);
@@ -406,14 +406,16 @@ export default function OrderbookPage() {
     });
   }, [incomingLevels]);
   useEffect(() => {
-    const memorizedSeriesOptions = AppStorage.get('__orderbook__');
+    const memorizedSeriesOptions = AppStorage.get('__orderbook_data__');
     if (memorizedSeriesOptions != null && typeof memorizedSeriesOptions == 'object') {
       setSeriesOptions(prev => ({ ...prev, ...memorizedSeriesOptions }));
     }
 
-    const memorizedTab = AppStorage.get('__orderbook_tab__');
-    if (memorizedTab && ['info', 'maker', 'book', 'logs'].includes(memorizedTab)) {
-      setTab(memorizedTab);
+    if (!mobile) {
+      const memorizedTab = AppStorage.get('__orderbook_tab__');
+      if (memorizedTab && ['info', 'maker', 'book', 'logs'].includes(memorizedTab)) {
+        setTab(memorizedTab);
+      }
     }
 
     const updateChain = (event: any) => setBlockNumber(event.detail.tip);
@@ -498,7 +500,7 @@ export default function OrderbookPage() {
                 {
                   mobile &&
                   <Box display={tab == 'info' ? undefined : 'none'}>
-                    <ChartWidget 
+                    <ChartWidget
                       orderbook={orderbook}
                       pair={pair}
                       whitelisted={whitelisted}
@@ -516,7 +518,7 @@ export default function OrderbookPage() {
                     <Box px={mobile ? '3' : undefined} pt={mobile ? '2' : undefined}>
                       <Card mb={mobile ? '5' : '3'} variant="surface" style={{ borderRadius: '22px' }}>
                         <Flex align="center" justify="between" mb="3">
-                          <Heading size="5">Wallet P&L</Heading>
+                          <Heading size="5">Your wallet</Heading>
                           <SegmentedControl.Root size="1" value={seriesOptions.showPrimary ? '1' : '0'} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, showPrimary: parseInt(e) > 0 }))}>
                             <SegmentedControl.Item value="1">
                               <Flex align="center">
@@ -531,7 +533,7 @@ export default function OrderbookPage() {
                           </SegmentedControl.Root>
                         </Flex>
                         <Flex direction="column">
-                          <Text size="2" color="gray">{ Readability.toAssetSymbol(valuation.primary) } balance of wallet</Text>
+                          <Text size="2" color="gray">{ Readability.toAssetSymbol(valuation.primary) } balance</Text>
                           <Text size="4">{ Readability.toMoney(valuation.primary, valuation.quantity) }</Text>
                         </Flex>
                         <Flex gap="1" align="center">
@@ -540,13 +542,13 @@ export default function OrderbookPage() {
                           <Text size="2" color="gray">{ Readability.toValue(null, valuation.currentPrice, false, true) }</Text>
                         </Flex>
                         <Flex direction="column" mt="4">
-                          <Text size="2" color="gray">{ Readability.toAssetSymbol(valuation.secondary) } cost of { Readability.toAssetSymbol(valuation.primary) }</Text>
+                          <Text size="2" color="gray">{ Readability.toAssetSymbol(valuation.secondary) } worth</Text>
                           <Text size="4">{ Readability.toMoney(valuation.secondary, valuation.worth) }</Text>
                           <Text size="2" style={{ color: valuation.relativePL.gt(0) ? 'var(--accent-11)' : (valuation.relativePL.lt(0) ? 'var(--red-11)' : 'var(--gray-11)') }}>{ Readability.toValue(null, valuation.absolutePL, true, true) } ({ valuation.relativePL.gt(0) ? '+' : '' }{ valuation.relativePL.multipliedBy(100).toFixed(2) }%)</Text>
                         </Flex>
                       </Card>
                       <Card mb="3" variant="surface" style={{ borderRadius: '22px' }}>
-                        <Heading mb="3" size="5">Market P&L</Heading>
+                        <Heading mb="3" size="5">Trading pair</Heading>
                         <Flex direction="column" gap="2">
                           <Flex justify="between" wrap="wrap" gap="1">
                             <Text size="2" color="gray">Pair</Text>

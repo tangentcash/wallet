@@ -4,11 +4,12 @@ import { AlertBox, AlertType } from "./alert";
 import { Link } from "react-router";
 import { AppData } from "../core/app";
 import { JSX, useMemo, useState } from "react";
-import { mdiInformationOutline, mdiLockOpenVariantOutline, mdiLockOutline, mdiReload } from "@mdi/js";
+import { mdiLockOpenVariantOutline, mdiLockOutline, mdiReload } from "@mdi/js";
 import { AssetImage } from "./asset";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
+import { secondsToDuration } from "../core/utils";
 
 export function toTransactionLabel(transaction: any, type: string | null): string {
   switch (type) {
@@ -21,10 +22,9 @@ export function toTransactionLabel(transaction: any, type: string | null): strin
     case 'rollup':
       return 'Rollup' + (transaction.transactions?.length > 0 ? ' ' + transaction.transactions?.length + 'x' : '');
     case 'route':
-      return transaction.routing_address ? 'New wallet' : 'Build vault';
+      return transaction.routing_address ? 'New wallet' : 'New sub-vault';
     case 'bind':
       return 'New vault (legacy)';
-      break;
     case 'imbind':
       return 'New vault';
     case 'rebind':
@@ -32,11 +32,11 @@ export function toTransactionLabel(transaction: any, type: string | null): strin
     case 'setup':
       return 'Setup validator';
     case 'withdraw':
-      return 'Build withdrawal';
+      return 'Build vault transfer';
     case 'broadcast':
-      return 'Withdraw';
+      return 'Relay vault transfer';
     case 'anticast':
-      return 'Protest withdrawal';
+      return 'Protest vault transfer';
     case 'attestate':
       return 'Vault transfer';
     default:
@@ -1195,13 +1195,28 @@ export function TransactionDetailsView(props: { orientation: 'horizontal' | 'ver
             }}>{ Readability.toAddress(transaction.signature, 12) }</Button>
           </DataList.Value>
         </DataList.Item>
+        <DataList.Item>
+          <DataList.Label>Signer:</DataList.Label>
+          <DataList.Value>
+            <Button size="2" variant="ghost" color="indigo" onClick={() => {
+              navigator.clipboard.writeText(receipt?.from || 'NULL');
+              AlertBox.open(AlertType.Info, 'Address copied!')
+            }}>{ Readability.toAddress(receipt?.from || 'NULL') }</Button>
+            {
+              receipt?.from != null &&
+              <Box ml="2">
+                <Link className="router-link" to={'/account/' + receipt?.from}>▒▒</Link>
+              </Box>
+            }
+          </DataList.Value>
+        </DataList.Item>
         {
           !props.preview && receipt &&
           <>
             <DataList.Item>
               <DataList.Label>Status:</DataList.Label>
               <DataList.Value>
-                <Badge color={receipt.successful ? undefined : 'red'}>Execution { receipt.successful ? 'finalized' : 'reverted' }</Badge>
+                <Badge color={receipt.successful ? undefined : 'red'}>{ receipt.successful ? 'Finalized' : 'Reverted' }{ AppData.tip != null ? ' ' + Readability.toCount('block', AppData.tip.minus(receipt.block_number).plus(1)) + ' ago' : '' }</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -1213,15 +1228,6 @@ export function TransactionDetailsView(props: { orientation: 'horizontal' | 'ver
                 </Box>
               </DataList.Value>
             </DataList.Item>
-            {
-              AppData.tip != null &&
-              <DataList.Item>
-                <DataList.Label>Confidence:</DataList.Label>
-                <DataList.Value>
-                  <Badge color={AppData.tip.minus(receipt.block_number).gt(0) ? undefined : 'yellow'}>{ Readability.toCount('confirmation', AppData.tip.minus(receipt.block_number).plus(1)) }</Badge>
-                </DataList.Value>
-              </DataList.Item>
-            }
           </>
         }
         {
@@ -1241,31 +1247,12 @@ export function TransactionDetailsView(props: { orientation: 'horizontal' | 'ver
           </DataList.Item>
         }
         <DataList.Item>
-          <DataList.Label>Signer:</DataList.Label>
-          <DataList.Value>
-            <Button size="2" variant="ghost" color="indigo" onClick={() => {
-              navigator.clipboard.writeText(receipt?.from || 'NULL');
-              AlertBox.open(AlertType.Info, 'Address copied!')
-            }}>{ Readability.toAddress(receipt?.from || 'NULL') }</Button>
-            {
-              receipt?.from != null &&
-              <Box ml="2">
-                <Link className="router-link" to={'/account/' + receipt?.from}>▒▒</Link>
-              </Box>
-            }
-          </DataList.Value>
-        </DataList.Item>
-        <DataList.Item>
           <DataList.Label>Nonce:</DataList.Label>
           <DataList.Value>0x{ transaction.nonce.toString(16) }</DataList.Value>
         </DataList.Item>
         <DataList.Item>
-          <DataList.Label>Gas network:</DataList.Label>
-          <DataList.Value>{ Readability.toAssetName(transaction.asset, true) }</DataList.Value>
-        </DataList.Item>
-        <DataList.Item>
           <DataList.Label>Gas price:</DataList.Label>
-          <DataList.Value>{ transaction.gas_price != null ? Readability.toMoney(AssetId.fromHandle(transaction.asset.chain), transaction.gas_price) : <Badge color="yellow">Consensus override</Badge> }</DataList.Value>
+          <DataList.Value>{ Readability.toMoney(AssetId.fromHandle(transaction.asset.chain), transaction.gas_price || new BigNumber(0)) }</DataList.Value>
         </DataList.Item>
         <DataList.Item>
           <DataList.Label>Gas limit:</DataList.Label>
@@ -1306,12 +1293,13 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
   const state = props.state || null;
   const ownerAddress = props.ownerAddress;
   const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
+  const date = new Date();
   const [expanded, setExpanded] = useState(props.open || false);
   const labels = useMemo((): { title: string, status: { title: string, color: string } | null } => {
     let type = Readability.toTransactionType(transaction.type), status: { title: string, color: string } | null = null;
     if (receipt && receipt.successful && !transaction.error && (!transaction.proof || transaction.proof.success) && !props.preview && props.resolveTransaction && transaction.type == 'withdraw') {
       const top = props.resolveTransaction((top: any) => top.withdraw_hash && top.withdraw_hash.toString() == transaction.hash.toString());
-      status = top ? { title: 'Finalized', color: top.error ? 'gray' : 'jade' } : { title: 'Queued', color: 'gray' };
+      status = top ? (top.error ? { title: 'Failed', color: 'red' } : { title: 'Sent', color: 'jade' }) : { title: 'Waiting', color: 'gray' };
     }
     return {
       title: toTransactionLabel(transaction, type),
@@ -1349,18 +1337,18 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
         return { asset: target.asset, supply: target.supply, reserve: target.reserve.lt(0) && target.supply.lt(0) ? target.reserve.minus(target.supply) : target.reserve };
       }).filter(x => !x.supply.eq(0) || !x.reserve.eq(0)).forEach((item) => {
         if (!item.supply.eq(0)) {
-          badges.push(<Badge size="1" color={item.supply.gt(0) ? undefined : (item.supply.isNegative() ? 'red' : 'gray')}>{ Readability.toMoney(item.asset, item.supply, true) }</Badge>);
+          badges.push(<Badge size="1" color={item.supply.gt(0) ? undefined : 'red'}>{ Readability.toMoney(item.asset, item.supply, true) }</Badge>);
         }
         if (!item.reserve.eq(0)) {
           badges.push(
-            <Badge size="1" color={item.reserve.lt(0) ? 'gold' : (item.reserve.isPositive() ? 'amber' : 'gray')}>
-              <Icon path={item.reserve.lt(0) ? mdiLockOpenVariantOutline : mdiLockOutline} size={0.55}></Icon> { Readability.toMoney(item.asset, item.reserve.negated(), true) }
+            <Badge size="1" color="gold">
+              <Icon path={item.reserve.lt(0) ? mdiLockOpenVariantOutline : mdiLockOutline} size={0.55}></Icon> { Readability.toMoney(item.asset, item.reserve.abs()) }
             </Badge>
           )
         }
       });
       Object.keys(volumes).map((id) => volumes[id]).filter((v) => v.value.gt(0)).forEach(item => {
-        badges.push(<Badge size="1" color="gold"><Icon path={mdiReload} size={0.55}></Icon> { Readability.toMoney(item.asset, item.value) }</Badge>);
+        badges.push(<Badge size="1" color="cyan"><Icon path={mdiReload} size={0.55}></Icon> { Readability.toMoney(item.asset, item.value) }</Badge>);
       });
       if (labels.status) {
         badges.push(<Badge size="1" color={labels.status.color as any}>{ labels.status.title }</Badge>);
@@ -1368,7 +1356,7 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
     }
     if (badges.length <= threshold) {
       if (successful) {
-        badges.push(<Badge size="1" color="gray">{ receipt.events.length > 0 ? Readability.toCount('non-monetary event', receipt.events.length) : 'Non-monetary' }</Badge>);
+        badges.push(<Badge size="1" color="gray">{ receipt.events.length > 0 ? Readability.toCount('nonmonetary event', receipt.events.length) : 'Nonmonetary' }</Badge>);
       } else {
         badges.push(<Badge size="1" color="red">Reverted</Badge>);
       }
@@ -1385,19 +1373,19 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
           <AssetImage asset={transaction.asset}></AssetImage>
           <Box width="100%">
             <Flex justify="between" align="center">
-              <Text as="div" size="2" weight="bold">{ labels.title }</Text>       
+              <Flex align="center" gap="1">
+                <Text as="div" size="2" weight="bold">{ labels.title }</Text>
+              </Flex>
               <Badge size="1" variant="soft" color={props.preview ? 'yellow' : 'gray'}>
-                <Icon path={mdiInformationOutline} size={0.65}></Icon>
-                <Box px="1" ml="-1">
-                  { !props.preview && receipt && <Text as="div" size="1" weight="light" color="gray">{ receipt.block_time ? new Date(receipt.block_time.toNumber()).toLocaleTimeString() : 'NULL' }</Text> }
-                  { !props.preview && !receipt && <Spinner /> }
-                  { props.preview && <Text as="div" size="1" weight="light" color="yellow">Preview!</Text> }
-                </Box>
+                {
+                  props.preview ? <Text as="div" size="1" weight="light">Preview!</Text> :
+                  (receipt ? <Text as="div" size="1" weight="light">{ secondsToDuration(Math.round(date.getTime() - (receipt.block_time ? receipt.block_time.toNumber() : date.getTime())) / 1000, true) }</Text> : <Spinner />) 
+                }
               </Badge>
             </Flex>
             {
               badges &&
-              <Flex gap="2" wrap="wrap">
+              <Flex gap="1" wrap="wrap" style={{ lineHeight: '16px' }}>
                 { badges.map((item, index) => <Box key={index}>{ item }</Box>) }
               </Flex>
             }

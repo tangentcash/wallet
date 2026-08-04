@@ -28,159 +28,159 @@ const PortfolioPage = lazy(() => import("../pages/exchange/portfolio"));
 const OrderbookPage = lazy(() => import("../pages/exchange/orderbook"));
 
 export type ExtendedField = {
-  depositTime: number,
+  transactionTime: number,
   tokenStandard: string | null,
   blocking: boolean
 };
 
 export const ASSET_INFORMATION: Record<string, ExtendedField> = {
   "ADA": {
-    depositTime: 22,
+    transactionTime: 22,
     tokenStandard: 'FT',
     blocking: false
   },
   "ARB": {
-    depositTime: 1,
+    transactionTime: 1,
     tokenStandard: 'ERC20',
     blocking: false
   },
   "AVAX": {
-    depositTime: 3,
+    transactionTime: 3,
     tokenStandard: 'ERC20',
     blocking: false
   },
   "BASE": {
-    depositTime: 1,
+    transactionTime: 1,
     tokenStandard: 'ERC20',
     blocking: false
   },
   "BCH": {
-    depositTime: 60,
+    transactionTime: 60,
     tokenStandard: null,
     blocking: false
   },
   "BLAST": {
-    depositTime: 3,
+    transactionTime: 3,
     tokenStandard: 'ERC20',
     blocking: false
   },
   "BNB": {
-    depositTime: 1,
+    transactionTime: 1,
     tokenStandard: 'BEP20',
     blocking: false
   },
   "BSV": {
-    depositTime: 12,
+    transactionTime: 12,
     tokenStandard: null,
     blocking: false
   },
   "BTC": {
-    depositTime: 60,
+    transactionTime: 60,
     tokenStandard: null,
     blocking: false
   },
   "BTG": {
-    depositTime: 60,
+    transactionTime: 60,
     tokenStandard: null,
     blocking: false
   },
   "CELO": {
-    depositTime: 2,
+    transactionTime: 2,
     tokenStandard: 'ERC20',
     blocking: false
   },
   "DASH": {
-    depositTime: 15,
+    transactionTime: 15,
     tokenStandard: null,
     blocking: false
   },
   "DGB": {
-    depositTime: 2,
+    transactionTime: 2,
     tokenStandard: null,
     blocking: false
   },
   "DOGE": {
-    depositTime: 6,
+    transactionTime: 6,
     tokenStandard: null,
     blocking: false
   },
   "ETC": {
-    depositTime: 14,
+    transactionTime: 14,
     tokenStandard: 'ERC20',
     blocking: false
   },
   "ETH": {
-    depositTime: 14,
+    transactionTime: 14,
     tokenStandard: 'ERC20',
     blocking: false
   },
   "GNO": {
-    depositTime: 6,
+    transactionTime: 6,
     tokenStandard: 'ERC20',
     blocking: false
   },
   "LTC": {
-    depositTime: 15,
+    transactionTime: 15,
     tokenStandard: null,
     blocking: false
   },
   "LINEA": {
-    depositTime: 3,
+    transactionTime: 3,
     tokenStandard: 'ERC20',
     blocking: false
   },
   "MATIC": {
-    depositTime: 3,
+    transactionTime: 3,
     tokenStandard: 'ERC20',
     blocking: false
   },
   "OP": {
-    depositTime: 3,
+    transactionTime: 3,
     tokenStandard: 'ERC20',
     blocking: false
   },
   "S": {
-    depositTime: 1,
+    transactionTime: 1,
     tokenStandard: 'ERC20',
     blocking: false
   },
   "SOL": {
-    depositTime: 1,
+    transactionTime: 1,
     tokenStandard: 'SPL',
     blocking: false
   },
   "TRX": {
-    depositTime: 2,
+    transactionTime: 2,
     tokenStandard: 'TRC20',
     blocking: false
   },
   "XEC": {
-    depositTime: 60,
+    transactionTime: 60,
     tokenStandard: null,
     blocking: false
   },
   "XLM": {
-    depositTime: 1,
+    transactionTime: 1,
     tokenStandard: null,
     blocking: false
   },
   "XMR": {
-    depositTime: 40,
+    transactionTime: 40,
     tokenStandard: null,
     blocking: true
   },
   "XRP": {
-    depositTime: 1,
+    transactionTime: 1,
     tokenStandard: null,
     blocking: false
   },
   "ZEC": {
-    depositTime: 20,
+    transactionTime: 20,
     tokenStandard: null,
     blocking: false
   },
   "ZK": {
-    depositTime: 3,
+    transactionTime: 3,
     tokenStandard: 'ERC20',
     blocking: false
   },
@@ -198,10 +198,8 @@ export type DecodedTransaction = {
 }
 
 export type ConnectionState = {
-  sentBytes: number;
-  receivedBytes: number;
-  requests: number;
-  responses: number;
+  traffic: number;
+  messages: number;
   time: Date | null;
   active: boolean;
 };
@@ -301,48 +299,24 @@ export class AppData {
       this.reconfigure(network, type);
     this.save();
   }
-  private static nodeRequest(method: string, message: any, size: number): void {
-    const bytes = 40 + size;
+  private static nodeMessage(method: string, data: { args: any, result: any } | { args: any, error: unknown }, size: number): void {
+    const bytes = 100 + size;
     if (AppData.server != null) {
-      AppData.server.sentBytes += bytes;
+      AppData.server.traffic += bytes;
       AppData.server.time = new Date();
       AppData.server.active = true;
-      ++AppData.server.requests;
+      ++AppData.server.messages;
     } else {
-      AppData.server = { sentBytes: bytes, receivedBytes: 0, requests: 1, responses: 0, time: new Date(), active: true };
+      AppData.server = { traffic: bytes, messages: 0, time: new Date(), active: true };
     }
     
-    console.log('[rpc]', `${method} call:`, message);
-  }
-  private static nodeResponse(method: string, message: any, size: number): void {
-    const bytes = 40 + size;
-    if (AppData.server != null) {
-      AppData.server.receivedBytes += bytes;
-      AppData.server.time = new Date();
-      AppData.server.active = message != null && size > 0;
-      ++AppData.server.responses;
+    const error = (data as any).error;
+    if (error) {
+      console.error('[rpc]', method, data);
+      AlertBox.open(AlertType.Error, `${error.message || error} on ${method}`);
     } else {
-      AppData.server = { sentBytes: 0, receivedBytes: bytes, requests: 0, responses: 1, time: new Date(), active: true };
+      console.log('[rpc]', method, data);
     }
-
-    console.log('[rpc]', `${method} return:`, message);
-  }
-  private static nodeError(method: string, error: unknown): void {
-    const bytes = 40 + (error as any)?.message?.length || 0;
-    const message: string = ((error as any)?.message?.toString() || error?.toString()) || '';
-    const networkError = !message.includes('layer_exception');
-    if (AppData.server != null) {
-      AppData.server.receivedBytes += bytes;
-      AppData.server.time = new Date();
-      AppData.server.active = !networkError;
-      if (!networkError)
-        ++AppData.server.responses;
-    } else {
-      AppData.server = { sentBytes: 0, receivedBytes: bytes, requests: 0, responses: networkError ? 0 : 1, time: new Date(), active: !networkError };
-    }
-
-    console.log('[rpc]', `${method} return:`, (error as any)?.message || error);
-    AlertBox.open(AlertType.Error, `${method} error: ${(error as any)?.message || error}`);
   }
   private static async authorizerEvent(request: { event: string, id: number, payload: any}): Promise<boolean> {
     if (!this.defs.authorizer || PrompterBox.isOpen() || this.approveTransaction)
@@ -763,9 +737,7 @@ export class AppData {
       resolveDomainTXT: this.authorizerDomain
     });
     RPC.applyImplementation({
-      onNodeRequest: this.nodeRequest,
-      onNodeResponse: this.nodeResponse,
-      onNodeError: this.nodeError,
+      onNodeMessage: this.nodeMessage,
       onCacheStore: (path: string, value: any): Promise<boolean> => BigStorage.set((this.defs.cachePrefix || 'V') + ':' + path, value),
       onCacheLoad: (path: string): Promise<any | null> => BigStorage.get((this.defs.cachePrefix || 'V') + ':' + path),
       onCacheKeys: (): Promise<string[]> => BigStorage.keys().then(x => x.filter((v) => v.startsWith((this.defs.cachePrefix || 'V'))).map((v) => v.substring((this.defs.cachePrefix || 'V').length + 1)))
@@ -902,6 +874,9 @@ export class AppData {
   static getWalletAddress(): string | null | undefined {
     const account = this.isWalletReady() ? this.wallet?.address : null;
     return account || this.props.account;
+  }
+  static hasWalletSecretKey(): boolean {
+    return this.getWalletSecretKey() != null;
   }
   static isWalletReady(): boolean {
     return this.wallet != null && this.wallet.isValid();

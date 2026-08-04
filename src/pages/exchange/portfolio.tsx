@@ -1188,7 +1188,7 @@ export default function PortfolioPage() {
                 <Flex align="center" gap="2">
                   <AddressAvatar address={baseAddress || ''} size="3"></AddressAvatar>
                   <Flex direction="column">
-                    { !readOnly && AppData.isWalletReady() ? <Text color="red" size="2">Full control</Text> : <Text color="gray" size="2">Watch only</Text> }
+                    { !readOnly && AppData.isWalletReady() ? <Text color="red" size="2">{ (AppData.hasWalletSecretKey() ? 'Full control' : 'Watch control') }</Text> : <Text color="gray" size="2">Watch only</Text> }
                     <Text style={{ color: 'var(--gray-12)' }} weight="bold" size="2">{ Readability.toAddress(baseAddress || undefined, 6) }</Text>
                   </Flex>
                 </Flex>

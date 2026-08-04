@@ -104,7 +104,7 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
     }];
   }, [blockchain, props.assets]);
   const requiresSenderAddress = useMemo(() => blockchain && blockchain.routing_policy == 'account', [blockchain]);
-  const hasDepositButton = useMemo(() => requiresSenderAddress ? true : (blockchain && !blockchainAddresses.bridge), [requiresSenderAddress, blockchain, blockchainAddresses]);
+  const hasReceiveButton = useMemo(() => requiresSenderAddress ? true : (blockchain && !blockchainAddresses.bridge), [requiresSenderAddress, blockchain, blockchainAddresses]);
   const claim = useCallback(() => {
     if (!blockchain) {
       AlertBox.open(AlertType.Error, 'Must select a network');
@@ -123,10 +123,10 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
 
     navigate(`/interaction?asset=${blockchain.id}&type=register&vault=${bridge.instance.bridge_hash}&back=/`);
   }, [blockchain, bridges]);
-  const withdraw = useCallback((assetIndex: number) => {
+  const send = useCallback((assetIndex: number) => {
     const token = blockchainAssets[assetIndex];
     if (!blockchain || !token) {
-      AlertBox.open(AlertType.Error, 'Must select a token to withdraw');
+      AlertBox.open(AlertType.Error, 'Must select a token to send');
       return;
     }
 
@@ -138,7 +138,7 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
     });
     const bridge = sortedBridges.filter((x: any) => feeToken && feeToken.balance.gt(0) ? feeToken.balance.gte(x.instance.fee_rate) : false)[0] || sortedBridges[0];
     if (!bridge) {
-      AlertBox.open(AlertType.Error, 'Failed to find a vault to process this withdrawal');
+      AlertBox.open(AlertType.Error, 'Failed to find a vault to send from');
       return;
     }
     
@@ -206,7 +206,7 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
         <Select.Content color="gray">
           <Select.Item value="-1">
             <Flex align="center" gap="2">
-              <Icon path={mdiSetRight} size={0.8}></Icon> Deposit & Withdraw
+              <Icon path={mdiSetRight} size={0.8}></Icon> Cross-chain transfer
             </Flex>
           </Select.Item>
           <Select.Group>
@@ -238,14 +238,14 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
           <Flex mt="2" gap="2">
             <DropdownMenu.Root>
               <DropdownMenu.Trigger>
-                <Button variant="surface" size="3" color="gray" className="rt-r-gap-2" style={{ flex: 'auto', width: hasDepositButton ? '50%' : '100%', color: 'var(--gray-12)', backgroundColor: 'var(--gray-2)' }}>
-                  <Icon path={mdiArrowTopRight} size={0.8}></Icon> Withdraw
+                <Button variant="surface" size="3" color="gray" className="rt-r-gap-2" style={{ flex: 'auto', width: hasReceiveButton ? '50%' : '100%', color: 'var(--gray-12)', backgroundColor: 'var(--gray-2)' }}>
+                  <Icon path={mdiArrowTopRight} size={0.8}></Icon> Send
                 </Button>
               </DropdownMenu.Trigger>
               <DropdownMenu.Content color="gray">
                 {
                   blockchainAssets.map((item, index) =>
-                    <DropdownMenu.Item key={item.asset.id + '_select'} onClick={() => withdraw(index)}>
+                    <DropdownMenu.Item key={item.asset.id + '_select'} onClick={() => send(index)}>
                       <Flex align="center" gap="2">
                         <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
                         <Text size="4">Send</Text>
@@ -265,13 +265,13 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
               </DropdownMenu.Content>
             </DropdownMenu.Root>
             {
-              hasDepositButton && (!requiresSenderAddress || !blockchainAddresses.routing) &&
+              hasReceiveButton && (!requiresSenderAddress || !blockchainAddresses.routing) &&
               <Button size="3" variant="surface" className="rt-r-gap-2" style={{ width: '50%', paddingLeft: '24px', paddingRight: '24px' }} onClick={() => claim()}>
-                <Icon path={mdiArrowBottomLeft} size={0.8}></Icon> Deposit
+                <Icon path={mdiArrowBottomLeft} size={0.8}></Icon> Receive
               </Button>
             }
             {
-              hasDepositButton && requiresSenderAddress && blockchainAddresses.routing &&
+              hasReceiveButton && requiresSenderAddress && blockchainAddresses.routing &&
               <Select.Root size="3" value={routingAddressIndex.toString()} onValueChange={(e) => {
                 const index = parseInt(e);
                 if (index == -2) {
@@ -283,7 +283,7 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
                 <Select.Trigger className="rt-r-gap-2 select-plain" style={{ width: '50%', paddingLeft: '24px', paddingRight: '24px', justifyContent: 'center' }} />
                 <Select.Content color="gray">
                   <Select.Item value="-1">
-                    <Flex align="center" justify="center" gap="2" width="100%"><Icon path={mdiArrowBottomLeft} size={0.8}></Icon> Deposit</Flex>
+                    <Flex align="center" justify="center" gap="2" width="100%"><Icon path={mdiArrowBottomLeft} size={0.8}></Icon> Receive</Flex>
                   </Select.Item>
                   {
                     blockchainAddresses.routing != null && blockchainAddresses.routing.addresses.map((x: any, index: number) =>
@@ -311,15 +311,15 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
         blockchain?.ext &&
         <Flex justify="center" mt="4" px="2">
           <Text align="center" size="1">
-            <Text>Confirmation in <Text style={{ color: 'var(--accent-11)' }}>{blockchain.ext.depositTime}-{blockchain.ext.depositTime + 5} min</Text>, never withdraw to CEXes</Text>
-            { blockchain.ext.blocking && ', very slow withdrawal queue' }
-            { blockchain.routing_policy == 'memo' && <Text>, <Text color="red">deposit with memo only</Text></Text> }
+            <Text>Confirmation in <Text style={{ color: 'var(--accent-11)' }}>{blockchain.ext.transactionTime}-{blockchain.ext.transactionTime + 5} min</Text>, never send to CEXes</Text>
+            { blockchain.ext.blocking && ', very slow outgoing queue' }
+            { blockchain.routing_policy == 'memo' && <Text>, <Text color="red">requires memo to receive</Text></Text> }
             {
               requiresSenderAddress && blockchainAddress &&
-              <Text>, <Text color="red">deposit from</Text> <Link to="#" onClick={() => {
+              <Text>, <Text color="red">receives only from</Text> <Link to="#" onClick={() => {
                 navigator.clipboard.writeText(blockchainAddress);
                 AlertBox.open(AlertType.Info, 'Your address copied!')
-              }}>{Readability.toAddress(blockchainAddress, 6)}</Link> <Text color="red">only</Text></Text>
+              }}>{Readability.toAddress(blockchainAddress, 6)}</Link></Text>
             }
           </Text>
         </Flex>

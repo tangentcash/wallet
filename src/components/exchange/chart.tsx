@@ -389,7 +389,7 @@ export function ChartWidget({
         volume.push({
           time: time,
           value: bar.volume.toNumber(),
-          color: bar.sentiment >= 0 ? UP_VCOLOR : DOWN_VCOLOR
+          color: bar.open.lte(bar.close) ? UP_VCOLOR : DOWN_VCOLOR
         });
         min = Math.min(min, time as any);
         max = Math.max(max, time as any);
@@ -451,7 +451,7 @@ export function ChartWidget({
 
     const trades: AggregatedLog[] = [];
     const target = Exchange.priceOf(pair.primaryAsset, pair.secondaryAsset);
-    let sentiment = 0, price = target.close, quantity = new BigNumber(0);
+    let price = target.close, quantity = new BigNumber(0);
     for (let i = 0; i < tradeEvents.length; i++) {
       const data = tradeEvents[i].detail || null;
       const merge = data?.primaryAsset?.id == pair?.primaryAsset.id && data?.secondaryAsset?.id == pair?.secondaryAsset.id;
@@ -460,7 +460,6 @@ export function ChartWidget({
       const nextPrice = merge && data?.price ? new BigNumber(data?.price || 0) : null;
       const nextQuantity = merge ? new BigNumber(data?.quantity || 0) : new BigNumber(0);
       if (merge && nextPrice != null) {
-        sentiment += (nextSide == OrderSide.Buy ? 1 : -1) * (1 + nextQuantity.toNumber());
         price = nextPrice;
         quantity = quantity.plus(nextQuantity);
         if (nextAccount != null) {
@@ -515,7 +514,7 @@ export function ChartWidget({
       const nextVolume: VolumeBar = {
         time: mergeVolume ? prevVolume.time : time as Time,
         value: mergeVolume ? prevVolume.value + quantity.toNumber() : quantity.toNumber(),
-        color: mergeVolume && prevVolume.value * 0.5 >= quantity.toNumber() ? prevVolume.color : (sentiment >= 0 ? UP_VCOLOR : DOWN_VCOLOR)
+        color: mergeVolume && prevVolume.value * 0.5 >= quantity.toNumber() ? prevVolume.color : (nextPrice.open <= nextPrice.close ? UP_VCOLOR : DOWN_VCOLOR)
       };
       if (mergePrice) {
         priceSeries[priceSeries.length - 1] = nextPrice;
@@ -565,11 +564,11 @@ export function ChartWidget({
               <Text size="1"><Text color="gray" mr="1">H</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.high || null) }</Text>
               <Text size="1"><Text color="gray" mr="1">L</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.low || null) }</Text>
               <Text size="1"><Text color="gray" mr="1">C</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.close || null) }</Text>
-              <Text size="1"><Text color="gray" mr="1">V</Text>{ Readability.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text>
+              { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ Readability.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
             </Flex> :
             <Flex direction="column">
               <Text size="1"><Text color="gray" mr="1">C</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.value || null) }</Text>
-              <Text size="1"><Text color="gray" mr="1">V</Text>{ Readability.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text>
+              { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ Readability.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
             </Flex>)
           }
         </Box>
@@ -602,7 +601,7 @@ export function ChartWidget({
               </IconButton>
             </Dialog.Trigger>
             <Dialog.Content maxWidth="450px">
-              <Dialog.Title>Configure chart</Dialog.Title>
+              <Dialog.Title>Configure</Dialog.Title>
               <Flex direction="column" gap="2">
                 <Select.Root value={options.view.toString()} onValueChange={(e) => onOptionsChange(prev => ({ ...prev, view: parseInt(e) }))}>
                   <Select.Trigger />
