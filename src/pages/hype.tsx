@@ -151,7 +151,7 @@ export default function HypePage() {
                   <a className="router-text-link" href="/docs" target="_blank" style={{ textDecoration: 'none' }}>
                     <Flex align="center" gap="2">
                       <Icon path={mdiSchool} size={0.6} /> 
-                      <Text size="2">Resouces</Text>
+                      <Text size="2">Resources</Text>
                     </Flex>
                   </a>
                 </DropdownMenu.Item>

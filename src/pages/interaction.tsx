@@ -42,6 +42,10 @@ export class ProgramSetup {
 export class ProgramRoute {
   routing: { chain: string, policy: string }[] = [];
   routingAddress: string = '';
+  publicKey: string = '';
+  signature: string = '';
+  nonce: string = '';
+  ownershipProof: boolean = false;
 }
 
 export class ProgramWithdraw {
@@ -363,6 +367,16 @@ export default function InteractionPage() {
       if (params.vault == null)
         return 'URL must include a vault hash';
   
+      const hasOwnershipProof = program.ownershipProof || program.signature.length > 0 || program.publicKey.length > 0;
+      if (hasOwnershipProof && !program.routingAddress)
+        return 'Routing address is required';
+
+      if (hasOwnershipProof && !program.signature.length)
+        return 'Signature is required';
+
+      if (hasOwnershipProof && !program.publicKey.length)
+        return 'Public key is required';
+
       return null;
     } else if (program instanceof ProgramWithdraw) {
       const child = assets[asset];
@@ -563,15 +577,21 @@ export default function InteractionPage() {
             includeRoutingAddress = !accounts || !accounts.length;
           } catch { }
         }
+        let args: any = {
+          powChallengeExtension: true,
+          powChallengeBlockHash: powChallenge.blockHash,
+          powChallengeSolution: powChallenge.solution,
+          bridgeHash: new Uint256(params.vault || ''),
+          routingAddress: includeRoutingAddress ? program.routingAddress : ''
+        };
+        if (includeRoutingAddress && program.routingAddress && program.publicKey.length > 0 && program.signature.length > 0) {
+          args.ownershipChallengeExtension = true;
+          args.ownershipChallengePublicKey = program.publicKey;
+          args.ownershipChallengeSignature = program.signature;
+        }
         return await buildProgram({
           type: new Transactions.Route(),
-          args: {
-            powChallengeExtension: true,
-            powChallengeBlockHash: powChallenge.blockHash,
-            powChallengeSolution: powChallenge.solution,
-            bridgeHash: new Uint256(params.vault || ''),
-            routingAddress: includeRoutingAddress ? program.routingAddress : ''
-          }
+          args: args
         });
       } else if (program instanceof ProgramWithdraw) {
         return await buildProgram({
@@ -1286,9 +1306,68 @@ export default function InteractionPage() {
               <TextField.Root size="3" placeholder={assets[asset].asset.chain + (program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? ' sender address' : ' address (opt., yours)')} type="text" value={program.routingAddress} onChange={(e) => {
                 const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                 copy.routingAddress = e.target.value;
+                if (!copy.routingAddress) {
+                  copy.ownershipProof = false;
+                  copy.publicKey = '';
+                  copy.signature = '';
+                }
                 setProgram(copy);
               }} />
             </Tooltip>
+            {
+              program.routingAddress && program.ownershipProof &&
+              <>
+                <Box mt="4" width="100%">
+                  <Tooltip content={'Sign this message with a private key that corresponds to your address above. These signature forms are accepted: message, sha256(message), sha256(sha256(message)), keccak256(message)'}>
+                    <TextField.Root size="3" placeholder="Message to sign" type="text" readOnly={true} value={`${ownerAddress}:${program.routingAddress}:${assets[asset].asset.chain}:${program.nonce}`} onClick={() => {
+                      navigator.clipboard.writeText(`${ownerAddress}:${program.routingAddress}:${assets[asset].asset.chain}:${program.nonce}`);
+                      AlertBox.open(AlertType.Info, 'Message to sign was copied!')
+                    }} />
+                  </Tooltip>
+                </Box>
+                <Box mt="4" width="100%">
+                  <Tooltip content={'Public key that corresponds to the address above'}>
+                    <TextField.Root size="3" placeholder="Address public key" type="text" value={program.publicKey} onChange={(e) => {
+                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                      copy.publicKey = e.target.value;
+                      setProgram(copy);
+                    }} />
+                  </Tooltip>
+                </Box>
+                <Box mt="4" width="100%">
+                  <Tooltip content={'Signature of a message signed with private key that corresponds to the public key above'}>
+                    <TextField.Root size="3" placeholder="Message signature" type="text" value={program.signature} onChange={(e) => {
+                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                      copy.signature = e.target.value;
+                      setProgram(copy);
+                    }} />
+                  </Tooltip>
+                </Box>
+              </>
+            }
+            {
+              program.routingAddress &&
+              <Tooltip content="Prove that you have the control over that address to re-claim it back to your account (applicable only when address is already taken by some other account)">
+                <Box mt="4" width="100%">
+                  <Text as="label" size="2" style={{ color: program.ownershipProof ? 'var(--accent-11)' : 'var(--gray-11)' }}>
+                    <Flex gap="2" justify="end">
+                      <Checkbox size="3" checked={program.ownershipProof} onCheckedChange={async (value) => {
+                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                        copy.ownershipProof = value;
+                        if (copy.ownershipProof) {
+                          try {
+                            const nonce = await RPC.getNextAccountNonce(ownerAddress);
+                            copy.nonce = nonce?.toString();
+                          } catch { }
+                        }
+                        setProgram(copy);
+                      }} />
+                      <Text>Re-claim taken address</Text>
+                    </Flex>
+                  </Text>
+                </Box>
+              </Tooltip>
+            }
           </Box>
         }
         {

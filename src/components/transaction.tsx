@@ -22,7 +22,7 @@ export function toTransactionLabel(transaction: any, type: string | null): strin
     case 'rollup':
       return 'Rollup' + (transaction.transactions?.length > 0 ? ' ' + transaction.transactions?.length + 'x' : '');
     case 'route':
-      return transaction.routing_address ? 'New wallet' : 'New sub-vault';
+      return transaction.routing_address ? 'Claim address' : 'Build vault';
     case 'bind':
       return 'New vault (legacy)';
     case 'imbind':
@@ -200,7 +200,19 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText((transaction.pow_challenge.block_hash || 'NULL') + ' + ' + transaction.pow_challenge.solution);
                   AlertBox.open(AlertType.Info, 'Proof of work copied!')
-                }}>{ Readability.toAddress(transaction.pow_challenge.block_hash.toString()) } / { Readability.toValue(null, transaction.pow_challenge.solution, false, false) }</Button>
+                }}>{ Readability.toAddress(transaction.pow_challenge.block_hash) } / { Readability.toValue(null, transaction.pow_challenge.solution, false, false) }</Button>
+              </DataList.Value>
+            </DataList.Item>
+          }
+          {
+            transaction.ownership_challenge &&
+            <DataList.Item>
+              <DataList.Label>Proof of ownership:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText((transaction.ownership_challenge.public_key || 'NULL') + ' + ' + (transaction.ownership_challenge.signature || 'NULL'));
+                  AlertBox.open(AlertType.Info, 'Proof of ownership copied!')
+                }}>{ Readability.toAddress(transaction.ownership_challenge.public_key, 4) } / { Readability.toAddress(transaction.ownership_challenge.signature, 4) }</Button>
               </DataList.Value>
             </DataList.Item>
           }
@@ -1297,9 +1309,21 @@ export function TransactionView(props: { ownerAddress: string, transaction: any,
   const [expanded, setExpanded] = useState(props.open || false);
   const labels = useMemo((): { title: string, status: { title: string, color: string } | null } => {
     let type = Readability.toTransactionType(transaction.type), status: { title: string, color: string } | null = null;
-    if (receipt && receipt.successful && !transaction.error && (!transaction.proof || transaction.proof.success) && !props.preview && props.resolveTransaction && transaction.type == 'withdraw') {
-      const top = props.resolveTransaction((top: any) => top.withdraw_hash && top.withdraw_hash.toString() == transaction.hash.toString());
-      status = top ? (top.error ? { title: 'Failed', color: 'red' } : { title: 'Sent', color: 'jade' }) : { title: 'Waiting', color: 'gray' };
+    if (receipt && receipt.successful && !transaction.error && (!transaction.proof || transaction.proof.success) && !props.preview && props.resolveTransaction) {
+      if (transaction.type == 'withdraw') {
+        const top = props.resolveTransaction((top: any) => top.withdraw_hash && top.withdraw_hash.toString() == transaction.hash.toString());
+        status = top ? (top.error ? { title: 'Failed', color: 'red' } : (top.type == 'anticast' ? { title: 'Refunded', color: 'red' } : { title: 'Sent', color: 'jade' })) : { title: 'Pending', color: 'gray' };
+      } else if (transaction.type == 'route') {
+        const top = props.resolveTransaction((top: any) => top.route_hash && top.route_hash.toString() == transaction.hash.toString());
+        if (top) {
+          status = { title: 'Built', color: 'jade' };
+        }
+      } else if (transaction.type == 'setup') {
+        const top = props.resolveTransaction((top: any) => top.setup_hash && top.setup_hash.toString() == transaction.hash.toString());
+        if (top) {
+          status = { title: 'Rebuilt', color: 'jade' };
+        }
+      }
     }
     return {
       title: toTransactionLabel(transaction, type),
