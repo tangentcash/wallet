@@ -2,7 +2,7 @@ import { Badge, Box, Button, Card, Flex, Heading, SegmentedControl, Tabs, Text, 
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { AppData } from "../../core/app";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Exchange, AccountTier, AggregatedLevel, AggregatedLog, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide, Balance, Pool, Cursor } from "../../core/exchange";
+import { Exchange, AccountTier, AggregatedLevel, AggregatedLog, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide, Balance, Pool, Cursor, ExchangeField } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { CrosshairMode, PriceScaleMode } from "lightweight-charts";
 import { mdiAlert, mdiArrowRightThin, mdiChartBox, mdiChartGantt, mdiCheck, mdiCurrencyUsd, mdiListBox, mdiShopping } from "@mdi/js";
@@ -115,7 +115,7 @@ function policyOf(market: Market | null): string {
     }
 }
 export function pathOfMaker(orderbook: string): string {
-  return `__maker:${orderbook}__`;
+  return ExchangeField.OrderbookMaker.replace('path', orderbook);
 }
 
 let accountUpdateId: any = null;
@@ -229,7 +229,7 @@ export default function OrderbookPage() {
     }
   }, [seriesOptions.priceLevel, levels]);
   const updateTab = useCallback((value: 'info' | 'maker' | 'book' | 'logs') => {
-    AppStorage.set('__orderbook_tab__', value);
+    AppStorage.set(ExchangeField.OrderbookTab, value);
     setTab(value);
   }, []);
   const updatePreset = useCallback((side: OrderSide, price: BigNumber) => {
@@ -245,7 +245,7 @@ export default function OrderbookPage() {
     setSeriesOptions(prev => {
       const result = change(prev);
       if (typeof params.orderbook == 'string' && params.orderbook.length > 0)
-        AppStorage.set('__orderbook_data__', result);
+        AppStorage.set(ExchangeField.OrderbookData, result);
       return result;
     });
   }, [params]);
@@ -406,13 +406,13 @@ export default function OrderbookPage() {
     });
   }, [incomingLevels]);
   useEffect(() => {
-    const memorizedSeriesOptions = AppStorage.get('__orderbook_data__');
+    const memorizedSeriesOptions = AppStorage.get(ExchangeField.OrderbookData);
     if (memorizedSeriesOptions != null && typeof memorizedSeriesOptions == 'object') {
       setSeriesOptions(prev => ({ ...prev, ...memorizedSeriesOptions }));
     }
 
     if (!mobile) {
-      const memorizedTab = AppStorage.get('__orderbook_tab__');
+      const memorizedTab = AppStorage.get(ExchangeField.OrderbookTab);
       if (memorizedTab && ['info', 'maker', 'book', 'logs'].includes(memorizedTab)) {
         setTab(memorizedTab);
       }

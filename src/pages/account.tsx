@@ -10,7 +10,7 @@ import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiCoffin,
 import { AssetImage, AssetName } from "../components/asset";
 import { AddressView } from "../components/address";
 import { TransactionView } from "../components/transaction";
-import { AppStorage } from "../core/storage";
+import { AppStorage, StorageField } from "../core/storage";
 import BigNumber from "bignumber.js";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import Icon from "@mdi/react";
@@ -274,7 +274,7 @@ export default function AccountPage() {
     setLoading(false);
   }, [control, ownerAddress, nonce]);
   useEffectAsync(async () => {
-    setVerifiedAssetsOnly(!!AppStorage.get('__verified_assets_only__'));
+    setVerifiedAssetsOnly(!!AppStorage.get(StorageField.VerifiedAssetsOnly));
     try {
       if (!blockchains.length)
         setBlockchains((await RPC.getBlockchains()) || []);
@@ -371,7 +371,7 @@ export default function AccountPage() {
           }
           <DropdownMenu.Item onClick={() => {
             const value = !verifiedAssetsOnly;
-            AppStorage.set('__verified_assets_only__', value);
+            AppStorage.set(StorageField.VerifiedAssetsOnly, value);
             setVerifiedAssetsOnly(value);
           }}>
             <Icon path={verifiedAssetsOnly ? mdiAlertDecagram : mdiCheckDecagram } size={0.8} />

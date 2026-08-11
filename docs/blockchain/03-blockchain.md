@@ -80,7 +80,7 @@ In case of a network halt due to unavailability of the entire committee, any nod
 
 ## Sequential-Proof-of-Work (sPoW)
 
-Unlike traditional Proof-of-Work systems, sPoW maintains steady block times without relying on validator committee communication. It employs Verifiable Delay Functions, specifically Wesolowki's verifiable delay function, which requires sequential operations rather than allowing multithreading.
+Unlike traditional Proof-of-Work systems, sPoW maintains steady block times without relying on validator committee communication. It employs Verifiable Delay Functions, specifically Wesolowski's verifiable delay function, which requires sequential operations rather than allowing multithreading.
 
 Classical blockchains use Proof-of-Work to create lottery-like conditions where miner with best hardware and luck creates a block faster than anyone else. The sPoW cannot be used to create such conditions as VDFs don't have the required luck factor.
 

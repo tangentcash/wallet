@@ -1,8 +1,8 @@
 import { Badge, Box, Button, Card, Dialog, Flex, Heading, Select, Spinner, Switch, Text, TextField, Tooltip, Separator, Callout, DropdownMenu } from "@radix-ui/themes";
 import { mdiAlert, mdiArrowBottomLeft, mdiArrowLeft, mdiArrowRight, mdiArrowTopRight, mdiBriefcaseUpload, mdiChartTimelineVariant, mdiChartTimelineVariantShimmer, mdiChevronDoubleRight, mdiListBox, mdiLockOutline, mdiMapMarkerPath, mdiPaletteSwatchVariant, mdiPlus, mdiSetRight, mdiSwapVertical } from "@mdi/js";
-import { AssetId, Readability, ByteUtil, TextUtil, RPC, Signing, Whitelist } from "tangentsdk";
+import { AssetId, Readability, ByteUtil, TextUtil, Signing, Whitelist } from "tangentsdk";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Exchange, Balance, Order, Pool, Cursor, AggregatedPair, OrderSide, RouterPath, Market, PolyAsset, PseudoDelegatedPool, DelegatedPool } from "../../core/exchange";
+import { Exchange, Balance, Order, Pool, Cursor, AggregatedPair, OrderSide, RouterPath, Market, PolyAsset, PseudoDelegatedPool, DelegatedPool, ExchangeField } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { AppData } from "../..//core/app";
 import { mdiCheckDecagram, mdiMagnify, mdiMagnifyScan, mdiShoppingSearch } from "@mdi/js";
@@ -220,23 +220,17 @@ function WalletNavigator(props: {
     }
 
     if (props.address) {
-      const assetsFromCache = (prev: CachedBalance[]) => {
-        if (prev.length > 0)
-          return prev;
-
-        return (RPC.fetchObject(AppStorage.get(`__assets:${props.address}__`)) || []).map((x: any) => ({ ...x, cached: true }));
-      };
       setLoading(true);
-      setAssets(assetsFromCache);
-      if (props.onAssetsChange)
-        props.onAssetsChange(assetsFromCache);
       try {
-        const results = await Exchange.accountBalances({ address: props.address, resync: sync == -1 });
-        const assetsFromResults = () => (results || []).map((x) => ({ ...x, cached: false }));
-        AppStorage.set(`__assets:${props.address}__`, results || []);
-        setAssets(assetsFromResults);
+        const process = (data: Balance[]) => (data || []).map((x) => ({ ...x, cached: false }));
+        const result = process(await Exchange.accountBalances({ address: props.address, resync: sync == -1 }, (cache) => {
+          setAssets(prev => prev.length > 0 ? prev : process(cache));
+          if (props.onAssetsChange)
+            props.onAssetsChange(prev => prev.length > 0 ? prev : process(cache));
+        }));
+        setAssets(result);
         if (props.onAssetsChange)
-          props.onAssetsChange(assetsFromResults);
+          props.onAssetsChange(result);
       } catch { }
       setLoading(false);
     } else {
@@ -293,7 +287,7 @@ function WalletNavigator(props: {
                 setSync(-1);
               }
             }} size="2">
-              <Select.Trigger variant="soft" style={{ color: 'var(--gray-11)' }}>{ props.market ? Exchange.marketPolicyOf(props.market) + ' ' + (props.market.version || props.market.account.substring(props.market.account.length - 4)) : 'Unknown' }</Select.Trigger>
+              <Select.Trigger variant="soft" style={{ color: 'var(--gray-11)' }} placeholder="Control">{ props.market ? Exchange.marketPolicyOf(props.market) + ' ' + (props.market.version || props.market.account.substring(props.market.account.length - 4)) : 'Unknown' }</Select.Trigger>
               <Select.Content position="popper" side="bottom">
                 <Select.Group>
                   <Select.Label>DEX version</Select.Label>
@@ -405,7 +399,7 @@ function MarketRouter(props: {
   const updateState = useCallback((change: (prev: SwapState) => SwapState) => {
     setState(prev => {
       const result = change(prev);
-      AppStorage.set('__market_router__', {
+      AppStorage.set(ExchangeField.PortfolioRouter, {
         primary: props.pair.primary?.id || null,
         secondary: props.pair.secondary?.id || null,
         amountIn: result.amountIn,
@@ -497,7 +491,7 @@ function MarketRouter(props: {
     };
   }, [props.market, props.pair.secondary, props.pair.primary, state.amountIn, state.slippage]);
   useEffect(() => {
-    const prev = AppStorage.get('__market_router__');
+    const prev = AppStorage.get(ExchangeField.PortfolioRouter);
     if (prev != null) {
       setState({
         amountIn: prev.amountIn || '',
@@ -512,7 +506,7 @@ function MarketRouter(props: {
   }, []);
   useEffect(() => {
     setState(prev => {
-      AppStorage.set('__market_router__', {
+      AppStorage.set(ExchangeField.PortfolioRouter, {
         primary: props.pair.primary?.id || null,
         secondary: props.pair.secondary?.id || null,
         amountIn: prev.amountIn,
@@ -712,7 +706,7 @@ function MarketExplorer(props: {
   const updateSearchPair = useCallback((change: (prev: { primary: AssetId | null, secondary: AssetId | null }) => { primary: AssetId | null, secondary: AssetId | null }) => {
     setSearchPair(prev => {
       const result = change(prev);
-      AppStorage.set('__market_filter__', {
+      AppStorage.set(ExchangeField.PortfolioFilter, {
         primary: result.secondary?.id || null,
         secondary: result.primary?.id || null
       })
@@ -810,25 +804,12 @@ function MarketExplorer(props: {
     if (props.market && props.type == 'pairs') {
       setLoading(true);
       try {
-        setPairs(prev => {
-          if (prev.length > 0)
-            return prev;
-
-          return (RPC.fetchObject(AppStorage.get('__market_pairs__')) || []).map((x: any) => {
-            if (x.pair != null && x.pair.primaryAsset != null && x.pair.secondaryAsset != null) {
-              x.pair.primaryAsset = new AssetId(x.pair.primaryAsset.id);
-              x.pair.secondaryAsset = new AssetId(x.pair.secondaryAsset.id);
-            }
-            x.cached = true;
-            return x;
-          });
-        });
-        const data = ((await Exchange.marketPairs(props.market.id)) || []).map((x) => ({
+        const process = (data: AggregatedPair[]) => (data || []).map((x) => ({
           pair: x,
           whitelisted: !!Whitelist.contractAddressOf(x.primaryAsset) && !!Whitelist.contractAddressOf(x.secondaryAsset),
           cached: false
         }));
-        AppStorage.set('__market_pairs__', data);
+        const data = process(await Exchange.marketPairs(props.market.id, (cache) => setPairs(prev => prev.length > 0 ? prev : process(cache))));
         setPairs(data);
       } catch { }
       setLoading(false);
@@ -837,7 +818,7 @@ function MarketExplorer(props: {
     }
 
     if (props.type != 'router') {
-      const prev = AppStorage.get('__market_filter__');
+      const prev = AppStorage.get(ExchangeField.PortfolioFilter);
       updateSearchPair(() => ({
         primary: prev?.primary ? new AssetId(prev.primary) : null,
         secondary: prev?.secondary ? new AssetId(prev.secondary) : null,
@@ -1121,9 +1102,9 @@ export default function PortfolioPage() {
   useEffectAsync(async () => {
     if (!readOnly) {
       if (viewer.startsWith('market')) {
-        AppStorage.set('__portfolio_market__', viewer);
+        AppStorage.set(ExchangeField.PortfolioMarket, viewer);
       } else if (viewer.startsWith('wallet')) {
-        AppStorage.set('__portfolio_wallet__', viewer);
+        AppStorage.set(ExchangeField.PortfolioWallet, viewer);
       }
     }
 
@@ -1145,14 +1126,14 @@ export default function PortfolioPage() {
     }
   }, []);
   useEffect(() => {
-    const view = search.get('view') || AppStorage.get('__portfolio_view__') || null;
+    const view = search.get('view') || AppStorage.get(ExchangeField.PortfolioView) || null;
     if (view != null && ['market-pairs', 'market-router', 'market-pools', 'market-delegated-pools', 'wallet-closed-assets', 'wallet-open-assets', 'wallet-open-orders', 'wallet-closed-orders', 'wallet-open-pools', 'wallet-closed-pools', 'wallet-open-delegated-pools', 'wallet-closed-delegated-pools'].includes(view)) {
       if (!readOnly) {
-        AppStorage.set('__portfolio_view__', view);
+        AppStorage.set(ExchangeField.PortfolioView, view);
       }
       setViewer(view as any);
     } else if (!readOnly) {
-      AppStorage.set('__portfolio_view__');
+      AppStorage.set(ExchangeField.PortfolioView);
     }
   }, [search, readOnly]);
   useEffect(() => {
@@ -1224,10 +1205,10 @@ export default function PortfolioPage() {
       }
       <WalletNavigator address={baseAddress} available={viewer == 'wallet-closed-assets'} assetResync={assetResync} readOnly={readOnly} todayProfits={todayProfits} market={market} viewer={viewer.substring(0, viewer.indexOf('-')) as any} onMarketChange={setMarket} onTodayProfitsChange={setTodayProfits} onAssetsChange={viewer == 'market-router' || viewer == 'market-delegated-pools' || viewer == 'wallet-closed-assets' || viewer == 'wallet-open-assets' ? setAssets : undefined} onViewerToggle={() => {
         if (viewer.startsWith('market')) {
-          const type = AppStorage.get('__portfolio_wallet__') || 'wallet-open-assets';
+          const type = AppStorage.get(ExchangeField.PortfolioWallet) || 'wallet-open-assets';
           setSearch({ view: ['wallet-closed-assets', 'wallet-open-assets', 'wallet-open-orders', 'wallet-closed-orders', 'wallet-open-pools', 'wallet-closed-pools', 'wallet-open-delegated-pools', 'wallet-closed-delegated-pools'].includes(type) ? type : 'wallet-open-assets' });
         } else if (viewer.startsWith('wallet')) {
-          const type = AppStorage.get('__portfolio_market__') || 'market-pairs';
+          const type = AppStorage.get(ExchangeField.PortfolioMarket) || 'market-pairs';
           setSearch({ view: ['market-pairs', 'market-router', 'market-pools', 'market-delegated-pools'].includes(type) ? type : 'market-pairs' });
         }
       }}></WalletNavigator>

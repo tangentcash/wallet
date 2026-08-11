@@ -2,7 +2,7 @@ import { mdiAlphabeticalVariant, mdiCancel, mdiConsole, mdiHistory, mdiMagnify, 
 import { Badge, Box, Button, Dialog, Flex, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
 import { AssetId, Readability, Whitelist } from "tangentsdk";
-import { Exchange, BlockchainInfo } from "../../core/exchange";
+import { Exchange, BlockchainInfo, ExchangeField } from "../../core/exchange";
 import { AssetImage, AssetName } from "../asset";
 import Icon from "@mdi/react";
 import { AppStorage } from "../../core/storage";
@@ -61,7 +61,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
       props.onChange(asset ? new AssetId(asset.id) : null);
 
     if (asset != null) {
-      let prev = (AppStorage.get('__assets_history__') || []).filter((v: any) => typeof v == 'string');
+      let prev = (AppStorage.get(ExchangeField.AssetsHistory) || []).filter((v: any) => typeof v == 'string');
       if (!Array.isArray(prev)) {
         prev = [];
       } else if (prev.find((v) => v == asset.id)) {
@@ -69,7 +69,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
       }
 
       const next = [asset.id, ...prev.slice(0, 7)];
-      AppStorage.set(`__assets_history__`, next);
+      AppStorage.set(ExchangeField.AssetsHistory, next);
       setHistory(next.map((v) => {
         const x = new AssetId(v);
         return { asset: x, contractAddress: Whitelist.contractAddressOf(x) }
@@ -96,7 +96,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
     }
   }, [props.value]);
   useEffect(() => {
-    const prev = AppStorage.get('__assets_history__');
+    const prev = AppStorage.get(ExchangeField.AssetsHistory);
     if (Array.isArray(prev)) {
       setHistory(prev.filter((v: any) => typeof v == 'string').map((v: string) => {
         const x = new AssetId(v);

@@ -1513,7 +1513,7 @@ export default function InteractionPage() {
       {
         !programError &&
         <Flex direction="column" justify="center" align="center" gap="4" mt="8">
-          <Button variant="surface" size="4" className={simulationError ? undefined : 'shadow-rainbow-animation'} loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => transactionError ? calculateTransactionGas(0.60) : submitTransaction()}>{transactionError ? (simulationError ? 'Retry' : 'Review') : 'Submit'} action</Button>   
+          <Button variant="surface" size="4" color={simulationError ? 'yellow' : undefined} className={simulationError ? undefined : 'shadow-rainbow-animation'} loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => transactionError ? calculateTransactionGas(0.60) : submitTransaction()}>{transactionError ? (simulationError ? 'Retry' : 'Review') : 'Submit'} action</Button>   
           {
             !transactionError &&
             <Button variant="ghost" color="gray" size="1" onClick={() => {

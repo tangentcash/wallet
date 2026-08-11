@@ -1,5 +1,4 @@
-import { AssetId, ByteUtil, Hashing, Readability, RPC, Stream, Viewable, Whitelist } from "tangentsdk"
-import { AlertBox, AlertType } from "../components/alert"
+import { AssetId, ByteUtil, Hashing, PreflightCallback, Readability, RPC, Stream, Viewable, Whitelist } from "tangentsdk"
 import { AppStorage } from "./storage"
 import { AppData } from "./app"
 import BigNumber from "bignumber.js"
@@ -285,7 +284,16 @@ export class Cursor {
 }
 
 export enum ExchangeField {
-  Orderbook = '__orderbook__'
+  Orderbook = '__orderbook__',
+  OrderbookData = '__orderbook_data__',
+  OrderbookMaker = '__orderbook_maker:path__',
+  OrderbookTab = '__orderbook_tab__',
+  PortfolioView = '__portfolio_view__',
+  PortfolioWallet = '__portfolio_wallet__',
+  PortfolioMarket = '__portfolio_market__',
+  PortfolioRouter = '__portfolio_router__',
+  PortfolioFilter = '__portfolio_filter__',
+  AssetsHistory = '__assets_history__'
 }
 
 export class Exchange {
@@ -322,12 +330,18 @@ export class Exchange {
       params.append(fullKey, value);
     }
   }
-  static fetchData(data: any): any {
-    if (!data.error)
+  static fetchResult(hash: string, data: any): any[] | undefined {    
+    if (!data || Array.isArray(data) || data.result === undefined) {
+      return undefined;
+    } else if (RPC.onCacheStore != null && hash != null && data.error == null) {
+      RPC.onCacheStore(hash, data.result);
+    }
+    
+    if (!data.error) {
       return RPC.fetchObject(data.result)
+    }
 
-    const hash = ByteUtil.uint8ArrayToHexString(Hashing.hash160(ByteUtil.byteStringToUint8Array(data.error)));
-    throw new Error(`${data.error} — E${hash.substring(0, 8).toUpperCase()}`);
+    throw new Error(`${data.error} — E${ByteUtil.uint8ArrayToHexString(Hashing.hash160(ByteUtil.byteStringToUint8Array(data.error))).substring(0, 8).toUpperCase()}`);
   }
   static priceOf(primaryAsset: AssetId, secondaryAsset?: AssetId): { open: BigNumber | null, close: BigNumber | null } {
     const primarySymbol = primaryAsset.token || primaryAsset.chain || null;
@@ -399,44 +413,54 @@ export class Exchange {
     });
   }
   private static async connectSocketInternal(): Promise<void> {
+    const address = AppData.getWalletAddress();
+    this.location = AppData.props.exchange || '';
+    await this.channel(address ? [address] : []);
     try {
-      const address = AppData.getWalletAddress();
-      this.location = AppData.props.exchange || '';
+      const portfolio = await this.assetsPortfolio();
+      this.prices = portfolio?.prices || { };
+      this.markets = portfolio?.markets || [];
+      this.delegators = portfolio?.delegators || [];
+      this.descriptors = (portfolio?.descriptors || []).sort((a, b) => Readability.toAssetSymbol(a).localeCompare(Readability.toAssetSymbol(b)));
       
-      const connection = await this.channel(address ? [address] : []);
-      if (!connection)
-        throw new Error('Connection failed');
+      const base = this.prices['__BASE__']?.base || null;
+      this.equityAsset = base ? AssetId.fromHandle(base) : this.equityAsset;
+    } catch { }
 
-      try {
-        const portfolio = await this.assetsPortfolio();
-        this.prices = portfolio?.prices || { };
-        this.markets = portfolio?.markets || [];
-        this.delegators = portfolio?.delegators || [];
-        this.descriptors = (portfolio?.descriptors || []).sort((a, b) => Readability.toAssetSymbol(a).localeCompare(Readability.toAssetSymbol(b)));
-        
-        const base = this.prices['__BASE__']?.base || null;
-        this.equityAsset = base ? AssetId.fromHandle(base) : this.equityAsset;
-      } catch { }
-
-      this.orderbook = AppStorage.get(ExchangeField.Orderbook);
-      this.dispatchEvent('exchange:ready', { data: { } });
-      if (this.awaitables != null) {
-        for (let i = 0; i < this.awaitables.length; i++) {
-          this.awaitables[i]();
-        }
-        this.awaitables = [];
+    this.orderbook = AppStorage.get(ExchangeField.Orderbook);
+    this.dispatchEvent('exchange:ready', { data: { } });
+    if (this.awaitables != null) {
+      for (let i = 0; i < this.awaitables.length; i++) {
+        this.awaitables[i]();
       }
-    } catch (exception: any) {
-      AlertBox.open(AlertType.Error, 'Exchange server error: ' + exception.message);
+      this.awaitables = [];
     }
   }
-  static async fetch(method: 'GET' | 'POST' | 'DELETE', location: string, args: Record<string, any>, awaitable: boolean = true) {
+  static async fetch(policy: 'cache' | 'no-cache' | 'cache-direct' | 'no-cache-direct', method: 'GET' | 'POST' | 'DELETE', location: string, args: Record<string, any>, preflightCache?: PreflightCallback) {
+    const hash = ByteUtil.uint8ArrayToHexString(Hashing.hash512(ByteUtil.utf8StringToUint8Array(JSON.stringify([method, location, args || []]))));
     try {
-      if (awaitable)
+      if (RPC.onCacheLoad != null && (policy == 'cache' || policy == 'cache-direct' || preflightCache)) {
+        let cache = RPC.onCacheLoad(hash);
+        cache = (cache instanceof Promise ? await cache : cache);
+        if (cache != null) {
+          const cachedValue = RPC.fetchObject(cache);
+          if (preflightCache)
+            preflightCache(cachedValue);
+          if (policy == 'cache' || policy == 'cache-direct')
+            return cachedValue;
+        }
+      }
+
+      if (policy == 'cache' || policy == 'no-cache')
         await this.connectSocket();
 
       if (this.socket) {
         const id = (++this.requests.count).toString();
+        const content = JSON.stringify({
+          id: id,
+          method: method.toLowerCase() + '://' + location,
+          params: args
+        });
         const data: any | Error = await new Promise((resolve, reject) => {
           const context = { resolve: (_: any) => { } };
           const timeout = setTimeout(() => context.resolve(new Error('connection timed out')), WEBSOCKET_TIMEOUT);
@@ -450,17 +474,14 @@ export class Exchange {
           };
           this.requests.pending.set(id, context);
           if (this.socket != null) {
-            this.socket.send(JSON.stringify({
-              id: id,
-              method: method.toLowerCase() + '://' + location,
-              params: args
-            }));
+            this.socket.send(content);
           } else {
             context.resolve(new Error('connection reset'));
           }
         });
-        const result = this.fetchData(data instanceof Error ? { error: data.toString() } : data);
-        console.log('[erpc]', location, { args: args, result: result });
+        const result = this.fetchResult(hash, data instanceof Error ? { error: data.toString() } : data);
+        if (RPC.onNodeMessage)
+          RPC.onNodeMessage(location, { args: args, result: result }, content.length + JSON.stringify(data).length);
         return result;
       } else {
         const body = method != 'GET';
@@ -474,13 +495,22 @@ export class Exchange {
           headers: body && args != null ? { 'Content-Type': 'application/json' } : undefined,
           body: body && args != null ? JSON.stringify(args) : undefined,
         });
-        const data = await response.json();
-        const result = this.fetchData(data);
-        console.log('[erpc]', location, { args: args, result: result });
+        const text = await response.text();
+        const data = JSON.parse(text);
+        const result = this.fetchResult(hash, data);
+        if (RPC.onNodeMessage)
+          RPC.onNodeMessage(location, { args: args, result: result }, text.length);
         return result;
       }
     } catch (exception) {
-      console.log('[erpc]', location, { args: args, error: exception });
+      if (RPC.onNodeMessage)
+        RPC.onNodeMessage(location, { args: [], error: exception }, 0);
+      if (RPC.onCacheLoad != null) {
+        let cache = RPC.onCacheLoad(hash);
+        cache = (cache instanceof Promise ? await cache : cache);
+        if (cache != null)
+          return RPC.fetchObject(cache);
+      }
       throw exception;
     }
   }
@@ -556,7 +586,7 @@ export class Exchange {
     return true;
   }
   static async assetsPortfolio(): Promise<{ prices: PriceDescriptors, descriptors: BlockchainInfo[], markets: Market[], delegators: Delegator[] } | null> {
-    const result = await this.fetch('GET', `assets/portfolio`, { }, false);
+    const result = await this.fetch('no-cache-direct', 'GET', `assets/portfolio`, { });
     if (!result) {
       return null;
     } else if (Array.isArray(result.delegators)) {
@@ -565,46 +595,46 @@ export class Exchange {
     return result;
   }
   static async assetQuery(query: string): Promise<AssetId[]> {
-    const result = await this.fetch('GET', `asset/query`, { query: query.trim() });
+    const result = await this.fetch('no-cache', 'GET', `asset/query`, { query: query.trim() });
     return result.map((item: any) => new AssetId(item.id));
   }
   static async assetPrices(): Promise<PriceDescriptors> {
-    const result = await this.fetch('GET', `asset/prices`, { });
+    const result = await this.fetch('no-cache', 'GET', `asset/prices`, { });
     return result;
   }
   static async assetDescriptors(): Promise<BlockchainInfo[]> {
-    const result = await this.fetch('GET', `asset/descriptors`, { });
+    const result = await this.fetch('cache', 'GET', `asset/descriptors`, { });
     return result;
   }
   static async marketContracts(): Promise<Market[]> {
-    const result = await this.fetch('GET', `markets`, { });
+    const result = await this.fetch('no-cache', 'GET', `markets`, { });
     if (Array.isArray(result.delegators))
       result.delegators = result.delegators.map((x: any) => this.toDelegator(x));
     return result;
   }
   static async market(marketId: number | string | BigNumber): Promise<Market> {
-    return await this.fetch('GET', `market`, { id: marketId.toString() });
+    return await this.fetch('cache', 'GET', `market`, { id: marketId.toString() });
   }
   static async marketOrder(orderId: number | string | BigNumber): Promise<Order> {
-    const result = await this.fetch('GET', `market/order`, { id: orderId.toString() });
+    const result = await this.fetch('no-cache', 'GET', `market/order`, { id: orderId.toString() });
     return this.toOrder(result);
   }
   static async marketPool(poolId: number | string | BigNumber): Promise<Pool> {
-    const result = await this.fetch('GET', `market/pool`, { id: poolId.toString() });
+    const result = await this.fetch('no-cache', 'GET', `market/pool`, { id: poolId.toString() });
     return this.toPool(result);
   }
   static async marketPools(account: PageQuery): Promise<Pool[]> {
-    const result = await this.fetch('GET', `market/pools`, {
+    const result = await this.fetch('no-cache', 'GET', `market/pools`, {
       page: account.page
     });
     return result.map((v: any) => this.toPool(v));
   }
   static async marketDelegatedPool(poolId: number | string | BigNumber): Promise<DelegatedPool> {
-    const result = await this.fetch('GET', `market/pool/delegated`, { id: poolId.toString() });
+    const result = await this.fetch('no-cache', 'GET', `market/pool/delegated`, { id: poolId.toString() });
     return this.toDelegatedPool(result);
   }
   static async marketDelegatedPools(): Promise<PseudoDelegatedPool[]> {
-    const result = await this.fetch('GET', `market/pools/delegated`, { });
+    const result = await this.fetch('no-cache', 'GET', `market/pools/delegated`, { });
     return result.map((v: any): PseudoDelegatedPool => ({
       marketId: new BigNumber(v.marketId),
       pairId: new BigNumber(v.pairId),
@@ -620,7 +650,7 @@ export class Exchange {
     }));
   }
   static async marketAssets(asset: AssetId, liquidity?: boolean): Promise<PolyAsset[]> {
-    const result = await this.fetch('GET', `market/assets`, {
+    const result = await this.fetch('no-cache', 'GET', `market/assets`, {
       assetHash: asset.id.toString(),
       liquidity: typeof liquidity == 'boolean' ? liquidity : undefined
     });
@@ -634,7 +664,7 @@ export class Exchange {
     });
   }
   static async marketPriceHistory(assets: AssetId[], interval: number, points: number): Promise<Record<string, AssetId & { history: [number, BigNumber][] }>> {
-    const result = await this.fetch('GET', `market/price/history`, {
+    const result = await this.fetch('no-cache', 'GET', `market/price/history`, {
       assetHashes: assets.map(v => v.id).join(','),
       interval: interval,
       points: points
@@ -649,7 +679,7 @@ export class Exchange {
     return result;
   }
   static async marketPaths(marketId: number | string | BigNumber, assetIn: AssetId, assetOut: AssetId, amountIn: number | string | BigNumber, slippage: number | string | BigNumber): Promise<RouterPath[]> {
-    const result = await this.fetch('GET', `market/paths`, { marketId: marketId.toString(), assetHashIn: assetIn.id.toString(), assetHashOut: assetOut.id.toString(), amountIn: amountIn.toString(), slippage: slippage.toString() });
+    const result = await this.fetch('no-cache', 'GET', `market/paths`, { marketId: marketId.toString(), assetHashIn: assetIn.id.toString(), assetHashOut: assetOut.id.toString(), amountIn: amountIn.toString(), slippage: slippage.toString() });
     for (let i = 0; i < result.length; i++) {
       const path = result[i];
       for (let j = 0; j < path.length; j++) {
@@ -661,23 +691,26 @@ export class Exchange {
     }
     return result;
   }
-  static async marketPairs(marketId: number | string | BigNumber): Promise<AggregatedPair[]> {
-    const result = await this.fetch('GET', `market/pairs`, { id: marketId.toString() });
-    for (let key in result) {
-      const item = result[key];
-      item.primaryAsset = new AssetId(item.primaryAsset);
-      item.secondaryAsset = new AssetId(item.secondaryAsset);
-    }
-    return result;
+  static async marketPairs(marketId: number | string | BigNumber, preflightCache?: PreflightCallback): Promise<AggregatedPair[]> {
+    const process = (data: any) => {
+      for (let key in data) {
+        const item = data[key];
+        item.primaryAsset = new AssetId(item.primaryAsset);
+        item.secondaryAsset = new AssetId(item.secondaryAsset);
+      }
+      return data;
+    };
+    const result = await this.fetch('no-cache', 'GET', `market/pairs`, { id: marketId.toString() }, preflightCache ? (cache) => preflightCache(process(cache)) : undefined);
+    return process(result);
   }
   static async marketPair(marketId: number | string | BigNumber, primaryAsset: AssetId, secondaryAsset: AssetId, createIfNotExists: boolean): Promise<AggregatedPair> {
-    const result = await this.fetch('GET', `market/pair`, { id: marketId.toString(), primaryAssetHash: primaryAsset.id.toString(), secondaryAssetHash: secondaryAsset.id.toString(), createIfNotExists: createIfNotExists });
+    const result = await this.fetch('no-cache', 'GET', `market/pair`, { id: marketId.toString(), primaryAssetHash: primaryAsset.id.toString(), secondaryAssetHash: secondaryAsset.id.toString(), createIfNotExists: createIfNotExists });
     result.primaryAsset = new AssetId(result.primaryAsset);
     result.secondaryAsset = new AssetId(result.secondaryAsset);
     return result;
   }
   static async marketPairPriceSeries(pairId: number | string | BigNumber, interval: string | number | BigNumber, page: string | number | BigNumber): Promise<{ time: number, volume: BigNumber, open: BigNumber, low: BigNumber, high: BigNumber, close: BigNumber }[]> {
-    const result = await this.fetch('GET', `market/pair/price/series`, { pairId: pairId.toString(), interval: interval.toString(), page: page.toString() });
+    const result = await this.fetch('no-cache', 'GET', `market/pair/price/series`, { pairId: pairId.toString(), interval: interval.toString(), page: page.toString() });
     return result.map((v: any[]) => ({
       time: v[0].toNumber(),
       volume: v[1],
@@ -702,14 +735,14 @@ export class Exchange {
         } : undefined
       };
     };
-    const result = await this.fetch('GET', `market/pair/price/levels`, { marketId: marketId.toString(), pairId: pairId.toString(), levels: levels });
+    const result = await this.fetch('no-cache', 'GET', `market/pair/price/levels`, { marketId: marketId.toString(), pairId: pairId.toString(), levels: levels });
     return {
       ask: result.ask.map(toAggregatedLevel),
       bid: result.bid.map(toAggregatedLevel)
     };
   }
   static async marketPairAssets(marketId: number | string | BigNumber, pairId: number | string | BigNumber): Promise<{ primary: AssetId[], secondary: AssetId[] }> {
-    const result = await this.fetch('GET', `market/pair/assets`, {
+    const result = await this.fetch('no-cache', 'GET', `market/pair/assets`, {
       marketId: marketId?.toString(),
       pairId: pairId?.toString()
     });
@@ -719,7 +752,7 @@ export class Exchange {
     };
   }
   static async marketPairLogs(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber } & PageQuery): Promise<AggregatedLog[]> {
-    const result = await this.fetch('GET', `market/pair/logs`, {
+    const result = await this.fetch('no-cache', 'GET', `market/pair/logs`, {
       marketId: account.marketId?.toString(),
       pairId: account.pairId?.toString(),
       page: account.page
@@ -732,23 +765,22 @@ export class Exchange {
       quantity: item.quantity
     }));
   }
-  static async accountBalances(account: AccountQuery & { resync?: boolean }): Promise<Balance[]> {
-    const result = await this.fetch('GET', `account/balances`, {
+  static async accountBalances(account: AccountQuery & { resync?: boolean }, preflightCache?: PreflightCallback): Promise<Balance[]> {
+    const process = (result: any) => (result || []).map((v: any) => ({
+      asset: new AssetId(v.asset.id),
+      unavailable: v.unavailable,
+      available: v.available,
+      price: v.price
+    }));
+    const result = await this.fetch('no-cache', 'GET', `account/balances`, {
       id: account.id,
       account: account.address,
       resync: account.resync
-    });
-    return result.map((v: any) => {
-      return {
-        asset: new AssetId(v.asset.id),
-        unavailable: v.unavailable,
-        available: v.available,
-        price: v.price
-      }
-    })
+    }, preflightCache ? (cache) => preflightCache(process(cache)) : undefined);
+    return process(result);
   }
   static async accountOrders(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber, active?: boolean } & AccountQuery & PageQuery): Promise<Order[]> {
-    const result = await this.fetch('GET', `account/orders`, {
+    const result = await this.fetch('no-cache', 'GET', `account/orders`, {
       id: account.id,
       marketId: account.marketId?.toString(),
       pairId: account.pairId?.toString(),
@@ -759,7 +791,7 @@ export class Exchange {
     return result.map((v: any) => this.toOrder(v));
   }
   static async accountPools(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber, active?: boolean } & AccountQuery & PageQuery): Promise<Pool[]> {
-    const result = await this.fetch('GET', `account/pools`, {
+    const result = await this.fetch('no-cache', 'GET', `account/pools`, {
       id: account.id,
       marketId: account.marketId?.toString(),
       pairId: account.pairId?.toString(),
@@ -770,7 +802,7 @@ export class Exchange {
     return result.map((v: any) => this.toPool(v));
   }
   static async accountDelegatedPools(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber, active?: boolean } & AccountQuery & PageQuery): Promise<DelegatedPool[]> {
-    const result = await this.fetch('GET', `account/pools/delegated`, {
+    const result = await this.fetch('no-cache', 'GET', `account/pools/delegated`, {
       id: account.id,
       marketId: account.marketId?.toString(),
       pairId: account.pairId?.toString(),
@@ -781,7 +813,7 @@ export class Exchange {
     return result.map((v: any) => this.toDelegatedPool(v));
   }
   static async accountTiers(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber } & AccountQuery): Promise<AccountTier> {
-    const result = await this.fetch('GET', `account/tiers`, {
+    const result = await this.fetch('no-cache', 'GET', `account/tiers`, {
       id: account.id,
       marketId: account.marketId?.toString(),
       pairId: account.pairId?.toString(),
