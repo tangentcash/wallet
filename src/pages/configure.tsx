@@ -364,7 +364,7 @@ export default function ConfigurePage() {
           </DataList.Root>
         </Box>
       </Card>
-      <License style={{ marginTop: '60px' }} app={!AppData.isApp()}></License>
+      <License style={{ marginTop: '40px' }} app={!AppData.isApp()}></License>
     </Box>
   );
 }

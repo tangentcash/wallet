@@ -512,7 +512,7 @@ export default function HypePage() {
       <Box style={{ padding: mobile ? '120px 0' : '200px 0', paddingBottom: '100px' }}>
         <Box mx="auto" px="4" py="4">
           <Flex justify="center" mb="6">
-            <Heading align="center" size={mobile ? '7' : '9'}>Vault Sending Fees</Heading>
+            <Heading align="center" size={mobile ? '7' : '9'}>Vault Fees</Heading>
           </Flex>
           <Flex justify="center" mb="8">
             <Text align="center" size={mobile ? '3' : '4'}>Pay the fixed fee of your network.</Text>
@@ -545,7 +545,7 @@ export default function HypePage() {
           </Flex>
         </Box>
       </Box>
-      <License style={{ marginTop: '140px' }}></License>
+      <License style={{ marginTop: '140px' }} title={true}></License>
     </Box>
   );
 }

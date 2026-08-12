@@ -16,6 +16,24 @@ export default function BlockPage() {
   const [timeoutId, setTimeoutId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const supply = useMemo(() => {
+    if (!block)
+      return null;
+
+    const blockNumber = block.number.toNumber();
+    const genesisLength = 5000;
+    const genesisReward = new BigNumber(50);
+    const cycleLength = 500000;
+    const cycleReward = new BigNumber(1.2);
+    const thresholdReward = new BigNumber(0.0002);
+    const cycles = Math.ceil(blockNumber / cycleLength);
+    let total = genesisReward.multipliedBy(Math.min(genesisLength, blockNumber));
+    for (let i = 0; i < cycles; i++) {
+      const coinbase = BigNumber.max(cycleReward.multipliedBy(1 - i * 0.01), thresholdReward);
+      total = total.plus(coinbase.multipliedBy(i == cycles - 1 ? blockNumber % cycleLength : cycleLength));
+    }
+    return total;
+  }, [block]);
   const blockETA = useMemo((): { blockNumber: BigNumber, blockDelta: BigNumber, blockDate: Date } | null => {
     if (!params.id)
       return null;
@@ -242,8 +260,12 @@ export default function BlockPage() {
               </DataList.Item>
             }
             <DataList.Item>
+              <DataList.Label>Supply:</DataList.Label>
+              <DataList.Value>{ Readability.toMoney(new AssetId(), supply) }</DataList.Value>
+            </DataList.Item>
+            <DataList.Item>
               <DataList.Label>Coinbase:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(new AssetId(), block.coinbase) }</DataList.Value>
+              <DataList.Value>{ Readability.toMoney(new AssetId(), block.coinbase, true) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Difficulty:</DataList.Label>
