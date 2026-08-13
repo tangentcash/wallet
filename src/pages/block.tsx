@@ -22,15 +22,15 @@ export default function BlockPage() {
 
     const blockNumber = block.number.toNumber();
     const genesisLength = 5000;
-    const genesisReward = new BigNumber(50);
+    const genesisReward = new BigNumber(40);
     const cycleLength = 500000;
     const cycleReward = new BigNumber(1.2);
     const thresholdReward = new BigNumber(0.0002);
     const cycles = Math.ceil(blockNumber / cycleLength);
-    let total = genesisReward.multipliedBy(Math.min(genesisLength, blockNumber));
-    for (let i = 0; i < cycles; i++) {
-      const coinbase = BigNumber.max(cycleReward.multipliedBy(1 - i * 0.01), thresholdReward);
-      total = total.plus(coinbase.multipliedBy(i == cycles - 1 ? blockNumber % cycleLength : cycleLength));
+    let total = genesisReward.multipliedBy(Math.min(genesisLength, blockNumber)).plus(cycleReward.multipliedBy(Math.max(0, (Math.min(blockNumber, cycleLength) - genesisLength))));
+    for (let i = 1; i < cycles; i++) {
+        const coinbase = BigNumber.max(cycleReward.multipliedBy(1 - i * 0.01), thresholdReward);
+        total = total.plus(coinbase.multipliedBy(i == cycles - 1 ? blockNumber % cycleLength : cycleLength));
     }
     return total;
   }, [block]);

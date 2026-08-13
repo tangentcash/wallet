@@ -56,11 +56,11 @@ The **committee** term in this context refers to a list of validators who are el
 
 ### Reward Mechanism
 
-Each validated block rewards the winning validator with 1.2 TAN, subject to a 1% decay every 500,000 blocks until reaching a negative threshold.
+Each validated block rewards the winning validator with 1.2 TAN, subject to a 1% decay every 500,000 blocks until reaching a negative threshold (e.g. 1.188, 1.176, 1.152, 1.14, etc.).
 
-At this point, the coinbase resets to 0.0002 TAN, ensuring sustained profits while capping annual inflation at approximately 0.00169%.
+At this point, the coinbase resets to 0.0002 TAN, ensuring sustained profits while capping annual inflation at approximately 0.0017%.
 
-With a circulating supply of 30,500,000 TAN including rewards from genesis epoch, this design minimizes impact on token value.
+A circulating supply of 30,500,000 TAN including rewards from the genesis epoch will be reached at block 80,500,000 (year ~2056).
 
 ### Genesis Epoch Rewards
 
