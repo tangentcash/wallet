@@ -68,7 +68,7 @@ export class ApproveTransaction {
 }
 
 let powChallengeCache: { blockHash: Uint256, solution: number } | null = null;
-async function toPowChallenge(ownerAddress: string, onProgress: (progress: number | null) => void): Promise<{ blockHash: Uint256, solution: number }> {
+async function toPowChallenge(ownerAddress: string, nonce: BigNumber, onProgress: (progress: number | null) => void): Promise<{ blockHash: Uint256, solution: number }> {
   if (powChallengeCache != null) {
     return powChallengeCache;
   }
@@ -91,9 +91,7 @@ async function toPowChallenge(ownerAddress: string, onProgress: (progress: numbe
       }
     }
     
-    const nonce = await RPC.getNextAccountNonce(ownerAddress);
-    const ownerNonce = typeof nonce == 'string' ? new BigNumber(nonce, 16) : (nonce != null ? nonce : new BigNumber(0));
-    const solution = await Pow256.solve(blockHash, owner, ownerNonce.toNumber(), async (powNonce: number) => {
+    const solution = await Pow256.solve(blockHash, owner, new Uint256(nonce.toString()), async (powNonce: number) => {
       const progress = Math.max(0, Math.min(99, powNonce / 100));
       onProgress(progress);
       await new Promise((resolve) => setTimeout(resolve, 150));
@@ -569,7 +567,13 @@ export default function InteractionPage() {
           }
         });
       } else if (program instanceof ProgramRoute) {
-        let powChallenge = await toPowChallenge(ownerAddress, setPowProgress);
+        let powNonce = nonce;
+        if (!powNonce?.gte(0)) {
+          const latestNonce = await RPC.getNextAccountNonce(ownerAddress);
+          powNonce = typeof latestNonce == 'string' ? new BigNumber(latestNonce, 16) : (latestNonce != null ? latestNonce : new BigNumber(0));
+          setNonce(powNonce);
+        }
+        let powChallenge = await toPowChallenge(ownerAddress, powNonce, setPowProgress);
         let includeRoutingAddress = true;
         if (program.routingAddress.length > 0) {
           try {
@@ -730,8 +734,12 @@ export default function InteractionPage() {
     } catch (exception) {
       const message = (exception as Error).message;
       AlertBox.open(AlertType.Error, 'Failed to send transaction: ' + message);
-      if (message.toLowerCase().indexOf('anti-spam')) {
+
+      const clue = message.toLowerCase();
+      if (clue.indexOf('anti-spam')) {
         setProMode(true);
+      } else if (clue.indexOf('expired')) {
+        powChallengeCache = null;
       }
     }
     setLoadingTransaction(false);
@@ -1303,7 +1311,7 @@ export default function InteractionPage() {
           asset != -1 && program instanceof ProgramRoute &&
           <Box mt="4" width="100%">
             <Tooltip content={'Register ' + assets[asset].asset.chain + ' wallet address that you own to ' + (program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? 'send assets from or to ' : '') + 'send assets to'}>
-              <TextField.Root size="3" placeholder={assets[asset].asset.chain + (program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? ' sender address' : ' address (opt., yours)')} type="text" value={program.routingAddress} onChange={(e) => {
+              <TextField.Root size="3" placeholder={assets[asset].asset.chain + (program.routing.find((item) => item.chain == assets[asset].asset.chain)?.policy == 'account' ? ' sender address (yours)' : ' address (opt., yours)')} type="text" value={program.routingAddress} onChange={(e) => {
                 const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                 copy.routingAddress = e.target.value;
                 if (!copy.routingAddress) {
@@ -1425,8 +1433,22 @@ export default function InteractionPage() {
                 <Icon path={mdiCodeJson} size={1}></Icon>
               </IconButton>
             </Flex>
+            <Tooltip content="Setting a custom nonce is helpful when transaction is stuck in pending state, setting the same nonce may replace it">
+              <TextField.Root mt="3" mb="3" size="3" placeholder="Custom account nonce" type="number" disabled={loadingGasPriceAndPrice} value={nonce?.toString() || ''} onChange={(e) => {
+                const value = TextUtil.toValue(nonce?.toString() || '', e.target.value);
+                try {
+                  const numeric = new BigNumber(value);
+                  if (!numeric.gte(0))
+                    throw false;
+
+                  setNonce(numeric.integerValue());
+                } catch {
+                  setNonce(null);
+                }
+              }} />
+            </Tooltip>
             <Tooltip content="Higher gas price increases transaction priority">
-              <TextField.Root mt="3" mb="3" size="3" placeholder={"Custom gas price " + Readability.toAssetSymbol(gasAsset || new AssetId())} type="number" disabled={loadingGasPriceAndPrice} value={gasPrice} onChange={(e) => setGasPrice(e.target.value)} />
+              <TextField.Root mt="3" mb="3" size="3" placeholder={"Custom gas price in " + Readability.toAssetSymbol(gasAsset || new AssetId())} type="number" disabled={loadingGasPriceAndPrice} value={gasPrice} onChange={(e) => setGasPrice(e.target.value)} />
             </Tooltip>
             <Tooltip content="Gas limit caps max transaction cost">
               <TextField.Root mb="3" size="3" placeholder="Custom gas limit" type="number" disabled={loadingGasPriceAndPrice} value={gasLimit} onChange={(e) => setGasLimit(e.target.value)} />
