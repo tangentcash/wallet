@@ -11,7 +11,7 @@ Tangent Wallet is a versatile application designed to provide users with secure 
 The Web version of Tangent Wallet offers a seamless experience for users who prefer accessing their wallet through a web browser. To open the Web version, follow these steps:
 
 1. Open your preferred web browser.
-2. Navigate to the following URL: [https://app.tangent.cash](https://app.tangent.cash)
+2. Navigate to the following URL: [https://tangent.cash](https://tangent.cash)
 3. The Tangent Wallet Web application will load, allowing you to access your digital assets directly from your browser.
 
 **Benefits of the Web Version:**
