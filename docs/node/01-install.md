@@ -49,7 +49,7 @@ You can customize the build process by using build arguments.
 
 - **`$CONFIGURE`**: Pass additional arguments to CMake. For example, to enable verbose logging and testing mode, you might use:
   ```sh
-  --build-arg CONFIGURE=-DVI_LOGGING=verbose -DTAN_TEST=ON
+  --build-arg CONFIGURE="-DVI_LOGGING=verbose -DTAN_TEST=ON"
   ```
 
 - **`$COMPILE`**: Pass additional arguments to the C++ compiler. For example, to use all cores for build process, you might use:
