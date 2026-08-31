@@ -57,6 +57,7 @@ export class ProgramWithdraw {
 
 export class ProgramAnticast {
     broadcastHash: string = '';
+    attestateHash: string = '';
 }
 
 export class ApproveTransaction {
@@ -212,7 +213,7 @@ export default function InteractionPage() {
     } else if (program instanceof ProgramWithdraw) {
       return 'Send to your address';
     } else if (program instanceof ProgramAnticast) {
-        return 'Protest transaction';
+        return 'Reconcile relay';
     } else if (program instanceof ApproveTransaction) {
       return 'Approve action';
     }
@@ -415,14 +416,24 @@ export default function InteractionPage() {
       return null;
     } else if (program instanceof ProgramAnticast) {
       try {
-        const hash = new Uint256(program.broadcastHash);
-        if (!hash.gt(0))
+        const broadcastHash = new Uint256(program.broadcastHash);
+        if (!broadcastHash.gt(0))
           throw false;
-
-        return null;
       } catch {
         return 'Invalid broadcash hash';
       }
+      
+      if (program.attestateHash.length > 0) {    
+        try {
+          const attestateHash = new Uint256(program.attestateHash);
+          if (!attestateHash.gt(0))
+            throw false;
+        } catch {
+          return 'Invalid attestate hash';
+        }
+      }
+
+      return null;
     } else if (program instanceof ApproveTransaction) {
       if (!program.hexMessage)
         return 'Specify the transaction hex: use browse button';
@@ -610,6 +621,8 @@ export default function InteractionPage() {
         return await buildProgram({
           type: new Transactions.Anticast(),
           args: {
+            attestateExtension: program.attestateHash.length > 0 ? true : undefined,
+            attestateHash: program.attestateHash.length > 0 ? new Uint256(program.attestateHash) : undefined,
             broadcastHash: new Uint256(program.broadcastHash),
           }
         });
@@ -806,7 +819,7 @@ export default function InteractionPage() {
         setProgram(result);
         break;
       }
-      case 'protest': {
+      case 'reconcile': {
         setProgram(new ProgramAnticast());
         break;
       }
@@ -890,8 +903,8 @@ export default function InteractionPage() {
                 <Tooltip content="Approve and submit transaction from unverified source">
                   <DropdownMenu.Item onClick={() => navigate(`/interaction?type=approve${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Approve</DropdownMenu.Item>
                 </Tooltip>
-                <Tooltip content="Protest a cross-chain transaction to get a refund">
-                  <DropdownMenu.Item onClick={() => navigate(`/interaction?type=protest${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Protest</DropdownMenu.Item>
+                <Tooltip content="Reconcile a cross-chain transaction to get a refund and/or reserve correction">
+                  <DropdownMenu.Item onClick={() => navigate(`/interaction?type=reconcile${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Reconcile</DropdownMenu.Item>
                 </Tooltip>
                 <Tooltip content="For validator: change block production and/or participation/attestation stake(s)">
                   <DropdownMenu.Item onClick={() => navigate(`/interaction?type=configure${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Setup</DropdownMenu.Item>
@@ -1411,15 +1424,29 @@ export default function InteractionPage() {
         }
         {
           asset != -1 && program instanceof ProgramAnticast &&
-          <Box mt="4" width="100%">
-            <Tooltip content="Transaction hash of relay vault transfer transaction that has relay success but no cross-chain transaction received">
-              <TextField.Root size="3" placeholder={'Relay vault transfer transaction hash'} type="text" value={program.broadcastHash || ''} onChange={(e) => {
-                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                copy.broadcastHash = e.target.value;
-                setProgram(copy);
-              }} />
-            </Tooltip>
-          </Box>
+          <>
+            <Box mt="4" width="100%">
+              <Tooltip content="Transaction hash of relay vault transfer transaction that has relay success">
+                <TextField.Root size="3" placeholder={'Relay vault transfer transaction hash'} type="text" value={program.broadcastHash || ''} onChange={(e) => {
+                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                  copy.broadcastHash = e.target.value;
+                  setProgram(copy);
+                }} />
+              </Tooltip>
+            </Box>
+            <Box mt="4" width="100%">
+              <Tooltip content="Transaction hash of vault transfer transaction">
+                <TextField.Root size="3" placeholder={'Vault transfer transaction hash'} type="text" value={program.attestateHash || ''} onChange={(e) => {
+                  const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                  copy.attestateHash = e.target.value;
+                  setProgram(copy);
+                }} />
+              </Tooltip>
+            </Box>
+            <Flex justify="center" pt="4">
+              <Text color="gray" size="1" weight="medium">{ program.attestateHash.length > 0 ? 'Refund excessive token reserve' : 'Refund fully due to missing off-chain tx' }</Text>
+            </Flex>
+          </>
         }
         {
           proMode &&

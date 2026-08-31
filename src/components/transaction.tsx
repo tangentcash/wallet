@@ -36,7 +36,7 @@ export function toTransactionLabel(transaction: any, type: string | null): strin
     case 'broadcast':
       return 'Relay vault transfer';
     case 'anticast':
-      return 'Protest vault transfer';
+      return 'Reconcile vault transfer';
     case 'attestate':
       return 'Vault transfer';
     default:
@@ -581,7 +581,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
       return (
         <DataList.Root orientation={props.orientation}>
           <DataList.Item>
-            <DataList.Label>Parent hash:</DataList.Label>
+            <DataList.Label>Broadcast hash:</DataList.Label>
             <DataList.Value>
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(transaction.broadcast_hash);
@@ -592,6 +592,21 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
               </Box>
             </DataList.Value>
           </DataList.Item>
+          {
+            transaction.attestate_hash &&
+            <DataList.Item>
+              <DataList.Label>Attestate hash:</DataList.Label>
+              <DataList.Value>
+                <Button size="2" variant="ghost" color="indigo" onClick={() => {
+                  navigator.clipboard.writeText(transaction.attestate_hash);
+                  AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+                }}>{ Readability.toAddress(transaction.attestate_hash) }</Button>
+                <Box ml="2">
+                  <Link className="router-link" to={'/transaction/' + transaction.attestate_hash}>▒▒</Link>
+                </Box>
+              </DataList.Value>
+            </DataList.Item>
+          }
         </DataList.Root>
       )
     case 'attestate': {
