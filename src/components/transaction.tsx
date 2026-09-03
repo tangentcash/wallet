@@ -200,7 +200,7 @@ export function TransactionInputFields(props: { orientation: 'horizontal' | 'ver
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText((transaction.pow_challenge.block_hash || 'NULL') + ' + ' + transaction.pow_challenge.solution);
                   AlertBox.open(AlertType.Info, 'Proof of work copied!')
-                }}>{ Readability.toAddress(transaction.pow_challenge.block_hash) } / { Readability.toValue(null, transaction.pow_challenge.solution, false, false) }</Button>
+                }}>{ Readability.toAddress(transaction.pow_challenge.block_hash.toString()) } / { Readability.toValue(null, transaction.pow_challenge.solution, false, false) }</Button>
               </DataList.Value>
             </DataList.Item>
           }
