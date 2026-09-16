@@ -1,22 +1,23 @@
-import { mdiClose, mdiQrcodeScan, mdiTagOutline } from "@mdi/js";
-import { AspectRatio, Badge, Box, Flex, IconButton, Select, Text, TextField } from "@radix-ui/themes";
-import { Readability } from "tangentsdk";
+import { mdiClose } from "@mdi/js";
+import { AspectRatio, Box, Flex, IconButton, Select, Text } from "@radix-ui/themes";
+import { UiUtil } from "tangentsdk/ui";
 import { useMemo, useState } from "react";
 import { AlertBox, AlertType } from "./alert";
-import { AssetImage } from "./asset";
+import { AssetImage } from "./asset-image";
 import Icon from "@mdi/react";
 import QRCode from "react-qr-code";
+import './address.css';
 
 function toAddressType(type: string): string {
   switch (type) {
     case 'routing':
-      return 'Inout address';
+      return 'Your routing address';
     case 'bridge':
-      return 'In address';
+      return 'Vault funding address';
     case 'witness':
       return 'Archive address';
     default:
-      return 'Tangent address';
+      return 'Your Tangent address';
   }
 }
 function toAddressVariant(network: string, address: string): string {
@@ -37,7 +38,6 @@ function toAddressVariant(network: string, address: string): string {
     case 'GNO':
     case 'MATIC':
     case 'OP':
-    case 'S':
     case 'LINEA':
     case 'TRX':
     case 'ZK':
@@ -106,9 +106,13 @@ function toAddressVariant(network: string, address: string): string {
       return 'P2A';
   }
 }
+export function toTextAddress(pair: any, policy?: string): string {
+  const address = pair.address;
+  const tag = pair.tag || (policy == 'memo' ? '0' : null);
+  return tag ? address + '#' + tag : address;
+}
 
-export function AddressView(props: { address: any, onExit?: () => any }) {
-  const mobile = document.body.clientWidth < 500;
+export function AddressView(props: { address: any, policy?: string, onExit?: () => any }) {
   const [variant, setVariant] = useState<number>(0);
   const target = useMemo((): { address: string, tag: string | null } => {
     return variant >= 0 && variant < props.address.addresses.length ? props.address.addresses[variant] : props.address.addresses[0];
@@ -135,76 +139,56 @@ export function AddressView(props: { address: any, onExit?: () => any }) {
   }, [props.address]);
   return (
     <Box>
+      <Flex align="center" justify="center" mb="3">
+        <Text size="3" weight="bold" style={{ textTransform: 'uppercase' }}>
+          { toAddressType(props.address.purpose) }
+        </Text>
+      </Flex>
       <Flex justify="center" width="100%">
-        <Box width="80%" maxWidth="280px" px="3" py="3" style={{ borderRadius: '16px', backgroundColor: target.address ? 'white' : 'var(--color-panel)' }}>
+        <Box width="80%" maxWidth="280px" px="3" py="3" className="qr-code-active shadow-rainbow-animation">
           <AspectRatio ratio={1}>
             {
               target.address &&
-              <QRCode value={ target.address } style={{ height: "auto", maxWidth: "100%", width: "100%" }} />
+              <QRCode bgColor="transparent" value={ toTextAddress(target, props.policy) } style={{ height: "auto", maxWidth: "100%", width: "100%" }} onClick={() => {
+                navigator.clipboard.writeText(toTextAddress(target, props.policy));
+                AlertBox.open(AlertType.Info, variants[variant] + ' address copied!')
+              }} />
             }
           </AspectRatio>
         </Box>
       </Flex>
       <Flex align="center" justify="center" mt="3" gap="2">
-        <AssetImage asset={props.address.asset} size="1"></AssetImage>
-        <Badge size="2" color={props.address.purpose != 'witness' ? 'yellow' : 'red'} style={{ textTransform: 'uppercase' }}>{ toAddressType(props.address.purpose) }</Badge>
-        { props.address.purpose != 'bridge' && <Badge size="2" style={{ textTransform: 'uppercase' }}>Your wallet</Badge> }
-        { props.address.purpose == 'bridge' && <Badge size="2" color="blue" style={{ textTransform: 'uppercase' }}>Vault wallet</Badge> }
-      </Flex>
-      <Box mt="6">
-        <Flex gap="1">
-          <TextField.Root size="3" style={{ width: '100%' }} readOnly={true} value={ Readability.toAddress(target.address, mobile ? 6 : 12) } onClick={() => {
-              navigator.clipboard.writeText(target.address);
-              AlertBox.open(AlertType.Info, variants[variant] + ' address copied!')
-            }}>
-            <TextField.Slot>
-              <Icon path={mdiQrcodeScan} size={0.7} style={{ paddingLeft: '4px' }} />
-            </TextField.Slot>
-          </TextField.Root>
-          <Flex gap="1">
-            <Select.Root size="3" value={variant.toString()} onValueChange={(value) => setVariant(parseInt(value))}>
-              <Select.Trigger>{ variants[variant] }</Select.Trigger>
-              <Select.Content>
-                <Select.Group>
-                  <Select.Label>Select variant</Select.Label>
-                  {
-                    props.address.addresses.map((address: any, index: number) =>
-                      <Select.Item value={index.toString()} key={address.address + '_address'}>
-                        <Flex align="center" gap="1">
-                          <Text>{ variants[index] }</Text>
-                        </Flex>
-                      </Select.Item>
-                    )
-                  }
-                </Select.Group>
-              </Select.Content>
-            </Select.Root>
-            {
-              props.onExit &&
-              <IconButton variant="soft" size="3" color="gray" onClick={() => {
-                setVariant(-1);
-                if (props.onExit)
-                  props.onExit();
-              }}>
-                <Icon path={mdiClose} size={1}></Icon>
-              </IconButton>
-            }
-          </Flex>
-        </Flex>
+        <AssetImage asset={props.address.asset} size="2"></AssetImage>
+        <Select.Root size="3" value={variant.toString()} onValueChange={(value) => setVariant(parseInt(value))}>
+          <Select.Trigger color={props.address.purpose != 'witness' ? (props.address.purpose != 'bridge' ? undefined : 'blue') : 'red'} variant="soft">
+            { UiUtil.toAddress(toTextAddress(target, props.policy), 6) }
+          </Select.Trigger>
+          <Select.Content>
+            <Select.Group>
+              <Select.Label>Select address</Select.Label>
+              {
+                props.address.addresses.map((address: any, index: number) =>
+                  <Select.Item value={index.toString()} key={address.address + '_address_' + index.toString()}>
+                    <Flex align="center" gap="1">
+                      <Text>{ UiUtil.toAddress(toTextAddress(address, props.policy), 6) } ({ variants[index] }{ address.tag ? ', Memo/DT' : '' })</Text>
+                    </Flex>
+                  </Select.Item>
+                )
+              }
+            </Select.Group>
+          </Select.Content>
+        </Select.Root>
         {
-          target.tag != null &&
-          <Box>
-            <TextField.Root mt="3" size="3" readOnly={true} value={ 'Memo (DT): ' + target.tag } onClick={() => {
-                navigator.clipboard.writeText(target.tag as any);
-                AlertBox.open(AlertType.Info, 'Memo (destination tag) copied!')
-              }}>
-              <TextField.Slot>
-                <Icon path={mdiTagOutline} size={0.7} style={{ paddingLeft: '4px' }} />
-              </TextField.Slot>
-            </TextField.Root>
-          </Box>
+          props.onExit &&
+          <IconButton variant="soft" size="3" color="red" onClick={() => {
+            setVariant(-1);
+            if (props.onExit)
+              props.onExit();
+          }}>
+            <Icon path={mdiClose} size={1}></Icon>
+          </IconButton>
         }
-      </Box>
+      </Flex>
     </Box>
   )
 }

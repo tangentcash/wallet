@@ -1,4 +1,8 @@
-import { AssetId, ByteUtil, Hashing, PreflightCallback, Readability, RPC, Stream, Viewable, Whitelist } from "tangentsdk"
+import { AssetId, ByteUtil, Hashing } from "tangentsdk/algorithm";
+import { UiUtil } from "tangentsdk/ui";
+import { PreflightCallback, RPC } from "tangentsdk/rpc";
+import { Stream, Viewable } from "tangentsdk/serialization";
+import { Whitelist } from "tangentsdk/whitelist";
 import { AppStorage } from "./storage"
 import { AppData } from "./app"
 import BigNumber from "bignumber.js"
@@ -421,7 +425,7 @@ export class Exchange {
       this.prices = portfolio?.prices || { };
       this.markets = portfolio?.markets || [];
       this.delegators = portfolio?.delegators || [];
-      this.descriptors = (portfolio?.descriptors || []).sort((a, b) => Readability.toAssetSymbol(a).localeCompare(Readability.toAssetSymbol(b)));
+      this.descriptors = (portfolio?.descriptors || []).sort((a, b) => UiUtil.toAssetSymbol(a).localeCompare(UiUtil.toAssetSymbol(b)));
       
       const base = this.prices['__BASE__']?.base || null;
       this.equityAsset = base ? AssetId.fromHandle(base) : this.equityAsset;

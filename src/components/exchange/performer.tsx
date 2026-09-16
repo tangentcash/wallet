@@ -3,9 +3,14 @@ import { CSSProperties, useCallback, useEffect, useState } from "react";
 import { OrderCondition, OrderPolicy, OrderSide, Exchange, RouterPath, Market, AggregatedPair } from "../../core/exchange";
 import { AlertBox, AlertType } from "./../alert";
 import { mdiArrowRight, mdiBlur, mdiBlurOff, mdiCancel, mdiCashRefund, mdiClose, mdiCollage, mdiSwapHorizontalVariant, mdiWater, mdiWaterOff } from "@mdi/js";
-import { AssetId, Hashsig, Readability, SchemaUtil, Signing, Spot, Stream, Transactions, Uint256 } from "tangentsdk";
 import { useNavigate } from "react-router";
 import { AppData } from "../../core/app";
+import { AssetId, Hashsig, Signing, Uint256 } from "tangentsdk/algorithm";
+import { UiUtil } from "tangentsdk/ui";
+import { Spot } from "tangentsdk/types";
+import { Assetlist } from "tangentsdk/assetlist";
+import { SchemaUtil, Stream } from "tangentsdk/serialization";
+import { Transactions } from "tangentsdk/schema";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 
@@ -64,11 +69,11 @@ export class Builder {
             const secondaryAsset = (swap.side == OrderSide.Buy ? tokenIn : tokenOut);
             return {
                 icon: mdiSwapHorizontalVariant,
-                text: `Swap ${Readability.toMoney(tokenIn, swap.input.max)} and receive between [${Readability.toMoney(tokenOut, swap.output.min)}; ${Readability.toMoney(tokenOut, swap.output.max)}]`,
+                text: `Swap ${UiUtil.toMoney(tokenIn, swap.input.max)} and receive between [${UiUtil.toMoney(tokenOut, swap.output.min)}; ${UiUtil.toMoney(tokenOut, swap.output.max)}]`,
                 body: {
                     callable: marketAccount,
                     pays: swapIndex == 0 ? payment.pays : [{ asset: tokenIn, value: swap.input.max }],
-                    function: (swapIndex > 0 ? '>' : '') + Readability.toFunction(Spot.DEX.marketOrder),
+                    function: (swapIndex > 0 ? '>' : '') + UiUtil.toFunction(Spot.DEX.marketOrder),
                     args: [primaryAsset?.toUint256(), secondaryAsset?.toUint256(), swap.side, OrderPolicy.Immediate, slippagePrice]
                 }
             }
@@ -143,24 +148,24 @@ export class Builder {
         const targetPrice = price || stopPrice || levelPrice;
         const targetValue = payment.value;
         const toText = (order: { primaryAsset: AssetId, secondaryAsset: AssetId, condition: OrderCondition, side: OrderSide, slippage?: BigNumber, stopPrice?: BigNumber, trailingStep?: BigNumber, trailingDistance?: BigNumber, price?: BigNumber, value: BigNumber }, targetPrice?: BigNumber | null) => {
-            const toPercentile = (asset: AssetId, value?: BigNumber | null) => value ? (value.gte(0) ? Readability.toMoney(asset, value) : value.negated().multipliedBy(100).toFixed(2) + '%') : 'N/A';
+            const toPercentile = (asset: AssetId, value?: BigNumber | null) => value ? (value.gte(0) ? UiUtil.toMoney(asset, value) : value.negated().multipliedBy(100).toFixed(2) + '%') : 'N/A';
             const buying = order.side == OrderSide.Buy;
             const primaryValue = buying ? (targetPrice ? order.value.dividedBy(targetPrice) : null) : order.value;
             const secondaryValue = buying ? order.value : (targetPrice ? order.value.multipliedBy(targetPrice) : null);
-            const orderDescription = `${buying ? 'Buy' : 'Sell'} ${Readability.toMoney(order.primaryAsset, primaryValue)} for ${Readability.toMoney(order.secondaryAsset, secondaryValue)} at price no ${buying ? 'higher' : 'lower'} than`;
+            const orderDescription = `${buying ? 'Buy' : 'Sell'} ${UiUtil.toMoney(order.primaryAsset, primaryValue)} for ${UiUtil.toMoney(order.secondaryAsset, secondaryValue)} at price no ${buying ? 'higher' : 'lower'} than`;
             const marketOrderDescription = `${orderDescription} market price + ${toPercentile(order.secondaryAsset, order.slippage)}`;
-            const limitOrderDescription = `${orderDescription} ${Readability.toMoney(order.secondaryAsset, order.price || null)}`;
+            const limitOrderDescription = `${orderDescription} ${UiUtil.toMoney(order.secondaryAsset, order.price || null)}`;
             const triggerDescription = `if market price ${buying ? 'falls below' : 'rises above'}`;
-            const trailingDescription = `dynamic stop price (step: ${toPercentile(order.secondaryAsset, order.trailingStep)}, distance: ${toPercentile(order.secondaryAsset, order.trailingDistance)})${order.stopPrice != null ? ' initially set to ' + Readability.toMoney(order.secondaryAsset, order.stopPrice) : ''}`
+            const trailingDescription = `dynamic stop price (step: ${toPercentile(order.secondaryAsset, order.trailingStep)}, distance: ${toPercentile(order.secondaryAsset, order.trailingDistance)})${order.stopPrice != null ? ' initially set to ' + UiUtil.toMoney(order.secondaryAsset, order.stopPrice) : ''}`
             switch (order.condition) {
                 case OrderCondition.Market:
                     return marketOrderDescription;
                 case OrderCondition.Limit:
                     return limitOrderDescription;
                 case OrderCondition.Stop:
-                    return `${marketOrderDescription} ${triggerDescription} ${Readability.toMoney(order.secondaryAsset, order.stopPrice || null)}`;
+                    return `${marketOrderDescription} ${triggerDescription} ${UiUtil.toMoney(order.secondaryAsset, order.stopPrice || null)}`;
                 case OrderCondition.StopLimit:
-                    return `${limitOrderDescription} ${triggerDescription} ${Readability.toMoney(order.secondaryAsset, order.stopPrice || null)}`;
+                    return `${limitOrderDescription} ${triggerDescription} ${UiUtil.toMoney(order.secondaryAsset, order.stopPrice || null)}`;
                 case OrderCondition.TrailingStop:
                     return `${marketOrderDescription} ${triggerDescription} ${trailingDescription}`;
                 case OrderCondition.TrailingStopLimit:
@@ -320,7 +325,7 @@ export class Builder {
             body: {
               callable: marketAccount,
               pays: payment.pays,
-              function: Readability.toFunction(method),
+              function: UiUtil.toFunction(method),
               args: parameters
             }
         };
@@ -344,7 +349,7 @@ export class Builder {
             body: {
               callable: marketAccount,
               pays: [],
-              function: Readability.toFunction(Spot.DEX.withdrawOrder),
+              function: UiUtil.toFunction(Spot.DEX.withdrawOrder),
               args: [new Uint256(order.orderId.toString())]
             }
         };
@@ -416,11 +421,11 @@ export class Builder {
         const targetSecondaryValue = secondaryPayment.value;
         return {
             icon: mdiWater,
-            text: `Provide liquidity with ${Readability.toMoney(primaryAsset, targetPrimaryValue)} and ${Readability.toMoney(secondaryAsset, targetSecondaryValue)} as reserves with initial price at ${Readability.toMoney(secondaryAsset, price)} active in ${concentrated ? 'concentrated' : 'uniform'} range [${concentrated ? Readability.toMoney(null, minPrice) : '0'}; ${concentrated ? Readability.toMoney(null, maxPrice) + ']' : '+∞)'} and fee set at ${feeRate.multipliedBy(100).toFixed(2)}%`,
+            text: `Provide liquidity with ${UiUtil.toMoney(primaryAsset, targetPrimaryValue)} and ${UiUtil.toMoney(secondaryAsset, targetSecondaryValue)} as reserves with initial price at ${UiUtil.toMoney(secondaryAsset, price)} active in ${concentrated ? 'concentrated' : 'uniform'} range [${concentrated ? UiUtil.toMoney(null, minPrice) : '0'}; ${concentrated ? UiUtil.toMoney(null, maxPrice) + ']' : '+∞)'} and fee set at ${feeRate.multipliedBy(100).toFixed(2)}%`,
             body: {
               callable: marketAccount,
               pays: [...primaryPayment.pays, ...secondaryPayment.pays],
-              function: Readability.toFunction(Spot.DEX.depositPool),
+              function: UiUtil.toFunction(Spot.DEX.depositPool),
               args: [primaryAsset.toUint256(), secondaryAsset.toUint256(), price, concentrated ? minPrice : new BigNumber(-1), concentrated ? maxPrice : new BigNumber(-1), feeRate]
             }
         };
@@ -444,7 +449,7 @@ export class Builder {
             body: {
               callable: marketAccount,
               pays: [],
-              function: Readability.toFunction(Spot.DEX.withdrawPool),
+              function: UiUtil.toFunction(Spot.DEX.withdrawPool),
               args: [new Uint256(pool.poolId.toString())]
             }
         };
@@ -476,11 +481,11 @@ export class Builder {
 
         return {
             icon: mdiCashRefund,
-            text: `Repay ${Readability.toMoney(repaymentAsset, value)} from unified ${Readability.toAssetName(paymentAsset)}`,
+            text: `Repay ${UiUtil.toMoney(repaymentAsset, value)} from unified ${Assetlist.toName(paymentAsset)}`,
             body: {
               callable: marketAccount,
               pays: [{ asset: paymentAsset, value: value }],
-              function: Readability.toFunction(Spot.DEX.repayAsset),
+              function: UiUtil.toFunction(Spot.DEX.repayAsset),
               args: [repaymentAsset.toUint256()]
             }
         };
@@ -518,15 +523,15 @@ export class Builder {
             throw new Error('Delegator ' + delegatorId.toString() + ' account cannot be found');
 
         let liquidityText = '';
-        if (primaryValue.gt(0)) liquidityText += Readability.toMoney(primaryAsset, primaryValue);
-        if (secondaryValue.gt(0)) liquidityText += (liquidityText.length > 0 ? ' + ' : '') + Readability.toMoney(secondaryAsset, secondaryValue);
+        if (primaryValue.gt(0)) liquidityText += UiUtil.toMoney(primaryAsset, primaryValue);
+        if (secondaryValue.gt(0)) liquidityText += (liquidityText.length > 0 ? ' + ' : '') + UiUtil.toMoney(secondaryAsset, secondaryValue);
         return {
             icon: mdiWater,
-            text: `Deposit ${liquidityText} liquidity into delegated ${Readability.toAssetSymbol(primaryAsset)}/${Readability.toAssetSymbol(secondaryAsset)} LP`,
+            text: `Deposit ${liquidityText} liquidity into delegated ${UiUtil.toAssetSymbol(primaryAsset)}/${UiUtil.toAssetSymbol(secondaryAsset)} LP`,
             body: {
               callable: delegatorAccount,
               pays: [{ asset: primaryAsset, value: primaryValue }, { asset: secondaryAsset, value: secondaryValue }].filter((v) => v.value.gt(0)),
-              function: Readability.toFunction(Spot.DLP.depositLiquidity),
+              function: UiUtil.toFunction(Spot.DLP.depositLiquidity),
               args: [primaryAsset.toUint256(), secondaryAsset.toUint256()]
             }
         };
@@ -567,22 +572,22 @@ export class Builder {
 
         let liquidityText = '';
         if (primaryValue?.gte(0)) {
-          liquidityText += Readability.toMoney(primaryAsset, primaryValue);
+          liquidityText += UiUtil.toMoney(primaryAsset, primaryValue);
         } else if (primaryValueFull) {
-          liquidityText += '100% ' + Readability.toAssetSymbol(primaryAsset);
+          liquidityText += '100% ' + UiUtil.toAssetSymbol(primaryAsset);
         }
         if (secondaryValue?.gte(0)) {
-          liquidityText += (liquidityText.length > 0 ? ' + ' : '') + Readability.toMoney(secondaryAsset, secondaryValue);
+          liquidityText += (liquidityText.length > 0 ? ' + ' : '') + UiUtil.toMoney(secondaryAsset, secondaryValue);
         } else {
-          liquidityText += (liquidityText.length > 0 ? ' + ' : '') + '100% ' + Readability.toAssetSymbol(secondaryAsset);
+          liquidityText += (liquidityText.length > 0 ? ' + ' : '') + '100% ' + UiUtil.toAssetSymbol(secondaryAsset);
         }
         return {
             icon: mdiWater,
-            text: `Withdraw ${liquidityText} liquidity delegated to ${Readability.toAssetSymbol(primaryAsset)}/${Readability.toAssetSymbol(secondaryAsset)} LP`,
+            text: `Withdraw ${liquidityText} liquidity delegated to ${UiUtil.toAssetSymbol(primaryAsset)}/${UiUtil.toAssetSymbol(secondaryAsset)} LP`,
             body: {
               callable: delegatorAccount,
               pays: [],
-              function: Readability.toFunction(Spot.DLP.withdrawLiquidity),
+              function: UiUtil.toFunction(Spot.DLP.withdrawLiquidity),
               args: [primaryAsset.toUint256(), secondaryAsset.toUint256(), primaryValueFull ? new BigNumber(NaN) : primaryValue, secondaryValueFull ? new BigNumber(NaN) : secondaryValue]
             }
         };

@@ -3,7 +3,9 @@ import { AlertDialog, Badge, Box, Button, Card, DataList, DropdownMenu, Flex, He
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData, AppPermission, ConnectionState } from "../core/app";
-import { ByteUtil, RPC, Signing, Readability } from "tangentsdk";
+import { ByteUtil, Signing } from "tangentsdk/algorithm";
+import { RPC } from "tangentsdk/rpc";
+import { UiUtil } from "tangentsdk/ui";
 import { useNavigate, useSearchParams } from "react-router";
 import { useEffectAsync } from "../core/react";
 import Icon from "@mdi/react";
@@ -237,7 +239,7 @@ export default function ConfigurePage() {
                       {
                         walletAddresses.map((item, index) =>
                           <DropdownMenu.Item key={item || '' + '_select'} disabled={item != null && item == address} onClick={() => switchWallet(index)}>
-                            <AddressAvatar address={item || ''} size="1" style={{ width: '16px', height: '16px', filter: item != null && item == address ? 'brightness(0.5)' : undefined }}></AddressAvatar> Use { Readability.toAddress(item || undefined, 6) }
+                            <AddressAvatar address={item || ''} size="1" style={{ width: '16px', height: '16px', filter: item != null && item == address ? 'brightness(0.5)' : undefined }}></AddressAvatar> Use { UiUtil.toAddress(item || undefined, 6) }
                           </DropdownMenu.Item>
                         )
                       }
@@ -357,7 +359,7 @@ export default function ConfigurePage() {
               <DataList.Value>
                 <Flex gap="1" wrap="wrap">
                   <Badge size="3" color={networkInfo.active ? undefined : 'red'}>{ networkInfo.active ? 'ONLINE' : 'OFFLINE' }</Badge>
-                  <Badge size="3">↓↑{ Readability.toCount('byte', networkInfo.traffic) }</Badge>
+                  <Badge size="3">↓↑{ UiUtil.toCount('byte', networkInfo.traffic) }</Badge>
                 </Flex>
               </DataList.Value>
             </DataList.Item>

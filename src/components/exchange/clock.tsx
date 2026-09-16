@@ -1,6 +1,6 @@
 import { Box } from "@radix-ui/themes";
 import { useEffect, useState } from "react";
-import { Chain } from "tangentsdk";
+import { Chain } from "tangentsdk/algorithm";
 
 let timeout: any;
 

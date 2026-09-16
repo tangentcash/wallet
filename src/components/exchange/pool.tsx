@@ -1,11 +1,14 @@
 import { Badge, Box, Button, Card, DataList, Dialog, Flex, SegmentedControl, Select, Slider, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { AssetId, ByteUtil, Chain, LiquidityPool, Readability, TextUtil } from "tangentsdk";
+import { AssetId, ByteUtil, Chain, LiquidityPool } from "tangentsdk/algorithm";
+import { TextUtil } from "tangentsdk/text";
+import { UiUtil } from "tangentsdk/ui";
+import { Assetlist } from "tangentsdk/assetlist";
 import { Pool, Exchange, Balance, PseudoDelegatedPool, DelegatedPool } from "../../core/exchange";
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { AlertBox, AlertType } from "../alert";
 import { mdiArrowRight, mdiClose, mdiCurrencyUsd, mdiScaleBalance, mdiScaleUnbalanced } from "@mdi/js";
-import { AssetImage } from "../asset";
+import { AssetImage } from "../asset-image";
 import { PerformerButton, Builder, BuilderResult } from "./performer";
 import { defaultMakerState } from "./maker";
 import { AppData } from "../../core/app";
@@ -151,13 +154,13 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
               <Text size="2">{ item.secondaryAsset.token || item.secondaryAsset.chain }</Text>
             </Flex>
             <Flex align="center" style={{ textDecoration: item.active ? undefined : 'line-through' }}>
-              <Text size="2">{ Readability.toMoney(Exchange.equityAsset, state.liquidity) }</Text>
+              <Text size="2">{ UiUtil.toMoney(Exchange.equityAsset, state.liquidity) }</Text>
             </Flex>
           </Flex>
           <Flex justify="between" align="center">
             <Flex gap="2">
               <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ revenue.toFixed(2) }% APY</Badge>
-              <Badge variant="soft" color={item.active ? undefined : 'gray'} size="2">{ Readability.toMoney(Exchange.equityAsset, state.liquidity.multipliedBy(revenue.dividedBy(100 * 365))) } per day</Badge>
+              <Badge variant="soft" color={item.active ? undefined : 'gray'} size="2">{ UiUtil.toMoney(Exchange.equityAsset, state.liquidity.multipliedBy(revenue.dividedBy(100 * 365))) } per day</Badge>
             </Flex>
             <Tooltip content={`Market price deviation: market price ± ${item.feeRate.plus(0.01).multipliedBy(100).toFixed(2)}% delta, degraded LP's revenue may decrease, use reopen to optimize the dev factor`}>
               <Badge variant="soft" color={item.active ? toRateColor(state.staleness?.score || 0) as any : 'gray'} size="2">
@@ -177,7 +180,7 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(item.marketAccount || 'NULL');
                 AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ Readability.toAddress(item.marketAccount || 'NULL') }</Button>
+              }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</Button>
               <Box ml="2">
                 <Link className="router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}>▒▒</Link>
               </Box>
@@ -185,11 +188,11 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Primary asset:</DataList.Label>
-            <DataList.Value>{ Readability.toAssetName(item.primaryAsset) }</DataList.Value>
+            <DataList.Value>{ Assetlist.toName(item.primaryAsset) }</DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Secondary asset:</DataList.Label>
-            <DataList.Value>{ Readability.toAssetName(item.secondaryAsset) }</DataList.Value>
+            <DataList.Value>{ Assetlist.toName(item.secondaryAsset) }</DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Reference:</DataList.Label>
@@ -197,7 +200,7 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(item.poolId.toString(16));
                 AlertBox.open(AlertType.Info, 'Reference copied!')
-              }}>0x{ item.poolId.toString(16).length > 8 ? Readability.toHash(item.poolId.toString(16), 6) : item.poolId.toString(16) }</Button>
+              }}>0x{ item.poolId.toString(16).length > 8 ? UiUtil.toHash(item.poolId.toString(16), 6) : item.poolId.toString(16) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -210,8 +213,8 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
             <DataList.Label>Spread:</DataList.Label>
             <DataList.Value>
               <Flex wrap="wrap" gap="2">
-                { inLowerRange && <Badge>BID { Readability.toMoney(item.secondaryAsset, bidPrice) }</Badge> }
-                { inUpperRange && <Badge color="red">ASK { Readability.toMoney(item.secondaryAsset, askPrice) }</Badge> }
+                { inLowerRange && <Badge>BID { UiUtil.toMoney(item.secondaryAsset, bidPrice) }</Badge> }
+                { inUpperRange && <Badge color="red">ASK { UiUtil.toMoney(item.secondaryAsset, askPrice) }</Badge> }
               </Flex>
             </DataList.Value>
           </DataList.Item>
@@ -221,8 +224,8 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
               <DataList.Label>Fees:</DataList.Label>
               <DataList.Value>
                 <Flex wrap="wrap" gap="2">
-                  { item.primaryRevenue.gt(0) && <Badge>{ Readability.toMoney(item.primaryAsset, item.primaryRevenue) }</Badge> }
-                  { item.secondaryRevenue.gt(0) && <Badge>{ Readability.toMoney(item.secondaryAsset, item.secondaryRevenue) }</Badge> }
+                  { item.primaryRevenue.gt(0) && <Badge>{ UiUtil.toMoney(item.primaryAsset, item.primaryRevenue) }</Badge> }
+                  { item.secondaryRevenue.gt(0) && <Badge>{ UiUtil.toMoney(item.secondaryAsset, item.secondaryRevenue) }</Badge> }
                 </Flex>
               </DataList.Value>
             </DataList.Item>
@@ -231,29 +234,29 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
             <DataList.Label>Revenue:</DataList.Label>
             <DataList.Value>
               <Flex wrap="wrap" gap="2">
-                <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ Readability.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</Badge> 
+                <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ UiUtil.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</Badge> 
                 <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ state.relativeRevenue.gt(0) ? '+' : '' }{ state.relativeRevenue.multipliedBy(100).toFixed(2) }%</Badge>
               </Flex>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Price:</DataList.Label>
-            <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.price) }</DataList.Value>
+            <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.price) }</DataList.Value>
           </DataList.Item>
           {
             concentrated &&
             <DataList.Item>
               <DataList.Label>Price range:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.minPrice || null) } — { Readability.toMoney(item.secondaryAsset, item.maxPrice || null) }</DataList.Value>
+              <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.minPrice || null) } — { UiUtil.toMoney(item.secondaryAsset, item.maxPrice || null) }</DataList.Value>
             </DataList.Item>
           }
           <DataList.Item>
-            <DataList.Label>{ Readability.toAssetSymbol(item.primaryAsset) } reserve:</DataList.Label>
-            <DataList.Value>{ Readability.toMoney(item.primaryAsset, item.primaryValue) }</DataList.Value>
+            <DataList.Label>{ UiUtil.toAssetSymbol(item.primaryAsset) } reserve:</DataList.Label>
+            <DataList.Value>{ UiUtil.toMoney(item.primaryAsset, item.primaryValue) }</DataList.Value>
           </DataList.Item>
           <DataList.Item>
-            <DataList.Label>{ Readability.toAssetSymbol(item.secondaryAsset) } reserve:</DataList.Label>
-            <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.secondaryValue) }</DataList.Value>
+            <DataList.Label>{ UiUtil.toAssetSymbol(item.secondaryAsset) } reserve:</DataList.Label>
+            <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.secondaryValue) }</DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Fee rate:</DataList.Label>
@@ -328,21 +331,21 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
                 <Flex direction="column" gap="2">
                   <Flex justify="between" wrap="wrap" gap="1" style={{ textDecoration: inLowerRange ? undefined : 'line-through', color: 'var(--gray-11)' }}>
                     <Text size="2" style={{ color: 'var(--accent-11)' }}>Buy at</Text>
-                    <Text size="2" style={{ color: 'var(--accent-11)' }}>≤ { Readability.toMoney(item.secondaryAsset, bidPrice) }</Text>
+                    <Text size="2" style={{ color: 'var(--accent-11)' }}>≤ { UiUtil.toMoney(item.secondaryAsset, bidPrice) }</Text>
                   </Flex>
                   <Flex justify="between" wrap="wrap" gap="1" style={{ textDecoration: inUpperRange ? undefined : 'line-through', color: 'var(--gray-11)' }}>
                     <Text size="2" color="red">Sell at</Text>
-                    <Text size="2" color="red">≥ { Readability.toMoney(item.secondaryAsset, askPrice) }</Text>
+                    <Text size="2" color="red">≥ { UiUtil.toMoney(item.secondaryAsset, askPrice) }</Text>
                   </Flex>
                   <Flex justify="between" wrap="wrap" gap="1">
                     <Text size="2" color="gray">With</Text>
-                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(Exchange.equityAsset, state.liquidity) }</Text>
+                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toMoney(Exchange.equityAsset, state.liquidity) }</Text>
                   </Flex>
                 </Flex>
               </Button>
             </Dialog.Trigger>
             <Dialog.Content maxWidth="450px">
-              <Dialog.Title>Pool #{item.poolId.toString().length > 8 ? Readability.toHash(item.poolId.toString(), 4) : item.poolId.toString()}</Dialog.Title>
+              <Dialog.Title>Pool #{item.poolId.toString().length > 8 ? UiUtil.toHash(item.poolId.toString(), 4) : item.poolId.toString()}</Dialog.Title>
               <FullPoolView open={true}></FullPoolView>
             </Dialog.Content>
           </Dialog.Root>
@@ -474,12 +477,12 @@ export function DelegatedPoolView(props: { item: DelegatedPool, readOnly?: boole
                 <Text size="2">{ item.secondaryAsset.token || item.secondaryAsset.chain }</Text>
               </Flex>
               <Flex align="center" style={{ textDecoration: item.active ? undefined : 'line-through' }}>
-                <Text size="2">{ Readability.toMoney(Exchange.equityAsset, state.currentLiquidity) }</Text>
+                <Text size="2">{ UiUtil.toMoney(Exchange.equityAsset, state.currentLiquidity) }</Text>
               </Flex>
             </Flex>
             <Flex gap="2">
               <Badge color={item.active ? 'purple' : 'gray'} variant="soft" size="2">{ revenue.toFixed(2) }% APY</Badge>
-              <Badge color={item.active ? undefined : 'gray'} variant="soft" size="2">{ Readability.toMoney(Exchange.equityAsset, state.currentLiquidity.multipliedBy(revenue.dividedBy(100 * 365))) } per day</Badge>
+              <Badge color={item.active ? undefined : 'gray'} variant="soft" size="2">{ UiUtil.toMoney(Exchange.equityAsset, state.currentLiquidity.multipliedBy(revenue.dividedBy(100 * 365))) } per day</Badge>
             </Flex>
           </Box>
         </Flex>
@@ -492,7 +495,7 @@ export function DelegatedPoolView(props: { item: DelegatedPool, readOnly?: boole
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(item.delegatorAccount || 'NULL');
                   AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ Readability.toAddress(item.delegatorAccount || 'NULL') }</Button>
+                }}>{ UiUtil.toAddress(item.delegatorAccount || 'NULL') }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet-total-assets'}>▒▒</Link>
                 </Box>
@@ -504,7 +507,7 @@ export function DelegatedPoolView(props: { item: DelegatedPool, readOnly?: boole
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(item.marketAccount || 'NULL');
                   AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ Readability.toAddress(item.marketAccount || 'NULL') }</Button>
+                }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}>▒▒</Link>
                 </Box>
@@ -512,11 +515,11 @@ export function DelegatedPoolView(props: { item: DelegatedPool, readOnly?: boole
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Primary asset:</DataList.Label>
-              <DataList.Value>{ Readability.toAssetName(item.primaryAsset) }</DataList.Value>
+              <DataList.Value>{ Assetlist.toName(item.primaryAsset) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Secondary asset:</DataList.Label>
-              <DataList.Value>{ Readability.toAssetName(item.secondaryAsset) }</DataList.Value>
+              <DataList.Value>{ Assetlist.toName(item.secondaryAsset) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Status:</DataList.Label>
@@ -532,23 +535,23 @@ export function DelegatedPoolView(props: { item: DelegatedPool, readOnly?: boole
               <DataList.Label>Revenue (est.):</DataList.Label>
               <DataList.Value>
                 <Flex wrap="wrap" gap="2">
-                  <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ Readability.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</Badge> 
+                  <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ UiUtil.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</Badge> 
                   <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ state.relativeRevenue.gt(0) ? '+' : '' }{ state.relativeRevenue.multipliedBy(100).toFixed(2) }%</Badge>
                 </Flex>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>{ Readability.toAssetSymbol(item.primaryAsset) } reserve (est.):</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(item.primaryAsset, item.primaryValue) }</DataList.Value>
+              <DataList.Label>{ UiUtil.toAssetSymbol(item.primaryAsset) } reserve (est.):</DataList.Label>
+              <DataList.Value>{ UiUtil.toMoney(item.primaryAsset, item.primaryValue) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
-              <DataList.Label>{ Readability.toAssetSymbol(item.secondaryAsset) } reserve (est.):</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.secondaryValue) }</DataList.Value>
+              <DataList.Label>{ UiUtil.toAssetSymbol(item.secondaryAsset) } reserve (est.):</DataList.Label>
+              <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.secondaryValue) }</DataList.Value>
             </DataList.Item>
             <Tooltip content="TAN subsidy gets allocated based on DLP position share each time underlying LP gets rebalanced">
               <DataList.Item>
-                <DataList.Label>{ Readability.toAssetSymbol(new AssetId()) }:</DataList.Label>
-                <DataList.Value>{ Readability.toMoney(new AssetId(), item.rewardValue) }</DataList.Value>
+                <DataList.Label>{ UiUtil.toAssetSymbol(new AssetId()) }:</DataList.Label>
+                <DataList.Value>{ UiUtil.toMoney(new AssetId(), item.rewardValue) }</DataList.Value>
               </DataList.Item>
             </Tooltip>
           </DataList.Root>
@@ -556,9 +559,9 @@ export function DelegatedPoolView(props: { item: DelegatedPool, readOnly?: boole
             item.active &&
             <>
               <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
-              <Tooltip side="left" content={`Reserve value in ${Readability.toAssetSymbol(item.primaryAsset)} to ${mode}`}>
+              <Tooltip side="left" content={`Reserve value in ${UiUtil.toAssetSymbol(item.primaryAsset)} to ${mode}`}>
                 <Box mb="3">
-                  <TextField.Root placeholder={Readability.toAssetName(item.primaryAsset) + ' to ' + mode} size="2" value={primaryReserve} onChange={(e) => setPrimaryReserve(TextUtil.toValue(primaryReserve, e.target.value))}>
+                  <TextField.Root placeholder={Assetlist.toName(item.primaryAsset) + ' to ' + mode} size="2" value={primaryReserve} onChange={(e) => setPrimaryReserve(TextUtil.toValue(primaryReserve, e.target.value))}>
                     <TextField.Slot>
                       <Icon path={mdiCurrencyUsd} size={0.8} />
                     </TextField.Slot>
@@ -568,9 +571,9 @@ export function DelegatedPoolView(props: { item: DelegatedPool, readOnly?: boole
                   </Box>
                 </Box>
               </Tooltip>
-              <Tooltip side="left" content={`Reserve value in ${Readability.toAssetSymbol(item.secondaryAsset)} to ${mode}`}>
+              <Tooltip side="left" content={`Reserve value in ${UiUtil.toAssetSymbol(item.secondaryAsset)} to ${mode}`}>
                 <Box mb="3">
-                  <TextField.Root placeholder={Readability.toAssetName(item.secondaryAsset) + ' to ' + mode} size="2" value={secondaryReserve} onChange={(e) => setSecondaryReserve(TextUtil.toValue(secondaryReserve, e.target.value))}>
+                  <TextField.Root placeholder={Assetlist.toName(item.secondaryAsset) + ' to ' + mode} size="2" value={secondaryReserve} onChange={(e) => setSecondaryReserve(TextUtil.toValue(secondaryReserve, e.target.value))}>
                     <TextField.Slot>
                       <Icon path={mdiCurrencyUsd} size={0.8} />
                     </TextField.Slot>
@@ -655,13 +658,13 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
                 <Text size="2">{ item.secondaryAsset.token || item.secondaryAsset.chain }</Text>
               </Flex>
               <Flex align="center">
-                <Text size="2">{ Readability.toMoney(Exchange.equityAsset, item.currentValue) }</Text>
+                <Text size="2">{ UiUtil.toMoney(Exchange.equityAsset, item.currentValue) }</Text>
               </Flex>
             </Flex>
             <Flex justify="between" align="center" gap="2" pt="1" wrap="wrap">
               <Flex gap="2">
                 <Badge color="purple" variant="soft" size="2">{ revenue.toFixed(2) }% APY</Badge>
-                <Badge variant="soft" size="2">{ Readability.toMoney(Exchange.equityAsset, item.currentValue.multipliedBy(revenue.dividedBy(100 * 365))) } per day</Badge>
+                <Badge variant="soft" size="2">{ UiUtil.toMoney(Exchange.equityAsset, item.currentValue.multipliedBy(revenue.dividedBy(100 * 365))) } per day</Badge>
               </Flex>
               <Badge variant="soft" color="jade" size="2">{ item.delegatorAccount.substring(item.delegatorAccount.length - 6) }</Badge>
             </Flex>
@@ -676,7 +679,7 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(item.delegatorAccount || 'NULL');
                   AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ Readability.toAddress(item.delegatorAccount || 'NULL') }</Button>
+                }}>{ UiUtil.toAddress(item.delegatorAccount || 'NULL') }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet-total-assets'}>▒▒</Link>
                 </Box>
@@ -688,7 +691,7 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(item.marketAccount || 'NULL');
                   AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ Readability.toAddress(item.marketAccount || 'NULL') }</Button>
+                }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}>▒▒</Link>
                 </Box>
@@ -696,32 +699,32 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Primary asset:</DataList.Label>
-              <DataList.Value>{ Readability.toAssetName(item.primaryAsset) }</DataList.Value>
+              <DataList.Value>{ Assetlist.toName(item.primaryAsset) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Secondary asset:</DataList.Label>
-              <DataList.Value>{ Readability.toAssetName(item.secondaryAsset) }</DataList.Value>
+              <DataList.Value>{ Assetlist.toName(item.secondaryAsset) }</DataList.Value>
             </DataList.Item>
             {
               extra.delegator &&
               <DataList.Item>
                 <DataList.Label>TAN subsidy:</DataList.Label>
-                <DataList.Value>{ Readability.toMoney(new AssetId(), extra.delegator.rewardEmission.dividedBy(extra.delegator.permissions.length).multipliedBy(86400000 / Chain.policy.BLOCK_TIME)) } per day</DataList.Value>
+                <DataList.Value>{ UiUtil.toMoney(new AssetId(), extra.delegator.rewardEmission.dividedBy(extra.delegator.permissions.length).multipliedBy(86400000 / Chain.policy.BLOCK_TIME)) } per day</DataList.Value>
               </DataList.Item>
             }
             <DataList.Item>
               <DataList.Label>Liquidity:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(Exchange.equityAsset, item.currentValue) }</DataList.Value>
+              <DataList.Value>{ UiUtil.toMoney(Exchange.equityAsset, item.currentValue) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Revenue:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(Exchange.equityAsset, item.currentValue.minus(item.initialValue)) }</DataList.Value>
+              <DataList.Value>{ UiUtil.toMoney(Exchange.equityAsset, item.currentValue.minus(item.initialValue)) }</DataList.Value>
             </DataList.Item>
           </DataList.Root>
           <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
-          <Tooltip side="left" content={`Reserve value in ${Readability.toAssetSymbol(item.primaryAsset)} to deposit`}>
+          <Tooltip side="left" content={`Reserve value in ${UiUtil.toAssetSymbol(item.primaryAsset)} to deposit`}>
             <Box mb="3">
-              <TextField.Root placeholder={Readability.toAssetName(item.primaryAsset) + ' deposit'} size="2" value={primaryReserve} onChange={(e) => setPrimaryReserve(TextUtil.toValue(primaryReserve, e.target.value))}>
+              <TextField.Root placeholder={Assetlist.toName(item.primaryAsset) + ' deposit'} size="2" value={primaryReserve} onChange={(e) => setPrimaryReserve(TextUtil.toValue(primaryReserve, e.target.value))}>
                 <TextField.Slot>
                   <Icon path={mdiCurrencyUsd} size={0.8} />
                 </TextField.Slot>
@@ -731,9 +734,9 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
               </Box>
             </Box>
           </Tooltip>
-          <Tooltip side="left" content={`Reserve value in ${Readability.toAssetSymbol(item.secondaryAsset)} to deposit`}>
+          <Tooltip side="left" content={`Reserve value in ${UiUtil.toAssetSymbol(item.secondaryAsset)} to deposit`}>
             <Box mb="3">
-              <TextField.Root placeholder={Readability.toAssetName(item.secondaryAsset) + ' deposit'} size="2" value={secondaryReserve} onChange={(e) => setSecondaryReserve(TextUtil.toValue(secondaryReserve, e.target.value))}>
+              <TextField.Root placeholder={Assetlist.toName(item.secondaryAsset) + ' deposit'} size="2" value={secondaryReserve} onChange={(e) => setSecondaryReserve(TextUtil.toValue(secondaryReserve, e.target.value))}>
                 <TextField.Slot>
                   <Icon path={mdiCurrencyUsd} size={0.8} />
                 </TextField.Slot>

@@ -1,13 +1,18 @@
 import { Box, Button, Flex, Avatar, Badge, Card, SegmentedControl, Spinner, Tabs, Text, Tooltip, DropdownMenu } from "@radix-ui/themes";
 import { useNavigate, useParams, Link } from "react-router";
-import { mdiAlertDecagram, mdiCheckDecagram, mdiChevronDown, mdiLock, mdiLockOpen, mdiMagnifyScan, mdiQrcode, mdiQrcodeScan } from "@mdi/js";
+import { mdiAlertDecagram, mdiCheckDecagram, mdiChevronDown, mdiLock, mdiLockOpen, mdiMagnifyScan, mdiQrcode } from "@mdi/js";
 import { useCallback, useState, useMemo, useRef } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData } from "../core/app";
-import { Authorizer, RPC, EventResolver, SummaryState, AssetId, Readability, Chain, Whitelist } from "tangentsdk";
+import { RPC, EventResolver, SummaryState } from "tangentsdk/rpc";
+import { AssetId, Chain } from "tangentsdk/algorithm";
+import { Whitelist } from "tangentsdk/whitelist";
+import { UiUtil } from "tangentsdk/ui";
+import { Assetlist } from "tangentsdk/assetlist";
 import { useEffectAsync } from "../core/react";
 import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiCoffin, mdiConsole, mdiOpenInNew, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTransitConnectionVariant } from "@mdi/js";
-import { AssetImage, AssetName } from "../components/asset";
+import { AssetImage } from "../components/asset-image";
+import { AssetName } from "../components/asset-name";
 import { AddressView } from "../components/address";
 import { TransactionView } from "../components/transaction";
 import { AppStorage, StorageField } from "../core/storage";
@@ -91,28 +96,6 @@ export default function AccountPage() {
     }
     return result;
   }, [allAssets, verifiedAssetsOnly]);
-  const tryPrompt = useCallback(async () => {
-    if (loading)
-      return;
-    
-    setLoading(true);
-    try {
-      const { scan, Format } = await import('@tauri-apps/plugin-barcode-scanner');
-      const result = await scan({ windowed: true, formats: [Format.QRCode] });
-      try {
-        const request: { url?: string } = JSON.parse(result.content);
-        if (typeof request.url != 'string' || !new URL(request.url).href.length)
-          throw false;
-        
-        Authorizer.try(request);
-      } catch {
-        throw new Error('Not an approval prompt');
-      }
-    } catch (exception: any) {
-      AlertBox.open(AlertType.Error, 'Approval reverted: ' + (typeof exception == 'string' ? exception : exception.message));
-    }
-    setLoading(false);
-  }, [loading]);
   const switchWallet = useCallback(async (index: number) => {
     const status = await AppData.switchWallet(index);
     if (status) {
@@ -176,7 +159,7 @@ export default function AccountPage() {
           try {
             let addressData = await RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count));
             if (Array.isArray(addressData) && addressData.length > 0) {
-              addressData = addressData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle)).map((item) => ({ ...item, addresses: item.addresses.map((address: string) => Readability.toTaggedAddress(address)) }));
+              addressData = addressData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle)).map((item) => ({ ...item, addresses: item.addresses.map((address: string) => UiUtil.toTaggedAddress(address)) }));
               setAddresses(addressData);
             } else {
               setAddresses([]);
@@ -287,7 +270,7 @@ export default function AccountPage() {
         const target = finalizedTransactions[0];
         const blockchain = blockchains.find((x) => x.chain == target.transaction.asset.chain);
         if (blockchain != null) {
-          const type = Readability.toTransactionType(target.transaction.type);
+          const type = UiUtil.toTransactionType(target.transaction.type);
           if (blockchain.routing_policy == 'account' ? (type == 'route' || type == 'bind' || type == 'imbind') : (type == 'bind' || type == 'imbind')) {
             asset = AssetId.fromHandle(target.transaction.asset.chain);
           }
@@ -325,7 +308,13 @@ export default function AccountPage() {
     };
 
     await RPC.subscribeTopics(ownerAddress ? [ownerAddress] : []);
-    return () => { RPC.onNodeEvent = null; };
+    return () => {
+      RPC.onNodeEvent = null;
+      if (state.blockId != null)
+        clearTimeout(state.blockId);
+      if (state.transactionId != null)
+        clearTimeout(state.transactionId);
+    };
   }, [ownerAddress, ownerBaseAddress]);
 
   return (
@@ -339,7 +328,7 @@ export default function AccountPage() {
                   <AddressAvatar address={ownerAddress} size="3"></AddressAvatar>
                   <Flex direction="column">
                     { self && AppData.isWalletReady() ? <Text color="red" size="2">{ (AppData.hasWalletSecretKey() ? 'Full control' : 'Watch control') }</Text> : <Text color="gray" size="2">Watch only</Text> }
-                    <Text style={{ color: 'var(--gray-12)' }} weight="bold" size="2">{ Readability.toAddress(ownerAddress, 6) }</Text>
+                    <Text style={{ color: 'var(--gray-12)' }} weight="bold" size="2">{ UiUtil.toAddress(ownerAddress, 6) }</Text>
                   </Flex>
                 </Flex>
                 <Icon path={mdiChevronDown} style={{ color: 'var(--gray-11)' }} size={1}></Icon>
@@ -351,7 +340,7 @@ export default function AccountPage() {
           {
             self && AppData.isWalletReady() && walletAddresses.map((item, index) =>
               <DropdownMenu.Item key={item || '' + '_select'} disabled={item != null && item == ownerAddress} onClick={() => switchWallet(index)}>
-                <AddressAvatar address={item || ''} size="1" style={{ width: '16px', height: '16px', filter: item != null && item == ownerAddress ? 'brightness(0.5)' : undefined }}></AddressAvatar> Use { Readability.toAddress(item || undefined, 6) }
+                <AddressAvatar address={item || ''} size="1" style={{ width: '16px', height: '16px', filter: item != null && item == ownerAddress ? 'brightness(0.5)' : undefined }}></AddressAvatar> Use { UiUtil.toAddress(item || undefined, 6) }
               </DropdownMenu.Item>
             )
           }
@@ -389,13 +378,6 @@ export default function AccountPage() {
             <Icon path={mdiMagnifyScan} size={0.8} />
             <Text>Search blockchain</Text>
           </DropdownMenu.Item>
-          {
-            AppData.platform == 'mobile' &&
-            <DropdownMenu.Item onClick={() => tryPrompt()}>
-              <Icon path={mdiQrcodeScan} size={0.8} />
-              <Text>Approve QR action</Text>    
-            </DropdownMenu.Item>
-          }
         </DropdownMenu.Content>
       </DropdownMenu.Root>
       <Card mt="2" variant={mobile ? 'ghost' : 'surface'} style={mobile ? { borderRadius: '0', border: 'none', borderBottom: 'none', margin: 0, paddingBottom: '32px' } : { borderRadius: '28px' }}>
@@ -434,7 +416,7 @@ export default function AccountPage() {
               <Box px="2" py="2">
                 {
                   filteredAddresses.map((item, index) =>
-                    <Box key={item.hash + '_address_select'} mb={ index == filteredAddresses.length - 1 ? undefined : '4' }>
+                    <Box key={item.hash + '_address_select_' + index.toString()} mb={ index == filteredAddresses.length - 1 ? undefined : '4' }>
                       <Button variant="surface" color="gray" size="3" style={{ display: 'block', height: 'auto', width: '100%' }} onClick={() => {
                         if (item.addresses != null) {
                           setSelectedAddress(index);
@@ -449,13 +431,13 @@ export default function AccountPage() {
                               <AssetName asset={item.asset}></AssetName>
                               {
                                 item.addresses != null &&
-                                <Text size="1" color="gray">{ Readability.toAddress(item.addresses[0].address, 6) }{ item.addresses.length > 1 ? ' + ' + Readability.toCount('variant', item.addresses.length - 1) : '' }</Text>
+                                <Text size="1" color="gray">{ UiUtil.toAddress(item.addresses[0].address, 6) }{ item.addresses.length > 1 ? ' + ' + UiUtil.toCount('option', item.addresses.length - 1) : '' }</Text>
                               }
                               {
                                 !item.addresses &&
                                 <Flex align="center" gap="1">
                                   <Icon path={mdiOpenInNew} size={0.6} color="var(--sky-11)"></Icon> 
-                                  <Text size="1" color="sky">View vaults</Text>
+                                  <Text size="1" color="sky">Explore vaults</Text>
                                 </Flex>
                               }
                             </Flex>
@@ -517,16 +499,16 @@ export default function AccountPage() {
                       <AssetName asset={item.asset}></AssetName>
                       <Tooltip content={
                         <>
-                          { typeof item.contractAddress == 'string' && <Text style={{ display: 'block' }} mb="1">Contract address: { Readability.toAddress(item.contractAddress, 8) }</Text> }
-                          <Text style={{ display: 'block' }}>Locked value: { new BigNumber(item.reserve).toString() } { Readability.toAssetSymbol(item.asset) }</Text>
-                          <Text style={{ display: 'block' }}>Unlocked value: { new BigNumber(item.balance).toString() } { Readability.toAssetSymbol(item.asset) }</Text>
-                          <Text style={{ display: 'block' }} mt="1">Total value: { new BigNumber(item.supply).toString() } { Readability.toAssetSymbol(item.asset) }</Text>
+                          { typeof item.contractAddress == 'string' && <Text style={{ display: 'block' }} mb="1">Contract address: { UiUtil.toAddress(item.contractAddress, 8) }</Text> }
+                          <Text style={{ display: 'block' }}>Locked value: { new BigNumber(item.reserve).toString() } { UiUtil.toAssetSymbol(item.asset) }</Text>
+                          <Text style={{ display: 'block' }}>Unlocked value: { new BigNumber(item.balance).toString() } { UiUtil.toAssetSymbol(item.asset) }</Text>
+                          <Text style={{ display: 'block' }} mt="1">Total value: { new BigNumber(item.supply).toString() } { UiUtil.toAssetSymbol(item.asset) }</Text>
                         </>
                         }>
                         <Badge size="1" color={item.reserve.gt(0) ? 'yellow' : undefined}>{ (Math.floor(10000 - item.reserve.dividedBy(item.supply).toNumber() * 10000) / 100).toFixed(1) }%</Badge>
                       </Tooltip>
                     </Flex>
-                    <Text as="div" size="2" weight="medium">{ Readability.toMoney(item.asset, item.supply) }</Text>
+                    <Text as="div" size="2" weight="medium">{ UiUtil.toMoney(item.asset, item.supply) }</Text>
                   </Box>
                 </Flex>
               )
@@ -551,7 +533,7 @@ export default function AccountPage() {
                     <Button size="2" variant="ghost" color="indigo" onClick={() => {
                       navigator.clipboard.writeText(program);
                       AlertBox.open(AlertType.Info, 'Program hashcode copied!')
-                    }}>{ Readability.toAddress(program) }</Button>
+                    }}>{ UiUtil.toAddress(program) }</Button>
                     <Box ml="2">
                       <Link className="router-link" to={'/program/' + program}>▒▒</Link>
                     </Box>
@@ -576,8 +558,8 @@ export default function AccountPage() {
                   <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                     <AssetImage asset={new AssetId()} size="2"></AssetImage>
                     <Box width="100%" style={{ marginLeft: '2px' }}>
-                      <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " rewards received by block producer"}>
-                        <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), production.stake) }</Text>
+                      <Tooltip content={UiUtil.toAssetSymbol(new AssetId()) + " rewards received by block producer"}>
+                        <Text as="div" size="2" weight="medium">Staking { UiUtil.toMoney(new AssetId(), production.stake) }</Text>
                       </Tooltip>
                     </Box>
                   </Flex>
@@ -588,8 +570,8 @@ export default function AccountPage() {
                       <Flex key={item.asset.id + '_production'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                         <AssetImage asset={item.asset} size="2"></AssetImage>
                         <Box width="100%" style={{ marginLeft: '2px' }}>
-                          <Tooltip content={Readability.toAssetSymbol(item.asset) + " fees received by block producer"}>
-                            <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
+                          <Tooltip content={UiUtil.toAssetSymbol(item.asset) + " fees received by block producer"}>
+                            <Text as="div" size="2" weight="medium">Staking { UiUtil.toMoney(item.asset, item.reward) }</Text>
                           </Tooltip>
                         </Box>
                       </Flex>
@@ -616,8 +598,8 @@ export default function AccountPage() {
                     <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                       <AssetImage asset={new AssetId()} size="2"></AssetImage>
                       <Box width="100%" style={{ marginLeft: '2px' }}>
-                        <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by vault participation as a signer of outgoing transactions"}>
-                          <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), participation.stake) }</Text>
+                        <Tooltip content={UiUtil.toAssetSymbol(new AssetId()) + " stake locked by vault participation as a signer of outgoing transactions"}>
+                          <Text as="div" size="2" weight="medium">Staking { UiUtil.toMoney(new AssetId(), participation.stake) }</Text>
                         </Tooltip>
                       </Box>
                     </Flex>
@@ -628,8 +610,8 @@ export default function AccountPage() {
                         <Flex key={item.asset.id + '_participation'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                           <AssetImage asset={item.asset} size="2"></AssetImage>
                           <Box width="100%" style={{ marginLeft: '2px' }}>
-                            <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by vault participation as a signer of outgoing transactions'}>
-                              <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
+                            <Tooltip content={UiUtil.toAssetSymbol(item.asset) + ' fees received by vault participation as a signer of outgoing transactions'}>
+                              <Text as="div" size="2" weight="medium">Staking { UiUtil.toMoney(item.asset, item.reward) }</Text>
                             </Tooltip>
                           </Box>
                         </Flex>
@@ -646,7 +628,7 @@ export default function AccountPage() {
                     <Icon path={mdiTransitConnectionVariant} size={1.5} style={{ color: 'var(--accent-11)' }} />
                     <Box width="100%">
                       <Flex justify="between" align="center">
-                        <Text as="div" size="2" weight="light">Vault attestation — { Readability.toAssetName(new AssetId(attestation.asset.id)) }</Text>
+                        <Text as="div" size="2" weight="light">Vault attestation — { Assetlist.toName(new AssetId(attestation.asset.id)) }</Text>
                       </Flex>
                       <Badge size="1" color={attestation ? (attestation.stake != null ? undefined : 'red') : 'gray'}>ATTESTATION { attestation ? (attestation.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ attestation != null ? attestation.stake != null ? ' IN BLOCK ' + attestation.block_number.toNumber() : (' FROM BLOCK ' + attestation.block_number.toNumber()) : '' }</Badge>
                     </Box>
@@ -657,8 +639,8 @@ export default function AccountPage() {
                       <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                         <AssetImage asset={new AssetId()} size="2"></AssetImage>
                         <Box width="100%" style={{ marginLeft: '2px' }}>
-                          <Tooltip content={Readability.toAssetSymbol(new AssetId()) + " stake locked by vault attestation as a cross-chain transaction notification and participant coordination"}>
-                            <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(new AssetId(), attestation.stake) }</Text>
+                          <Tooltip content={UiUtil.toAssetSymbol(new AssetId()) + " stake locked by vault attestation as a cross-chain transaction notification and participant coordination"}>
+                            <Text as="div" size="2" weight="medium">Staking { UiUtil.toMoney(new AssetId(), attestation.stake) }</Text>
                           </Tooltip>
                         </Box>
                       </Flex>
@@ -669,8 +651,8 @@ export default function AccountPage() {
                           <Flex key={item.asset.id + '_attestation'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
                             <AssetImage asset={item.asset} size="2"></AssetImage>
                             <Box width="100%" style={{ marginLeft: '2px' }}>
-                              <Tooltip content={Readability.toAssetSymbol(item.asset) + ' fees received by vault attestation as a cross-chain transaction notification and participant coordination'}>
-                                <Text as="div" size="2" weight="medium">Staking { Readability.toMoney(item.asset, item.reward) }</Text>
+                              <Tooltip content={UiUtil.toAssetSymbol(item.asset) + ' fees received by vault attestation as a cross-chain transaction notification and participant coordination'}>
+                                <Text as="div" size="2" weight="medium">Staking { UiUtil.toMoney(item.asset, item.reward) }</Text>
                               </Tooltip>
                             </Box>
                           </Flex>

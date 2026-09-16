@@ -7,10 +7,12 @@ import { useEffectAsync } from "../../core/react";
 import { CrosshairMode, PriceScaleMode } from "lightweight-charts";
 import { mdiAlert, mdiArrowRightThin, mdiChartBox, mdiChartGantt, mdiCheck, mdiCurrencyUsd, mdiListBox, mdiShopping } from "@mdi/js";
 import { AlertBox, AlertType } from "../../components/alert";
-import { AssetId, LiquidityPool, Readability, Whitelist } from "tangentsdk";
+import { AssetId, LiquidityPool } from "tangentsdk/algorithm";
+import { Whitelist } from "tangentsdk/whitelist";
+import { UiUtil } from "tangentsdk/ui";
 import { AppStorage } from "../../core/storage";
 import { Maker } from "../../components/exchange/maker";
-import { AssetImage } from "../../components/asset";
+import { AssetImage } from "../../components/asset-image";
 import { ChartViewType, ChartWidget, SeriesOptions, PriceScope, ChartTitle } from "../../components/exchange/chart";
 import { PoolView } from "../../components/exchange/pool";
 import InfiniteScroll from 'react-infinite-scroll-component';
@@ -533,18 +535,18 @@ export default function OrderbookPage() {
                           </SegmentedControl.Root>
                         </Flex>
                         <Flex direction="column">
-                          <Text size="2" color="gray">{ Readability.toAssetSymbol(valuation.primary) } balance</Text>
-                          <Text size="4">{ Readability.toMoney(valuation.primary, valuation.quantity) }</Text>
+                          <Text size="2" color="gray">{ UiUtil.toAssetSymbol(valuation.primary) } balance</Text>
+                          <Text size="4">{ UiUtil.toMoney(valuation.primary, valuation.quantity) }</Text>
                         </Flex>
                         <Flex gap="1" align="center">
-                          <Text size="2" color="gray">{ Readability.toValue(null, valuation.basePrice, false, true) }</Text>
+                          <Text size="2" color="gray">{ UiUtil.toValue(null, valuation.basePrice, false, true) }</Text>
                           <Icon path={mdiArrowRightThin} size={0.8}></Icon>
-                          <Text size="2" color="gray">{ Readability.toValue(null, valuation.currentPrice, false, true) }</Text>
+                          <Text size="2" color="gray">{ UiUtil.toValue(null, valuation.currentPrice, false, true) }</Text>
                         </Flex>
                         <Flex direction="column" mt="4">
-                          <Text size="2" color="gray">{ Readability.toAssetSymbol(valuation.secondary) } worth</Text>
-                          <Text size="4">{ Readability.toMoney(valuation.secondary, valuation.worth) }</Text>
-                          <Text size="2" style={{ color: valuation.relativePL.gt(0) ? 'var(--accent-11)' : (valuation.relativePL.lt(0) ? 'var(--red-11)' : 'var(--gray-11)') }}>{ Readability.toValue(null, valuation.absolutePL, true, true) } ({ valuation.relativePL.gt(0) ? '+' : '' }{ valuation.relativePL.multipliedBy(100).toFixed(2) }%)</Text>
+                          <Text size="2" color="gray">{ UiUtil.toAssetSymbol(valuation.secondary) } worth</Text>
+                          <Text size="4">{ UiUtil.toMoney(valuation.secondary, valuation.worth) }</Text>
+                          <Text size="2" style={{ color: valuation.relativePL.gt(0) ? 'var(--accent-11)' : (valuation.relativePL.lt(0) ? 'var(--red-11)' : 'var(--gray-11)') }}>{ UiUtil.toValue(null, valuation.absolutePL, true, true) } ({ valuation.relativePL.gt(0) ? '+' : '' }{ valuation.relativePL.multipliedBy(100).toFixed(2) }%)</Text>
                         </Flex>
                       </Card>
                       <Card mb="3" variant="surface" style={{ borderRadius: '22px' }}>
@@ -555,12 +557,12 @@ export default function OrderbookPage() {
                             <Flex gap="1">
                               <Flex gap="2" align="center">
                                 <AssetImage asset={orderbook.primaryAsset} size="1" iconSize="16px"></AssetImage>
-                                <Text>{ Readability.toAssetSymbol(orderbook.primaryAsset) }</Text>
+                                <Text>{ UiUtil.toAssetSymbol(orderbook.primaryAsset) }</Text>
                               </Flex>
                               <Text>/</Text>
                               <Flex gap="2" align="center">
                                 <AssetImage asset={orderbook.secondaryAsset} size="1" iconSize="16px"></AssetImage>
-                                <Text>{ Readability.toAssetSymbol(orderbook.secondaryAsset) }</Text>
+                                <Text>{ UiUtil.toAssetSymbol(orderbook.secondaryAsset) }</Text>
                               </Flex>
                             </Flex>
                           </Flex>
@@ -580,7 +582,7 @@ export default function OrderbookPage() {
                                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                                   navigator.clipboard.writeText(market?.account || 'NULL');
                                   AlertBox.open(AlertType.Info, 'Program account address copied!')
-                                }}>{ Readability.toAddress(market?.account || 'NULL', 5) }</Button>
+                                }}>{ UiUtil.toAddress(market?.account || 'NULL', 5) }</Button>
                                 <Box ml="2">
                                   <Link className="router-link" to={'/portfolio/' + market?.account + '?view=wallet-total-assets'}>▒▒</Link>
                                 </Box>
@@ -590,31 +592,31 @@ export default function OrderbookPage() {
                           <Tooltip side="left" content="Price at the start of the day">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Open</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.open || null) }</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toMoney(orderbook.secondaryAsset, pair?.price.open || null) }</Text>
                             </Flex>
                           </Tooltip>
                           <Tooltip side="left" content="Price at current time">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Close</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.close || null) }</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toMoney(orderbook.secondaryAsset, pair?.price.close || null) }</Text>
                             </Flex>
                           </Tooltip>
                           <Tooltip side="left" content="Absolute difference between price open and price close">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Delta</Text>
-                              <Text size="2" style={{ color: (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'var(--red-11)' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'var(--accent-11)')}}>{ Readability.toMoney(orderbook.secondaryAsset, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true) }</Text>
+                              <Text size="2" style={{ color: (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'var(--red-11)' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'var(--accent-11)')}}>{ UiUtil.toMoney(orderbook.secondaryAsset, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true) }</Text>
                             </Flex>
                           </Tooltip>
                           <Tooltip side="left" content="Actual amount traded within last 24 hours">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Volume</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.totalVolume || new BigNumber(0)) }</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toMoney(orderbook.secondaryAsset, pair?.price.totalVolume || new BigNumber(0)) }</Text>
                             </Flex>
                           </Tooltip>
                           <Tooltip side="left" content="Total amount being currently open for trading including LP positions">
                             <Flex justify="between" wrap="wrap" gap="1">
                               <Text size="2" color="gray">Liquidity</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook.secondaryAsset, pair?.price.totalLiquidity || new BigNumber(0)) }</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toMoney(orderbook.secondaryAsset, pair?.price.totalLiquidity || new BigNumber(0)) }</Text>
                             </Flex>
                           </Tooltip>
                           <Tooltip side="left" content="Average revenue of LP position">
@@ -625,9 +627,9 @@ export default function OrderbookPage() {
                           </Tooltip>
                           <Tooltip side="left" content="Minimal to maximal price range observed during the day">
                             <Flex justify="between" wrap="wrap" gap="1" mt="2" mb="1">
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toValue(null, pair?.price.low || null, false, true) }</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toValue(null, pair?.price.low || null, false, true) }</Text>
                               <Text size="2" color="gray">—</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toValue(null, pair?.price.high || null, false, true) }</Text>
+                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toValue(null, pair?.price.high || null, false, true) }</Text>
                             </Flex>
                           </Tooltip>
                           <Tooltip side="left" content="Fee rate range taken from order makers">
@@ -719,14 +721,14 @@ export default function OrderbookPage() {
                         seriesOptions.priceScope != PriceScope.Ask &&
                         <>
                           <Box position="absolute" top="0" left="0" right={`${seriesOptions.priceScope == PriceScope.All ? liquidity.ask[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--accent-a5)' }}></Box>
-                          <Text size="2" style={{ zIndex: 1, color: 'var(--accent-11)' }}>{ Readability.toMoney(orderbook?.primaryAsset || null, liquidity.bid[2]) }</Text>
+                          <Text size="2" style={{ zIndex: 1, color: 'var(--accent-11)' }}>{ UiUtil.toMoney(orderbook?.primaryAsset || null, liquidity.bid[2]) }</Text>
                         </>
                       }
                       {
                         seriesOptions.priceScope != PriceScope.Bid &&
                         <>
                           <Box position="absolute" top="0" left={`${seriesOptions.priceScope == PriceScope.All ? liquidity.bid[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--red-a5)' }}></Box>
-                          <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ Readability.toMoney(orderbook?.primaryAsset || null, liquidity.ask[2]) }</Text>
+                          <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ UiUtil.toMoney(orderbook?.primaryAsset || null, liquidity.ask[2]) }</Text>
                         </>
                       }
                     </Flex>
@@ -736,14 +738,14 @@ export default function OrderbookPage() {
                         <Box width={seriesOptions.priceScope == PriceScope.All ? '50%' : '100%'}>
                           {
                             groupedLevels.bid.map((item) =>
-                              <Tooltip side="left" key={item.price.toString()} content={`Buy ${Readability.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≤ ${Readability.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
+                              <Tooltip side="left" key={item.price.toString()} content={`Buy ${UiUtil.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≤ ${UiUtil.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
                                 <Button variant="ghost" radius="none" style={{ width: '100%', height: 'auto', padding: 0, margin: 0 }} onClick={() => updatePreset(OrderSide.Buy, item.price)}>
                                   <Flex width="100%" justify="between" px="1" py="1" position="relative">
                                     <Box position="absolute" top="0" left={`${100 - 100 * item.quantity.dividedBy(liquidity.bid[0]).toNumber()}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--accent-7)' }}></Box>
-                                    <Text size="2" style={{ zIndex: 1, color: 'var(--accent-11)' }}>{ Readability.toValue(null, item.price, false, true) }</Text>
+                                    <Text size="2" style={{ zIndex: 1, color: 'var(--accent-11)' }}>{ UiUtil.toValue(null, item.price, false, true) }</Text>
                                     {
                                       seriesOptions.priceScope != PriceScope.All &&
-                                      <Text size="2" style={{ zIndex: 1, color: 'var(--accent-11)' }}>{ Readability.toValue(null, item.quantity, false, true) }</Text>
+                                      <Text size="2" style={{ zIndex: 1, color: 'var(--accent-11)' }}>{ UiUtil.toValue(null, item.quantity, false, true) }</Text>
                                     }
                                   </Flex>
                                 </Button>
@@ -760,15 +762,15 @@ export default function OrderbookPage() {
                         <Box width={seriesOptions.priceScope == PriceScope.All ? '50%' : '100%'}>
                           {
                             groupedLevels.ask.map((item) =>
-                              <Tooltip side="left" key={item.price.toString()} content={`Sell ${Readability.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≥ ${Readability.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
+                              <Tooltip side="left" key={item.price.toString()} content={`Sell ${UiUtil.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≥ ${UiUtil.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
                                 <Button variant="ghost" radius="none" style={{ width: '100%', height: 'auto', padding: 0, margin: 0 }} onClick={() => updatePreset(OrderSide.Sell, item.price)}>
                                   <Flex width="100%" justify={seriesOptions.priceScope != PriceScope.All ? 'between' : 'end'} px="1" py="1" position="relative">
                                     <Box position="absolute" top="0" left="0" right={`${100 - 100 * item.quantity.dividedBy(liquidity.ask[0]).toNumber()}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--red-7)' }}></Box>
                                     {
                                       seriesOptions.priceScope != PriceScope.All &&
-                                      <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ Readability.toValue(null, item.quantity, false, true) }</Text>
+                                      <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ UiUtil.toValue(null, item.quantity, false, true) }</Text>
                                     }
-                                    <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ Readability.toValue(null, item.price, false, true) }</Text>
+                                    <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ UiUtil.toValue(null, item.price, false, true) }</Text>
                                   </Flex>
                                 </Button>
                               </Tooltip>)
@@ -795,11 +797,11 @@ export default function OrderbookPage() {
                               <Flex direction="column" gap="2" style={{ padding: '12px' }}>
                                 <Flex justify="between" wrap="wrap" gap="1">
                                   <Text size="2" color="gray">At</Text>
-                                  <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(orderbook?.secondaryAsset || null, item.price) }</Text>
+                                  <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, item.price) }</Text>
                                 </Flex>
                                 <Flex justify="between" wrap="wrap" gap="1">
                                   <Text size="2" style={{ color: color }}>{ action }</Text>
-                                  <Text size="2" style={{ color: color }}>{ Readability.toMoney(orderbook?.primaryAsset || null, item.quantity, pool) }</Text>
+                                  <Text size="2" style={{ color: color }}>{ UiUtil.toMoney(orderbook?.primaryAsset || null, item.quantity, pool) }</Text>
                                 </Flex>
                                 <Flex justify="between" wrap="wrap" gap="1">
                                   <Text size="2" style={{ color: 'var(--gray-12)' }}>From</Text>
@@ -807,7 +809,7 @@ export default function OrderbookPage() {
                                     <Button size="2" variant="ghost" color="indigo" onClick={() => {
                                       navigator.clipboard.writeText(item.account || 'NULL');
                                       AlertBox.open(AlertType.Info, 'Account address copied!')
-                                    }}>{ Readability.toAddress(item.account || 'NULL', 5) }</Button>
+                                    }}>{ UiUtil.toAddress(item.account || 'NULL', 5) }</Button>
                                     <Box ml="2">
                                       <Link className="router-link" to={'/portfolio/' + item.account + '?view=wallet-total-assets'}>▒▒</Link>
                                     </Box>
@@ -815,7 +817,7 @@ export default function OrderbookPage() {
                                 </Flex>
                                 <Flex justify="between" wrap="wrap" gap="1">
                                   <Text size="2" color="gray">Age</Text>
-                                  <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toTimePassed(item.time) }</Text>
+                                  <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toTimePassed(item.time) }</Text>
                                 </Flex>
                               </Flex>
                             </Box>

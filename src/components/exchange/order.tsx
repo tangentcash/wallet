@@ -1,11 +1,13 @@
 import { Badge, Box, Button, Card, DataList, Dialog, Flex, Text } from "@radix-ui/themes";
 import { Order, OrderCondition, OrderPolicy, OrderSide, Exchange } from "../../core/exchange";
-import { AssetId, Readability } from "tangentsdk";
+import { AssetId } from "tangentsdk/algorithm";
+import { UiUtil } from "tangentsdk/ui";
+import { Assetlist } from "tangentsdk/assetlist";
 import { useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../alert";
 import { Link } from "react-router";
 import { mdiInformationOutline } from "@mdi/js";
-import { AssetImage } from "../asset";
+import { AssetImage } from "../asset-image";
 import { PerformerButton, Builder } from "./performer";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import Icon from "@mdi/react";
@@ -98,9 +100,9 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
               <Text size="2">{ item.secondaryAsset.token || item.secondaryAsset.chain }</Text>
             </Flex>
             <Flex align="center" style={{ textDecoration: item.active ? undefined : 'line-through' }}>
-              <Text size="2">{ quantity ? Readability.toMoney(null, quantity) : '(N/A)' }</Text>
+              <Text size="2">{ quantity ? UiUtil.toMoney(null, quantity) : '(N/A)' }</Text>
               <Text size="2" color="gray">x</Text>
-              <Text size="2">{ price ? Readability.toMoney(null, price) : '(N/A)' }</Text>
+              <Text size="2">{ price ? UiUtil.toMoney(null, price) : '(N/A)' }</Text>
             </Flex>
           </Flex>
           <Flex justify="between" align="center">
@@ -123,7 +125,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(item.marketAccount || 'NULL');
                 AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ Readability.toAddress(item.marketAccount || 'NULL') }</Button>
+              }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</Button>
               <Box ml="2">
                 <Link className="router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}>▒▒</Link>
               </Box>
@@ -131,11 +133,11 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Primary asset:</DataList.Label>
-            <DataList.Value>{ Readability.toAssetName(item.primaryAsset) }</DataList.Value>
+            <DataList.Value>{ Assetlist.toName(item.primaryAsset) }</DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Secondary asset:</DataList.Label>
-            <DataList.Value>{ Readability.toAssetName(item.secondaryAsset) }</DataList.Value>
+            <DataList.Value>{ Assetlist.toName(item.secondaryAsset) }</DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Reference:</DataList.Label>
@@ -143,7 +145,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
               <Button size="2" variant="ghost" color="indigo" onClick={() => {
                 navigator.clipboard.writeText(item.orderId.toString(16));
                 AlertBox.open(AlertType.Info, 'Reference copied!')
-              }}>0x{ item.orderId.toString(16).length > 8 ? Readability.toHash(item.orderId.toString(16), 6) : item.orderId.toString(16) }</Button>
+              }}>0x{ item.orderId.toString(16).length > 8 ? UiUtil.toHash(item.orderId.toString(16), 6) : item.orderId.toString(16) }</Button>
             </DataList.Value>
           </DataList.Item>
           <DataList.Item>
@@ -172,50 +174,50 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Price:</DataList.Label>
-            <DataList.Value>{ Readability.toMoney(item.secondaryAsset, price) }</DataList.Value>
+            <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, price) }</DataList.Value>
           </DataList.Item>
           {
             item.price && (!price || !item.price.eq(price)) &&
             <DataList.Item>
               <DataList.Label>Base price:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.price) }</DataList.Value>
+              <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.price) }</DataList.Value>
             </DataList.Item>
           }
           {
             item.stopPrice &&
             <DataList.Item>
               <DataList.Label>Stop price:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.stopPrice) }</DataList.Value>
+              <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.stopPrice) }</DataList.Value>
             </DataList.Item>
           }
           {
             item.trailingStep &&
             <DataList.Item>
               <DataList.Label>Trailing step:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.trailingStep) }</DataList.Value>
+              <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.trailingStep) }</DataList.Value>
             </DataList.Item>
           }
           {
             item.trailingDistance &&
             <DataList.Item>
               <DataList.Label>Trailing distance:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(item.secondaryAsset, item.trailingDistance) }</DataList.Value>
+              <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.trailingDistance) }</DataList.Value>
             </DataList.Item>
           }
           {
             item.slippage &&
             <DataList.Item>
               <DataList.Label>{ item.condition == OrderCondition.Market ? 'Slippage price:' : 'Price slippage:' }</DataList.Label>
-              <DataList.Value>{ item.slippage.lt(0) ? item.slippage.negated().multipliedBy(100).toFixed(2) + '%' : Readability.toMoney(item.secondaryAsset, item.slippage) }</DataList.Value>
+              <DataList.Value>{ item.slippage.lt(0) ? item.slippage.negated().multipliedBy(100).toFixed(2) + '%' : UiUtil.toMoney(item.secondaryAsset, item.slippage) }</DataList.Value>
             </DataList.Item>
           }
           <DataList.Item>
             <DataList.Label>Quantity:</DataList.Label>
-            <DataList.Value>{ Readability.toMoney(item.primaryAsset, quantity) } { quantity && quantity.isFinite() && price && price.isFinite() ? `/ ${Readability.toMoney(item.secondaryAsset, quantity.multipliedBy(price))}` : '' }</DataList.Value>
+            <DataList.Value>{ UiUtil.toMoney(item.primaryAsset, quantity) } { quantity && quantity.isFinite() && price && price.isFinite() ? `/ ${UiUtil.toMoney(item.secondaryAsset, quantity.multipliedBy(price))}` : '' }</DataList.Value>
           </DataList.Item>
           <DataList.Item>
             <DataList.Label>Leftover:</DataList.Label>
-            <DataList.Value>{ Readability.toMoney(paidAsset, item.value) } / { (100 - progress).toFixed(2) }%</DataList.Value>
+            <DataList.Value>{ UiUtil.toMoney(paidAsset, item.value) } / { (100 - progress).toFixed(2) }%</DataList.Value>
           </DataList.Item>
         </DataList.Root>
         {
@@ -242,14 +244,14 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
                     item.stopPrice &&
                     <Flex justify="between" wrap="wrap" gap="1">
                       <Text size="2" color="gray">Trigger at</Text>
-                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ item.side == OrderSide.Buy ? '≥' : '≤'  } { Readability.toMoney(item.secondaryAsset, item.stopPrice) }</Text>
+                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ item.side == OrderSide.Buy ? '≥' : '≤'  } { UiUtil.toMoney(item.secondaryAsset, item.stopPrice) }</Text>
                     </Flex>
                   }
                   <Flex justify="between" wrap="wrap" gap="1">
                     <Text size="2" color="gray">{ item.stopPrice ? 'Then at' : 'At' }</Text>
                     {
                       possiblePrice != null &&
-                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ item.side == OrderSide.Buy ? '≤' : '≥' } { Readability.toMoney(item.secondaryAsset, possiblePrice) }</Text>
+                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ item.side == OrderSide.Buy ? '≤' : '≥' } { UiUtil.toMoney(item.secondaryAsset, possiblePrice) }</Text>
                     }
                     {
                       !possiblePrice &&
@@ -258,20 +260,20 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
                   </Flex>
                   <Flex justify="between" wrap="wrap" gap="1">
                     <Text size="2" color={ item.side == OrderSide.Buy ? undefined : 'red' }>{ item.side == OrderSide.Buy ? 'Buy' : 'Sell' }</Text>
-                    <Text size="2" color={ item.side == OrderSide.Buy ? undefined : 'red' }>{ Readability.toMoney(item.primaryAsset, leftoverQuantity) }</Text>
+                    <Text size="2" color={ item.side == OrderSide.Buy ? undefined : 'red' }>{ UiUtil.toMoney(item.primaryAsset, leftoverQuantity) }</Text>
                   </Flex>
                   {
                     leftoverQuantity && leftoverQuantity.isFinite() && possiblePrice && possiblePrice.isFinite() &&
                     <Flex justify="between" wrap="wrap" gap="1">
                       <Text size="2" color="gray">For</Text>
-                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(item.secondaryAsset, leftoverQuantity.multipliedBy(possiblePrice)) }</Text>
+                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toMoney(item.secondaryAsset, leftoverQuantity.multipliedBy(possiblePrice)) }</Text>
                     </Flex>
                   }
                 </Flex>
               </Button>
             </Dialog.Trigger>
             <Dialog.Content maxWidth="450px">
-              <Dialog.Title>Order #{item.orderId.toString().length > 8 ? Readability.toHash(item.orderId.toString(), 4) : item.orderId.toString()}</Dialog.Title>
+              <Dialog.Title>Order #{item.orderId.toString().length > 8 ? UiUtil.toHash(item.orderId.toString(), 4) : item.orderId.toString()}</Dialog.Title>
               <FullOrderView open={true}></FullOrderView>
             </Dialog.Content>
           </Dialog.Root>

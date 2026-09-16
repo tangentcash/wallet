@@ -1,6 +1,10 @@
 import { Badge, Box, Button, Card, Dialog, Flex, Heading, Select, Spinner, Switch, Text, TextField, Tooltip, Separator, Callout, DropdownMenu } from "@radix-ui/themes";
 import { mdiAlert, mdiArrowBottomLeft, mdiArrowLeft, mdiArrowRight, mdiArrowTopRight, mdiBriefcaseUpload, mdiChartTimelineVariant, mdiChartTimelineVariantShimmer, mdiChevronDoubleRight, mdiListBox, mdiLockOutline, mdiMapMarkerPath, mdiPaletteSwatchVariant, mdiPlus, mdiSetRight, mdiSwapVertical } from "@mdi/js";
-import { AssetId, Readability, ByteUtil, TextUtil, Signing, Whitelist } from "tangentsdk";
+import { AssetId, ByteUtil, Signing } from "tangentsdk/algorithm";
+import { UiUtil } from 'tangentsdk/ui';
+import { Whitelist } from 'tangentsdk/whitelist';
+import { Assetlist } from 'tangentsdk/assetlist';
+import { TextUtil } from 'tangentsdk/text';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Exchange, Balance, Order, Pool, Cursor, AggregatedPair, OrderSide, RouterPath, Market, PolyAsset, PseudoDelegatedPool, DelegatedPool, ExchangeField } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
@@ -9,7 +13,8 @@ import { mdiCheckDecagram, mdiMagnify, mdiMagnifyScan, mdiShoppingSearch } from 
 import { useNavigate, useParams, useSearchParams } from "react-router";
 import { AppStorage } from "../../core/storage";
 import { AlertBox, AlertType } from "../../components/alert";
-import { AssetImage, AssetName } from "../../components/asset";
+import { AssetImage } from "../../components/asset-image";
+import { AssetName } from "../../components/asset-name";
 import { Builder, PerformerButton } from "./../../components/exchange/performer";
 import { DelegatedPoolView, PoolView, PseudoDelegatedPoolView } from "../../components/exchange/pool";
 import BigNumber from "bignumber.js";
@@ -104,19 +109,19 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
         <Box width="100%">
           <Flex justify="between">
             <AssetName asset={item.asset} size="2"></AssetName>
-            <Text size="2">{ Readability.toMoney(Exchange.equityAsset, item.equity.current) }</Text>
+            <Text size="2">{ UiUtil.toMoney(Exchange.equityAsset, item.equity.current) }</Text>
           </Flex>
           <Flex justify="between" align="center">
-            <Tooltip content={ 'Currently locked: ' + Readability.toMoney(item.asset, item.unavailable) }>
+            <Tooltip content={ 'Currently locked: ' + UiUtil.toMoney(item.asset, item.unavailable) }>
               <Flex align="center" gap="1">
                 { item.unavailable.gt(0) && <Icon path={mdiLockOutline} size={0.575} color="var(--gray-11)" style={{ transform: 'translateY(-1px)' }}></Icon> }
-                <Text size="2" color="gray">{ Readability.toMoney(null, props.available ? item.available : item.available.plus(item.unavailable)) }</Text>
+                <Text size="2" color="gray">{ UiUtil.toMoney(null, props.available ? item.available : item.available.plus(item.unavailable)) }</Text>
               </Flex>
             </Tooltip>
-            <Tooltip content={ Readability.toMoney(Exchange.equityAsset, currentEquity.minus(previousEquity), true) }>
+            <Tooltip content={ UiUtil.toMoney(Exchange.equityAsset, currentEquity.minus(previousEquity), true) }>
               <Badge size="2" variant="soft" color={previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : undefined)} mt="1">
                 <Icon path={mdiSetRight} size={0.7}></Icon>
-                <Text size="1">{ Readability.toPercentageDelta(previousEquity, currentEquity) }</Text>
+                <Text size="1">{ UiUtil.toPercentageDelta(previousEquity, currentEquity) }</Text>
               </Badge>
             </Tooltip>
           </Flex>
@@ -140,7 +145,7 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
               </Select.Group>
             </Select.Content>
           </Select.Root>
-          <TextField.Root style={{ width: '100%', borderTopLeftRadius: '0', borderBottomLeftRadius: '0' }} placeholder={`≤ ${Readability.toMoney(item.asset, BigNumber.min(item.available, asset?.liquidity || new BigNumber(0)))} or %`} size="2" value={amount} onChange={(e) => setAmount(e.target.value)}></TextField.Root>   
+          <TextField.Root style={{ width: '100%', borderTopLeftRadius: '0', borderBottomLeftRadius: '0' }} placeholder={`≤ ${UiUtil.toMoney(item.asset, BigNumber.min(item.available, asset?.liquidity || new BigNumber(0)))} or %`} size="2" value={amount} onChange={(e) => setAmount(e.target.value)}></TextField.Root>   
         </Flex>
         <PerformerButton title="Pay" description="Smart contract will re-pay you back the 1:1 value of selected token after this action" variant="soft" color="yellow" disabled={!assetPayload} onBuild={async () => {
           return assetPayload ? Builder.repayAsset(assetPayload) : null;
@@ -162,18 +167,18 @@ function DefaultBalanceView(props: { item: Balance & { equity: { current: BigNum
         <Box width="100%">
           <Flex justify="between">
             <AssetName asset={item.asset} size="2"></AssetName>
-            <Text size="2">{ Readability.toMoney(Exchange.equityAsset, item.equity.current) }</Text>
+            <Text size="2">{ UiUtil.toMoney(Exchange.equityAsset, item.equity.current) }</Text>
           </Flex>
           <Flex justify="between" align="center">
-            <Tooltip content={ 'Currently locked: ' + Readability.toMoney(item.asset, item.unavailable) }>
+            <Tooltip content={ 'Currently locked: ' + UiUtil.toMoney(item.asset, item.unavailable) }>
               <Flex align="center" gap="1">
                 { item.unavailable.gt(0) && <Icon path={mdiLockOutline} size={0.575} color="var(--gray-11)" style={{ transform: 'translateY(-1px)' }}></Icon> }
-                <Text size="2" color="gray">{ Readability.toMoney(null, props.available ? item.available : item.available.plus(item.unavailable)) }</Text>
+                <Text size="2" color="gray">{ UiUtil.toMoney(null, props.available ? item.available : item.available.plus(item.unavailable)) }</Text>
               </Flex>
             </Tooltip>
-            <Tooltip content={ Readability.toMoney(Exchange.equityAsset, currentEquity.minus(previousEquity), true) }>
+            <Tooltip content={ UiUtil.toMoney(Exchange.equityAsset, currentEquity.minus(previousEquity), true) }>
               <Badge size="2" variant="soft" color={previousEquity.gt(currentEquity) ? 'red' : (previousEquity.eq(currentEquity) ? 'gray' : undefined)} mt="1">
-                <Text size="1">{ Readability.toPercentageDelta(previousEquity, currentEquity) }</Text>
+                <Text size="1">{ UiUtil.toPercentageDelta(previousEquity, currentEquity) }</Text>
               </Badge>
             </Tooltip>
           </Flex>
@@ -301,10 +306,10 @@ function WalletNavigator(props: {
               </Select.Content>
             </Select.Root>
           </Flex>
-          <Heading size="7">{ Readability.toMoney(Exchange.equityAsset, equity.current) }</Heading>
+          <Heading size="7">{ UiUtil.toMoney(Exchange.equityAsset, equity.current) }</Heading>
         </Box>
         <Flex gap="2" wrap="wrap" justify="between">
-          <Button variant="soft" size="2" loading={loading} color={ equity.previous.gt(equity.current) ? 'red' : (equity.previous.eq(equity.current) ? 'gray' : undefined) } onClick={() => props.onTodayProfitsChange(!props.todayProfits)}>{ Readability.toMoney(Exchange.equityAsset, equity.current.minus(equity.previous), true) } ({ Readability.toPercentageDelta(equity.previous, equity.current) }) { props.todayProfits ? 'today' : 'total' }</Button>
+          <Button variant="soft" size="2" loading={loading} color={ equity.previous.gt(equity.current) ? 'red' : (equity.previous.eq(equity.current) ? 'gray' : undefined) } onClick={() => props.onTodayProfitsChange(!props.todayProfits)}>{ UiUtil.toMoney(Exchange.equityAsset, equity.current.minus(equity.previous), true) } ({ UiUtil.toPercentageDelta(equity.previous, equity.current) }) { props.todayProfits ? 'today' : 'total' }</Button>
           {
             !props.readOnly &&
             <Button variant="surface" color="yellow" size="2" onClick={props.onViewerToggle}>
@@ -534,8 +539,8 @@ function MarketRouter(props: {
           </Flex>
         </Flex>
         <Flex justify="between" style={{ padding: '0 2px' }}>
-          <Text size="1" color="gray">{ Readability.toMoney(Exchange.equityAsset, swapInfo.valuationIn) }</Text>
-          <Text size="1" color="gray">{ Readability.toMoney(props.pair.primary, swapInfo.balanceIn) }</Text>
+          <Text size="1" color="gray">{ UiUtil.toMoney(Exchange.equityAsset, swapInfo.valuationIn) }</Text>
+          <Text size="1" color="gray">{ UiUtil.toMoney(props.pair.primary, swapInfo.balanceIn) }</Text>
         </Flex>
         <Flex mt="3">
           <Flex align="center" gap="1">
@@ -548,8 +553,8 @@ function MarketRouter(props: {
           </Flex>
         </Flex>
         <Flex justify="between" style={{ padding: '0 2px' }}>
-          <Text size="1" color="gray">{ Readability.toMoney(Exchange.equityAsset, swapInfo.valuationOut) }</Text>
-          <Text size="1" color="gray">{ Readability.toMoney(props.pair.secondary, swapInfo.balanceOut) }</Text>
+          <Text size="1" color="gray">{ UiUtil.toMoney(Exchange.equityAsset, swapInfo.valuationOut) }</Text>
+          <Text size="1" color="gray">{ UiUtil.toMoney(props.pair.secondary, swapInfo.balanceOut) }</Text>
         </Flex>
         <Flex align="center" justify="between" px="1" position="absolute" style={{ left: 0, right: 0, bottom: '-42px' }}>
           <Tooltip side="top" content={`Slippage: maximal unfavorable deviation from best price`}>
@@ -610,7 +615,7 @@ function MarketRouter(props: {
                 <Flex justify="between" align="center">
                   <Flex gap="2">
                     <Badge size="3" color={pathIndex == 0 ? undefined : 'gray'}>{ pathIndex == 0 ? 'Best' : (pathIndex == 1 ? '2nd' : (pathIndex == 2 ? '3rd' : ((pathIndex + 1) + 'th'))) }</Badge>
-                    <Badge size="3" color="gray">{ Readability.toCount('swap', path.length) }</Badge>
+                    <Badge size="3" color="gray">{ UiUtil.toCount('swap', path.length) }</Badge>
                   </Flex>
                   <Text as="label" size="3">Min <Switch size="2" color="red" checked={convervative} onCheckedChange={(e) => setConservative(e)} /></Text>
                 </Flex>
@@ -623,13 +628,13 @@ function MarketRouter(props: {
                           <>
                             <Icon path={mdiChevronDoubleRight} size={0.9}></Icon>
                             <AssetImage asset={swap.side == OrderSide.Buy ? swap.pair.secondaryAsset?.hash : swap.pair.primaryAsset?.hash} iconSize="24px"></AssetImage>
-                            <Text>{ Readability.toMoney(swap.side == OrderSide.Buy ? swap.pair.secondaryAsset?.hash || null : swap.pair.primaryAsset?.hash || null, swap.input[type]) }</Text>
+                            <Text>{ UiUtil.toMoney(swap.side == OrderSide.Buy ? swap.pair.secondaryAsset?.hash || null : swap.pair.primaryAsset?.hash || null, swap.input[type]) }</Text>
                           </>
                         }
                         <Flex gap="1">
                           <Icon path={mdiArrowRight} size={0.9}></Icon>
                           <AssetImage asset={swap.side == OrderSide.Buy ? swap.pair.primaryAsset?.hash : swap.pair.secondaryAsset?.hash} iconSize="24px"></AssetImage>
-                          <Text>{ Readability.toMoney(swap.side == OrderSide.Buy ? swap.pair.primaryAsset?.hash || null : swap.pair.secondaryAsset?.hash || null, swap.output[type]) }</Text>
+                          <Text>{ UiUtil.toMoney(swap.side == OrderSide.Buy ? swap.pair.primaryAsset?.hash || null : swap.pair.secondaryAsset?.hash || null, swap.output[type]) }</Text>
                         </Flex>
                       </Flex>
                     )
@@ -637,7 +642,7 @@ function MarketRouter(props: {
                 </Flex>
                 <Flex justify="between" align="center" gap="2">
                   <Badge size="3" color={(amountOut || new BigNumber(0)).gte(amountIn || new BigNumber(0)) ? 'gray' : 'red'}>{ (amountOut || new BigNumber(0)).gte(amountIn || new BigNumber(0)) ? (convervative ? 'Min gain' : 'Gain') : (convervative ? 'Max loss' : 'Loss') } { amountIn && amountOut ? amountOut.minus(amountIn).dividedBy(amountIn).multipliedBy(100).toFixed(2) : '0.00' }%</Badge>
-                  <PerformerButton title="Execute" description={`Swap involves paying ${Readability.toAssetSymbol(props.pair.primary || new AssetId())} to smart contract and placing one or more market orders in a row to receive ${Readability.toAssetSymbol(props.pair.secondary || new AssetId())} as a result`} color={pathIndex == 0 ? undefined : 'gray'} onBuild={async () => {
+                  <PerformerButton title="Execute" description={`Swap involves paying ${UiUtil.toAssetSymbol(props.pair.primary || new AssetId())} to smart contract and placing one or more market orders in a row to receive ${UiUtil.toAssetSymbol(props.pair.secondary || new AssetId())} as a result`} color={pathIndex == 0 ? undefined : 'gray'} onBuild={async () => {
                     const pays: Record<string, string> = Exchange.toPayment(new BigNumber(swapInfo.amountIn), assetsIn);
                     return Builder.swap({
                       ...state,
@@ -858,7 +863,7 @@ function MarketExplorer(props: {
                   searchPair.primary != null &&
                   <Flex align="center" gap="2">
                     <AssetImage asset={searchPair.primary} size="2" iconSize="20px"></AssetImage>
-                    <Text size="4">{ Readability.toAssetSymbol(searchPair.primary) }</Text>
+                    <Text size="4">{ UiUtil.toAssetSymbol(searchPair.primary) }</Text>
                   </Flex>
                 }
                 { searchPair.primary == null && <Text size="4">ANY</Text> }
@@ -871,7 +876,7 @@ function MarketExplorer(props: {
                   searchPair.secondary != null &&
                   <Flex align="center" gap="2">
                     <AssetImage asset={searchPair.secondary} size="2" iconSize="20px"></AssetImage>
-                    <Text size="4">{ Readability.toAssetSymbol(searchPair.secondary) }</Text>
+                    <Text size="4">{ UiUtil.toAssetSymbol(searchPair.secondary) }</Text>
                   </Flex>
                 }
                 { searchPair.secondary == null && <Text size="4">ANY</Text> }
@@ -908,12 +913,12 @@ function MarketExplorer(props: {
                         }
                         {
                           item.pair.secondaryBase != null &&
-                          <Text size="2" weight="bold" style={{ color: 'var(--gray-12)' }}>{ item.whitelisted ? Readability.toAssetName(item.pair.primaryAsset).replace(item.pair.primaryAsset.chain + ' ', '') : Readability.toAssetName(item.pair.primaryAsset) }</Text>
+                          <Text size="2" weight="bold" style={{ color: 'var(--gray-12)' }}>{ item.whitelisted ? Assetlist.toName(item.pair.primaryAsset).replace(item.pair.primaryAsset.chain + ' ', '') : Assetlist.toName(item.pair.primaryAsset) }</Text>
                         }
                       </Flex>
                       { item.whitelisted && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={0.7}></Icon> }
                     </Flex>
-                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ Readability.toMoney(item.pair.secondaryAsset, item.pair.price.close) }</Text>
+                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toMoney(item.pair.secondaryAsset, item.pair.price.close) }</Text>
                   </Flex>
                   <Flex justify="between" align="center">
                     <Flex align="center">
@@ -924,7 +929,7 @@ function MarketExplorer(props: {
                         item.pair.price.poolVolume?.gt(0) && item.pair.price.poolLiquidity?.gt(0) &&
                         <Badge radius="full" size="1" color="purple">{ Exchange.toAPY(item.pair.poolFeeRate || props.market?.maxPoolFeeRate || new BigNumber(0), item.pair.price.poolLiquidity, item.pair.price.poolVolume).toFixed(2) }% APY</Badge>
                       }
-                      <Badge radius="full" size="1" color={ (item.pair.price.open || new BigNumber(0)).gt(item.pair.price.close || new BigNumber(0)) ? 'red' : ((item.pair.price.open || new BigNumber(0)).eq(item.pair.price.close || new BigNumber(0)) ? 'gray' : 'lime') }>{ Readability.toPercentageDelta(item.pair.price.open || new BigNumber(0), item.pair.price.close || new BigNumber(0)) }</Badge>
+                      <Badge radius="full" size="1" color={ (item.pair.price.open || new BigNumber(0)).gt(item.pair.price.close || new BigNumber(0)) ? 'red' : ((item.pair.price.open || new BigNumber(0)).eq(item.pair.price.close || new BigNumber(0)) ? 'gray' : 'lime') }>{ UiUtil.toPercentageDelta(item.pair.price.open || new BigNumber(0), item.pair.price.close || new BigNumber(0)) }</Badge>
                     </Flex>
                   </Flex>
                 </Box>
@@ -1170,7 +1175,7 @@ export default function PortfolioPage() {
                   <AddressAvatar address={baseAddress || ''} size="3"></AddressAvatar>
                   <Flex direction="column">
                     { !readOnly && AppData.isWalletReady() ? <Text color="red" size="2">{ (AppData.hasWalletSecretKey() ? 'Full control' : 'Watch control') }</Text> : <Text color="gray" size="2">Watch only</Text> }
-                    <Text style={{ color: 'var(--gray-12)' }} weight="bold" size="2">{ Readability.toAddress(baseAddress || undefined, 6) }</Text>
+                    <Text style={{ color: 'var(--gray-12)' }} weight="bold" size="2">{ UiUtil.toAddress(baseAddress || undefined, 6) }</Text>
                   </Flex>
                 </Flex>
                 <Icon path={mdiMagnifyScan} style={{ color: 'var(--gray-11)' }} size={1}></Icon>

@@ -2,10 +2,13 @@ import { lazy, StrictMode, useEffect, useState } from "react";
 import { createRoot, Root } from "react-dom/client";
 import { BrowserRouter, NavigateFunction, Route, Routes } from "react-router";
 import { Box, Theme } from "@radix-ui/themes";
-import { Chain, Messages, NetworkType, Pubkey, Pubkeyhash, Hashsig, RPC, SchemaUtil, Seckey, Signing, Stream, TransactionInput, TransactionOutput, Uint256, WalletKeychain, WalletType, Authorizer, Viewable, Hashing, ByteUtil, AssetId, Approving, AuthEntity, AuthApproval, Readability } from "tangentsdk";
+import { AssetId, Uint256, Hashsig, Chain, Signing, Seckey, Pubkey, Pubkeyhash } from 'tangentsdk/algorithm';
+import { WalletKeychain, WalletType, NetworkType, TransactionInput, TransactionOutput, RPC } from 'tangentsdk/rpc';
+import { SchemaUtil, Stream, Viewable } from 'tangentsdk/serialization';
+import { UiUtil } from 'tangentsdk/ui';
+import { Messages } from "tangentsdk/schema";
 import { AppStorage, BigStorage, SafeStorage, StorageField } from "./storage";
 import { Alert, AlertBox, AlertType } from "./../components/alert";
-import { Prompter, PrompterBox } from "../components/prompter";
 import { Navbar } from "../components/navbar";
 import Regtest from './../configs/regtest.json';
 import Testnet from './../configs/testnet.json';
@@ -39,7 +42,7 @@ export const ASSET_INFORMATION: Record<string, ExtendedField> = {
     tokenStandard: 'FT',
     blocking: false
   },
-  "ARB": {
+  "arbETH": {
     transactionTime: 1,
     tokenStandard: 'ERC20',
     blocking: false
@@ -49,7 +52,7 @@ export const ASSET_INFORMATION: Record<string, ExtendedField> = {
     tokenStandard: 'ERC20',
     blocking: false
   },
-  "BASE": {
+  "baseETH": {
     transactionTime: 1,
     tokenStandard: 'ERC20',
     blocking: false
@@ -59,7 +62,7 @@ export const ASSET_INFORMATION: Record<string, ExtendedField> = {
     tokenStandard: null,
     blocking: false
   },
-  "BLAST": {
+  "blastETH": {
     transactionTime: 3,
     tokenStandard: 'ERC20',
     blocking: false
@@ -114,7 +117,7 @@ export const ASSET_INFORMATION: Record<string, ExtendedField> = {
     tokenStandard: 'ERC20',
     blocking: false
   },
-  "GNO": {
+  "XDAI": {
     transactionTime: 6,
     tokenStandard: 'ERC20',
     blocking: false
@@ -124,23 +127,18 @@ export const ASSET_INFORMATION: Record<string, ExtendedField> = {
     tokenStandard: null,
     blocking: false
   },
-  "LINEA": {
+  "lineaETH": {
     transactionTime: 3,
     tokenStandard: 'ERC20',
     blocking: false
   },
-  "MATIC": {
+  "POL": {
     transactionTime: 3,
     tokenStandard: 'ERC20',
     blocking: false
   },
-  "OP": {
+  "opETH": {
     transactionTime: 3,
-    tokenStandard: 'ERC20',
-    blocking: false
-  },
-  "S": {
-    transactionTime: 1,
     tokenStandard: 'ERC20',
     blocking: false
   },
@@ -179,7 +177,12 @@ export const ASSET_INFORMATION: Record<string, ExtendedField> = {
     tokenStandard: null,
     blocking: false
   },
-  "ZK": {
+  "zkETH": {
+    transactionTime: 3,
+    tokenStandard: 'ERC20',
+    blocking: false
+  },
+  "rbhETH": {
     transactionTime: 3,
     tokenStandard: 'ERC20',
     blocking: false
@@ -316,128 +319,6 @@ export class AppData {
       AlertBox.open(AlertType.Error, `${error.message || error} on ${method}`);
     } else {
       console.log('[rpc]', method, data);
-    }
-  }
-  private static async authorizerEvent(request: { event: string, id: number, payload: any}): Promise<boolean> {
-    if (!this.defs.authorizer || PrompterBox.isOpen() || this.approveTransaction)
-      return false;
-
-    return await Authorizer.try(request.payload);
-  }
-  private static async authorizerPrompt(entity: AuthEntity): Promise<AuthApproval> {
-    try {
-      const result = await PrompterBox.open(entity);
-      if (!result)
-        throw new Error('User refused to proceed');
-
-      const account = this.getWalletPublicKeyHash() || null;
-      if (!account)
-        throw new Error('User does not have a address');
-
-      switch (entity.kind) {
-        case Approving.account:
-          AlertBox.open(AlertType.Info, `Account address sent to ${entity.proof.hostname}`);
-          return {
-            account: account,
-            proof: {
-              hash: null,
-              message: null,
-              signature: null
-            }
-          }
-        case Approving.identity: {
-          const secretKey = this.getWalletSecretKey();
-          if (!secretKey)
-            throw new Error('User does not have a secret key');
-
-          const message = ByteUtil.byteStringToUint8Array(Authorizer.schema(entity, account));
-          const messageHash = new Uint256(Hashing.hash256(message));
-          const signature = Signing.sign(messageHash, secretKey);
-          if (!signature)
-            throw new Error('User failed to sign a message');
-
-          AlertBox.open(AlertType.Info, `Ownership proof sent to ${entity.proof.hostname}`);
-          return {
-            account: account,
-            proof: {
-              hash: messageHash,
-              message: message,
-              signature: signature
-            }
-          }
-        }
-        case Approving.message: {
-          if (!entity.sign.message)
-            throw new Error('Invalid message to sign');
-
-          const secretKey = this.getWalletSecretKey();
-          if (!secretKey)
-            throw new Error('User does not have a secret key');
-
-          const messageHash = new Uint256(Hashing.hash256(entity.sign.message));
-          const signature = Signing.sign(messageHash, secretKey);
-          if (!signature)
-            throw new Error('User failed to sign a message');
-
-          AlertBox.open(AlertType.Info, `Message proof sent to ${entity.proof.hostname}`);
-          return {
-            account: account,
-            proof: {
-              hash: messageHash,
-              message: entity.sign.message,
-              signature: signature
-            }
-          }
-        }
-        case Approving.transaction: {
-          if (!entity.sign.message)
-            throw new Error('Invalid transaction to sign');
-
-          if (this.approveTransaction)
-            throw new Error('User is busy signing another transaction');
-
-          const proof = await new Promise<{ hash: Uint256, message: Uint8Array, signature: Hashsig } | null>((resolve) => {
-            if (this.state.setNavigation) {
-              this.approveTransaction = resolve;
-              this.state.setNavigation(`/interaction?type=approve&transaction=${ByteUtil.uint8ArrayToHexString(entity.sign.message || new Uint8Array())}${entity.sign.asset != null ? '&asset=' + entity.sign.asset.id : ''}`);
-            } else {
-              resolve(null);
-            }
-          });
-          this.approveTransaction = null;
-          if (!proof)
-            throw new Error('User refused to sign and send a transaction');
-
-          AlertBox.open(AlertType.Info, `Transaction proof sent to ${entity.proof.hostname}`);
-          return {
-            account: account,
-            proof: {
-              hash: proof.hash,
-              message: proof.message,
-              signature: proof.signature
-            }
-          };
-        }
-        default:
-          throw new Error('Invalid kind of entity');
-      }
-    } catch (exception) {
-      AlertBox.open(AlertType.Error, `Action from ${entity.proof.hostname} - approval denied`);
-      throw exception;
-    }
-  }
-  private static async authorizerDomain(hostname: string): Promise<string[]> {
-    try {
-      if (!this.isApp())
-        return [];
-
-      const tauri = await this.tauri();
-      const result: string[] = await tauri.invoke('resolve_domain_txt', {
-        hostname: hostname
-      });
-      return result;
-    } catch {
-      return [];
     }
   }
   static save(silent: boolean = false): void {
@@ -587,7 +468,7 @@ export class AppData {
       throw new Error('Transaction data is malformed');
 
     const type32 = type.toInteger();
-    const typename: string | null = Readability.toTransactionType(type32);
+    const typename: string | null = UiUtil.toTransactionType(type32);
     if (!typename)
       throw new Error('Transaction type ' + type.toCompactHex() + ' is not among valid ones');
 
@@ -732,10 +613,6 @@ export class AppData {
       this.props = props;
     }
 
-    Authorizer.applyImplementation({
-      prompt: (entity) => this.authorizerPrompt(entity),
-      resolveDomainTXT: this.authorizerDomain
-    });
     RPC.applyImplementation({
       onNodeMessage: this.nodeMessage,
       onCacheStore: (path: string, value: any): Promise<boolean> => BigStorage.set((this.defs.cachePrefix || 'V') + ':' + path, value),
@@ -744,11 +621,6 @@ export class AppData {
     });
     this.reconfigure(null, AppPermission.ReadOnly);
     this.render();
-    
-    if (this.isApp()) {
-      const { listen } = await import("@tauri-apps/api/event");
-      listen('authorizer', (event: any) => this.authorizerEvent(event));
-    }
   }
   static reconfigure(network: NetworkType | null, type: AppPermission): void {
     const prevNetwork = AppStorage.get(StorageField.Network) || this.defaultNetwork();
@@ -905,6 +777,13 @@ export function App() {
   AppData.state.setState = setState;
   useEffect(() => {
     AppData.removeSplashscreen();
+    const onDeferredData = () => AppData.setState();
+    window.addEventListener('tg-assets-ready', onDeferredData);
+    window.addEventListener('tg-whitelist-ready', onDeferredData);
+    return () => {
+      window.removeEventListener('tg-assets-ready', onDeferredData);
+      window.removeEventListener('tg-whitelist-ready', onDeferredData);
+    };
   }, []);
 
   return (
@@ -931,7 +810,6 @@ export function App() {
         </BrowserRouter>
       </Box>
       <Alert></Alert>
-      <Prompter></Prompter>
     </Theme>
   )
 }

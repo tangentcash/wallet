@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Badge, Box, Button, Callout, Card, DataList, Flex, Heading, IconButton, Progress, Spinner, Table, Text } from "@radix-ui/themes";
 import { mdiArrowLeftBoldCircleOutline, mdiArrowRightBoldCircleOutline, mdiListStatus } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
-import { AssetId, Chain, RPC, Readability, lerp } from "tangentsdk";
+import { UiUtil, lerp } from "tangentsdk/ui";
+import { AssetId, Chain } from "tangentsdk/algorithm";
+import { RPC } from "tangentsdk/rpc";
 import { AppData } from "../core/app";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
@@ -140,7 +142,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.hash);
                   AlertBox.open(AlertType.Info, 'Block hash copied!')
-                }}>{ Readability.toHash(block.hash, 12) }</Button>
+                }}>{ UiUtil.toHash(block.hash, 12) }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/block/' + block.hash}>▒▒</Link>
                 </Box>
@@ -152,7 +154,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.parent_hash);
                   AlertBox.open(AlertType.Info, 'Parent hash copied!')
-                }}>{ Readability.toHash(block.parent_hash, 12) }</Button>
+                }}>{ UiUtil.toHash(block.parent_hash, 12) }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/block/' + block.parent_hash}>▒▒</Link>
                 </Box>
@@ -164,7 +166,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.pow.proof);
                   AlertBox.open(AlertType.Info, 'Block proof copied!')
-                }}>{ Readability.toHash(block.pow.proof, 12) }</Button>
+                }}>{ UiUtil.toHash(block.pow.proof, 12) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -173,7 +175,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.transaction_root);
                   AlertBox.open(AlertType.Info, 'Merkle root hash copied!')
-                }}>{ Readability.toHash(block.transaction_root, 12) }</Button>
+                }}>{ UiUtil.toHash(block.transaction_root, 12) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -182,7 +184,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.receipt_root);
                   AlertBox.open(AlertType.Info, 'Merkle root hash copied!')
-                }}>{ Readability.toHash(block.receipt_root, 12) }</Button>
+                }}>{ UiUtil.toHash(block.receipt_root, 12) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -191,7 +193,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.state_root);
                   AlertBox.open(AlertType.Info, 'Merkle root hash copied!')
-                }}>{ Readability.toHash(block.state_root, 12) }</Button>
+                }}>{ UiUtil.toHash(block.state_root, 12) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -200,7 +202,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.signature);
                   AlertBox.open(AlertType.Info, 'Block signature copied!')
-                }}>{ Readability.toHash(block.signature, 12) }</Button>
+                }}>{ UiUtil.toHash(block.signature, 12) }</Button>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -209,7 +211,7 @@ export default function BlockPage() {
                 <Button size="2" variant="ghost" color="indigo" onClick={() => {
                   navigator.clipboard.writeText(block.producer);
                   AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ Readability.toAddress(block.producer) }</Button>
+                }}>{ UiUtil.toAddress(block.producer) }</Button>
                 <Box ml="2">
                   <Link className="router-link" to={'/account/' + block.producer}>▒▒</Link>
                 </Box>
@@ -231,7 +233,7 @@ export default function BlockPage() {
             <DataList.Item>
               <DataList.Label>Status:</DataList.Label>
               <DataList.Value>
-                <Badge color="gray">Extension in { Readability.toTimespan(time) }</Badge>
+                <Badge color="gray">Extension in { UiUtil.toTimespan(time) }</Badge>
               </DataList.Value>
             </DataList.Item>
             {
@@ -240,7 +242,7 @@ export default function BlockPage() {
                   <DataList.Item key={item.asset.chain + item.number.toString()}>
                     <DataList.Label>Tangent to:</DataList.Label>
                     <DataList.Value>
-                      <Badge color="gray">{ item.asset.chain } block number #{ Readability.toValue(null, item.number, false, false) }</Badge>
+                      <Badge color="gray">{ item.asset.chain } block number #{ UiUtil.toValue(null, item.number, false, false) }</Badge>
                     </DataList.Value>
                   </DataList.Item>
                 )
@@ -255,50 +257,50 @@ export default function BlockPage() {
               <DataList.Item>
                 <DataList.Label>Confidence:</DataList.Label>
                 <DataList.Value>
-                  <Badge color="yellow">{ Readability.toCount('confirmation', AppData.tip.minus(block.number).plus(1)) }</Badge>
+                  <Badge color="yellow">{ UiUtil.toCount('confirmation', AppData.tip.minus(block.number).plus(1)) }</Badge>
                 </DataList.Value>
               </DataList.Item>
             }
             <DataList.Item>
               <DataList.Label>Supply:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(new AssetId(), supply) }</DataList.Value>
+              <DataList.Value>{ UiUtil.toMoney(new AssetId(), supply) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Coinbase:</DataList.Label>
-              <DataList.Value>{ Readability.toMoney(new AssetId(), block.coinbase, true) }</DataList.Value>
+              <DataList.Value>{ UiUtil.toMoney(new AssetId(), block.coinbase, true) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Difficulty:</DataList.Label>
               {
                 block.pow.mdifficulty > 1 &&
                 <DataList.Value>
-                  <Badge color="red">{ Readability.toUnit(block.pow.kdifficulty) } +{ ((block.pow.mdifficulty.toNumber() * 100) - 100).toFixed(2) + '%' }</Badge>
+                  <Badge color="red">{ UiUtil.toUnit(block.pow.kdifficulty) } +{ ((block.pow.mdifficulty.toNumber() * 100) - 100).toFixed(2) + '%' }</Badge>
                 </DataList.Value>
               }
               {
                 block.pow.mdifficulty <= 1 &&
-                <DataList.Value>{ Readability.toUnit(block.pow.kdifficulty) }</DataList.Value>
+                <DataList.Value>{ UiUtil.toUnit(block.pow.kdifficulty) }</DataList.Value>
               }
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Absolute work:</DataList.Label>
-              <DataList.Value>{ Readability.toCount('weight unit', block.absolute_work) }</DataList.Value>
+              <DataList.Value>{ UiUtil.toCount('weight unit', block.absolute_work) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Transactions:</DataList.Label>
-              <DataList.Value>{ Readability.toCount('transaction', block.transaction_count) } | { Readability.toValue(null, new BigNumber(1000).multipliedBy(block.transaction_count).dividedBy(time).toFixed(2), false, false) }/sec.</DataList.Value>
+              <DataList.Value>{ UiUtil.toCount('transaction', block.transaction_count) } | { UiUtil.toValue(null, new BigNumber(1000).multipliedBy(block.transaction_count).dividedBy(time).toFixed(2), false, false) }/sec.</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Transitions:</DataList.Label>
-              <DataList.Value>{ Readability.toCount('transition', block.transition_count) } | { Readability.toValue(null, new BigNumber(1000).multipliedBy(block.transition_count).dividedBy(time).toFixed(2), false, false) }/sec.</DataList.Value>
+              <DataList.Value>{ UiUtil.toCount('transition', block.transition_count) } | { UiUtil.toValue(null, new BigNumber(1000).multipliedBy(block.transition_count).dividedBy(time).toFixed(2), false, false) }/sec.</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Gas limit:</DataList.Label>
-              <DataList.Value>{ Readability.toGas(block.gas_limit) } | &lt; { Readability.toCount('KB', ((block.gas_limit / 32) / 1024).toFixed(2)) }</DataList.Value>
+              <DataList.Value>{ UiUtil.toGas(block.gas_limit) } | &lt; { UiUtil.toCount('KB', ((block.gas_limit / 32) / 1024).toFixed(2)) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Gas use:</DataList.Label>
-              <DataList.Value>{ Readability.toGas(block.gas_use) } | { (block.gas_use.div(block.gas_limit.gt(0) ? block.gas_limit : 1).toNumber() * 100).toFixed(2) }%</DataList.Value>
+              <DataList.Value>{ UiUtil.toGas(block.gas_use) } | { (block.gas_use.div(block.gas_limit.gt(0) ? block.gas_limit : 1).toNumber() * 100).toFixed(2) }%</DataList.Value>
             </DataList.Item>
           </DataList.Root>
           <Box mt="2">
@@ -309,7 +311,7 @@ export default function BlockPage() {
             <DataList.Item>
               <DataList.Label>Slot activity:</DataList.Label>
               <DataList.Value>
-                <Badge color="yellow">{ Readability.toCount('block', block.slot.length) } in { Readability.toTimespan(new BigNumber(block.slot.duration_total).plus(time)) }</Badge>
+                <Badge color="yellow">{ UiUtil.toCount('block', block.slot.length) } in { UiUtil.toTimespan(new BigNumber(block.slot.duration_total).plus(time)) }</Badge>
               </DataList.Value>
             </DataList.Item>
             <DataList.Item>
@@ -320,15 +322,15 @@ export default function BlockPage() {
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Slot block time:</DataList.Label>
-              <DataList.Value>{ Readability.toTimespan(block.slot.duration_average) } per block</DataList.Value>
+              <DataList.Value>{ UiUtil.toTimespan(block.slot.duration_average) } per block</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Slot gas limit:</DataList.Label>
-              <DataList.Value>{ Readability.toGas(block.slot.gas_limit) } | &lt; { Readability.toCount('KB', ((block.slot.gas_limit / 32) / 1024).toFixed(2)) }</DataList.Value>
+              <DataList.Value>{ UiUtil.toGas(block.slot.gas_limit) } | &lt; { UiUtil.toCount('KB', ((block.slot.gas_limit / 32) / 1024).toFixed(2)) }</DataList.Value>
             </DataList.Item>
             <DataList.Item>
               <DataList.Label>Slot gas use:</DataList.Label>
-              <DataList.Value>{ Readability.toGas(block.slot.gas_use) } | { (block.slot.gas_use.div(block.slot.gas_limit.gt(0) ? block.slot.gas_limit : 1).toNumber() * 100).toFixed(2) }%</DataList.Value>
+              <DataList.Value>{ UiUtil.toGas(block.slot.gas_use) } | { (block.slot.gas_use.div(block.slot.gas_limit.gt(0) ? block.slot.gas_limit : 1).toNumber() * 100).toFixed(2) }%</DataList.Value>
             </DataList.Item>
           </DataList.Root>
           <Box mt="2">
@@ -352,7 +354,7 @@ export default function BlockPage() {
                         <Button size="2" variant="ghost" color="indigo" onClick={() => {
                           navigator.clipboard.writeText(hash);
                           AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                        }}>{ Readability.toHash(hash, document.body.clientWidth < 500 ? 6 : 12) }</Button>
+                        }}>{ UiUtil.toHash(hash, document.body.clientWidth < 500 ? 6 : 12) }</Button>
                         <Box ml="2">
                           <Link className="router-link" to={'/transaction/' + hash}>▒▒</Link>
                         </Box>
@@ -398,11 +400,11 @@ export default function BlockPage() {
             <Flex wrap="wrap" gap="3">
               <Card>
                 <Heading size="3">Block number</Heading>
-                <Text>{ Readability.toValue(null, blockETA.blockNumber, false, false) }</Text>
+                <Text>{ UiUtil.toValue(null, blockETA.blockNumber, false, false) }</Text>
               </Card>
               <Card>
                 <Heading size="3">Block countdown</Heading>
-                <Text>{ Readability.toValue(null, blockETA.blockDelta.negated(), true, false) } | { new BigNumber(1).minus(blockETA.blockNumber.minus(blockETA.blockDelta).dividedBy(blockETA.blockNumber)).multipliedBy(100).toFixed(3) }% left</Text>
+                <Text>{ UiUtil.toValue(null, blockETA.blockDelta.negated(), true, false) } | { new BigNumber(1).minus(blockETA.blockNumber.minus(blockETA.blockDelta).dividedBy(blockETA.blockNumber)).multipliedBy(100).toFixed(3) }% left</Text>
               </Card>
               <Card>
                 <Heading size="3">Estimated date</Heading>

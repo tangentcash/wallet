@@ -1,7 +1,7 @@
 import { Box, Callout, IconButton } from "@radix-ui/themes";
 import { mdiAlertCircleOutline, mdiClose, mdiInformationOutline } from '@mdi/js';
 import { useState } from "react";
-import { lerp } from "tangentsdk";
+import { lerp } from "tangentsdk/ui";
 import Icon from '@mdi/react';
 import './alert.css';
 

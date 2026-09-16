@@ -1,11 +1,14 @@
 import { mdiAlphabeticalVariant, mdiCancel, mdiConsole, mdiHistory, mdiMagnify, mdiPlus } from "@mdi/js";
 import { Badge, Box, Button, Dialog, Flex, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { AssetId, Readability, Whitelist } from "tangentsdk";
+import { AssetId } from "tangentsdk/algorithm";
+import { UiUtil } from "tangentsdk/ui";
+import { Whitelist } from "tangentsdk/whitelist";
 import { Exchange, BlockchainInfo, ExchangeField } from "../../core/exchange";
-import { AssetImage, AssetName } from "../asset";
-import Icon from "@mdi/react";
+import { AssetImage } from "../asset-image";
+import { AssetName } from "../asset-name";
 import { AppStorage } from "../../core/storage";
+import Icon from "@mdi/react";
 
 function assetSort(a: { asset: AssetId, contractAddress: boolean | string }, b: { asset: AssetId, contractAddress: boolean | string }): number {
   if ((a.contractAddress && !b.contractAddress) || (!a.asset.token && b.asset.token)) {
@@ -146,8 +149,8 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
                     <Flex align="start" direction="column">
                       <AssetName asset={item.asset}></AssetName>
                       <Flex gap="2" align="center" wrap="wrap">
-                        <Text size="2">{ Readability.toAssetSymbol(item.asset) }</Text>
-                        { typeof item.contractAddress == 'string' && <Badge color="amber" size="1" radius="full">{ Readability.toAddress(item.contractAddress, 8) }</Badge> }
+                        <Text size="2">{ UiUtil.toAssetSymbol(item.asset) }</Text>
+                        { typeof item.contractAddress == 'string' && <Badge color="amber" size="1" radius="full">{ UiUtil.toAddress(item.contractAddress, 8) }</Badge> }
                       </Flex>
                     </Flex>
                   </Flex>
@@ -166,8 +169,8 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
                           <AssetName asset={item.asset}></AssetName>
                         </Flex>
                         <Flex gap="2" align="center" wrap="wrap">
-                          <Text size="2">{ Readability.toAssetSymbol(item.asset) }</Text>
-                          { typeof item.contractAddress == 'string' && <Badge color="amber" size="1" radius="full">{ Readability.toAddress(item.contractAddress, 8) }</Badge> }
+                          <Text size="2">{ UiUtil.toAssetSymbol(item.asset) }</Text>
+                          { typeof item.contractAddress == 'string' && <Badge color="amber" size="1" radius="full">{ UiUtil.toAddress(item.contractAddress, 8) }</Badge> }
                         </Flex>
                       </Flex>
                     </Flex>
@@ -251,8 +254,8 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
                     <Flex align="start" direction="column">
                       <AssetName asset={customToken} size="2"></AssetName>
                       <Flex gap="2" align="center" wrap="wrap">
-                        <Text size="2">{ Readability.toAssetSymbol(customToken) }</Text>
-                        { typeof customToken.contractAddress == 'string' && <Badge color="amber" size="1" radius="full">{ Readability.toAddress(customToken.contractAddress, 8) }</Badge> }
+                        <Text size="2">{ UiUtil.toAssetSymbol(customToken) }</Text>
+                        { typeof customToken.contractAddress == 'string' && <Badge color="amber" size="1" radius="full">{ UiUtil.toAddress(customToken.contractAddress, 8) }</Badge> }
                       </Flex>
                     </Flex>
                   </Flex>
@@ -265,7 +268,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
                   <AssetImage asset={policy} size="2" iconSize="48px"></AssetImage>
                   <Flex align="start" direction="column">
                     <AssetName asset={policy} size="2"></AssetName>
-                    <Text size="2">{ Readability.toAssetSymbol(policy) }</Text>
+                    <Text size="2">{ UiUtil.toAssetSymbol(policy) }</Text>
                   </Flex>
                 </Flex>
               </Button>

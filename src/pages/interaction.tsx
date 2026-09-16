@@ -4,9 +4,16 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
-import { AssetId, ByteUtil, Chain, Ledger, RPC, Signing, TextUtil, TransactionOutput, Transactions, Uint256, Readability, Hashsig, Pubkeyhash, Pubkey, Seckey, SummaryState, EventResolver, Whitelist, Pow256 } from "tangentsdk";
+import { AssetId, ByteUtil, Chain, Signing, Uint256, Hashsig, Pubkeyhash, Pubkey, Seckey, Pow256 } from "tangentsdk/algorithm";
+import { SummaryState, EventResolver, RPC, TransactionOutput } from "tangentsdk/rpc";
+import { Whitelist } from "tangentsdk/whitelist";
+import { UiUtil } from "tangentsdk/ui";
+import { Assetlist } from "tangentsdk/assetlist";
+import { Ledger, Transactions } from "tangentsdk/schema";
+import { TextUtil } from "tangentsdk/text";
 import { AppData } from "../core/app";
-import { AssetImage, AssetName } from "../components/asset";
+import { AssetImage } from "../components/asset-image";
+import { AssetName } from "../components/asset-name";
 import { TransactionView } from "../components/transaction";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
@@ -361,7 +368,7 @@ export default function InteractionPage() {
     } else if (program instanceof ProgramRoute) {
       const routing = program.routing.find((item) => item.chain == assets[asset].asset.chain);
       if (routing?.policy == 'account' && !program.routingAddress.length)
-        return `Type in the sender ${Readability.toAssetName(AssetId.fromHandle(assets[asset].asset.chain))} address`;
+        return `Type in the sender ${Assetlist.toName(AssetId.fromHandle(assets[asset].asset.chain))} address`;
 
       if (params.vault == null)
         return 'URL must include a vault hash';
@@ -387,7 +394,7 @@ export default function InteractionPage() {
         if (publicKeyHash != null || !program.address.length)
           throw false;
       } catch {
-        return `Type in the ${Readability.toAssetName(AssetId.fromHandle(child.asset.chain))} address to send to`;
+        return `Type in the ${Assetlist.toName(AssetId.fromHandle(child.asset.chain))} address to send to`;
       }
 
       try {
@@ -395,22 +402,22 @@ export default function InteractionPage() {
         if (numeric.isNaN() || !numeric.isPositive())
           throw false;
       } catch {
-        return `Type in the valid ${Readability.toAssetSymbol(child.asset)} amount to send`;
+        return `Type in the valid ${UiUtil.toAssetSymbol(child.asset)} amount to send`;
       }
       
       if (params.vault == null)
         return 'URL must include a vault hash';
 
       if (!sendingValue.gt(0))
-        return `Sending too little of ${Readability.toAssetSymbol(child.asset)}`;
+        return `Sending too little of ${UiUtil.toAssetSymbol(child.asset)}`;
       else if (sendingValue.gt(assets[asset].balance))
-        return `Sending too much ${Readability.toAssetSymbol(child.asset)}`;
+        return `Sending too much ${UiUtil.toAssetSymbol(child.asset)}`;
  
       if (child.asset.token != null && program.fee != null) {
         const base = AssetId.fromHandle(child.asset.chain);
         const parent = assets.find(x => x.asset.chain == child.asset.chain && x.asset.token == null);
         if (!parent || parent.balance.lt(BigNumber.max(0, program.fee)))
-          return `Not enough ${Readability.toAssetSymbol(base)} in your account: ${Readability.toMoney(base, program.fee)} required`
+          return `Not enough ${UiUtil.toAssetSymbol(base)} in your account: ${UiUtil.toMoney(base, program.fee)} required`
       }
 
       return null;
@@ -472,16 +479,16 @@ export default function InteractionPage() {
     if (payAsset.asset.id != (gasAsset ? gasAsset.id : null)) {
       const gasAssetBalance = (gasAsset ? assets.find((v) => v.asset.id == gasAsset.id)?.balance : null) || new BigNumber(0);
       if (maxFeeValue.gt(gasAssetBalance))
-        return `Not enough balance to pay for gas: ${Readability.toMoney(gasAsset, maxFeeValue)} required`;
+        return `Not enough balance to pay for gas: ${UiUtil.toMoney(gasAsset, maxFeeValue)} required`;
       else if (sendingValue.gt(payAsset.balance))
-        return `Not enough balance to spend: ${Readability.toMoney(gasAsset, payAsset.balance)} required`;
+        return `Not enough balance to spend: ${UiUtil.toMoney(gasAsset, payAsset.balance)} required`;
       return null;
     } else {
       const totalValue = maxFeeValue.plus(sendingValue);
       if (maxFeeValue.gt(payAsset.balance))
-        return `Not enough balance to pay for gas: ${Readability.toMoney(gasAsset, maxFeeValue)} required`;
+        return `Not enough balance to pay for gas: ${UiUtil.toMoney(gasAsset, maxFeeValue)} required`;
       else if (totalValue.gt(payAsset.balance))
-        return `Not enough balance to spend: ${Readability.toMoney(gasAsset, totalValue)} required`;
+        return `Not enough balance to spend: ${UiUtil.toMoney(gasAsset, totalValue)} required`;
       return null;
     }
   }, [programError, paidGas, gasPrice, gasLimit, gasAsset, maxFeeValue, sendingValue]);
@@ -925,7 +932,7 @@ export default function InteractionPage() {
                     <Flex align="center" gap="2">
                       <AssetImage asset={item.asset} size="1" iconSize="24px"></AssetImage>
                       <Flex gap="2" align="center">
-                        <Text size="4">{ Readability.toMoney(null, item.balance) }</Text>
+                        <Text size="4">{ UiUtil.toMoney(null, item.balance) }</Text>
                         <AssetName asset={item.asset} size="4" badgeSize={0.8} badgeOffset={4} symbol={true}></AssetName>
                       </Flex>
                     </Flex>
@@ -939,7 +946,7 @@ export default function InteractionPage() {
           proMode && asset != -1 && typeof assets[asset].contractAddress == 'string' &&
           <Box width="100%" mt="3">
             <Tooltip content="Contract address of a token that was matched against public whitelist">
-              <TextField.Root size="3" type="text" color="red" value={'Token: ' + Readability.toAddress(assets[asset].contractAddress, 12)} readOnly={true} />
+              <TextField.Root size="3" type="text" color="red" value={'Token: ' + UiUtil.toAddress(assets[asset].contractAddress, 12)} readOnly={true} />
             </Tooltip>
           </Box>
         }
@@ -947,7 +954,7 @@ export default function InteractionPage() {
           proMode && asset != -1 && params.vault != null &&
           <Box width="100%" mt="3">
             <Tooltip content="Vault that will process the transaction">
-              <TextField.Root size="3" type="text" color="red" value={'Vault: ' + Readability.toAddress(params.vault, 16)} readOnly={true} />
+              <TextField.Root size="3" type="text" color="red" value={'Vault: ' + UiUtil.toAddress(params.vault, 16)} readOnly={true} />
             </Tooltip>
           </Box>
         }
@@ -956,7 +963,7 @@ export default function InteractionPage() {
           <Flex justify="between" mt="3" gap="1">
             <Box width="100%">
               <Tooltip content="Original approval transaction data (hex or binary)">
-                <TextField.Root size="3" placeholder="Raw transaction data" type="text" value={'Data: ' + Readability.toAddress(program.hexMessage, 12)} readOnly={true} />
+                <TextField.Root size="3" placeholder="Raw transaction data" type="text" value={'Data: ' + UiUtil.toAddress(program.hexMessage, 12)} readOnly={true} />
               </Tooltip>
             </Box>
             <Button size="3" variant="surface" disabled={readOnlyApproval} onClick={async () => {
@@ -997,7 +1004,7 @@ export default function InteractionPage() {
               <Flex gap="2">
                 <Box width="100%">
                   <Tooltip content="Payment value received by account">
-                    <TextField.Root size="3" placeholder={'Payment in ' + Readability.toAssetSymbol(assets[asset].asset)} type="number" value={item.value} onChange={(e) => {
+                    <TextField.Root size="3" placeholder={'Payment in ' + UiUtil.toAssetSymbol(assets[asset].asset)} type="number" value={item.value} onChange={(e) => {
                       const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                       copy.to[index].value = e.target.value;
                       setProgram(copy);
@@ -1054,7 +1061,7 @@ export default function InteractionPage() {
               program.blockProduction == 'enable' &&
               <Box width="100%" mt="4">
                 <Tooltip content="Locking value to activate block production staking">
-                  <TextField.Root mb="3" size="3" placeholder={'Block production stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={program.blockProductionStake} onChange={(e) => {
+                  <TextField.Root mb="3" size="3" placeholder={'Block production stake in ' + UiUtil.toAssetSymbol(new AssetId())} type="number" value={program.blockProductionStake} onChange={(e) => {
                     const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                     copy.blockProductionStake = e.target.value;
                     setProgram(copy);
@@ -1086,7 +1093,7 @@ export default function InteractionPage() {
               program.bridgeParticipation == 'enable' &&
               <Box width="100%" mt="4">
                 <Tooltip content="Locking value to activate vault participation staking">
-                  <TextField.Root mb="3" size="3" placeholder={'Vault participation stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={program.bridgeParticipationStake} onChange={(e) => {
+                  <TextField.Root mb="3" size="3" placeholder={'Vault participation stake in ' + UiUtil.toAssetSymbol(new AssetId())} type="number" value={program.bridgeParticipationStake} onChange={(e) => {
                     const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                     copy.bridgeParticipationStake = e.target.value;
                     setProgram(copy);
@@ -1110,7 +1117,7 @@ export default function InteractionPage() {
                     </Heading>
                     <Box width="100%">
                       <Tooltip content="Locking value to activate/increase vault attestation staking">
-                        <TextField.Root mb="3" size="3" placeholder={'Attestation stake in ' + Readability.toAssetSymbol(new AssetId())} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
+                        <TextField.Root mb="3" size="3" placeholder={'Attestation stake in ' + UiUtil.toAssetSymbol(new AssetId())} type="number" value={item.stake || ''} disabled={item.stake == null} onChange={(e) => {
                           const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                           copy.attestations[index].stake = e.target.value;
                           setProgram(copy);
@@ -1369,7 +1376,7 @@ export default function InteractionPage() {
             {
               program.routingAddress &&
               <Tooltip content="Prove that you have the control over that address to re-claim it back to your account (applicable only when address is already taken by some other account)">
-                <Box mt="4" width="100%">
+                <Box mt="4" pr="1" width="100%">
                   <Text as="label" size="2" style={{ color: program.ownershipProof ? 'var(--accent-11)' : 'var(--gray-11)' }}>
                     <Flex gap="2" justify="end">
                       <Checkbox size="3" checked={program.ownershipProof} onCheckedChange={async (value) => {
@@ -1383,7 +1390,7 @@ export default function InteractionPage() {
                         }
                         setProgram(copy);
                       }} />
-                      <Text>Re-claim taken address</Text>
+                      <Text>Claim taken address</Text>
                     </Flex>
                   </Text>
                 </Box>
@@ -1395,8 +1402,8 @@ export default function InteractionPage() {
           asset != -1 && program instanceof ProgramWithdraw &&  
           <Box mt="4">
             <Box width="100%" mb="3">
-              <Tooltip content={`Send to ${Readability.toAssetName(AssetId.fromHandle(assets[asset].asset.chain))} address`}>
-                <TextField.Root size="3" placeholder={`${Readability.toAssetName(AssetId.fromHandle(assets[asset].asset.chain))} address`} type="text" value={program.address} onChange={(e) => {
+              <Tooltip content={`Send to ${Assetlist.toName(AssetId.fromHandle(assets[asset].asset.chain))} address`}>
+                <TextField.Root size="3" placeholder={`${Assetlist.toName(AssetId.fromHandle(assets[asset].asset.chain))} address`} type="text" value={program.address} onChange={(e) => {
                   const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                   copy.address = e.target.value;
                   setProgram(copy);
@@ -1406,7 +1413,7 @@ export default function InteractionPage() {
             <Flex gap="2" mb="3">
               <Box width="100%">
                 <Tooltip content="Payment value received by account">
-                  <TextField.Root size="3" placeholder={'Payment in ' + Readability.toAssetSymbol(assets[asset].asset)} type="number" value={program.value} onChange={(e) => {
+                  <TextField.Root size="3" placeholder={'Payment in ' + UiUtil.toAssetSymbol(assets[asset].asset)} type="number" value={program.value} onChange={(e) => {
                     const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                     copy.value = e.target.value;
                     setProgram(copy);
@@ -1417,7 +1424,7 @@ export default function InteractionPage() {
             </Flex>
             <Box width="100%">
               <Tooltip content="Fee to be deducted from account balance">
-                <TextField.Root size="3" type="text" color="red" value={'Cost: ' + Readability.toMoney(AssetId.fromHandle(assets[asset].asset.chain), params.fee)} readOnly={true} />
+                <TextField.Root size="3" type="text" color="red" value={'Cost: ' + UiUtil.toMoney(AssetId.fromHandle(assets[asset].asset.chain), params.fee)} readOnly={true} />
               </Tooltip>
             </Box>
           </Box>
@@ -1475,7 +1482,7 @@ export default function InteractionPage() {
               }} />
             </Tooltip>
             <Tooltip content="Higher gas price increases transaction priority">
-              <TextField.Root mt="3" mb="3" size="3" placeholder={"Custom gas price in " + Readability.toAssetSymbol(gasAsset || new AssetId())} type="number" disabled={loadingGasPriceAndPrice} value={gasPrice} onChange={(e) => setGasPrice(e.target.value)} />
+              <TextField.Root mt="3" mb="3" size="3" placeholder={"Custom gas price in " + UiUtil.toAssetSymbol(gasAsset || new AssetId())} type="number" disabled={loadingGasPriceAndPrice} value={gasPrice} onChange={(e) => setGasPrice(e.target.value)} />
             </Tooltip>
             <Tooltip content="Gas limit caps max transaction cost">
               <TextField.Root mb="3" size="3" placeholder="Custom gas limit" type="number" disabled={loadingGasPriceAndPrice} value={gasLimit} onChange={(e) => setGasLimit(e.target.value)} />
@@ -1483,7 +1490,7 @@ export default function InteractionPage() {
             <Flex gap="2">
               <Box width="100%">
                 <Tooltip content="Max possible transaction fee">
-                  <TextField.Root size="3" placeholder="Max fee value" readOnly={true} value={gasPrice.length > 0 && gasLimit.length > 0 ? 'Pay up to ' + Readability.toMoney(gasAsset, maxFeeValue) + ' in fees' : 'Fee to be estimated'} onClick={() => {
+                  <TextField.Root size="3" placeholder="Max fee value" readOnly={true} value={gasPrice.length > 0 && gasLimit.length > 0 ? 'Pay up to ' + UiUtil.toMoney(gasAsset, maxFeeValue) + ' in fees' : 'Fee to be estimated'} onClick={() => {
                     navigator.clipboard.writeText(maxFeeValue.toString());
                     AlertBox.open(AlertType.Info, 'Value copied!')
                   }}/>

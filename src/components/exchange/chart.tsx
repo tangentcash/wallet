@@ -6,8 +6,10 @@ import { useEffectAsync } from "../../core/react";
 import { AreaSeries, BarSeries, CandlestickSeries, Chart, HistogramSeries, LineSeries, TimeScale, TimeScaleFitContentTrigger, SeriesApiRef } from "lightweight-charts-react-components";
 import { LogicalRangeChangeEventHandler, MouseEventHandler, BarPrice, ChartOptions, CrosshairMode, DeepPartial, IChartApi, LogicalRange, MouseEventParams, PriceScaleMode, Time } from "lightweight-charts";
 import { mdiAlert, mdiCheckDecagram, mdiCog, mdiCubeOutline, mdiTimelapse } from "@mdi/js";
-import { AssetId, Readability } from "tangentsdk";
-import { AssetImage } from "../../components/asset";
+import { AssetId } from "tangentsdk/algorithm";
+import { UiUtil } from "tangentsdk/ui";
+import { Assetlist } from "tangentsdk/assetlist";
+import { AssetImage } from "../../components/asset-image";
 import Color from 'colorjs.io';
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
@@ -263,18 +265,18 @@ export function ChartTitle({
         <Flex justify="between">
           <Tooltip side="left" content={whitelisted === true ? 'Well-known trading pair — current price is possibly within reasonable market ranges' : (whitelisted === false ? 'One or both of assets in trading pair are unknown and are possibly malicious — current price is likely not representative of actual market conditions' : 'Loading...')}>
             <Flex gap="1">
-              <Text size={mobile ? '3' : '4'} style={{ height: '18px', color: 'var(--gray-12)' }}>{ orderbook?.primaryAsset ? Readability.toAssetName(orderbook.primaryAsset) : '?' }</Text>
+              <Text size={mobile ? '3' : '4'} style={{ height: '18px', color: 'var(--gray-12)' }}>{ orderbook?.primaryAsset ? Assetlist.toName(orderbook.primaryAsset) : '?' }</Text>
               { <Icon path={whitelisted === true ? mdiCheckDecagram : (whitelisted === false ? mdiAlert : mdiTimelapse)} color={whitelisted === true ? 'var(--sky-9)' : (whitelisted === false ? 'var(--yellow-9)' : 'var(--gray-9)')} size={0.75} style={{ transform: 'translateY(3px)' }}></Icon> }
             </Flex>
           </Tooltip>
-          <Text size={mobile ? '3' : '4'} style={{ height: '18px' }}>{ Readability.toValue(null, pair?.price.close || null, false, true) }</Text>
+          <Text size={mobile ? '3' : '4'} style={{ height: '18px' }}>{ UiUtil.toValue(null, pair?.price.close || null, false, true) }</Text>
         </Flex>
         <Flex justify="between" align="center" mt={mobile ? undefined : '1'}>
-          <Text size={mobile ? '1' : '2'} color="gray">{ (orderbook?.primaryAsset ? Readability.toAssetSymbol(orderbook.primaryAsset) : '?') + 'x' + (orderbook?.secondaryAsset ? Readability.toAssetSymbol(orderbook.secondaryAsset) : '?') }</Text>
+          <Text size={mobile ? '1' : '2'} color="gray">{ (orderbook?.primaryAsset ? UiUtil.toAssetSymbol(orderbook.primaryAsset) : '?') + 'x' + (orderbook?.secondaryAsset ? UiUtil.toAssetSymbol(orderbook.secondaryAsset) : '?') }</Text>
           <Box>
-            <Text size={mobile ? '1' : '2'}>{ Readability.toValue(null, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true, true) }</Text>
+            <Text size={mobile ? '1' : '2'}>{ UiUtil.toValue(null, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true, true) }</Text>
             <Text size={mobile ? '1' : '2'} color="gray"> | </Text>
-            <Text size={mobile ? '1' : '2'} style={{ color: (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'var(--red-11)' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'var(--accent-11)') }}>{ Readability.toPercentageDelta(pair?.price.open || new BigNumber(0), pair?.price.close || new BigNumber(0)) }</Text>
+            <Text size={mobile ? '1' : '2'} style={{ color: (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'var(--red-11)' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'var(--accent-11)') }}>{ UiUtil.toPercentageDelta(pair?.price.open || new BigNumber(0), pair?.price.close || new BigNumber(0)) }</Text>
           </Box>
         </Flex>
       </Flex>
@@ -344,7 +346,7 @@ export function ChartWidget({
         secondsVisible: true
       },
       localization: {
-          priceFormatter: (price: BarPrice): string => Readability.toValue(null, price, false, true)
+          priceFormatter: (price: BarPrice): string => UiUtil.toValue(null, price, false, true)
       }
     };
   }, [pair?.id, options.crosshair, options.view, options.inverted, options.price]);
@@ -555,20 +557,20 @@ export function ChartWidget({
         <Box position="absolute" top="0" left="0" pl="3" pt="2" style={{ zIndex: 1 }}>
           {
             orderbook?.primaryAsset && orderbook?.secondaryAsset &&
-            <Text>{ Readability.toAssetSymbol(orderbook.primaryAsset) }/{ Readability.toAssetSymbol(orderbook.secondaryAsset) } { interval }</Text>
+            <Text>{ UiUtil.toAssetSymbol(orderbook.primaryAsset) }/{ UiUtil.toAssetSymbol(orderbook.secondaryAsset) } { interval }</Text>
           }
           {
             !mobile && (options.view == ChartViewType.Bars || options.view == ChartViewType.Candles ?
             <Flex direction="column">
-              <Text size="1"><Text color="gray" mr="1">O</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.open || null) }</Text>
-              <Text size="1"><Text color="gray" mr="1">H</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.high || null) }</Text>
-              <Text size="1"><Text color="gray" mr="1">L</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.low || null) }</Text>
-              <Text size="1"><Text color="gray" mr="1">C</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.close || null) }</Text>
-              { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ Readability.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
+              <Text size="1"><Text color="gray" mr="1">O</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.open || null) }</Text>
+              <Text size="1"><Text color="gray" mr="1">H</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.high || null) }</Text>
+              <Text size="1"><Text color="gray" mr="1">L</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.low || null) }</Text>
+              <Text size="1"><Text color="gray" mr="1">C</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.close || null) }</Text>
+              { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ UiUtil.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
             </Flex> :
             <Flex direction="column">
-              <Text size="1"><Text color="gray" mr="1">C</Text>{ Readability.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.value || null) }</Text>
-              { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ Readability.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
+              <Text size="1"><Text color="gray" mr="1">C</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.value || null) }</Text>
+              { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ UiUtil.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
             </Flex>)
           }
         </Box>
@@ -576,7 +578,7 @@ export function ChartWidget({
       <Flex mt="2" px="3" pb="3" gap="2" justify="between" align="center">
         <Badge size="3" color="gray" style={{ fontSize: '1.05rem', padding: '10px 15px' }}>
           <Icon path={mdiCubeOutline} size={0.8}></Icon>
-          { blockNumber > 0 && Readability.toValue(null, blockNumber, false, false) }
+          { blockNumber > 0 && UiUtil.toValue(null, blockNumber, false, false) }
         </Badge>
         <Flex gap="2">
           <Select.Root size="3" value={options.interval.toString()} onValueChange={(e) => {

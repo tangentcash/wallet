@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Box, Button, Callout, Card, Flex, Heading, Spinner, Text } from "@radix-ui/themes";
 import { mdiListStatus, mdiProgressQuestion } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
-import { RPC, Readability } from "tangentsdk";
+import { RPC } from "tangentsdk/rpc";
+import { UiUtil } from "tangentsdk/ui";
 import { CodeBlock } from 'react-code-block';
 import Icon from "@mdi/react";
 
@@ -38,7 +39,7 @@ export default function ProgramPage() {
             <Button size="3" variant="soft" color="indigo" onClick={() => {
               navigator.clipboard.writeText('// Program: ' + program.hashcode + '\r\n\r\n' + program.storage);
               AlertBox.open(AlertType.Info, 'Program code copied!')
-            }}>{ Readability.toHash(program.hashcode, 5) }</Button>
+            }}>{ UiUtil.toHash(program.hashcode, 5) }</Button>
           </Flex>
         </Flex>
         <Card variant="surface" mt="2">

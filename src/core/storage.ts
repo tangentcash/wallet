@@ -1,6 +1,6 @@
 import { sha256 } from '@noble/hashes/sha256';
 import { randomBytes } from '@ethersproject/random';
-import { ByteUtil } from 'tangentsdk';
+import { ByteUtil } from 'tangentsdk/algorithm';
 import { openDB, IDBPDatabase } from 'idb';
 
 export enum StorageField {

@@ -1,7 +1,6 @@
 import { mdiArrowBottomLeft, mdiArrowBottomRight, mdiArrowDown, mdiContactlessPayment, mdiCreation, mdiFire, mdiFlash, mdiFlashAlert, mdiFlashOutline, mdiLightbulbOn, mdiLightbulbOutline, mdiLogin, mdiMagnify, mdiMenu, mdiPercent, mdiSale, mdiScaleBalance, mdiSchool } from "@mdi/js";
 import { Avatar, Box, Button, DropdownMenu, Flex, Heading, IconButton, Text } from "@radix-ui/themes";
 import { Link, useNavigate } from "react-router";
-import { AssetId, Readability } from "tangentsdk";
 import { AppData } from "../core/app";
 import { useEffectAsync } from "../core/react";
 import { useState } from "react";
@@ -47,17 +46,17 @@ function toNiceAmount(amount: BigNumber): string {
 
 const genesisTimeDEX = new Date(1772732892203);
 const blockchains = [
-  'ADA',
-  'BTC',
-  'ETH',
-  'SOL',
-  'TRX',
-  'XRP',
-  'XLM',
-  'BCH',
-  'LTC',
-  'DOGE',
-  'XMR'
+  ['ADA', 'Cardano'],
+  ['BTC', 'Bitcoin'],
+  ['ETH', 'Ethereum'],
+  ['SOL', 'Solana'],
+  ['TRX', 'Tron'],
+  ['XRP', 'Ripple'],
+  ['XLM', 'Stellar'],
+  ['BCH', 'Bitcoin Cash'],
+  ['LTC', 'Litecoin'],
+  ['DOGE', 'Dogecoin'],
+  ['XMR', 'Monero']
 ].sort();
 
 export default function HypePage() {
@@ -287,10 +286,10 @@ export default function HypePage() {
             <Flex wrap="wrap" justify="center" gap="9" pt="6">
               {
                 blockchains.map((chain) =>
-                  <Flex key={chain} direction="column" gap="4" align="center" justify="center" width="120px">
-                    <Avatar className="fancy-icon-filter" size="5" fallback={chain} src={`/cryptocurrency/${chain.toLowerCase().replace(/ /g, '')}.svg`}></Avatar>
+                  <Flex key={chain[0]} direction="column" gap="4" align="center" justify="center" width="120px">
+                    <Avatar className="fancy-icon-filter" size="5" fallback={chain} src={`/cryptocurrency/${chain[0].toLowerCase().replace(/ /g, '')}.svg`}></Avatar>
                     <Flex gap="1">
-                      <Text size="1">{ Readability.toAssetName(AssetId.fromHandle(chain)) }</Text>
+                      <Text size="1">{ chain[1] }</Text>
                     </Flex>
                   </Flex>)
               }
