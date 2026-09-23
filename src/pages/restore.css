@@ -10,3 +10,32 @@
   75% { transform: translateX(5px) }
   100% { transform: translateX(0) }
 }
+
+.restore-wrap { min-height: calc(100dvh - 150px); display: flex; align-items: center; justify-content: center; }
+.restore-hero { display: flex; flex-direction: column; align-items: center; text-align: center; width: 100%; max-width: 420px; }
+.restore-col { display: flex; flex-direction: column; align-items: center; width: 100%; padding: 12px 0 40px; }
+.restore-hero .brand-tile { width: 64px; height: 64px; border-radius: 22px; background: var(--lime-solid); color: var(--ink); display: grid; place-items: center; font-size: 30px; font-weight: 800; margin-bottom: 18px; }
+
+.restore-wrap .field { text-align: left; }
+.restore-wrap .rt-TextFieldRoot.restore-input { height: auto; min-height: 56px; border-radius: var(--r-md); background: var(--card-2); box-shadow: none; }
+.restore-wrap .restore-input .rt-TextFieldInput { font-size: 15px; }
+.restore-wrap .mono-input .rt-TextFieldInput { font-family: var(--mono); font-size: 13.5px; }
+.restore-wrap .restore-input:focus-within { box-shadow: 0 0 0 3px color-mix(in srgb, var(--lime-solid) 16%, transparent); }
+.restore-wrap .phrase-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.restore-wrap .word-cell { width: 100%; min-width: 0; height: 42px; border: 0; border-radius: var(--r-sm); background: var(--card-2); color: var(--text); font-family: var(--mono); font-size: 12.5px; padding: 0 14px; }
+.restore-wrap .word-cell::placeholder { color: var(--text-3); }
+.restore-wrap .word-cell:focus { outline: none; box-shadow: 0 0 0 3px color-mix(in srgb, var(--lime-solid) 16%, transparent); }
+.restore-wrap .word-cell.bad { color: var(--down); box-shadow: inset 0 0 0 1px var(--down); }
+.restore-wrap .phrase-grid .pv-cell { display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0; height: 42px; padding: 0 14px; border-radius: var(--r-sm); background: var(--card-2); color: var(--text); font-family: var(--mono); font-size: 14px; }
+.restore-wrap .phrase-grid .pv-cell i { font-style: normal; font-size: 11.5px; color: var(--text-3); min-width: 2ch; text-align: right; flex: none; }
+
+.restore-wrap .network-pill.rt-SelectTrigger { width: auto; height: 36px; border-radius: 999px; background: var(--elev); box-shadow: none; color: var(--text); font-weight: 700; font-size: 14px; gap: 8px; }
+.restore-wrap .network-pill .rp-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--lime-solid); flex: none; }
+.restore-wrap .import-source.rt-SelectTrigger { height: 46px; border-radius: var(--r-md); background: var(--card-2); box-shadow: none; font-weight: 600; }
+.restore-wrap .import-source .rt-SelectTriggerInner { display: flex; flex: 1; align-items: center; }
+.restore-wrap .import-source .rt-SelectTriggerInner > span { flex: 1; min-width: 0; display: flex; align-items: center; gap: 8px; }
+.restore-wrap .import-source .rt-SelectTriggerInner svg { flex: none; }
+
+.restore-wrap .page-head .import-source { flex: 1; min-width: 0; font-size: 15px; }
+.restore-wrap .page-head .import-source .tiny { display: none; }
+.restore-wrap .watch-link { color: var(--lime); font-weight: 650; cursor: pointer; }

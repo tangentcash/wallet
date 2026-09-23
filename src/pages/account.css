@@ -1,0 +1,8 @@
+.acct-row { display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px; background: none; border: 0; border-radius: 14px; color: var(--text); text-align: left; margin-bottom: 6px; cursor: pointer; }
+.acct-row.sel { background: var(--lime-dim); }
+.acct-row .ava { width: 34px; height: 34px; border-radius: 30%; background: var(--elev); color: var(--text-2); display: grid; place-items: center; font-weight: 800; font-size: 14px; flex: none; overflow: hidden; }
+.acct-row.sel .ava { background: var(--lime-solid); color: var(--ink); }
+.acct-row .bd { flex: 1; min-width: 0; }
+.acct-row .nm { display: block; font-weight: 600; font-size: 13.5px; }
+.acct-row.sel .nm { font-weight: 700; }
+.acct-row .sb { display: block; margin-top: 2px; }

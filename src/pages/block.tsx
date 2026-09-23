@@ -1,8 +1,8 @@
 import { Link, useNavigate, useParams } from "react-router";
 import { useEffectAsync } from "../core/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Badge, Box, Button, Callout, Card, DataList, Flex, Heading, IconButton, Progress, Spinner, Table, Text } from "@radix-ui/themes";
-import { mdiArrowLeftBoldCircleOutline, mdiArrowRightBoldCircleOutline, mdiListStatus } from "@mdi/js";
+import { Box, Flex, IconButton } from "@radix-ui/themes";
+import { mdiArrowLeftBoldCircleOutline, mdiArrowRightBoldCircleOutline, mdiCubeOutline, mdiListStatus, mdiOpenInNew } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
 import { UiUtil, lerp } from "tangentsdk/ui";
 import { AssetId, Chain } from "tangentsdk/algorithm";
@@ -102,316 +102,203 @@ export default function BlockPage() {
     }
   }, [timeoutId]);
 
+  const copy = (text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    AlertBox.open(AlertType.Info, label + ' copied!');
+  };
+  const gasPercent = (use: BigNumber, limit: number) => (use || new BigNumber(0)).div(limit > 0 ? limit : 1).toNumber() * 100;
+
   if (block != null) {
     if (!AppData.tip || block.number.gt(AppData.tip))
       AppData.tip = block.number;
 
-    const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
     const time = block.evaluation_time.minus(block.generation_time).toNumber();
     const priority: number = block.priority.toNumber();
     const subpriority = priority == 0 && (AppData.tip || new BigNumber(0)).lte(block.number) ? 0 : priority;
     const possibility = 100 * Math.min(1, Math.max(0, (subpriority > 0 ? 0.4 : 0.0) + Math.min(0.55, lerp(0.0, 0.55, subpriority / Chain.policy.PRODUCTION_COMMITTEE))));
+    const confirmations = AppData.tip != null ? AppData.tip.minus(block.number).plus(1) : null;
     return (
-      <Box px="4" pt="4" maxWidth="800px" mx="auto">
-        <Flex justify="between" align="center">
-          <Heading size="6">Block</Heading>
-          <Flex justify="center" gap="4">
-            <IconButton variant="ghost" size="2" mb="1" color="gray" disabled={block.number <= 1} onClick={() => nextBlock(block.number.toNumber() - 1)}>
-              <Icon path={mdiArrowLeftBoldCircleOutline} size={1.35} />
+      <Box pt="4" pb="8" maxWidth="680px" mx="auto">
+        <div className="page-head" style={{ marginBottom: 12 }}>
+          <div className="page-title num" style={{ fontSize: 20 }}>Block #{ UiUtil.toValue(null, block.number, false, false) }</div>
+          <Flex gap="2" align="center">
+            <IconButton variant="ghost" size="2" color="gray" disabled={block.number <= 1} onClick={() => nextBlock(block.number.toNumber() - 1)}>
+              <Icon path={mdiArrowLeftBoldCircleOutline} size={1.2} />
             </IconButton>
-            <IconButton variant="ghost" size="2" mb="1" color="gray" loading={loading} disabled={!loading && !hasChildBlock} onClick={() => nextBlock(block.number.toNumber() + 1)}>
-              <Icon path={mdiArrowRightBoldCircleOutline} size={1.35} />
+            <IconButton variant="ghost" size="2" color="gray" loading={loading} disabled={!loading && !hasChildBlock} onClick={() => nextBlock(block.number.toNumber() + 1)}>
+              <Icon path={mdiArrowRightBoldCircleOutline} size={1.2} />
             </IconButton>
+            {
+              confirmations != null &&
+              <span className={'badge ' + (confirmations.gt(2) ? 'ok' : 'warn')}>{ UiUtil.toCount('confirmation', confirmations).toUpperCase() }</span>
+            }
           </Flex>
-        </Flex>
-        <Card variant="surface" mt="4">
-          <DataList.Root orientation={orientation}>
-            <DataList.Item>
-              <DataList.Label>Block number:</DataList.Label>
-              <DataList.Value>
-                { block.number.toString() }
-                <Box ml="2">
-                  <Link className="router-link" to={'/block/' + block.hash}>▒▒</Link>
-                </Box>
-                <Badge ml="2" color={priority > 0 ? (possibility > 50 ? 'red' : 'yellow') : undefined}>{ 'Fork possibility ≈ ' + possibility.toFixed(2) }%</Badge>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Block hash:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.hash);
-                  AlertBox.open(AlertType.Info, 'Block hash copied!')
-                }}>{ UiUtil.toHash(block.hash, 12) }</Button>
-                <Box ml="2">
-                  <Link className="router-link" to={'/block/' + block.hash}>▒▒</Link>
-                </Box>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Parent hash:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.parent_hash);
-                  AlertBox.open(AlertType.Info, 'Parent hash copied!')
-                }}>{ UiUtil.toHash(block.parent_hash, 12) }</Button>
-                <Box ml="2">
-                  <Link className="router-link" to={'/block/' + block.parent_hash}>▒▒</Link>
-                </Box>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Proof of work:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.pow.proof);
-                  AlertBox.open(AlertType.Info, 'Block proof copied!')
-                }}>{ UiUtil.toHash(block.pow.proof, 12) }</Button>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Transaction root:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.transaction_root);
-                  AlertBox.open(AlertType.Info, 'Merkle root hash copied!')
-                }}>{ UiUtil.toHash(block.transaction_root, 12) }</Button>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Receipt root:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.receipt_root);
-                  AlertBox.open(AlertType.Info, 'Merkle root hash copied!')
-                }}>{ UiUtil.toHash(block.receipt_root, 12) }</Button>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>State root:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.state_root);
-                  AlertBox.open(AlertType.Info, 'Merkle root hash copied!')
-                }}>{ UiUtil.toHash(block.state_root, 12) }</Button>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Producer proof:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.signature);
-                  AlertBox.open(AlertType.Info, 'Block signature copied!')
-                }}>{ UiUtil.toHash(block.signature, 12) }</Button>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Producer account:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(block.producer);
-                  AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ UiUtil.toAddress(block.producer) }</Button>
-                <Box ml="2">
-                  <Link className="router-link" to={'/account/' + block.producer}>▒▒</Link>
-                </Box>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Leader priority:</DataList.Label>
-              {
-                priority >= Chain.policy.PRODUCTION_COMMITTEE &&
-                <DataList.Value>
-                  <Badge color="red">Oprate leader #{ priority + 1 }</Badge>
-                </DataList.Value>
-              }
-              {
-                priority < Chain.policy.PRODUCTION_COMMITTEE &&
-                <DataList.Value>{ priority > 0 ? 'Fallback #' + (priority + 1) : 'Normal #1' }</DataList.Value>
-              }
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Status:</DataList.Label>
-              <DataList.Value>
-                <Badge color="gray">Extension in { UiUtil.toTimespan(time) }</Badge>
-              </DataList.Value>
-            </DataList.Item>
+        </div>
+        <div className="card">
+          <div className="card-title">Brief</div>
+          <div className="dl">
+            <div className="dl-row">
+              <span className="dl-k">Block hash</span>
+              <span className="dl-v mono copyable" onClick={() => copy(block.hash, 'Block hash')}>{ UiUtil.toAddress(block.hash) }</span>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">Parent hash</span>
+              <Link className="dl-v mono router-link" style={{ color: 'var(--info)' }} to={'/block/' + block.parent_hash}>{ UiUtil.toAddress(block.parent_hash) }</Link>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">Tx root</span>
+              <span className="dl-v mono copyable" onClick={() => copy(block.transaction_root, 'Merkle root hash')}>{ UiUtil.toAddress(block.transaction_root) }</span>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">State root</span>
+              <span className="dl-v mono copyable" onClick={() => copy(block.state_root, 'Merkle root hash')}>{ UiUtil.toAddress(block.state_root) }</span>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">Producer</span>
+              <span className="dl-v"><span className="copyable" onClick={() => { navigator.clipboard.writeText(block.producer); AlertBox.open(AlertType.Info, 'Address copied!') }}>{ UiUtil.toAddress(block.producer) }</span><Link className="dl-open router-link" to={'/account/' + block.producer}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">Leader priority</span>
+              <span className="dl-v">{ priority >= Chain.policy.PRODUCTION_COMMITTEE ? 'Operate leader #' + (priority + 1) : priority > 0 ? 'Fallback #' + (priority + 1) : 'Normal #1' }</span>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">Timestamp</span>
+              <span className="dl-v num">{ new Date(block.evaluation_time.toNumber()).toLocaleString() }</span>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">Fork possibility</span>
+              <span className={'dl-v num ' + (possibility > 50 ? 'down' : possibility > 0 ? '' : 'up')}>≈ { possibility.toFixed(2) }%</span>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">Coinbase</span>
+              <span className="dl-v num up">{ UiUtil.toMoney(new AssetId(), block.coinbase, true) }</span>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">Difficulty</span>
+              <span className="dl-v num">{ UiUtil.toUnit(block.pow.kdifficulty) }{ block.pow.mdifficulty > 1 && <span className="down"> +{ ((block.pow.mdifficulty.toNumber() * 100) - 100).toFixed(2) + '%' }</span> }</span>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">Gas use</span>
+              <span className="dl-v num">{ block.gas_use.toNumber().toLocaleString() } / { block.gas_limit.toNumber().toLocaleString() } · { gasPercent(block.gas_use, block.gas_limit).toFixed(2) }%</span>
+            </div>
+          </div>
+          <div className="meter"><div style={{ width: Math.min(100, gasPercent(block.gas_use, block.gas_limit)) + '%' }}></div></div>
+        </div>
+        <div className="tiny dim" style={{ marginTop: 10, textAlign: 'center' }}>
+          { UiUtil.toCount('transaction', block.transaction_count) } · { UiUtil.toCount('transition', block.transition_count) } · { UiUtil.toCount('block', block.slot.length) } in { UiUtil.toTimespan(new BigNumber(block.slot.duration_total).plus(time)) }
+        </div>
+        <div className="card" style={{ marginTop: 14 }}>
+          <div className="card-title">Technical</div>
+          <div className="dl">
+            <div className="dl-row">
+              <span className="dl-k">Proof of work</span>
+              <span className="dl-v mono copyable" onClick={() => copy(block.pow.proof, 'Block proof')}>{ UiUtil.toAddress(block.pow.proof) }</span>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">Receipt root</span>
+              <span className="dl-v mono copyable" onClick={() => copy(block.receipt_root, 'Merkle root hash')}>{ UiUtil.toAddress(block.receipt_root) }</span>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">Producer proof</span>
+              <span className="dl-v mono copyable" onClick={() => copy(block.signature, 'Block signature')}>{ UiUtil.toAddress(block.signature) }</span>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">Absolute work</span>
+              <span className="dl-v num">{ UiUtil.toCount('weight unit', block.absolute_work) }</span>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">Supply</span>
+              <span className="dl-v num">{ UiUtil.toMoney(new AssetId(), supply) }</span>
+            </div>
             {
-              block.witnesses.map((item: any) => {
-                return (
-                  <DataList.Item key={item.asset.chain + item.number.toString()}>
-                    <DataList.Label>Tangent to:</DataList.Label>
-                    <DataList.Value>
-                      <Badge color="gray">{ item.asset.chain } block number #{ UiUtil.toValue(null, item.number, false, false) }</Badge>
-                    </DataList.Value>
-                  </DataList.Item>
-                )
-              })
+              block.witnesses.map((item: any) =>
+                <div className="dl-row" key={item.asset.chain + item.number.toString()}>
+                  <span className="dl-k">Tangent to { item.asset.chain }</span>
+                  <span className="dl-v num">block #{ UiUtil.toValue(null, item.number, false, false) }</span>
+                </div>
+              )
             }
-            <DataList.Item>
-              <DataList.Label>Timestamp:</DataList.Label>
-              <DataList.Value>{ new Date(block.evaluation_time.toNumber()).toLocaleString() }</DataList.Value>
-            </DataList.Item>
+            <div className="dl-row">
+              <span className="dl-k">Slot block time</span>
+              <span className="dl-v num">{ UiUtil.toTimespan(block.slot.duration_average) } per block</span>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">Slot congestion</span>
+              <span className="dl-v">{ block.slot.congestion ? 'Min gas price applies' : 'No min gas price' }</span>
+            </div>
+            <div className="dl-row">
+              <span className="dl-k">Slot gas use</span>
+              <span className="dl-v num">{ block.slot.gas_use.toNumber().toLocaleString() } / { block.slot.gas_limit.toNumber().toLocaleString() } · { gasPercent(block.slot.gas_use, block.slot.gas_limit).toFixed(2) }%</span>
+            </div>
+          </div>
+          <div className="meter"><div style={{ width: Math.min(100, gasPercent(block.slot.gas_use, block.slot.gas_limit)) + '%', background: 'var(--warn)' }}></div></div>
+        </div>
+        {
+          block.transactions.length > 0 &&
+          <div className="card rows" style={{ marginTop: 14 }}>
+            <div className="card-title" style={{ padding: '12px 0 2px' }}>Transactions</div>
             {
-              AppData.tip != null &&
-              <DataList.Item>
-                <DataList.Label>Confidence:</DataList.Label>
-                <DataList.Value>
-                  <Badge color="yellow">{ UiUtil.toCount('confirmation', AppData.tip.minus(block.number).plus(1)) }</Badge>
-                </DataList.Value>
-              </DataList.Item>
+              block.transactions.map((hash: any, index: number) =>
+                <Link key={hash} to={'/transaction/' + hash} style={{ color: 'inherit', textDecoration: 'none', display: 'block' }}>
+                  <div className="tx-row">
+                    <span className="tx-ico"><Icon path={mdiCubeOutline} size={1}></Icon></span>
+                    <div className="tx-main">
+                      <div className="tx-title">Transaction #{ index + 1 }</div>
+                      <div className="tx-meta mono" style={{ fontSize: 11 }}>{ UiUtil.toAddress(hash) }</div>
+                    </div>
+                    <div className="tx-time">›</div>
+                  </div>
+                </Link>
+              )
             }
-            <DataList.Item>
-              <DataList.Label>Supply:</DataList.Label>
-              <DataList.Value>{ UiUtil.toMoney(new AssetId(), supply) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Coinbase:</DataList.Label>
-              <DataList.Value>{ UiUtil.toMoney(new AssetId(), block.coinbase, true) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Difficulty:</DataList.Label>
-              {
-                block.pow.mdifficulty > 1 &&
-                <DataList.Value>
-                  <Badge color="red">{ UiUtil.toUnit(block.pow.kdifficulty) } +{ ((block.pow.mdifficulty.toNumber() * 100) - 100).toFixed(2) + '%' }</Badge>
-                </DataList.Value>
-              }
-              {
-                block.pow.mdifficulty <= 1 &&
-                <DataList.Value>{ UiUtil.toUnit(block.pow.kdifficulty) }</DataList.Value>
-              }
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Absolute work:</DataList.Label>
-              <DataList.Value>{ UiUtil.toCount('weight unit', block.absolute_work) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Transactions:</DataList.Label>
-              <DataList.Value>{ UiUtil.toCount('transaction', block.transaction_count) } | { UiUtil.toValue(null, new BigNumber(1000).multipliedBy(block.transaction_count).dividedBy(time).toFixed(2), false, false) }/sec.</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Transitions:</DataList.Label>
-              <DataList.Value>{ UiUtil.toCount('transition', block.transition_count) } | { UiUtil.toValue(null, new BigNumber(1000).multipliedBy(block.transition_count).dividedBy(time).toFixed(2), false, false) }/sec.</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Gas limit:</DataList.Label>
-              <DataList.Value>{ UiUtil.toGas(block.gas_limit) } | &lt; { UiUtil.toCount('KB', ((block.gas_limit / 32) / 1024).toFixed(2)) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Gas use:</DataList.Label>
-              <DataList.Value>{ UiUtil.toGas(block.gas_use) } | { (block.gas_use.div(block.gas_limit.gt(0) ? block.gas_limit : 1).toNumber() * 100).toFixed(2) }%</DataList.Value>
-            </DataList.Item>
-          </DataList.Root>
-          <Box mt="2">
-            <Progress variant="surface" size="3" color="yellow" value={block.gas_use.div(block.gas_limit.gt(0) ? block.gas_limit : 1).toNumber() * 100} />
-          </Box>
-          <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
-          <DataList.Root orientation={orientation}>
-            <DataList.Item>
-              <DataList.Label>Slot activity:</DataList.Label>
-              <DataList.Value>
-                <Badge color="yellow">{ UiUtil.toCount('block', block.slot.length) } in { UiUtil.toTimespan(new BigNumber(block.slot.duration_total).plus(time)) }</Badge>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Slot congestion:</DataList.Label>
-              <DataList.Value>
-                <Badge color={block.slot.congestion ? 'red' : undefined}>{ block.slot.congestion ? 'Min gas price applies' : 'No min gas price' }</Badge>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Slot block time:</DataList.Label>
-              <DataList.Value>{ UiUtil.toTimespan(block.slot.duration_average) } per block</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Slot gas limit:</DataList.Label>
-              <DataList.Value>{ UiUtil.toGas(block.slot.gas_limit) } | &lt; { UiUtil.toCount('KB', ((block.slot.gas_limit / 32) / 1024).toFixed(2)) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Slot gas use:</DataList.Label>
-              <DataList.Value>{ UiUtil.toGas(block.slot.gas_use) } | { (block.slot.gas_use.div(block.slot.gas_limit.gt(0) ? block.slot.gas_limit : 1).toNumber() * 100).toFixed(2) }%</DataList.Value>
-            </DataList.Item>
-          </DataList.Root>
-          <Box mt="2">
-            <Progress variant="surface" size="3" color="red" value={block.slot.gas_use.div(block.slot.gas_limit.gt(0) ? block.slot.gas_limit : 1).toNumber() * 100} />
-          </Box>
-          <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
-          <Table.Root variant="surface" size="1">
-            <Table.Header>
-              <Table.Row>
-                <Table.ColumnHeaderCell>Tx number</Table.ColumnHeaderCell>
-                <Table.ColumnHeaderCell>Tx hash</Table.ColumnHeaderCell>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {
-                block.transactions.map((hash: any, index: number) =>
-                  <Table.Row key={hash}>
-                    <Table.RowHeaderCell>{ index + 1 }</Table.RowHeaderCell>
-                    <Table.Cell>
-                      <Flex>
-                        <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                          navigator.clipboard.writeText(hash);
-                          AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-                        }}>{ UiUtil.toHash(hash, document.body.clientWidth < 500 ? 6 : 12) }</Button>
-                        <Box ml="2">
-                          <Link className="router-link" to={'/transaction/' + hash}>▒▒</Link>
-                        </Box>
-                      </Flex>
-                    </Table.Cell>
-                  </Table.Row>
-                )
-              }
-            </Table.Body>
-          </Table.Root>
-        </Card>
+          </div>
+        }
       </Box>
     )
   } else if (loading) {
     return (
-      <Flex justify="center" pt="6">
-        <Spinner size="3" />
-      </Flex>
+      <Box pt="4" maxWidth="680px" mx="auto">
+        <div className="card">
+          <div className="skel" style={{ height: 28, width: '50%' }}></div>
+          <div className="skel" style={{ height: 20, marginTop: 14 }}></div>
+          <div className="skel" style={{ height: 20, marginTop: 10 }}></div>
+          <div className="skel" style={{ height: 20, marginTop: 10 }}></div>
+        </div>
+      </Box>
     )
   } else {
     return (
-      <Box px="4" pt="6" maxWidth="800px" mx="auto">
-        <Flex align="center" mb="3" gap="2">
-          <Spinner size="3"></Spinner>
-          <Heading>Awaiting block</Heading>
-        </Flex>
-        <Callout.Root color="yellow">
-          <Callout.Icon>
-            <Icon path={mdiListStatus} size={1} />
-          </Callout.Icon>
-          <Callout.Text>
-            <Flex direction="column" gap="2">
-              <Text>1. If a node have just submitted a block then it will appear here shortly.</Text>
-              <Text>2. When the network is busy it can take a while for a block to propagate through the network.</Text>
-              <Text>3. If it still does not show up after 10 minutes then this block either got dropped or was not created.</Text>
-            </Flex>
-          </Callout.Text>
-        </Callout.Root>
+      <Box pt="4" pb="8" maxWidth="680px" mx="auto">
+        <div className="page-head" style={{ marginBottom: 12 }}>
+          <div className="page-title num" style={{ fontSize: 20 }}>Block</div>
+          <span className="badge warn">PENDING</span>
+        </div>
+        <div className="callout warn">
+          <Icon path={mdiListStatus} size={1}></Icon>
+          <span>
+            Awaiting block — it will appear here shortly after a node submits it.
+            When the network is busy it can take a while to propagate.
+            If it does not show up after 10 minutes then this block either got dropped or was not created.
+          </span>
+        </div>
         {
           blockETA != null &&
-          <Box mt="4">
-            <Box style={{ border: '1px dashed var(--gray-8)' }} mb="4"></Box>
-            <Flex wrap="wrap" gap="3">
-              <Card>
-                <Heading size="3">Block number</Heading>
-                <Text>{ UiUtil.toValue(null, blockETA.blockNumber, false, false) }</Text>
-              </Card>
-              <Card>
-                <Heading size="3">Block countdown</Heading>
-                <Text>{ UiUtil.toValue(null, blockETA.blockDelta.negated(), true, false) } | { new BigNumber(1).minus(blockETA.blockNumber.minus(blockETA.blockDelta).dividedBy(blockETA.blockNumber)).multipliedBy(100).toFixed(3) }% left</Text>
-              </Card>
-              <Card>
-                <Heading size="3">Estimated date</Heading>
-                <Text>{ blockETA.blockDate.toLocaleString() }</Text>
-              </Card>
-            </Flex>
-          </Box>
+          <div className="card" style={{ marginTop: 14 }}>
+            <div className="dl">
+              <div className="dl-row">
+                <span className="dl-k">Block number</span>
+                <span className="dl-v num">{ UiUtil.toValue(null, blockETA.blockNumber, false, false) }</span>
+              </div>
+              <div className="dl-row">
+                <span className="dl-k">Block countdown</span>
+                <span className="dl-v num">{ UiUtil.toValue(null, blockETA.blockDelta.negated(), true, false) } · { new BigNumber(1).minus(blockETA.blockNumber.minus(blockETA.blockDelta).dividedBy(blockETA.blockNumber)).multipliedBy(100).toFixed(3) }% left</span>
+              </div>
+              <div className="dl-row">
+                <span className="dl-k">Estimated date</span>
+                <span className="dl-v num">{ blockETA.blockDate.toLocaleString() }</span>
+              </div>
+            </div>
+          </div>
         }
       </Box>
     )

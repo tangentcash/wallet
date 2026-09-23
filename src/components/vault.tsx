@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Dialog, DropdownMenu, Flex, IconButton, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Badge, Box, Button, Dialog, Flex, IconButton, SegmentedControl, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { AssetId, ByteUtil, Hashing, Signing } from "tangentsdk/algorithm";
@@ -11,7 +11,7 @@ import { AssetName } from "../components/asset-name";
 import { AddressView, toTextAddress } from "../components/address";
 import { Link, useNavigate } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
-import { mdiArrowBottomLeft, mdiClose, mdiSafeSquareOutline, mdiSetLeft, mdiSetRight, mdiSourcePull } from "@mdi/js";
+import { mdiAlertCircleOutline, mdiClose, mdiInformationOutline, mdiPlus } from "@mdi/js";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
 import { WcAsset, WcContext } from "./wc/types";
@@ -44,13 +44,12 @@ const WcAdapter = lazy(() => import('./wc/adapter'));
 
 export default function Vault(props: { blockchains: any[], assets: any[], blockchain?: AssetId }) {
   const ownerAddress = AppData.getWalletAddress() || '';
-  const mobile = document.body.clientWidth < 500;
   const navigate = useNavigate();
   const [blockchainIndex, setBlockchainIndex] = useState<number>(-1);
   const [addresses, setAddresses] = useState<any[]>([]);
   const [bridges, setBridges] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
-  const [forceShowReceiverAddress, setForceShowReceiverAddress] = useState(false);
+  const [mode, setMode] = useState<'in' | 'out'>('in');
   const [wc, setWc] = useState<WcSession | null>(null);
   const wcContext = useRef<WcContext>(null);
   const blockchains = useMemo((): ExtendedBlockchainInfo[] => {
@@ -112,14 +111,17 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
     }
     return result;
   }, [blockchain, blockchains, addresses, bridges]);
+  const senderAddresses: any[] = blockchainAddresses.routing?.addresses || [];
+  const [senderIndex, setSenderIndex] = useState<number>(0);
+  const [senderDialog, setSenderDialog] = useState<boolean>(false);
+  const [wcFallback, setWcFallback] = useState<boolean>(false);
   const blockchainAssets = useMemo((): any[] => {
     const results = props.assets.filter(x => x.asset.chain == blockchain?.chain);
-    return !blockchain || results.length > 0 ? results : [{
-      asset: blockchain,
-      balance: new BigNumber(0),
-      reserve: new BigNumber(0),
-      supply: new BigNumber(0)
-    }];
+    if (!blockchain)
+      return results;
+    if (!results.some(x => x.asset.id == blockchain.id))
+      results.unshift({ asset: blockchain, balance: new BigNumber(0), reserve: new BigNumber(0), supply: new BigNumber(0) });
+    return results;
   }, [blockchain, props.assets]);
   const wcMemo = useMemo(() => {
     const raw = Signing.decodeAddress(ownerAddress);
@@ -181,8 +183,9 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
   }, [blockchain, bridges, blockchainAssets]);
   useEffectAsync(async () => {
     setLoading(true);
+    setSenderIndex(0);
+    setWcFallback(false);
     setWc(prev => prev ? { modal: false, lazy: false, custom: false, session: null, symbol: null, token: null, amount: '' } : null);
-    setForceShowReceiverAddress(false);
     try {
       const asset = blockchain;
       if (!asset)
@@ -227,144 +230,224 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
     }
     setLoading(false);
   }, [blockchain]);
+  const autoAppliedAsset = useRef<string | null>(null);
   useEffect(() => {
-    if (props.blockchain != null)
+    if (props.blockchain != null && autoAppliedAsset.current != props.blockchain.id) {
+      autoAppliedAsset.current = props.blockchain.id;
       setBlockchainIndex(props.blockchains.sort((a, b) => new AssetId(a.id).handle.localeCompare(new AssetId(b.id).handle)).findIndex((x) => x.id == props.blockchain?.id));
+    }
   }, [props.blockchains, props.blockchain]);
 
   return (
-    <Box px={mobile ? '2' : undefined}>
-      <Flex gap="1">
-        <Select.Root size="3" value={blockchainIndex.toString()} onValueChange={(e) => {
-          setWc(prev => prev ? { modal: false, lazy: false, custom: false, session: null, symbol: null, token: null, amount: '' } : null);
-          setBlockchainIndex(parseInt(e));
-        }}>
-          <Select.Trigger style={{ width: '100%', flexShrink: 'initial' }} />
-          <Select.Content color="gray">
-            <Select.Item value="-1">
-              <Flex align="center" gap="1">
-                <Icon path={mdiSetLeft} size={0.8}></Icon> Bridge in & out
-              </Flex>
-            </Select.Item>
-            <Select.Group>
-              <Select.Label>
-                <Text size="3">Network / token standard</Text>
-              </Select.Label>
+    <Box>
+      <Box>
+          <Select.Root size="3" value={blockchainIndex.toString()} onValueChange={(e) => {
+            setWc(prev => prev ? { modal: false, lazy: false, custom: false, session: null, symbol: null, token: null, amount: '' } : null);
+            setBlockchainIndex(parseInt(e));
+          }}>
+            <Select.Trigger style={{ width: '100%', flexShrink: 'initial' }} placeholder="Network / token standard" />
+            <Select.Content color="gray">
+              <Select.Group>
+                <Select.Label>
+                  <Text size="3">Network / token standard</Text>
+                </Select.Label>
+                <Select.Item value="-1">Bridge in &amp; out</Select.Item>
+                {
+                  blockchains.map((item, index) =>
+                    <Select.Item value={index.toString()} key={item.id}>
+                      <Flex gap="1" align="center">
+                        <AssetImage asset={item} size="1" iconSize="20px"></AssetImage>
+                        <AssetName asset={item} size="3" text={item.ext?.tokenStandard ? '/ ' + item.ext.tokenStandard : undefined} badge={false}></AssetName>
+                      </Flex>
+                    </Select.Item>
+                  )
+                }
+              </Select.Group>
+            </Select.Content>
+          </Select.Root>
+          {
+            blockchain != null &&
+            <div style={{ marginTop: 12 }}>
+            <SegmentedControl.Root value={mode} radius="full" size="3" onValueChange={(value) => setMode(value as 'in' | 'out')}>
+              <SegmentedControl.Item value="in">Bridge in</SegmentedControl.Item>
+              <SegmentedControl.Item value="out">Bridge out</SegmentedControl.Item>
+            </SegmentedControl.Root>
+          </div>
+          }
+          {
+            blockchain != null &&
+            <>
+          {
+            loading &&
+            <div className="card" style={{ marginTop: 14 }}>
+              <div className="skel" style={{ height: 60 }}></div>
+              <div className="skel" style={{ height: 60, marginTop: 10 }}></div>
+            </div>
+          }
+          {
+            !loading && mode == 'in' && !requiresSenderAddress && blockchainAddresses.bridge &&
+            <>
+              <div className="card" style={{ marginTop: 14 }}>
+                <AddressView address={blockchainAddresses.bridge} policy={blockchain.routing_policy}></AddressView>
+              </div>
               {
-                blockchains.map((item, index) =>
-                  <Select.Item value={index.toString()} key={item.id}>
-                    <Flex gap="1" align="center">
-                      <AssetImage asset={item} size="1" iconSize="20px"></AssetImage>
-                      <AssetName asset={item} size="3" text={item.ext?.tokenStandard ? '/ ' + item.ext.tokenStandard : undefined} badge={false}></AssetName>
-                    </Flex>
-                  </Select.Item>
-                )
+                blockchain.routing_policy == 'memo' &&
+                <div className="callout warn" style={{ marginTop: 14 }}>
+                  <Icon path={mdiAlertCircleOutline} size={1}></Icon>
+                  <span>Send both — address <b>and</b> memo. Without the memo a payment can't be attributed to you.</span>
+                </div>
               }
-            </Select.Group>
-          </Select.Content>
-        </Select.Root>
-        {
-          blockchain != null && !loading &&
-          <DropdownMenu.Root>
-            <DropdownMenu.Trigger>
-              <Button loading={wc?.lazy} variant="surface" size="3" className="rt-r-gap-2" style={{ flex: 'auto', color: 'var(--accent-11)', backgroundColor: 'var(--gray-2)' }}>
-                <Icon path={mdiSetLeft} size={0.9}></Icon>{ !mobile && 'Bridge' }
-              </Button>
-            </DropdownMenu.Trigger>
-            <DropdownMenu.Content color="gray">
+              <div className="tiny dim" style={{ marginTop: 14, textAlign: 'center' }}>
+                Yours forever · credited when it lands.{' '}
+                <Link to={'/explorer?view=vaults&asset=' + AssetId.fromHandle(blockchain.chain || '').toHex()} className="router-link" style={{ color: 'var(--info)', fontWeight: 650 }}>All vaults in explorer →</Link>
+              </div>
+            </>
+          }
+          {
+            !loading && mode == 'in' && !requiresSenderAddress && !blockchainAddresses.bridge &&
+            <>
+              <div className="card" style={{ marginTop: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                  <AssetImage asset={blockchain} iconSize="34px"></AssetImage>
+                  <div>
+                    <div style={{ fontWeight: 750, fontSize: 16 }}><AssetName asset={blockchain} badge={false}></AssetName></div>
+                    <div className="tiny dim">{ blockchain.routing_policy == 'utxo' ? 'UTXO chain' : 'Chain' } deposit</div>
+                  </div>
+                </div>
+                <p className="small" style={{ color: 'var(--text-2)', lineHeight: 1.55 }}>Claimed with <b style={{ color: 'var(--text)' }}>one free on-chain transaction</b> — then yours forever. Deposits credit automatically.</p>
+                <Button className="btn-brand btn-block" style={{ marginTop: 14 }} onClick={() => claim()}>Claim deposit address</Button>
+              </div>
+              <div className="callout" style={{ marginTop: 14 }}>
+                <Icon path={mdiInformationOutline} size={1}></Icon>
+                <span>After the claim confirms, return to Bridge — the address appears here.</span>
+              </div>
+            </>
+          }
+          {
+            !loading && mode == 'in' && requiresSenderAddress &&
+            <>
+            <div className="card" style={{ marginTop: 14 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+                <AssetImage asset={blockchain} iconSize="34px"></AssetImage>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 750, fontSize: 16 }}><AssetName asset={blockchain} badge={false}></AssetName></div>
+                  <div className="tiny dim">{ wcFallback ? 'Registered sender' : 'via WalletConnect' }</div>
+                </div>
+                { wc?.session != null && <span className="badge ok">{ UiUtil.toAddress(wc.session.address, 5) }</span> }
+              </div>
               {
-                requiresSenderAddress ?
-                <DropdownMenu.Item color="lime" onClick={() => {
-                  setWc(prev => prev ? { ...prev, modal: true } : { modal: true, lazy: true, custom: false, session: null, symbol: null, token: null, amount: '' });
-                  if (!wc?.session)
-                    wcContext.current?.acquire();
-                }}>
-                  <Flex align="center" gap="2">
-                    <Icon path={mdiArrowBottomLeft} size={0.9}></Icon>
-                    <AssetImage asset={blockchain} size="1" iconSize="20px"></AssetImage>
-                    <Text size="4">Add coins/tokens</Text>
-                  </Flex>
-                </DropdownMenu.Item> : (blockchain && !blockchainAddresses.bridge && 
-                <DropdownMenu.Item color="lime" onClick={() => claim()}>
-                  <Flex align="center" gap="2">
-                    <Icon path={mdiSetRight} size={0.9}></Icon>
-                    <AssetImage asset={blockchain} size="1" iconSize="20px"></AssetImage>
-                    <Text size="4">Get receiver address</Text>
-                  </Flex>
-                </DropdownMenu.Item>)
+                !wcFallback &&
+                <>
+                  <Button className="btn-brand btn-block" loading={wc?.lazy} onClick={() => {
+                    setWc(prev => prev ? { ...prev, modal: true } : { modal: true, lazy: true, custom: false, session: null, symbol: null, token: null, amount: '' });
+                    if (!wc?.session)
+                      wcContext.current?.acquire();
+                  }}>Connect wallet &amp; add funds</Button>
+                  <div style={{ marginTop: 12, textAlign: 'center' }}>
+                    <Link to="#" className="router-link" style={{ color: 'var(--info)', fontWeight: 650, fontSize: 12.5 }} onClick={() => setWcFallback(true)}>Not using WalletConnect? Register a sender address →</Link>
+                  </div>
+                </>
               }
               {
-                blockchainAssets.map((item, index) =>
-                  <DropdownMenu.Item key={item.asset.id + '_select'} color="red" onClick={() => send(index)}>
-                    <Flex align="center" gap="2">
-                      <Icon path={mdiSourcePull} size={0.9}></Icon>
-                      <AssetImage asset={item.asset} size="1" iconSize="20px"></AssetImage>
-                      <Text size="4">Send</Text>
-                      <AssetName asset={item.asset} size="4" badgeSize={0.8} badgeOffset={2} symbol={true} tokenOnly={true}></AssetName>
-                      <Text size="4">{ item.asset.token ? 'token' : 'coin' }</Text>
-                    </Flex>
-                  </DropdownMenu.Item>
-                )
+                wcFallback &&
+                <>
+                  {
+                    senderAddresses.length > 0 ?
+                    <>
+                      <p className="small" style={{ color: 'var(--text-2)', lineHeight: 1.55 }}>Register the address you send <b style={{ color: 'var(--text)' }}>from</b> with one small on-chain action. Transfers from anyone else are ignored.</p>
+                      <div className="dl">
+                        <div className="dl-row">
+                          <span className="dl-k">Registered senders · { senderAddresses.length }</span>
+                          <span className="dl-v mono" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span className="router-link" style={{ cursor: 'pointer' }} onClick={() => setSenderDialog(true)}>{ UiUtil.toAddress(senderAddresses[Math.min(senderIndex, senderAddresses.length - 1)].address, 6) }</span>
+                            <IconButton variant="ghost" color="gray" size="1" aria-label="Add sender" onClick={() => claim()}><Icon path={mdiPlus} size={0.9}></Icon></IconButton>
+                          </span>
+                        </div>
+                      </div>
+                      {
+                        blockchainAddresses.bridge &&
+                        <div style={{ marginTop: 14 }}>
+                          <AddressView address={blockchainAddresses.bridge} policy={blockchain.routing_policy}></AddressView>
+                        </div>
+                      }
+                    </> :
+                    <>
+                      <p className="small" style={{ color: 'var(--text-2)', lineHeight: 1.55 }}>Register the address you send <b style={{ color: 'var(--text)' }}>from</b> with one small on-chain action. Transfers from anyone else are ignored.</p>
+                      <Button className="btn-brand btn-block" style={{ marginTop: 14 }} onClick={() => claim()}>Add sender address</Button>
+                    </>
+                  }
+                  <div style={{ marginTop: 12, textAlign: 'center' }}>
+                    <Link to="#" className="router-link" style={{ color: 'var(--info)', fontWeight: 650, fontSize: 12.5 }} onClick={() => setWcFallback(false)}>Use WalletConnect →</Link>
+                  </div>
+                </>
               }
-              <DropdownMenu.Separator />
-              {
-                requiresSenderAddress &&
-                <DropdownMenu.Item onClick={() => claim()}>
-                  <Flex align="center" gap="2">
-                    <Icon path={mdiSetRight} size={0.9}></Icon>
-                    <AssetImage asset={blockchain} size="1" iconSize="20px"></AssetImage>
-                    <Text size="4">Add address</Text>
-                  </Flex>
-                </DropdownMenu.Item>
-              }
-              <DropdownMenu.Item onClick={() => navigate('/explorer?view=vaults&asset=' + AssetId.fromHandle(blockchain.chain || '').toHex())}>
-                <Icon path={mdiSafeSquareOutline} size={1}></Icon>
-                <Text size="4">Advanced control</Text>
-              </DropdownMenu.Item>
-            </DropdownMenu.Content>
-          </DropdownMenu.Root>
-        }
-      </Flex>
-      {
-        blockchain != null && !loading && blockchainAddresses.bridge && (blockchain.routing_policy != 'account' || (forceShowReceiverAddress && blockchainAddresses.routing?.addresses?.length > 0)) &&
-        <Box pt="5" pb="1">
-          <AddressView address={blockchainAddresses.bridge} policy={blockchain.routing_policy}></AddressView>
-        </Box>
-      }
-      {
-        blockchain?.ext &&
-        <Flex justify="center" mt="4" px="2">
-          <Text align="center" size="1">
-            <Text><Text style={{ color: 'var(--accent-11)' }}>{blockchain.ext.transactionTime}-{blockchain.ext.transactionTime + 5} min</Text> to get, never send to CEXes</Text>
-            { blockchain.ext.blocking && <Text>, <Text color="yellow">very slow sending</Text></Text> }
-            { blockchain.routing_policy == 'memo' && <Text>, <Text color="red">requires memo/dt to get</Text></Text> }
+            </div>
             {
-              requiresSenderAddress && forceShowReceiverAddress && blockchainAddresses.routing?.addresses?.length > 0 &&
-              <Text>, <Text color="red" mr="1">top-up from</Text>    
-                <DropdownMenu.Root>
-                  <DropdownMenu.Trigger>
-                    <Link to="#">{ UiUtil.toAddress(blockchainAddresses.routing.addresses[0].address, 6) }{ blockchainAddresses.routing.addresses.length > 1 ? ' + ' + UiUtil.toCount('option', blockchainAddresses.routing.addresses.length - 1) : '' }</Link>
-                  </DropdownMenu.Trigger>
-                  <DropdownMenu.Content>
-                    {
-                      blockchainAddresses.routing.addresses.map((item: any) => 
-                        <DropdownMenu.Item key={'RA' + item.address} onClick={() => {
-                          navigator.clipboard.writeText(item.address);
-                          AlertBox.open(AlertType.Info, 'Your address copied!')
-                        }}>{ UiUtil.toAddress(item.address, 6) }</DropdownMenu.Item>
-                      )
-                    }
-                  </DropdownMenu.Content>
-                </DropdownMenu.Root>
+              wcFallback && senderAddresses.length == 0 &&
+              <div className="callout" style={{ marginTop: 14 }}>
+                <Icon path={mdiInformationOutline} size={1}></Icon>
+                <span>After the sender registration confirms, return here — the vault master deposit address appears.</span>
+              </div>
+            }
+            {
+              wcFallback && senderAddresses.length > 0 &&
+              <div className="callout warn" style={{ marginTop: 14 }}>
+                <Icon path={mdiAlertCircleOutline} size={1}></Icon>
+                <span>Deposits to this address are credited <b>only</b> from a registered sender address.</span>
+              </div>
+            }
+            {
+              wcFallback &&
+              <div className="tiny dim" style={{ marginTop: 14, textAlign: 'center' }}>
+                Shared vault address.{' '}
+                <Link to={'/explorer?view=vaults&asset=' + AssetId.fromHandle(blockchain.chain || '').toHex()} className="router-link" style={{ color: 'var(--info)', fontWeight: 650 }}>All vaults in explorer →</Link>
+              </div>
+            }
+            </>
+          }
+          {
+            !loading && mode == 'out' &&
+            <div className="card" style={{ marginTop: 14 }}>
+              {
+                blockchainAssets.filter((x) => x.balance.gt(0) || x.asset.id == blockchain.id).map((item) =>
+                  <button className="asset-row" key={item.asset.id + '_out'} onClick={() => send(blockchainAssets.indexOf(item))}>
+                    <AssetImage asset={item.asset} iconSize="34px"></AssetImage>
+                    <div className="asset-main">
+                      <div className="asset-name"><AssetName asset={item.asset} badge={false} symbol={true} tokenOnly={true}></AssetName></div>
+                      <div className="asset-sub">{ item.asset.token ? 'Token' : 'Native' } · withdraw to { blockchain.chain }</div>
+                    </div>
+                    <div style={{ textAlign: 'right', flex: 'none' }}>
+                      <div style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{ UiUtil.toMoney(item.asset, item.balance) }</div>
+                      <div className="tiny dim">Withdraw →</div>
+                    </div>
+                  </button>
+                )
+              }
+            </div>
+          }
+          {
+            blockchain.ext && !loading &&
+            <Flex justify="center" mt="4" px="2">
+              <Text align="center" size="1" className="dim">
+                <Text style={{ color: 'var(--accent-11)' }}>{blockchain.ext.transactionTime}-{blockchain.ext.transactionTime + 5} min</Text> to get, never send to CEXes
+                { blockchain.ext.blocking && <Text>, <Text color="yellow">very slow sending</Text></Text> }
+                { blockchain.routing_policy == 'memo' && <Text>, <Text color="red">requires memo/dt to get</Text></Text> }
               </Text>
-            }
-            {
-              requiresSenderAddress && !forceShowReceiverAddress && blockchainAddresses.routing?.addresses?.length > 0 &&
-              <Text>, <Button size="1" color="yellow" variant="ghost" onClick={() => setForceShowReceiverAddress(true)}>add funds manually</Button></Text>
-            }
-          </Text>
-        </Flex>
-      }
+            </Flex>
+          }
+            </>
+          }
+        </Box>
+      <Dialog.Root open={senderDialog && blockchain != null && senderAddresses.length > 0} onOpenChange={setSenderDialog}>
+        <Dialog.Content maxWidth="450px">
+          <Dialog.Title>Registered senders · { senderAddresses.length }</Dialog.Title>
+          {
+            blockchain != null &&
+            <AddressView address={{ ...blockchainAddresses.routing, addresses: senderAddresses }} policy={blockchain.routing_policy} initialVariant={Math.min(senderIndex, senderAddresses.length - 1)} onVariantChange={setSenderIndex}></AddressView>
+          }
+          <div className="tiny dim" style={{ textAlign: 'center', marginTop: 14 }}>Send only from these addresses · transfers from anyone else are ignored.</div>
+        </Dialog.Content>
+      </Dialog.Root>
       <Dialog.Root open={!!(wc && wc.session && wc.modal)} onOpenChange={(e) => setWc(prev => prev ? ({ ...prev, modal: e }) : null)}>
         <Dialog.Content maxWidth="450px">
           <Dialog.Title>

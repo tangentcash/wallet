@@ -1,12 +1,12 @@
-import { mdiClose, mdiCloudDownload } from "@mdi/js";
-import { AlertDialog, Badge, Box, Button, Card, DataList, DropdownMenu, Flex, Heading, TextField, Tooltip } from "@radix-ui/themes";
+import { mdiChevronDown, mdiChevronRight, mdiDeleteOutline, mdiDownload, mdiInformationOutline, mdiLockOutline, mdiPlus, mdiRefresh, mdiWeatherNight, mdiWeatherSunny } from "@mdi/js";
+import { AlertDialog, Box, Button, DropdownMenu, Flex, Switch, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData, AppPermission, ConnectionState } from "../core/app";
 import { ByteUtil, Signing } from "tangentsdk/algorithm";
 import { RPC } from "tangentsdk/rpc";
 import { UiUtil } from "tangentsdk/ui";
-import { useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { useEffectAsync } from "../core/react";
 import Icon from "@mdi/react";
 import License from "../components/license";
@@ -14,7 +14,6 @@ import AddressAvatar from "../components/avatar";
 
 export default function ConfigurePage() {
   const address = AppData.getWalletAddress();
-  const mobile = document.body.clientWidth <= 600;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [counter, setCounter] = useState(0);
@@ -207,166 +206,166 @@ export default function ConfigurePage() {
   }, []);
 
   return (
-    <Box px={mobile ? undefined : '4'} pt={mobile ? '2' : '4'} mx="auto" maxWidth="580px">
-      <Box px="4" py="2">
-        <Heading size="6" mb={mobile ? undefined : '2'}>Settings</Heading>
-      </Box>
-      <Card variant={mobile ? 'ghost' : 'surface'} style={mobile ? { margin: 0, border: 'none' } : { borderRadius: '28px' }}>
-        <Box px="2" py="2">
-          <DataList.Root orientation="vertical">
-            <DataList.Item>
-              <DataList.Label minWidth="88px">Wallet control</DataList.Label>
-              <DataList.Value>
-                <Flex gap="2" wrap="wrap">
-                  <Button size="2" variant="solid" color={AppData.isWalletExists() && AppData.isWalletReady() ? 'red' : undefined} onClick={() => {
-                    if (!AppData.isWalletExists() || !AppData.isWalletReady()) {
-                      navigate(`/restore?to=${encodeURIComponent('/configure')}`);
-                    } else {
-                      AppData.clearWallet();
-                    }
-                  }}>
-                    { AppData.isWalletExists() ? (AppData.isWalletReady() ? <>{ (AppData.hasWalletSecretKey() ? 'Full control' : 'Watch control') } <Icon path={mdiClose} size={0.7}></Icon></> : 'Unlock to see') : 'Create to see' }
-                  </Button>
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger disabled={!AppData.isWalletExists() || !AppData.isWalletReady()}>
-                      <Button variant="surface" size="2" color="yellow">
-                        <AddressAvatar address={address || ''} size="1" style={{ width: '16px', height: '16px' }}></AddressAvatar>
-                        { address ? address.substring(address.length - 6) : 'Switch' }
-                        <DropdownMenu.TriggerIcon />
-                      </Button>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Content>
-                      {
-                        walletAddresses.map((item, index) =>
-                          <DropdownMenu.Item key={item || '' + '_select'} disabled={item != null && item == address} onClick={() => switchWallet(index)}>
-                            <AddressAvatar address={item || ''} size="1" style={{ width: '16px', height: '16px', filter: item != null && item == address ? 'brightness(0.5)' : undefined }}></AddressAvatar> Use { UiUtil.toAddress(item || undefined, 6) }
-                          </DropdownMenu.Item>
-                        )
-                      }
-                      <DropdownMenu.Separator></DropdownMenu.Separator>
-                      <DropdownMenu.Item onClick={() => navigate(`/restore?add=1&to=${encodeURIComponent('/configure')}`)}>Add wallet</DropdownMenu.Item>
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Root>
-                </Flex>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label minWidth="88px">Wallet data</DataList.Label>
-              <DataList.Value>
-                <Flex gap="2" wrap="wrap">    
-                  <AlertDialog.Root>
-                    <AlertDialog.Trigger disabled={!AppData.isWalletExists()}>
-                      <Button size="2" variant="soft" color="red">Destroy</Button>
-                    </AlertDialog.Trigger>
-                    <AlertDialog.Content maxWidth="450px">
-                      <AlertDialog.Title>Wipe the wallet</AlertDialog.Title>
-                      <AlertDialog.Description size="2">
-                        Are you sure? You will not be able to recover the access without your recovery phrase or private key.
-                      </AlertDialog.Description>
-                      <Flex gap="3" mt="4" justify="end">
-                        <AlertDialog.Cancel>
-                          <Button variant="solid">Cancel</Button>
-                        </AlertDialog.Cancel>
-                        {
-                          walletAddresses.length > 1 &&
-                          <>
-                            <AlertDialog.Action>
-                              <Button variant="soft" color="red" onClick={() => destroyWallet(true)}>Wipe all</Button>
-                            </AlertDialog.Action>
-                            <AlertDialog.Action>
-                              <Button variant="soft" color="yellow" onClick={() => destroyWallet(false)}>Wipe wallet</Button>
-                            </AlertDialog.Action>
-                          </>
-                        }
-                        {
-                          walletAddresses.length <= 1 &&
-                          <AlertDialog.Action>
-                            <Button variant="soft" color="red" onClick={() => destroyWallet(true)}>Wipe wallet</Button>
-                          </AlertDialog.Action>
-                        }
-                      </Flex>
-                    </AlertDialog.Content>
-                  </AlertDialog.Root>
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger>
-                      <Button variant="surface" className={highlightExport ? 'shadow-rainbow-animation' : undefined} disabled={!AppData.isWalletExists()}>
-                        Backup
-                        <DropdownMenu.TriggerIcon />
-                      </Button>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Content>
-                      <DropdownMenu.Item onClick={() => exportWallet('wallet')}>File</DropdownMenu.Item>
-                      <DropdownMenu.Item onClick={() => exportWallet('mnemonic')}>Recovery phrase</DropdownMenu.Item>
-                      <DropdownMenu.Item onClick={() => exportWallet('secretkey')}>Private key</DropdownMenu.Item>
-                      <DropdownMenu.Item onClick={() => exportWallet('publickey')}>Public key</DropdownMenu.Item>
-                      <DropdownMenu.Item onClick={() => exportWallet('address')}>Address</DropdownMenu.Item>
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Root>
-                </Flex>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label minWidth="88px">Client app</DataList.Label>
-              <DataList.Value>
-                <Flex gap="2" wrap="wrap">
-                  <DropdownMenu.Root>
-                    <DropdownMenu.Trigger>
-                      <Button variant="surface" color="gray">
-                        Manage
-                        <DropdownMenu.TriggerIcon />
-                      </Button>
-                    </DropdownMenu.Trigger>
-                    <DropdownMenu.Content>
-                      <DropdownMenu.Item onClick={() => AppData.openDevTools()} disabled={!AppData.isApp()}>Debug app</DropdownMenu.Item>
-                      <DropdownMenu.Item onClick={() => location.reload()}>Reload app</DropdownMenu.Item>
-                      <DropdownMenu.Item onClick={() => resetNetwork()}>Reset network</DropdownMenu.Item>
-                      <DropdownMenu.Item onClick={() => {
-                        RPC.clearCache();
-                        AlertBox.open(AlertType.Info, 'Application cache erased');
-                      }}>Clear cache</DropdownMenu.Item>
-                    </DropdownMenu.Content>
-                  </DropdownMenu.Root>
-                  <Button size="2" variant="solid" style={{ backgroundColor: 'var(--gray-12)', color: 'var(--gray-1)' }} onClick={() => AppData.setAppearance(AppData.props.appearance == 'dark' ? 'light' : 'dark')}>
-                    { AppData.props.appearance == 'dark' ? 'Lights on' : 'Lights off'}
-                  </Button>
-                </Flex>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label minWidth="88px">Validator RPC</DataList.Label>
-              <DataList.Value>
-                <Tooltip content="Specify the URL of Validator RPC server: read/write on-chain data">
-                  <TextField.Root style={{ width: '100%' }} size="2" placeholder="Validator RPC server address" type="text" value={validatorAddress} onChange={(e) => setValidatorAddress(e.target.value.trim())} />
-                </Tooltip>
-                <Button size="2" ml="2" variant="soft" onClick={() => setValidatorServer(validatorAddress)}>
-                  <Icon path={mdiCloudDownload} size={0.85} />
-                </Button>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label minWidth="88px">Exchange RPC</DataList.Label>
-              <DataList.Value>
-                <Tooltip content="Specify the URL of Exchange RPC server: read-only DEX data">
-                  <TextField.Root style={{ width: '100%' }} size="2" placeholder="Exchange RPC server address" type="text" value={exchangeAddress} onChange={(e) => setExchangeAddress(e.target.value.trim())} />
-                </Tooltip>
-                <Button size="2" ml="2" variant="soft" onClick={() => setExchangeServer(exchangeAddress)}>
-                  <Icon path={mdiCloudDownload} size={0.85} />
-                </Button>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>RPC traffic</DataList.Label>
-              <DataList.Value>
-                <Flex gap="1" wrap="wrap">
-                  <Badge size="3" color={networkInfo.active ? undefined : 'red'}>{ networkInfo.active ? 'ONLINE' : 'OFFLINE' }</Badge>
-                  <Badge size="3">↓↑{ UiUtil.toCount('byte', networkInfo.traffic) }</Badge>
-                </Flex>
-              </DataList.Value>
-            </DataList.Item>
-          </DataList.Root>
-        </Box>
-      </Card>
-      <License style={{ marginTop: '40px' }} app={!AppData.isApp()}></License>
+    <Box pt="4" pb="8" maxWidth="680px" mx="auto">
+      <div className="page-head">
+        <div className="page-title">App</div>
+      </div>
+      <div className="card" style={{ padding: '6px 18px' }}>
+        {
+          AppData.isWalletReady() ? (
+            <DropdownMenu.Root>
+              <DropdownMenu.Trigger>
+                <button className="srow">
+                  <span className="ic" style={{ overflow: 'hidden' }}><AddressAvatar address={address || ''} size="1" style={{ width: '100%', height: '100%' }}></AddressAvatar></span>
+                  <span className="t"><b>Switch wallet</b><span>{ UiUtil.toAddress(address || undefined, 6) }</span></span>
+                  <span className="go"><Icon path={mdiChevronDown} size={0.8}></Icon></span>
+                </button>
+              </DropdownMenu.Trigger>
+              <DropdownMenu.Content>
+                {
+                  walletAddresses.map((item, index) =>
+                    <DropdownMenu.Item key={item || '' + '_select'} disabled={item != null && item == address} onClick={() => item != address && switchWallet(index)}>
+                      <AddressAvatar address={item || ''} size="1" style={{ width: '16px', height: '16px' }}></AddressAvatar> Use { UiUtil.toAddress(item || undefined, 6) }
+                    </DropdownMenu.Item>
+                  )
+                }
+                <DropdownMenu.Separator></DropdownMenu.Separator>
+                <DropdownMenu.Item onClick={() => navigate(`/restore?add=1&to=${encodeURIComponent('/configure')}`)}>Add wallet</DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Root>
+          ) : (
+            <button className="srow" onClick={() => navigate(`/restore?to=${encodeURIComponent('/configure')}`)}>
+              <span className="ic" style={{ overflow: 'hidden' }}>{ AppData.isWalletExists() ? <AddressAvatar address={address || ''} size="1" style={{ width: '100%', height: '100%' }}></AddressAvatar> : <Icon path={mdiPlus} size={0.95}></Icon> }</span>
+              <span className="t"><b>{ AppData.isWalletExists() ? 'Switch wallet' : 'Add a wallet' }</b><span>{ AppData.isWalletExists() ? 'Unlock to switch or add wallets' : 'Create or import to get started' }</span></span>
+              <span className="go"><Icon path={mdiChevronRight} size={0.8}></Icon></span>
+            </button>
+          )
+        }
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger disabled={!AppData.isWalletExists()}>
+            <button className={'srow' + (highlightExport ? ' shadow-rainbow-animation' : '')}>
+              <span className="ic"><Icon path={mdiDownload} size={0.95}></Icon></span>
+              <span className="t"><b>Backup wallet</b><span>Wallet file or recovery phrase</span></span>
+              <span className="go"><Icon path={mdiChevronRight} size={0.8}></Icon></span>
+            </button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content>
+            <DropdownMenu.Item onClick={() => exportWallet('wallet')}><span style={{ display: 'contents', width: '100%' }}>Download wallet file<span className="tiny dim" style={{ marginLeft: 'auto' }}>.json</span></span></DropdownMenu.Item>
+            <DropdownMenu.Item onClick={() => exportWallet('mnemonic')}>Reveal recovery phrase</DropdownMenu.Item>
+            <DropdownMenu.Item onClick={() => exportWallet('secretkey')}>Copy private key</DropdownMenu.Item>
+            <DropdownMenu.Item onClick={() => exportWallet('publickey')}>Copy public key</DropdownMenu.Item>
+            <DropdownMenu.Separator></DropdownMenu.Separator>
+            <DropdownMenu.Item onClick={() => exportWallet('address')}>Copy public address</DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+        <button className="srow" disabled={!AppData.isWalletExists() || !AppData.isWalletReady()} onClick={() => {
+          AppData.clearWallet();
+          AlertBox.open(AlertType.Info, 'Wallet locked — signing requires your password again');
+        }}>
+          <span className="ic"><Icon path={mdiLockOutline} size={0.95}></Icon></span>
+          <span className="t"><b>Lock wallet</b><span>Keep balances visible, require password to sign</span></span>
+          <span className="go"><Icon path={mdiChevronRight} size={0.8}></Icon></span>
+        </button>
+        <AlertDialog.Root>
+          <AlertDialog.Trigger disabled={!AppData.isWalletExists()}>
+            <button className="srow danger">
+              <span className="ic"><Icon path={mdiDeleteOutline} size={0.95}></Icon></span>
+              <span className="t"><b>Destroy wallet</b><span>Erase keys from this device only</span></span>
+              <span className="go"><Icon path={mdiChevronRight} size={0.8}></Icon></span>
+            </button>
+          </AlertDialog.Trigger>
+          <AlertDialog.Content maxWidth="450px">
+            <AlertDialog.Title>Destroy this wallet?</AlertDialog.Title>
+            <AlertDialog.Description size="2">
+              Erases the encrypted keys on this device. On-chain funds at <span className="mono">{ UiUtil.toAddress(address || undefined, 6) }</span> are untouched — recover them anywhere with your phrase.
+            </AlertDialog.Description>
+            <Flex gap="3" mt="4" justify="end">
+              <AlertDialog.Cancel>
+                <Button variant="soft" color="gray">Keep wallet</Button>
+              </AlertDialog.Cancel>
+              {
+                walletAddresses.length > 1 &&
+                <>
+                  <AlertDialog.Action>
+                    <Button variant="soft" color="yellow" onClick={() => destroyWallet(false)}>Wipe wallet</Button>
+                  </AlertDialog.Action>
+                  <AlertDialog.Action>
+                    <Button variant="solid" color="red" onClick={() => destroyWallet(true)}>Wipe all</Button>
+                  </AlertDialog.Action>
+                </>
+              }
+              {
+                walletAddresses.length <= 1 &&
+                <AlertDialog.Action>
+                  <Button variant="solid" color="red" onClick={() => destroyWallet(true)}>Destroy</Button>
+                </AlertDialog.Action>
+              }
+            </Flex>
+          </AlertDialog.Content>
+        </AlertDialog.Root>
+      </div>
+      <div className="card" style={{ padding: '6px 18px' }}>
+        <DropdownMenu.Root>
+          <DropdownMenu.Trigger>
+            <button className="srow">
+              <span className="ic"><Icon path={mdiRefresh} size={0.95}></Icon></span>
+              <span className="t"><b>Manage client app</b><span>Updates · restart · reset settings</span></span>
+              <span className="go"><Icon path={mdiChevronRight} size={0.8}></Icon></span>
+            </button>
+          </DropdownMenu.Trigger>
+          <DropdownMenu.Content>
+            <DropdownMenu.Item onClick={() => AppData.openDevTools()} disabled={!AppData.isApp()}>Debug app</DropdownMenu.Item>
+            <DropdownMenu.Item onClick={() => location.reload()}>Restart client</DropdownMenu.Item>
+            <DropdownMenu.Separator></DropdownMenu.Separator>
+            <DropdownMenu.Item onClick={() => resetNetwork()}>Reset network</DropdownMenu.Item>
+            <DropdownMenu.Item onClick={() => {
+              RPC.clearCache();
+              AlertBox.open(AlertType.Info, 'Application cache erased');
+            }}>Clear cache</DropdownMenu.Item>
+          </DropdownMenu.Content>
+        </DropdownMenu.Root>
+        <div className="srow" style={{ cursor: 'default' }}>
+          <span className="ic"><Icon path={AppData.props.appearance == 'light' ? mdiWeatherSunny : mdiWeatherNight} size={0.95}></Icon></span>
+          <span className="t"><b>Lights</b><span>{ AppData.props.appearance == 'light' ? 'On for bright rooms' : 'Inverted surfaces for bright rooms' }</span></span>
+          <Switch size="2" checked={ AppData.props.appearance == 'light' } onCheckedChange={(v) => AppData.setAppearance(v ? 'light' : 'dark')} aria-label={AppData.props.appearance == 'light' ? 'Lights on' : 'Lights off'} />
+        </div>
+        <div className="srow" style={{ cursor: 'default' }}>
+          <span className="ic"><Icon path={mdiInformationOutline} size={0.95}></Icon></span>
+          <span className="t"><b>Version</b><span>MIT licensed · open source</span></span>
+          <Link to="/legal" style={{ marginLeft: 'auto' }}><span className="badge flat mono" style={{ cursor: 'pointer' }}>MIT</span></Link>
+        </div>
+      </div>
+      <div className="card">
+        <div className="f-row">
+          <span className="f-name">Validator RPC</span>
+          <span className="f-desc">blocks · accounts · mempool</span>
+        </div>
+        <div className="f-input">
+          <Tooltip content="Specify the address of Validator RPC server: read/write on-chain data">
+            <TextField.Root className="mono" style={{ flex: 1 }} size="3" placeholder="hostname:port" type="text" value={validatorAddress} onChange={(e) => setValidatorAddress(e.target.value.trim())} />
+          </Tooltip>
+        </div>
+        <div className="f-row" style={{ marginTop: 22 }}>
+          <span className="f-name">Exchange RPC</span>
+          <span className="f-desc">markets &amp; trading · DEX tab only</span>
+        </div>
+        <div className="f-input">
+          <Tooltip content="Specify the URL of Exchange RPC server: read-only DEX data">
+            <TextField.Root className="mono" style={{ flex: 1 }} size="3" placeholder="http://hostname:port" type="text" value={exchangeAddress} onChange={(e) => setExchangeAddress(e.target.value.trim())} />
+          </Tooltip>
+        </div>
+        <Button className="btn-brand btn-block" style={{ marginTop: 20 }} loading={loadingProps} onClick={async () => {
+          if (!await setValidatorServer(validatorAddress))
+            return;
+          await setExchangeServer(exchangeAddress);
+        }}>Save RPC settings</Button>
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginTop: 14 }}>
+          <span className={'badge ' + (networkInfo.active ? 'ok' : 'err')}>{ networkInfo.active ? 'ONLINE' : 'OFFLINE' }</span>
+          <span className="badge flat num">↓↑ { UiUtil.toCount('byte', networkInfo.traffic) }</span>
+          <button className="chip-quiet" style={{ marginLeft: 'auto' }} onClick={() => resetNetwork()}>Reset</button>
+        </div>
+      </div>
+      <License style={{ marginTop: 40 }} size={32} app={!AppData.isApp()}></License>
     </Box>
   );
 }

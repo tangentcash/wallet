@@ -1,6 +1,7 @@
-import { Box, Button, Flex, Avatar, Badge, Card, SegmentedControl, Spinner, Tabs, Text, Tooltip, DropdownMenu } from "@radix-ui/themes";
+import './account.css';
+import { Box, Button, Card, Dialog, Flex, SegmentedControl, Spinner, Tabs, Text } from "@radix-ui/themes";
 import { useNavigate, useParams, Link } from "react-router";
-import { mdiAlertDecagram, mdiCheckDecagram, mdiChevronDown, mdiLock, mdiLockOpen, mdiMagnifyScan, mdiQrcode } from "@mdi/js";
+import { mdiAlertCircleOutline, mdiAlertDecagram, mdiBankOutline, mdiCheckBold, mdiCheckDecagram, mdiChevronDown, mdiContentCopy, mdiDatabaseOutline, mdiImport, mdiLock, mdiLockOpen, mdiMagnify, mdiOpenInNew, mdiPlus, mdiRefresh } from "@mdi/js";
 import { useCallback, useState, useMemo, useRef } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData } from "../core/app";
@@ -10,22 +11,21 @@ import { Whitelist } from "tangentsdk/whitelist";
 import { UiUtil } from "tangentsdk/ui";
 import { Assetlist } from "tangentsdk/assetlist";
 import { useEffectAsync } from "../core/react";
-import { mdiArrowRightBoldHexagonOutline, mdiBridge, mdiCellphoneKey, mdiCoffin, mdiConsole, mdiOpenInNew, mdiSourceCommitLocal, mdiSourceCommitStartNextLocal, mdiTransitConnectionVariant } from "@mdi/js";
 import { AssetImage } from "../components/asset-image";
 import { AssetName } from "../components/asset-name";
 import { AddressView } from "../components/address";
 import { TransactionView } from "../components/transaction";
+import AddressAvatar from "../components/avatar";
+import type { ActivityEntry, BalanceRecord, RewardRecord } from "../core/types";
 import { AppStorage, StorageField } from "../core/storage";
 import BigNumber from "bignumber.js";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import Icon from "@mdi/react";
 import Vault from "../components/vault";
-import AddressAvatar from "../components/avatar";
 
 const TRANSACTION_COUNT = 16;
 
 export default function AccountPage() {
-  const mobile = document.body.clientWidth < 500;
   const ownerBaseAddress = AppData.getWalletAddress() || '';
   const ownerAddress = useParams().id || ownerBaseAddress;
   const self = ownerAddress == ownerBaseAddress;
@@ -48,6 +48,8 @@ export default function AccountPage() {
   const [finalizedTransactions, setFinalizedTransactions] = useState<{ transaction: any, receipt?: any, state?: SummaryState }[]>([]);
   const [mempoolTransactions, setMempoolTransactions] = useState<any[]>([]);
   const [moreTransactions, setMoreTransactions] = useState(true);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [rpcError, setRpcError] = useState<string | null>(null);
   const transactions = useMemo((): { transaction: any, receipt?: any, state?: SummaryState }[] => {
     return [...mempoolTransactions.map((x) => ({ transaction: x })), ...finalizedTransactions];
   }, [finalizedTransactions, mempoolTransactions]);
@@ -105,18 +107,6 @@ export default function AccountPage() {
       AlertBox.open(AlertType.Error, 'Failed to switch to wallet ' + (index + 1).toString());
     }
   }, []);
-  const resolveTransactions = useCallback((offset: number, resolve: (tx: any) => boolean): any => {  
-    for (let i = 0; i < 1024; i++) {
-      const index = offset - i;
-      const top = index >= 0 && index < finalizedTransactions.length ? finalizedTransactions[index].transaction : null;
-      if (!top) {
-        return null;
-      } else if (resolve(top)) {
-        return top;
-      }
-    }
-    return null;
-  }, [finalizedTransactions]);
   const findTransactions = useCallback(async (refresh?: boolean) => {
     try {
       const data = await RPC.getTransactionsByOwner(ownerAddress, refresh ? 0 : finalizedTransactions.length, TRANSACTION_COUNT, 0, 2);
@@ -175,6 +165,7 @@ export default function AccountPage() {
       case 'balance':
         tasks.push((async () => {
           try {
+            setRpcError(null);
             let assetData = await RPC.fetchAll((offset, count) => RPC.getAccountBalances(ownerAddress, offset, count));
             if (Array.isArray(assetData)) {
               assetData = assetData.sort((a, b) => new AssetId(a.asset.id).handle.localeCompare(new AssetId(b.asset.id).handle));
@@ -183,9 +174,10 @@ export default function AccountPage() {
             } else {
               setAllAssets([]);
             }
-          } catch (exception) {
-            AlertBox.open(AlertType.Error, 'Failed to fetch account balances: ' + (exception as Error).message);
-            setAllAssets([]);
+            } catch (exception) {
+              AlertBox.open(AlertType.Error, 'Failed to fetch account balances: ' + (exception as Error).message);
+              setAllAssets([]);
+              setRpcError((exception as Error).message);
           }
         })());
         break;
@@ -317,377 +309,394 @@ export default function AccountPage() {
     };
   }, [ownerAddress, ownerBaseAddress]);
 
+  const nativeAsset = useMemo(() => new AssetId(), []);
+  const tanMoney = useMemo((): [string, string] => {
+    const target = assets.find((x) => x.asset.id == nativeAsset.id);
+    const money = UiUtil.toMoney(nativeAsset, target ? target.supply : new BigNumber(0));
+    const index = money.lastIndexOf(' ');
+    return index > 0 ? [money.substring(0, index), money.substring(index + 1)] : [money, 'TAN'];
+  }, [assets, nativeAsset]);
+  const tanFee = useMemo((): string | null => {
+    const chain = blockchains.find((x) => x.chain == nativeAsset.chain);
+    return chain?.gas_price != null ? UiUtil.toMoney(nativeAsset, chain.gas_price) : null;
+  }, [blockchains, nativeAsset]);
+  const assetContext = (item: BalanceRecord): string => {
+    if (item.asset.id == nativeAsset.id)
+      return 'Network token';
+    if (item.asset.chain == 'TAN')
+      return 'Token · ' + (item.contractAddress != null && !Whitelist.fake(item.asset, item.contractAddress) ? 'verified' : 'unverified');
+    return item.asset.chain + (item.asset.token ? ' ' + UiUtil.toAssetSymbol(item.asset) : '') + ' · ' + (item.contractAddress != null && !Whitelist.fake(item.asset, item.contractAddress) ? 'verified' : 'bridged');
+  };
+  const unlockedShare = (item: BalanceRecord): string => {
+    if (item.supply == null || item.supply.lte(0))
+      return '—';
+    return Math.min(100, Math.round(item.balance.dividedBy(item.supply).toNumber() * 100)).toString() + '%';
+  };
+  const dayGroups = useMemo((): { day: number, label: string, entries: ActivityEntry[] }[] => {
+    const groups: { day: number, label: string, entries: ActivityEntry[] }[] = [];
+    transactions.forEach((item) => {
+      const timestamp = item.receipt?.block_time?.toNumber() || Date.now();
+      const day = new Date(timestamp).setHours(0, 0, 0, 0);
+      const label = day == new Date().setHours(0, 0, 0, 0) ? 'Today' : new Date(day).toLocaleDateString();
+      const last = groups[groups.length - 1];
+      if (last != null && last.day == day)
+        last.entries.push(item);
+      else
+        groups.push({ day, label, entries: [item] });
+    });
+    return groups;
+  }, [transactions]);
+
   return (
-    <Box pt="2" maxWidth="680px" mx="auto">
-      <DropdownMenu.Root>
-        <DropdownMenu.Trigger>
-          <Box px={mobile ? '2' : undefined}>
-            <Button variant="ghost" color="gray" style={{ width: '100%', height: 'auto', minHeight: 'initial', lineHeight: 'initial', textAlign: 'initial', borderRadius: '12px', margin: 0, padding: 0, display: 'block' }}>
-              <Flex gap="2" align="center" justify="between" px="2" py="2">
-                <Flex align="center" gap="2">
-                  <AddressAvatar address={ownerAddress} size="3"></AddressAvatar>
-                  <Flex direction="column">
-                    { self && AppData.isWalletReady() ? <Text color="red" size="2">{ (AppData.hasWalletSecretKey() ? 'Full control' : 'Watch control') }</Text> : <Text color="gray" size="2">Watch only</Text> }
-                    <Text style={{ color: 'var(--gray-12)' }} weight="bold" size="2">{ UiUtil.toAddress(ownerAddress, 6) }</Text>
-                  </Flex>
-                </Flex>
-                <Icon path={mdiChevronDown} style={{ color: 'var(--gray-11)' }} size={1}></Icon>
-              </Flex>
-            </Button>
-          </Box>
-        </DropdownMenu.Trigger>
-        <DropdownMenu.Content side="bottom">
-          {
-            self && AppData.isWalletReady() && walletAddresses.map((item, index) =>
-              <DropdownMenu.Item key={item || '' + '_select'} disabled={item != null && item == ownerAddress} onClick={() => switchWallet(index)}>
-                <AddressAvatar address={item || ''} size="1" style={{ width: '16px', height: '16px', filter: item != null && item == ownerAddress ? 'brightness(0.5)' : undefined }}></AddressAvatar> Use { UiUtil.toAddress(item || undefined, 6) }
-              </DropdownMenu.Item>
-            )
-          }
-          { self && AppData.isWalletReady() && walletAddresses.length > 0 && <DropdownMenu.Separator /> }
-          {
-            self &&
-            <DropdownMenu.Item onClick={() => {
-              if (AppData.isWalletReady()) {
-                AppData.clearWallet();
-              } else {
-                navigate('/restore');
+    <Box>
+      <div className="page-head">
+        <Dialog.Root open={sheetOpen} onOpenChange={setSheetOpen}>
+          <Dialog.Trigger>
+            <button className="acct-chip" style={{ border: 0 }}>
+              <span className={'avatar' + (self && AppData.hasWalletSecretKey() ? '' : ' watch')}>
+                <AddressAvatar address={ownerAddress || ''} size="1" style={{ width: '100%', height: '100%' }}></AddressAvatar>
+              </span>
+              <span className="mono">{ UiUtil.toAddress(ownerAddress, 6) }</span>
+              { self && !AppData.isWalletReady() && <span className="lock">LOCKED</span> }
+              <Icon path={mdiChevronDown} size={0.7} style={{ color: 'var(--text-2)' }}></Icon>
+            </button>
+          </Dialog.Trigger>
+            <Dialog.Content className="sheet-content">
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, padding: '0 4px' }}>
+                <Dialog.Title style={{ fontWeight: 750, fontSize: 16, color: 'var(--text)', margin: 0 }}>Your accounts</Dialog.Title>
+                <span className="token-select dot" style={{ height: 32, fontSize: 12 }} title="Current network">
+                  <span style={{ width: 7, height: 7, borderRadius: '50%', background: 'var(--lime-solid)' }}></span>
+                  { (String(AppStorage.get(StorageField.Network) || AppData.defaultNetwork()) || '').replace(/^\w/, (c) => c.toUpperCase()) }
+                </span>
+              </div>
+              {
+                walletAddresses.map((item, index) =>
+                  <button key={item || 'add-' + index} onClick={() => {
+                    setSheetOpen(false);
+                    switchWallet(index);
+                  }} className={ 'acct-row' + (item != null && item == ownerAddress ? ' sel' : '') }>
+                    <span className="ava">
+                      { item != null ? <AddressAvatar address={item} size="1" style={{ width: '100%', height: '100%' }}></AddressAvatar> : <Icon path={mdiPlus} size={0.75}></Icon> }
+                    </span>
+                    <span className="bd">
+                      <span className="mono nm">
+                        { item ? UiUtil.toAddress(item, 6) : 'Add account' }
+                      </span>
+                      <span className="tiny dim sb">
+                        { item == null ? 'next unused key' : (item == ownerAddress ? (AppData.hasWalletSecretKey() ? 'full control · current' : 'watch control · current') : 'switch account · full control') }
+                      </span>
+                    </span>
+                    { item != null && item == ownerAddress && <Icon path={mdiCheckBold} size={0.8} style={{ color: 'var(--lime)', flex: 'none' }}></Icon> }
+                  </button>
+                )
               }
-            }}>
-              <Icon path={AppData.isWalletReady() ? mdiLock : mdiLockOpen} size={0.8} />
-              <Text>{ AppData.isWalletReady() ? 'Lock wallet account' : 'Unlock wallet account' }</Text>    
-            </DropdownMenu.Item>
+              <div style={{ height: 1, background: 'var(--line)', margin: '12px 8px' }}></div>
+              {
+                self &&
+                <button onClick={() => {
+                  setSheetOpen(false);
+                  if (AppData.isWalletReady()) {
+                    AppData.clearWallet();
+                  } else {
+                    navigate('/restore');
+                  }
+                }} className="sheet-action">
+                  <span className="sa-ico"><Icon path={AppData.isWalletReady() ? mdiLock : mdiLockOpen} size={0.78}></Icon></span>
+                  <span style={{ fontWeight: 650, fontSize: 14 }}>{ AppData.isWalletReady() ? 'Lock wallet account' : 'Unlock wallet account' }</span>
+                  <span className="tiny dim" style={{ marginLeft: 'auto' }}>{ AppData.isWalletReady() ? 'remove key from this device' : 'restore from this device' }</span>
+                </button>
+              }
+              <button onClick={() => {
+                const value = !verifiedAssetsOnly;
+                AppStorage.set(StorageField.VerifiedAssetsOnly, value);
+                setVerifiedAssetsOnly(value);
+              }} className="sheet-action">
+                <span className="sa-ico"><Icon path={verifiedAssetsOnly ? mdiAlertDecagram : mdiCheckDecagram} size={0.78}></Icon></span>
+                <span style={{ fontWeight: 650, fontSize: 14 }}>{ verifiedAssetsOnly ? 'Show unverified assets' : 'Show verified assets' }</span>
+              </button>
+              <button onClick={() => {
+                navigator.clipboard.writeText(ownerAddress);
+                AlertBox.open(AlertType.Info, (self ? 'Your ' : '') + ownerAddress + ' address copied!');
+              }} className="sheet-action">
+                <span className="sa-ico"><Icon path={mdiContentCopy} size={0.78}></Icon></span>
+                <span style={{ fontWeight: 650, fontSize: 14 }}>Copy { self ? 'my ' : ''}address</span>
+              </button>
+              {
+                !self &&
+                <button onClick={() => { setSheetOpen(false); navigate('/restore'); }} className="sheet-action">
+                  <span className="sa-ico"><Icon path={mdiImport} size={0.78}></Icon></span>
+                  <span style={{ fontWeight: 650, fontSize: 14 }}>Import or watch account</span>
+                </button>
+              }
+              <div className="tiny dim" style={{ textAlign: 'center', marginTop: 14, padding: '0 8px' }}>Selecting an account switches balances, history and signing keys.</div>
+            </Dialog.Content>
+        </Dialog.Root>
+        <button className="icon-btn" title="Search blockchain" onClick={() => navigate('/explorer')}><Icon path={mdiMagnify} size={1}></Icon></button>
+      </div>
+
+      {
+        loading && !assets.length && !transactions.length &&
+        <>
+          <div className="skel" style={{ height: 44, width: 180 }}></div>
+          <div className="segmented" style={{ marginTop: 18 }}><button></button><button></button><button></button></div>
+          <Card style={{ padding: '6px 18px' }}>
+            <div className="asset-row"><span className="skel" style={{ width: 40, height: 40, borderRadius: '50%' }}></span><div style={{ flex: 1 }}><div className="skel skel-line" style={{ width: '46%', margin: 0 }}></div><div className="skel skel-line" style={{ width: '70%' }}></div></div><div className="skel skel-line" style={{ width: 88, margin: 0 }}></div></div>
+            <div className="asset-row"><span className="skel" style={{ width: 40, height: 40, borderRadius: '50%' }}></span><div style={{ flex: 1 }}><div className="skel skel-line" style={{ width: '52%', margin: 0 }}></div><div className="skel skel-line" style={{ width: '64%' }}></div></div><div className="skel skel-line" style={{ width: 96, margin: 0 }}></div></div>
+            <div className="asset-row"><span className="skel" style={{ width: 40, height: 40, borderRadius: '50%' }}></span><div style={{ flex: 1 }}><div className="skel skel-line" style={{ width: '40%', margin: 0 }}></div><div className="skel skel-line" style={{ width: '72%' }}></div></div><div className="skel skel-line" style={{ width: 80, margin: 0 }}></div></div>
+          </Card>
+        </>
+      }
+
+      {
+        !(loading && !assets.length && !transactions.length) &&
+        <>
+          {
+            rpcError != null &&
+            <>
+              <div className="callout err">
+                <Icon path={mdiAlertCircleOutline} size={1}></Icon>
+                <span><b>Node offline.</b> { rpcError } Your funds are safe on-chain — balances update once the node reconnects.</span>
+              </div>
+              <div style={{ marginTop: 12, display: 'flex', gap: 10 }}>
+                <Button className="btn-soft" style={{ flex: 1 }} onClick={() => setNonce((prev) => prev + 1)}><Icon path={mdiRefresh} size={0.85}></Icon>Retry now</Button>
+                <Button className="btn-soft" style={{ flex: 1 }} onClick={() => navigate('/configure')}>Change RPC</Button>
+              </div>
+            </>
           }
-          <DropdownMenu.Item onClick={() => {
-            const value = !verifiedAssetsOnly;
-            AppStorage.set(StorageField.VerifiedAssetsOnly, value);
-            setVerifiedAssetsOnly(value);
-          }}>
-            <Icon path={verifiedAssetsOnly ? mdiAlertDecagram : mdiCheckDecagram } size={0.8} />
-            <Text>{ verifiedAssetsOnly ? 'Show unverified assets' : 'Show verified assets' }</Text>
-          </DropdownMenu.Item>
-          <DropdownMenu.Item onClick={() => {
-              navigator.clipboard.writeText(ownerAddress);
-              AlertBox.open(AlertType.Info, (self ? 'Your ' : '') + ownerAddress + ' address copied!')
-            }}>
-            <Icon path={mdiQrcode} size={0.8} />
-            <Text>Copy { self ? 'my ' : ''}address</Text>
-          </DropdownMenu.Item>
-          <DropdownMenu.Separator />
-          <DropdownMenu.Item onClick={() => navigate('/explorer')}>
-            <Icon path={mdiMagnifyScan} size={0.8} />
-            <Text>Search blockchain</Text>
-          </DropdownMenu.Item>
-        </DropdownMenu.Content>
-      </DropdownMenu.Root>
-      <Card mt="2" variant={mobile ? 'ghost' : 'surface'} style={mobile ? { borderRadius: '0', border: 'none', borderBottom: 'none', margin: 0, paddingBottom: '32px' } : { borderRadius: '28px' }}>
-        <Flex justify={mobile ? 'center' : 'start'} gap="2" pb="1" pt={mobile ? '0' : '1'}>
-          <SegmentedControl.Root value={control} radius="full" size="3" mb="2" onValueChange={(value) => setControl(value as any)}>
+          <div className="hero-num num" style={{ marginTop: rpcError != null ? 18 : 0 }}>
+            { tanMoney[0] } <span style={{ fontSize: '0.5em', fontWeight: 700, color: 'var(--text-2)' }}>{ tanMoney[1] }</span>
+          </div>
+          <div className="page-sub" style={{ marginTop: 6 }}>
+            { assets.length ? UiUtil.toCount('asset', assets.length) : 'No assets yet' }
+            { AppData.tip != null && <> · block <span className="mono num">#{ AppData.tip.toString() }</span></> }
+            { tanFee != null && <> · fee { tanFee }</> }
+          </div>
+
+          <SegmentedControl.Root value={control} radius="full" size="3" mt="4" mb="4" onValueChange={(value) => setControl(value as 'balance' | 'address' | 'storage')}>
             <SegmentedControl.Item value="address">
               <Flex gap="2" align="center">
                 { loading && control == 'address' && <Spinner /> }
-                <Text size="4">Fund</Text>
+                <Text size="2">Fund</Text>
               </Flex>
             </SegmentedControl.Item>
             <SegmentedControl.Item value="balance">
               <Flex gap="2" align="center">
                 { loading && control == 'balance' && <Spinner /> }
-                <Text size="4">Balance</Text>
+                <Text size="2">Balance</Text>
               </Flex>
             </SegmentedControl.Item>
             <SegmentedControl.Item value="storage">
               <Flex gap="2" align="center">
                 { loading && control == 'storage' && <Spinner /> }
-                <Text size="4">Data</Text>
+                <Text size="2">Data</Text>
               </Flex>
             </SegmentedControl.Item>
           </SegmentedControl.Root>
-        </Flex>
-        <Tabs.Root value={control}>
-          <Tabs.Content value="address">
-            {
-              filteredAddress != null &&
-              <Box px="2" pt="4" pb="2">
-                <AddressView address={filteredAddress} onExit={() => setSelectedAddress(-1)}></AddressView>
-              </Box>
-            }
-            {
-              !filteredAddress &&
-              <Box px="2" py="2">
-                {
-                  filteredAddresses.map((item, index) =>
-                    <Box key={item.hash + '_address_select_' + index.toString()} mb={ index == filteredAddresses.length - 1 ? undefined : '4' }>
-                      <Button variant="surface" color="gray" size="3" style={{ display: 'block', height: 'auto', width: '100%' }} onClick={() => {
+
+          <Tabs.Root value={control}>
+            <Tabs.Content value="address">
+              {
+                filteredAddress != null &&
+                <Card style={{ padding: 20 }}>
+                  <AddressView address={filteredAddress} onExit={() => setSelectedAddress(-1)}></AddressView>
+                </Card>
+              }
+              {
+                !filteredAddress &&
+                <Card style={{ padding: '6px 18px' }}>
+                  {
+                    filteredAddresses.map((item, index) =>
+                      <div key={item.asset.id + '_address_select_' + index.toString()} className="asset-row" style={{ cursor: 'pointer' }} onClick={() => {
                         if (item.addresses != null) {
                           setSelectedAddress(index);
                         } else {
                           navigate(`/explorer?view=vaults&asset=${item.asset.id}`);
                         }
                       }}>
-                        <Flex gap="3" align="center" py="3">
-                          <AssetImage asset={item.asset} size="2" iconSize="40px"></AssetImage>
-                          <Flex justify="between" align="center" width="100%">
-                            <Flex direction="column" align="start">
-                              <AssetName asset={item.asset}></AssetName>
-                              {
-                                item.addresses != null &&
-                                <Text size="1" color="gray">{ UiUtil.toAddress(item.addresses[0].address, 6) }{ item.addresses.length > 1 ? ' + ' + UiUtil.toCount('option', item.addresses.length - 1) : '' }</Text>
-                              }
-                              {
-                                !item.addresses &&
-                                <Flex align="center" gap="1">
-                                  <Icon path={mdiOpenInNew} size={0.6} color="var(--sky-11)"></Icon> 
-                                  <Text size="1" color="sky">Explore vaults</Text>
-                                </Flex>
-                              }
-                            </Flex>
-                            {
-                              item.purpose == null &&
-                              <Box className="rt-reset rt-BaseButton rt-r-size-2 rt-variant-surface rt-IconButton">
-                                <Icon path={mdiSourceCommitStartNextLocal} size={1}></Icon>
-                              </Box>
-                            }
-                            {
-                              item.purpose == 'bridge' && 
-                              <Box className="rt-reset rt-BaseButton rt-r-size-2 rt-variant-surface rt-IconButton" data-accent-color="blue">
-                                <Icon path={mdiBridge} size={1}></Icon>
-                              </Box>
-                            }
-                            {
-                              item.purpose == 'routing' && 
-                              <Box className="rt-reset rt-BaseButton rt-r-size-2 rt-variant-surface rt-IconButton">
-                                <Icon path={mdiSourceCommitLocal} size={1}></Icon>
-                              </Box>
-                            }
-                            {
-                              item.purpose == 'witness' && 
-                              <Box className="rt-reset rt-BaseButton rt-r-size-2 rt-variant-surface rt-IconButton" data-accent-color="red">
-                                <Icon path={mdiCoffin} size={1}></Icon>
-                              </Box>
-                            }
-                          </Flex>
-                        </Flex>
-                      </Button>
-                    </Box>
-                  )
-                }
-              </Box>
-            }
-          </Tabs.Content>
-          <Tabs.Content value="balance">
-            {
-              !assets.length &&
-              <Tooltip content="Account does not have any non-zero asset balances">
-                <Flex px="2" py="3" gap="3" align="center">
-                  <Avatar size="3" radius="large" fallback="NA" color="gray" />
-                  <Box width="100%">
-                    <Flex justify="between" align="center">
-                      <Text as="div" size="2" weight="light">N/A</Text>
-                      <Badge size="1">0.00%</Badge>
-                    </Flex>
-                    <Text as="div" size="2" weight="medium">0.0</Text>
-                  </Box>
-                </Flex>
-              </Tooltip>
-            }
-            { 
-              assets.map((item) =>
-                <Flex key={item.asset.id + '_balance'} px="2" py="3" gap="3" align="center">
-                  <AssetImage asset={item.asset}></AssetImage>
-                  <Box width="100%">
-                    <Flex justify="between" align="center">
-                      <AssetName asset={item.asset}></AssetName>
-                      <Tooltip content={
-                        <>
-                          { typeof item.contractAddress == 'string' && <Text style={{ display: 'block' }} mb="1">Contract address: { UiUtil.toAddress(item.contractAddress, 8) }</Text> }
-                          <Text style={{ display: 'block' }}>Locked value: { new BigNumber(item.reserve).toString() } { UiUtil.toAssetSymbol(item.asset) }</Text>
-                          <Text style={{ display: 'block' }}>Unlocked value: { new BigNumber(item.balance).toString() } { UiUtil.toAssetSymbol(item.asset) }</Text>
-                          <Text style={{ display: 'block' }} mt="1">Total value: { new BigNumber(item.supply).toString() } { UiUtil.toAssetSymbol(item.asset) }</Text>
-                        </>
-                        }>
-                        <Badge size="1" color={item.reserve.gt(0) ? 'yellow' : undefined}>{ (Math.floor(10000 - item.reserve.dividedBy(item.supply).toNumber() * 10000) / 100).toFixed(1) }%</Badge>
-                      </Tooltip>
-                    </Flex>
-                    <Text as="div" size="2" weight="medium">{ UiUtil.toMoney(item.asset, item.supply) }</Text>
-                  </Box>
-                </Flex>
-              )
-            }
-            {
-              self &&
-              <Box mt="2">
-                <Vault blockchains={blockchains} blockchain={vaultBlockchain || undefined} assets={allAssets}></Vault>
-              </Box>
-            }
-          </Tabs.Content>
-          <Tabs.Content value="storage">
-            {
-              program != null &&
-              <Flex px="2" py="2" gap="3">
-                <Icon path={mdiConsole} size={1.5} style={{ color: 'var(--bronze-10)' }} />
-                <Box width="100%">
-                  <Flex justify="between" align="center">
-                    <Text as="div" size="2" weight="light">Smart contract</Text>
-                  </Flex>
-                  <Flex align="center">
-                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                      navigator.clipboard.writeText(program);
-                      AlertBox.open(AlertType.Info, 'Program hashcode copied!')
-                    }}>{ UiUtil.toAddress(program) }</Button>
-                    <Box ml="2">
-                      <Link className="router-link" to={'/program/' + program}>▒▒</Link>
-                    </Box>
-                  </Flex>
-                </Box>
-              </Flex>
-            }
-            <Flex px="2" py="2" gap="3">
-              <Icon path={mdiArrowRightBoldHexagonOutline} size={1.5} style={{ color: 'var(--red-10)' }} />
-              <Box width="100%">
-                <Flex justify="between" align="center">
-                  <Text as="div" size="2" weight="light">Block production</Text>
-                </Flex>
-                <Badge size="1" color={production ? (production.stake != null ? undefined : 'red') : 'gray'}>PRODUCER { production ? (production.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ production != null ? production.stake != null ? ' IN BLOCK ' + production.block_number.toNumber() : (' FROM BLOCK ' + production.block_number.toNumber()) : '' }</Badge>
-              </Box>
-            </Flex>
-            {
-              production && (production.stake.gte(0) || production.rewards.length > 0) &&
-              <Box pl="5">
-                {
-                  production.stake != null && production.stake.gte(0) &&
-                  <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
-                    <AssetImage asset={new AssetId()} size="2"></AssetImage>
-                    <Box width="100%" style={{ marginLeft: '2px' }}>
-                      <Tooltip content={UiUtil.toAssetSymbol(new AssetId()) + " rewards received by block producer"}>
-                        <Text as="div" size="2" weight="medium">Staking { UiUtil.toMoney(new AssetId(), production.stake) }</Text>
-                      </Tooltip>
-                    </Box>
-                  </Flex>
-                }
-                {
-                  production.rewards.map((item: any) => {
-                    return (
-                      <Flex key={item.asset.id + '_production'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
-                        <AssetImage asset={item.asset} size="2"></AssetImage>
-                        <Box width="100%" style={{ marginLeft: '2px' }}>
-                          <Tooltip content={UiUtil.toAssetSymbol(item.asset) + " fees received by block producer"}>
-                            <Text as="div" size="2" weight="medium">Staking { UiUtil.toMoney(item.asset, item.reward) }</Text>
-                          </Tooltip>
-                        </Box>
-                      </Flex>
+                        <AssetImage asset={item.asset} iconSize="40px"></AssetImage>
+                        <div className="asset-main">
+                          <div className="asset-name"><AssetName asset={item.asset} size="3" badge={false}></AssetName></div>
+                          <div className="asset-sub">
+                            { item.purpose == 'bridge' ? 'Vault funding address' : item.purpose == 'routing' ? 'Routing address' : item.purpose == 'witness' ? 'Archive address' : 'Network address' }
+                          </div>
+                        </div>
+                        {
+                          item.addresses != null ?
+                            <span className={'badge ' + (item.purpose == 'bridge' ? 'info' : 'flat')}>{ item.purpose == 'bridge' ? 'VAULT' : item.purpose == 'routing' ? 'ROUTING' : 'ADDRESS' }</span> :
+                            <span className="badge info"><Icon path={mdiOpenInNew} size={0.55}></Icon>VAULTS</span>
+                        }
+                      </div>
                     )
-                  })
-                }
-              </Box>
-            }
-            {
-              participation &&
-              <>
-                <Flex px="2" py="2" gap="3">
-                  <Icon path={mdiCellphoneKey} size={1.5} style={{ color: 'var(--yellow-9)' }} />
-                  <Box width="100%">
-                    <Flex justify="between" align="center">
-                      <Text as="div" size="2" weight="light">Vault participation</Text>
-                    </Flex>
-                    <Badge size="1" color={participation.stake != null ? undefined : 'red'}>PARTICIPANT { (participation.stake != null ? 'ACTIVE' : 'OFFLINE') }{ participation.stake != null ? ' IN BLOCK ' + participation.block_number.toNumber() : (' FROM BLOCK ' + participation.block_number.toNumber()) }</Badge>
-                  </Box>
-                </Flex>
-                <Box pl="5">
-                  {
-                    participation.stake != null && participation.stake.gte(0) &&
-                    <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
-                      <AssetImage asset={new AssetId()} size="2"></AssetImage>
-                      <Box width="100%" style={{ marginLeft: '2px' }}>
-                        <Tooltip content={UiUtil.toAssetSymbol(new AssetId()) + " stake locked by vault participation as a signer of outgoing transactions"}>
-                          <Text as="div" size="2" weight="medium">Staking { UiUtil.toMoney(new AssetId(), participation.stake) }</Text>
-                        </Tooltip>
-                      </Box>
-                    </Flex>
                   }
+                </Card>
+              }
+            </Tabs.Content>
+            <Tabs.Content value="balance">
+              {
+                !assets.length && !loading &&
+                <Card style={{ padding: 0 }}>
+                  <div className="empty">
+                    <div className="art"><Icon path={mdiBankOutline} size={1.75}></Icon></div>
+                    <h4>{ self ? 'Your wallet is ready' : 'Nothing here yet' }</h4>
+                    <p>{ self ? 'Receive TAN from a friend or bridge in from another network to get started.' : 'This account has no non-zero asset balances.' }</p>
+                  </div>
+                </Card>
+              }
+              {
+                assets.length > 0 &&
+                <Card style={{ padding: '6px 18px' }}>
                   {
-                    participation.rewards.map((item: any) => {
-                      return (
-                        <Flex key={item.asset.id + '_participation'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
-                          <AssetImage asset={item.asset} size="2"></AssetImage>
-                          <Box width="100%" style={{ marginLeft: '2px' }}>
-                            <Tooltip content={UiUtil.toAssetSymbol(item.asset) + ' fees received by vault participation as a signer of outgoing transactions'}>
-                              <Text as="div" size="2" weight="medium">Staking { UiUtil.toMoney(item.asset, item.reward) }</Text>
-                            </Tooltip>
-                          </Box>
-                        </Flex>
-                      )
-                    })
+                    assets.map((item) =>
+                      <div key={item.asset.id + '_balance'} className="asset-row">
+                        <AssetImage asset={item.asset} iconSize="40px"></AssetImage>
+                        <div className="asset-main">
+                          <div className="asset-name"><AssetName asset={item.asset} size="3"></AssetName></div>
+                          <div className="asset-sub">{ assetContext(item) }</div>
+                        </div>
+                        <div className="asset-amt" title={
+                          (typeof item.contractAddress == 'string' ? 'Contract address: ' + UiUtil.toAddress(item.contractAddress, 8) + '\n' : '') +
+                          'Locked value: ' + new BigNumber(item.reserve).toString() + ' ' + UiUtil.toAssetSymbol(item.asset) + '\n' +
+                          'Unlocked value: ' + new BigNumber(item.balance).toString() + ' ' + UiUtil.toAssetSymbol(item.asset) + '\n' +
+                          'Total value: ' + new BigNumber(item.supply).toString() + ' ' + UiUtil.toAssetSymbol(item.asset)
+                        }>
+                          { UiUtil.toMoney(item.asset, item.supply) }
+                          <span className="sub">{ unlockedShare(item) } unlocked</span>
+                        </div>
+                      </div>
+                    )
                   }
-                </Box>
-              </>
-            }
-            { 
-              attestations.map((attestation) =>
-                <Box key={attestation.asset.id + '_attestation'}>
-                  <Flex px="2" py="2" gap="3">
-                    <Icon path={mdiTransitConnectionVariant} size={1.5} style={{ color: 'var(--accent-11)' }} />
-                    <Box width="100%">
-                      <Flex justify="between" align="center">
-                        <Text as="div" size="2" weight="light">Vault attestation — { Assetlist.toName(new AssetId(attestation.asset.id)) }</Text>
-                      </Flex>
-                      <Badge size="1" color={attestation ? (attestation.stake != null ? undefined : 'red') : 'gray'}>ATTESTATION { attestation ? (attestation.stake != null ? 'ACTIVE' : 'OFFLINE') : 'STANDBY' }{ attestation != null ? attestation.stake != null ? ' IN BLOCK ' + attestation.block_number.toNumber() : (' FROM BLOCK ' + attestation.block_number.toNumber()) : '' }</Badge>
-                    </Box>
-                  </Flex>
-                  <Box pl="5">
-                    {
-                      attestation.stake != null && attestation.stake.gte(0) &&
-                      <Flex pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
-                        <AssetImage asset={new AssetId()} size="2"></AssetImage>
-                        <Box width="100%" style={{ marginLeft: '2px' }}>
-                          <Tooltip content={UiUtil.toAssetSymbol(new AssetId()) + " stake locked by vault attestation as a cross-chain transaction notification and participant coordination"}>
-                            <Text as="div" size="2" weight="medium">Staking { UiUtil.toMoney(new AssetId(), attestation.stake) }</Text>
-                          </Tooltip>
-                        </Box>
-                      </Flex>
-                    }
-                    {
-                      attestation.rewards.map((item: any) => {
-                        return (
-                          <Flex key={item.asset.id + '_attestation'} pl="5" pr="2" py="2" gap="3" align="center" style={{ borderLeft: '1px solid var(--gray-8)' }}>
-                            <AssetImage asset={item.asset} size="2"></AssetImage>
-                            <Box width="100%" style={{ marginLeft: '2px' }}>
-                              <Tooltip content={UiUtil.toAssetSymbol(item.asset) + ' fees received by vault attestation as a cross-chain transaction notification and participant coordination'}>
-                                <Text as="div" size="2" weight="medium">Staking { UiUtil.toMoney(item.asset, item.reward) }</Text>
-                              </Tooltip>
-                            </Box>
-                          </Flex>
-                        )
-                      })
-                    }
-                  </Box>
-                </Box>
-              )
-            }
-          </Tabs.Content>
-        </Tabs.Root>
-      </Card>
-      {
-        transactions.length > 0 &&
-        <Box width="100%" my="6" px={mobile ? '2' : undefined}>
-          <InfiniteScroll dataLength={transactions.length} hasMore={moreTransactions} next={findTransactions} loader={<div></div>}>
-            {
-              transactions.map((item, index) => {
-                const prev = index ? transactions[index - 1] : null;
-                return (
-                  <Box width="100%" key={item.transaction.hash + index + '_tx'}>
-                    {
-                      (!prev || (prev.receipt && item.receipt && new Date(prev.receipt?.block_time?.toNumber() || 0).setHours(0, 0, 0, 0) != new Date(item.receipt?.block_time?.toNumber() || 0).setHours(0, 0, 0, 0))) &&
-                      <Box px="2" mt="4">
-                        <Text as="div" size="2" mb="1" align="right">{ item.receipt ? (new Date(item.receipt.block_time?.toNumber()).setHours(0, 0, 0, 0) == new Date().setHours(0, 0, 0, 0) ? 'Today' : new Date(item.receipt.block_time?.toNumber()).toLocaleDateString()) : 'Today' }</Text>
-                        <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
-                      </Box>
-                    }
-                    <Box mt="4">
-                      <TransactionView ownerAddress={ownerAddress} transaction={item.transaction} receipt={item.receipt} state={item.state} resolveTransaction={(resolve: (tx: any) => boolean) => resolveTransactions(index, resolve)}></TransactionView>
-                    </Box>
+                </Card>
+              }
+              {
+                self && (
+                  <Box id="tg-bridge-panel" style={{ marginTop: 18 }}>
+                    <Vault blockchains={blockchains} blockchain={vaultBlockchain || undefined} assets={allAssets}></Vault>
                   </Box>
                 )
-              })
+              }
+            </Tabs.Content>
+            <Tabs.Content value="storage">
+              {
+                (program != null || production != null || participation != null || attestations.length > 0) ?
+                <>
+                  {
+                    program != null &&
+                    <Card style={{ padding: 20 }}>
+                      <div className="card-title">Smart contract</div>
+                      <div className="dl">
+                        <div className="dl-row">
+                          <span className="dl-k">Attached program</span>
+                          <span className="dl-v"><Link className="router-link mono" style={{ textDecoration: 'none' }} to={'/program/' + program}>{ UiUtil.toAddress(program, 8) }</Link></span>
+                        </div>
+                      </div>
+                    </Card>
+                  }
+                  {
+                    production != null && production.stake != null &&
+                  <Card style={{ padding: 20, marginTop: program != null ? 14 : undefined }}>
+                    <div className="card-title">Block production</div>
+                    <span className="badge ok">
+                      PRODUCER ACTIVE IN BLOCK { production.block_number.toNumber() }
+                    </span>
+                    <div className="dl">
+                      <div className="dl-row">
+                        <span className="dl-k">Staking</span>
+                        <span className="dl-v num">{ UiUtil.toMoney(new AssetId(), production.stake) }</span>
+                      </div>
+                      {
+                        production?.rewards != null && production.rewards.length > 0 ?
+                        production.rewards.map((item: RewardRecord, index: number) =>
+                          <div className="dl-row" key={(item.asset.id || 'reward') + '_production_reward_' + index}>
+                            <span className="dl-k">{ item.asset.chain } locked reward</span>
+                            <span className="dl-v num">{ UiUtil.toMoney(item.asset, item.reward) }</span>
+                          </div>
+                        ) :
+                        <div className="dl-row">
+                          <span className="dl-k">TAN locked reward</span>
+                          <span className="dl-v num">—</span>
+                        </div>
+                      }
+                    </div>
+                  </Card>
+                  }
+                  {
+                    participation != null &&
+                    <Card style={{ padding: 20, marginTop: 14 }}>
+                      <div className="card-title">Vault participation</div>
+                      <span className={participation.stake != null ? 'badge ok' : 'badge err'}>
+                        PARTICIPANT { participation.stake != null ? 'ACTIVE' : 'OFFLINE' }{ participation.stake != null ? ' IN BLOCK ' + participation.block_number.toNumber() : (' FROM BLOCK ' + participation.block_number.toNumber()) }
+                      </span>
+                      <div className="dl">
+                        <div className="dl-row">
+                          <span className="dl-k">Stake · signer of outgoing transactions</span>
+                          <span className="dl-v num">{ participation.stake != null && participation.stake.gte(0) ? UiUtil.toMoney(new AssetId(), participation.stake) : '—' }</span>
+                        </div>
+                        {
+                          participation.rewards.map((item: RewardRecord, index: number) =>
+                            <div className="dl-row" key={item.asset.id + '_participation_' + index}>
+                              <span className="dl-k">{ item.asset.chain } locked reward</span>
+                              <span className="dl-v num">{ UiUtil.toMoney(item.asset, item.reward) }</span>
+                            </div>
+                          )
+                        }
+                      </div>
+                    </Card>
+                  }
+                  {
+                    attestations.map((attestation, ai) =>
+                      <Card key={attestation.asset.id + '_attestation_' + ai} style={{ padding: 20, marginTop: 14 }}>
+                        <div className="card-title">Vault attestation — { Assetlist.toName(new AssetId(attestation.asset.id)) }</div>
+                        <span className={attestation.stake != null ? 'badge ok' : 'badge err'}>
+                          ATTESTATION { attestation.stake != null ? 'ACTIVE' : 'OFFLINE' }{ attestation.stake != null ? ' IN BLOCK ' + attestation.block_number.toNumber() : (' FROM BLOCK ' + attestation.block_number.toNumber()) }
+                        </span>
+                        <div className="dl">
+                          <div className="dl-row">
+                            <span className="dl-k">Stake · cross-chain coordination</span>
+                            <span className="dl-v num">{ attestation.stake != null && attestation.stake.gte(0) ? UiUtil.toMoney(new AssetId(), attestation.stake) : '—' }</span>
+                          </div>
+                          {
+                            attestation.rewards.map((item: RewardRecord, index: number) =>
+                              <div className="dl-row" key={item.asset.id + '_attestation_reward_' + index}>
+                                <span className="dl-k">{ item.asset.chain } locked reward</span>
+                                <span className="dl-v num">{ UiUtil.toMoney(item.asset, item.reward) }</span>
+                              </div>
+                            )
+                          }
+                        </div>
+                      </Card>
+                    )
+                  }
+                </> :
+                <Card style={{ padding: 0 }}>
+                  <div className="empty">
+                    <div className="art"><Icon path={mdiDatabaseOutline} size={1.75}></Icon></div>
+                    <h4>No on-chain data</h4>
+                    <p>This account has no smart contract, block production or vault participation records yet.</p>
+                  </div>
+                </Card>
+              }
+            </Tabs.Content>
+          </Tabs.Root>
+        </>
+      }
+
+      {
+        transactions.length > 0 &&
+        <Box width="100%" mt="6">
+          <InfiniteScroll dataLength={transactions.length} hasMore={moreTransactions} next={findTransactions} loader={<div></div>}>
+            {
+              dayGroups.map((group) =>
+                <div key={group.label}>
+                  <div className="day-label">{ group.label }</div>
+                  <Card style={{ padding: '4px 18px' }}>
+                    {
+                      group.entries.map((item, index) =>
+                        <TransactionView key={item.transaction.hash + '_' + index} variant="row" ownerAddress={ownerAddress} transaction={item.transaction} receipt={item.receipt} state={item.state}></TransactionView>
+                      )
+                    }
+                  </Card>
+                </div>
+              )
             }
           </InfiniteScroll>
         </Box>

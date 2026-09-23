@@ -7,7 +7,6 @@ let timeout: any;
 export default function Clock() {
   const [baseTime, setBaseTime] = useState<number>(0);
   const [prevTime, setPrevTime] = useState<number>(0);
-  const [nextTime, setNextTime] = useState<number>(0);
   useEffect(() => {
     const updateNext = () => {
       const time = new Date().getTime();
@@ -15,10 +14,9 @@ export default function Clock() {
       timeout = setTimeout(() => {
         setBaseTime(time);
         setPrevTime(time);
-        setNextTime(time + Chain.policy.BLOCK_TIME);
       }, 500);
     };
-    const interval = setInterval(() => setPrevTime(new Date().getTime()), 500);
+    const interval = setInterval(() => setPrevTime(new Date().getTime()), 120);
     window.addEventListener('update:chain', updateNext);
     updateNext();
     return () => {
@@ -26,11 +24,11 @@ export default function Clock() {
       clearInterval(interval);
     };
   }, []);
-  
-  const progress = Math.max(0, nextTime - prevTime) / (nextTime - baseTime);
+
+  const remaining = (Chain.policy.BLOCK_TIME - Math.min(Math.max(0, prevTime - baseTime), Chain.policy.BLOCK_TIME)) / 1000;
   return (
-    <Box position="relative">
-      <Box className="shadow-rainbow-progress" display={isNaN(progress) ? 'none' : 'block'} right={`${isNaN(progress) ? 100 : (progress * 100)}%`}></Box>
+    <Box className="block-countdown" style={{ visibility: isNaN(remaining) ? 'hidden' : undefined }}>
+      { remaining.toFixed(1) }s
     </Box>
   );
 }

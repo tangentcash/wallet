@@ -1,12 +1,12 @@
 import { mdiClose } from "@mdi/js";
-import { AspectRatio, Box, Flex, IconButton, Select, Text } from "@radix-ui/themes";
+import { Box, Button, Flex, Select } from "@radix-ui/themes";
 import { UiUtil } from "tangentsdk/ui";
+import type { AssetId } from "tangentsdk/algorithm";
 import { useMemo, useState } from "react";
 import { AlertBox, AlertType } from "./alert";
 import { AssetImage } from "./asset-image";
 import Icon from "@mdi/react";
 import QRCode from "react-qr-code";
-import './address.css';
 
 function toAddressType(type: string): string {
   switch (type) {
@@ -20,7 +20,7 @@ function toAddressType(type: string): string {
       return 'Your Tangent address';
   }
 }
-function toAddressVariant(network: string, address: string): string {
+function toAddressVariant(network: string | null, address: string): string {
   switch (network) {
     case 'SOL':
     case 'XLM':
@@ -112,9 +112,9 @@ export function toTextAddress(pair: any, policy?: string): string {
   return tag ? address + '#' + tag : address;
 }
 
-export function AddressView(props: { address: any, policy?: string, onExit?: () => any }) {
-  const [variant, setVariant] = useState<number>(0);
-  const target = useMemo((): { address: string, tag: string | null } => {
+export function AddressView(props: { address: { asset: AssetId, purpose?: string, addresses: { address: string, tag?: string | null }[] }, policy?: string, onExit?: () => any, initialVariant?: number, onVariantChange?: (index: number) => void }) {
+  const [variant, setVariant] = useState<number>(props.initialVariant ?? 0);
+  const target = useMemo((): { address: string, tag?: string | null } => {
     return variant >= 0 && variant < props.address.addresses.length ? props.address.addresses[variant] : props.address.addresses[0];
   }, [props.address, variant]);
   const variants = useMemo(() => {
@@ -138,55 +138,66 @@ export function AddressView(props: { address: any, policy?: string, onExit?: () 
     return results;
   }, [props.address]);
   return (
-    <Box>
-      <Flex align="center" justify="center" mb="3">
-        <Text size="3" weight="bold" style={{ textTransform: 'uppercase' }}>
-          { toAddressType(props.address.purpose) }
-        </Text>
-      </Flex>
-      <Flex justify="center" width="100%">
-        <Box width="80%" maxWidth="280px" px="3" py="3" className="qr-code-active shadow-rainbow-animation">
-          <AspectRatio ratio={1}>
-            {
-              target.address &&
-              <QRCode bgColor="transparent" value={ toTextAddress(target, props.policy) } style={{ height: "auto", maxWidth: "100%", width: "100%" }} onClick={() => {
-                navigator.clipboard.writeText(toTextAddress(target, props.policy));
-                AlertBox.open(AlertType.Info, variants[variant] + ' address copied!')
-              }} />
-            }
-          </AspectRatio>
-        </Box>
-      </Flex>
-      <Flex align="center" justify="center" mt="3" gap="2">
-        <AssetImage asset={props.address.asset} size="2"></AssetImage>
-        <Select.Root size="3" value={variant.toString()} onValueChange={(value) => setVariant(parseInt(value))}>
-          <Select.Trigger color={props.address.purpose != 'witness' ? (props.address.purpose != 'bridge' ? undefined : 'blue') : 'red'} variant="soft">
+    <Box className="address-view">
+      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+        <Select.Root size="3" value={variant.toString()} onValueChange={(value) => { const index = parseInt(value); setVariant(index); if (props.onVariantChange) props.onVariantChange(index); }}>
+          <Select.Trigger className="token-select" radius="full">
+            <AssetImage asset={props.address.asset} size="1" iconSize="24px"></AssetImage>
             { UiUtil.toAddress(toTextAddress(target, props.policy), 6) }
           </Select.Trigger>
           <Select.Content>
             <Select.Group>
               <Select.Label>Select address</Select.Label>
               {
-                props.address.addresses.map((address: any, index: number) =>
+                props.address.addresses.map((address, index) =>
                   <Select.Item value={index.toString()} key={address.address + '_address_' + index.toString()}>
-                    <Flex align="center" gap="1">
-                      <Text>{ UiUtil.toAddress(toTextAddress(address, props.policy), 6) } ({ variants[index] }{ address.tag ? ', Memo/DT' : '' })</Text>
-                    </Flex>
+                    { UiUtil.toAddress(toTextAddress(address, props.policy), 6) } ({ variants[index] }{ address.tag ? ', Memo/DT' : '' })
                   </Select.Item>
                 )
               }
             </Select.Group>
           </Select.Content>
         </Select.Root>
+      </div>
+      <div className="qr-real" title="Click to copy">
+        {
+          target.address &&
+          <QRCode bgColor="transparent" fgColor="#0B0D0C" value={ toTextAddress(target, props.policy) } style={{ height: "auto", maxWidth: "100%", width: "100%" }} onClick={() => {
+            navigator.clipboard.writeText(toTextAddress(target, props.policy));
+            AlertBox.open(AlertType.Info, variants[variant] + ' address copied!')
+          }} />
+        }
+      </div>
+      <div className="av-k">{ toAddressType(props.address.purpose || '') }{ target.tag ? '' : '' }</div>
+      <div className="av-addr">{ UiUtil.toAddress(toTextAddress(target, props.policy), 6) }</div>
+      {
+        target.tag &&
+        <div className="av-memo">
+          <div className="av-k">Memo · tag</div>
+          <div className="av-memo-v">{ target.tag }</div>
+        </div>
+      }
+      <Flex gap="2" justify="center" mt="4">
+        <Button className="btn-soft" onClick={() => {
+          navigator.clipboard.writeText(toTextAddress(target, props.policy));
+          AlertBox.open(AlertType.Info, variants[variant] + ' address copied!');
+        }}>Copy address</Button>
+        {
+          target.tag &&
+          <Button className="btn-soft" onClick={() => {
+            navigator.clipboard.writeText(String(target.tag));
+            AlertBox.open(AlertType.Info, 'Memo copied!');
+          }}>Copy memo</Button>
+        }
         {
           props.onExit &&
-          <IconButton variant="soft" size="3" color="red" onClick={() => {
+          <button className="icon-btn" onClick={() => {
             setVariant(-1);
             if (props.onExit)
               props.onExit();
           }}>
             <Icon path={mdiClose} size={1}></Icon>
-          </IconButton>
+          </button>
         }
       </Flex>
     </Box>

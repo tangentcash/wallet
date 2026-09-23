@@ -78,7 +78,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
         return { asset: x, contractAddress: Whitelist.contractAddressOf(x) }
       }));
     }
-  }, []);
+  }, [props.onChange]);
   useEffect(() => {
     if (props.value === undefined)
       return;

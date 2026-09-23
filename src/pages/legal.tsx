@@ -4,15 +4,12 @@ import { useState } from "react";
 export default function LegalPage() {
   const [state, setState] = useState<'terms-of-use' | 'privacy-policy'>('terms-of-use');
   return (
-    <Box px="2" pt="4" maxWidth="680px" mx="auto">
+    <Box px="5" pt="4" pb="8" maxWidth="680px" mx="auto">
+      <div className="card">
       <Tabs.Root  value={state} onValueChange={(e) => setState(e as any)}>
         <Tabs.List size="2">
-          <Tabs.Trigger value="terms-of-use">
-            <Heading size="3">Terms of Use</Heading>
-          </Tabs.Trigger>
-          <Tabs.Trigger value="privacy-policy">
-            <Heading size="3">Privacy Policy</Heading>
-          </Tabs.Trigger>
+          <Tabs.Trigger value="terms-of-use">Terms of Use</Tabs.Trigger>
+          <Tabs.Trigger value="privacy-policy">Privacy Policy</Tabs.Trigger>
         </Tabs.List>
         <Box pt="5">
           <Tabs.Content value="terms-of-use">
@@ -154,6 +151,7 @@ export default function LegalPage() {
           </Tabs.Content>
         </Box>
       </Tabs.Root>
+      </div>
     </Box>
   )
 }

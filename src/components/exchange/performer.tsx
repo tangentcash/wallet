@@ -1,8 +1,8 @@
-import { Box, Button, Dialog, Flex, IconButton, Spinner, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Button, Dialog, Flex, Spinner, Text, Tooltip } from "@radix-ui/themes";
 import { CSSProperties, useCallback, useEffect, useState } from "react";
 import { OrderCondition, OrderPolicy, OrderSide, Exchange, RouterPath, Market, AggregatedPair } from "../../core/exchange";
 import { AlertBox, AlertType } from "./../alert";
-import { mdiArrowRight, mdiBlur, mdiBlurOff, mdiCancel, mdiCashRefund, mdiClose, mdiCollage, mdiSwapHorizontalVariant, mdiWater, mdiWaterOff } from "@mdi/js";
+import { mdiArrowRight, mdiBookPlus, mdiBookRemove, mdiCashRefund, mdiClose, mdiCollage, mdiSwapHorizontalVariant, mdiWater, mdiWaterOff } from "@mdi/js";
 import { useNavigate } from "react-router";
 import { AppData } from "../../core/app";
 import { AssetId, Hashsig, Signing, Uint256 } from "tangentsdk/algorithm";
@@ -69,7 +69,7 @@ export class Builder {
             const secondaryAsset = (swap.side == OrderSide.Buy ? tokenIn : tokenOut);
             return {
                 icon: mdiSwapHorizontalVariant,
-                text: `Swap ${UiUtil.toMoney(tokenIn, swap.input.max)} and receive between [${UiUtil.toMoney(tokenOut, swap.output.min)}; ${UiUtil.toMoney(tokenOut, swap.output.max)}]`,
+                text: `Pay ${UiUtil.toMoney(tokenIn, swap.input.max)} → receive at least ${UiUtil.toMoney(tokenOut, swap.output.min)}`,
                 body: {
                     callable: marketAccount,
                     pays: swapIndex == 0 ? payment.pays : [{ asset: tokenIn, value: swap.input.max }],
@@ -320,7 +320,7 @@ export class Builder {
         }
         
         return {
-            icon: mdiBlur,
+            icon: mdiBookPlus,
             text: text,
             body: {
               callable: marketAccount,
@@ -344,8 +344,8 @@ export class Builder {
             throw new Error('Order ' + id.toString() + ' market account cannot be found');
       
         return {
-            icon: mdiBlurOff,
-            text: 'Withdraw order #' + id.toString(),
+            icon: mdiBookRemove,
+            text: 'Cancel order #' + id.toString(),
             body: {
               callable: marketAccount,
               pays: [],
@@ -421,7 +421,7 @@ export class Builder {
         const targetSecondaryValue = secondaryPayment.value;
         return {
             icon: mdiWater,
-            text: `Provide liquidity with ${UiUtil.toMoney(primaryAsset, targetPrimaryValue)} and ${UiUtil.toMoney(secondaryAsset, targetSecondaryValue)} as reserves with initial price at ${UiUtil.toMoney(secondaryAsset, price)} active in ${concentrated ? 'concentrated' : 'uniform'} range [${concentrated ? UiUtil.toMoney(null, minPrice) : '0'}; ${concentrated ? UiUtil.toMoney(null, maxPrice) + ']' : '+∞)'} and fee set at ${feeRate.multipliedBy(100).toFixed(2)}%`,
+            text: `Open pool ${UiUtil.toAssetSymbol(primaryAsset)}/${UiUtil.toAssetSymbol(secondaryAsset)} · reserves ${UiUtil.toMoney(primaryAsset, targetPrimaryValue)} + ${UiUtil.toMoney(secondaryAsset, targetSecondaryValue)} · price ${UiUtil.toMoney(secondaryAsset, price)} · fee ${feeRate.multipliedBy(100).toFixed(2)}%${concentrated ? ` · concentrated range ${UiUtil.toMoney(null, minPrice)} – ${UiUtil.toMoney(null, maxPrice)}` : ''}`,
             body: {
               callable: marketAccount,
               pays: [...primaryPayment.pays, ...secondaryPayment.pays],
@@ -445,7 +445,7 @@ export class Builder {
 
         return {
             icon: mdiWaterOff,
-            text: 'Withdraw pool #' + id.toString(),
+            text: 'Close pool #' + id.toString(),
             body: {
               callable: marketAccount,
               pays: [],
@@ -527,7 +527,7 @@ export class Builder {
         if (secondaryValue.gt(0)) liquidityText += (liquidityText.length > 0 ? ' + ' : '') + UiUtil.toMoney(secondaryAsset, secondaryValue);
         return {
             icon: mdiWater,
-            text: `Deposit ${liquidityText} liquidity into delegated ${UiUtil.toAssetSymbol(primaryAsset)}/${UiUtil.toAssetSymbol(secondaryAsset)} LP`,
+            text: `Deposit ${liquidityText} · delegated ${UiUtil.toAssetSymbol(primaryAsset)}/${UiUtil.toAssetSymbol(secondaryAsset)} LP`,
             body: {
               callable: delegatorAccount,
               pays: [{ asset: primaryAsset, value: primaryValue }, { asset: secondaryAsset, value: secondaryValue }].filter((v) => v.value.gt(0)),
@@ -582,8 +582,8 @@ export class Builder {
           liquidityText += (liquidityText.length > 0 ? ' + ' : '') + '100% ' + UiUtil.toAssetSymbol(secondaryAsset);
         }
         return {
-            icon: mdiWater,
-            text: `Withdraw ${liquidityText} liquidity delegated to ${UiUtil.toAssetSymbol(primaryAsset)}/${UiUtil.toAssetSymbol(secondaryAsset)} LP`,
+            icon: mdiWaterOff,
+            text: `Withdraw ${liquidityText} · delegated ${UiUtil.toAssetSymbol(primaryAsset)}/${UiUtil.toAssetSymbol(secondaryAsset)} LP`,
             body: {
               callable: delegatorAccount,
               pays: [],
@@ -606,7 +606,7 @@ export class BuilderQueue {
   }
 }
 
-export function PerformerButton(props: { title: string, description: string, disabled?: boolean, variant?: string, color?: string, style?: CSSProperties, onBuild: () => Promise<BuilderResult | BuilderResult[] | null> }) {
+export function PerformerButton(props: { title: string, description: string, disabled?: boolean, variant?: string, color?: string, className?: string, style?: CSSProperties, onBuild: () => Promise<BuilderResult | BuilderResult[] | null> }) {
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState(0);
   const navigate = useNavigate();
@@ -687,55 +687,46 @@ export function PerformerButton(props: { title: string, description: string, dis
       <Flex style={props.style}>
         <Dialog.Root>
           <Dialog.Trigger disabled={props.disabled || loading}>
-            <Flex style={props.style}>
-              <Button style={{ flex: 1, width: '100%', borderTopRightRadius: 0, borderBottomRightRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any} disabled={props.disabled || loading} onClick={() => append()}>
+            <Flex style={{ ...(props.style || {}), width: '100%', minWidth: 0 }}>
+              <Button className={props.className} style={{ flex: 1, width: '100%', minWidth: 0, overflow: 'hidden', borderTopRightRadius: 0, borderBottomRightRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any} disabled={props.disabled || loading} onClick={() => append()}>
                 <Spinner loading={loading}>
                   { props.title }
                 </Spinner>
               </Button>
-              <Button style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any} disabled={props.disabled || loading}>
+              <Button className={props.className} style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any} disabled={props.disabled || loading}>
                 <Icon path={mdiCollage} size={0.65}></Icon>
               </Button>
             </Flex>
           </Dialog.Trigger>
-          <Dialog.Content maxWidth="600px">
+          <Dialog.Content maxWidth="560px" className="plan-dialog">
             <Dialog.Title>Execution plan</Dialog.Title>
-            <Box key={state.toString()}>
-              {
-                BuilderQueue.get().map((item, index) =>
-                  <Box px="2" py="2" position="relative" style={{ backgroundColor: item.recent ? 'var(--accent-a3)' : 'var(--color-panel)', borderRadius: '22px' }} mb={index == BuilderQueue.get().length - 1 ? undefined : '3'} key={item.result.text + index}>
-                    <Flex gap="2">
-                      <Flex px="4" py="4" justify="center">
-                        <Icon path={item.result.icon} size={1.5}></Icon>
-                      </Flex>
-                      <Box py="1">{ item.result.text }</Box>
-                    </Flex>
-                    <Box position="absolute" style={{ top: '-12px', right: '-12px' }}>
-                      <IconButton variant="soft" size="3" color="red" onClick={() => {
-                        const queue = BuilderQueue.get()
-                        queue.splice(index, 1);
-                        BuilderQueue.set(queue);
-                      }}>
-                        <Icon path={mdiClose} size={0.5}></Icon>
-                      </IconButton>
-                    </Box>
-                  </Box>
-                )
-              }
-              {
-                !BuilderQueue.get().length &&
-                <Flex px="2" py="2" width="100%" height="100px" justify="center" align="center" className="rt-Card" style={{ backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
-                  <Text color="gray">Empty plan</Text>
+            {
+              BuilderQueue.get().length ?
+                <Box key={state.toString()} mt="3" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {
+                    BuilderQueue.get().map((item, index) =>
+                      <div className={'plan-item' + (item.recent ? ' recent' : '')} key={item.result.text + index}>
+                        <span className="plan-n">{ index + 1 }</span>
+                        <span className="plan-ico"><Icon path={item.result.icon} size={0.95}></Icon></span>
+                        <span className="plan-text">{ item.result.text }</span>
+                        <button className="plan-x" title="Remove step" onClick={() => {
+                          const queue = BuilderQueue.get();
+                          queue.splice(index, 1);
+                          BuilderQueue.set(queue);
+                        }}><Icon path={mdiClose} size={0.55}></Icon></button>
+                      </div>)
+                  }
+                </Box> :
+                <Flex direction="column" align="center" justify="center" gap="3" py="6" className="dim">
+                  <Icon path={mdiCollage} size={1.4}></Icon>
+                  <Text size="2">Nothing queued · press the action button to add a step</Text>
                 </Flex>
-              }
-            </Box>
-            <Flex justify="between" gap="1" mt="4">
-              <Button variant={props.variant as any || 'soft'} color="gray" onClick={() => BuilderQueue.set([])} disabled={!BuilderQueue.get().length}>
-                Clear all <Icon path={mdiCancel} size={0.65}></Icon>
-              </Button>
+            }
+            <Flex justify="between" gap="2" mt="4">
+              <Button className="btn-ghost" onClick={() => BuilderQueue.set([])} disabled={!BuilderQueue.get().length}>Clear all</Button>
               <Dialog.Close>
-                <Button variant={props.variant as any || 'soft'} onClick={() => BuilderQueue.get().length ? checkout() : undefined} disabled={!BuilderQueue.get().length}>
-                  Checkout <Icon path={mdiArrowRight} size={0.65}></Icon>
+                <Button className="btn-brand" onClick={() => BuilderQueue.get().length ? checkout() : undefined} disabled={!BuilderQueue.get().length}>
+                  Checkout <Icon path={mdiArrowRight} size={0.7}></Icon>
                 </Button>
               </Dialog.Close>
             </Flex>

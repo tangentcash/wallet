@@ -16,6 +16,6 @@ export default function AddressAvatar(props: { address: string } & Record<string
     return result;
   }, [props.address]);
   return (
-    <Avatar fallback={props.address.substring(props.address.length - 2)} radius="large" src={src} {...props}></Avatar>    
+    <Avatar fallback={props.address.substring(props.address.length - 2)} radius="large" src={src} {...props} style={{ backgroundColor: 'var(--card)', ...props.style }}></Avatar>
   )
 }

@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Card, DataList, Dialog, Flex, SegmentedControl, Select, Slider, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, Dialog, Flex, Slider, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { AssetId, ByteUtil, Chain, LiquidityPool } from "tangentsdk/algorithm";
 import { TextUtil } from "tangentsdk/text";
 import { UiUtil } from "tangentsdk/ui";
@@ -7,36 +7,26 @@ import { Pool, Exchange, Balance, PseudoDelegatedPool, DelegatedPool } from "../
 import { useCallback, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { AlertBox, AlertType } from "../alert";
-import { mdiArrowRight, mdiClose, mdiCurrencyUsd, mdiScaleBalance, mdiScaleUnbalanced } from "@mdi/js";
+import { mdiArrowRight, mdiBankPlus, mdiCurrencyUsd, mdiLayers, mdiOpenInNew, mdiWallet } from "@mdi/js";
 import { AssetImage } from "../asset-image";
 import { PerformerButton, Builder, BuilderResult } from "./performer";
 import { defaultMakerState } from "./maker";
 import { AppData } from "../../core/app";
 import { AppStorage } from "../../core/storage";
 import { pathOfMaker } from "../../pages/exchange/orderbook";
-import { useEffectAsync } from "../../core/react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
 
 const DLP_DEFAULT_FEE_RATE_MAYBE = 0.0005;
 
-function toRateColor(value: number) {
-  const clampedValue = Math.max(0, Math.min(100, value));
-  const colorPalette = ['jade', 'green', 'teal', 'blue', 'cyan', 'orange', 'red'];
-  const totalBuckets = colorPalette.length - 1;
-  const stepSize = 100 / totalBuckets;
-  let index = Math.floor(clampedValue / stepSize);
-  return colorPalette[index % colorPalette.length];
-}
 
 export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, readOnly?: boolean }) {
   const item = props.item;
   const concentrated = item.minPrice?.gt(0) && item.maxPrice?.gt(0);
-  const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(props.open || false);
-  const [mode, setMode] = useState<'isolated-rebalancer' | 'cross-rebalancer' | 'closure'>('cross-rebalancer');
+  const [rebalancer, setRebalancer] = useState<'cross' | 'isolated'>('cross');
   const bidPrice = useMemo(() => item.price.multipliedBy(new BigNumber(1).minus(item.feeRate)), [item.price, item.feeRate]);
   const askPrice = useMemo(() => item.price.multipliedBy(new BigNumber(1).plus(item.feeRate)), [item.price, item.feeRate]);
   const inLowerRange = useMemo(() => concentrated ? bidPrice.gte(item.minPrice || 0) : true, [bidPrice]);
@@ -60,7 +50,6 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
       staleness: staleness
     }
   }, [item]);
-  const revenue = useMemo(() => Exchange.toAPY(item.feeRate, state.liquidity, item.volume), [item.feeRate, state.liquidity, item.volume]);
   const rebalance = useCallback(async (cross: boolean): Promise<BuilderResult[]> => {
     const price = Exchange.priceOf(item.primaryAsset, item.secondaryAsset).close;
     if (!price)
@@ -139,164 +128,93 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
     ];
   }, [item]);
 
-  const FullPoolView = (subprops: { open?: boolean }) => (
-    <Collapsible.Root open={subprops.open || expanded}>
-      <Flex justify="start" align="center" gap="3" className={subprops.open ? undefined : 'card-expander'} onClick={() => subprops.open ? undefined : setExpanded(!expanded)}>
-        <Box style={{ position: 'relative' }}>
-          <AssetImage asset={item.secondaryAsset} size="2" style={{ position: 'absolute', top: '24px', left: '-6px' }}></AssetImage>
-          <AssetImage asset={item.primaryAsset} size="4"></AssetImage>
-        </Box>
-        <Box width="100%">
-          <Flex justify="between" align="center">
-            <Flex align="center">
-              <Text size="2">{ item.primaryAsset.token || item.primaryAsset.chain }</Text>
-              <Text size="2" color="gray">x</Text>
-              <Text size="2">{ item.secondaryAsset.token || item.secondaryAsset.chain }</Text>
-            </Flex>
-            <Flex align="center" style={{ textDecoration: item.active ? undefined : 'line-through' }}>
-              <Text size="2">{ UiUtil.toMoney(Exchange.equityAsset, state.liquidity) }</Text>
-            </Flex>
-          </Flex>
-          <Flex justify="between" align="center">
-            <Flex gap="2">
-              <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ revenue.toFixed(2) }% APY</Badge>
-              <Badge variant="soft" color={item.active ? undefined : 'gray'} size="2">{ UiUtil.toMoney(Exchange.equityAsset, state.liquidity.multipliedBy(revenue.dividedBy(100 * 365))) } per day</Badge>
-            </Flex>
-            <Tooltip content={`Market price deviation: market price ± ${item.feeRate.plus(0.01).multipliedBy(100).toFixed(2)}% delta, degraded LP's revenue may decrease, use reopen to optimize the dev factor`}>
-              <Badge variant="soft" color={item.active ? toRateColor(state.staleness?.score || 0) as any : 'gray'} size="2">
-                <Icon path={state.staleness?.score || 0 >= 0.8 ? mdiScaleUnbalanced : (item.active ? mdiScaleBalance : mdiClose)} size={0.65}></Icon>
-                <Text>+{ (100 * (state.staleness?.dev || 0)).toFixed(1) }% dev</Text>
-              </Badge>
-            </Tooltip>
-          </Flex>
-        </Box>
-      </Flex>
+  const renderFullPool = (open?: boolean) => (
+    <Collapsible.Root open={open || expanded}>
+      <button type="button" className={ open ? undefined : 'card-expander' } onClick={ open ? undefined : () => setExpanded(!expanded) }>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <span style={{ position: 'relative', width: 42, height: 42, flex: 'none' }}>
+            <AssetImage asset={item.primaryAsset} size="2" iconSize="42px"></AssetImage>
+            <AssetImage asset={item.secondaryAsset} size="1" iconSize="20px" style={{ position: 'absolute', bottom: -3, right: -3, border: '2px solid var(--card)', borderRadius: '50%' }}></AssetImage>
+          </span>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontWeight: 700, fontSize: 15.5, whiteSpace: 'nowrap', textDecoration: item.active ? undefined : 'line-through' }}>
+              { item.primaryAsset.token || item.primaryAsset.chain }x{ item.secondaryAsset.token || item.secondaryAsset.chain }
+            </div>
+            <div className="tiny dim" style={{ marginTop: 3, display: 'flex', alignItems: 'center', gap: 6, whiteSpace: 'nowrap', overflow: 'hidden' }}>
+              <span className={ 'badge ' + (item.active ? 'warn' : 'flat') }>MANUAL</span><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Self-managed</span>
+            </div>
+          </div>
+          <span className="usd" style={{ flex: 'none' }}>{ UiUtil.toMoney(Exchange.equityAsset, state.liquidity) }<span className="usd-sub">+{ (100 * (state.staleness?.dev || 0)).toFixed(1) }% dev</span></span>
+        </div>
+        { (() => {
+          const primaryPrice = Exchange.priceOf(item.primaryAsset).close || new BigNumber(0);
+          const total = item.primaryValue.multipliedBy(primaryPrice).plus(item.secondaryValue);
+          const share = total.gt(0) ? item.primaryValue.multipliedBy(primaryPrice).multipliedBy(100).dividedBy(total).toNumber() : 0;
+          return (
+            <>
+              <div className="progress"><i style={{ width: Math.min(100, Math.max(0, share)) + '%' }}></i></div>
+              <div className="tiny dim num">{ share.toFixed(1) }% { item.primaryAsset.token || item.primaryAsset.chain } · { (100 - share).toFixed(1) }% { item.secondaryAsset.token || item.secondaryAsset.chain }</div>
+            </>
+          );
+        })() }
+      </button>
+      {
+        !props.readOnly && item.active &&
+        <div style={{ display: 'flex', gap: 10, marginTop: 14, alignItems: 'center' }}>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <PerformerButton className="btn-sm btn-ghost" title="Close" description="Close position — Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" variant="classic" color="gray" onBuild={() => {
+              return Builder.withdrawPool({ poolId: item.id.toString() });
+            }}></PerformerButton>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <PerformerButton className="btn-sm btn-brand" title="Adjust" description={ rebalancer == 'cross' ? "Smart contract will re-balance this pool based on current market price, pool liquidity and available balance" : "Smart contract will re-balance this pool using only the assets allocated to it" } onBuild={() => rebalance(rebalancer == 'cross')}></PerformerButton>
+          </div>
+          <Tooltip content={ rebalancer == 'cross' ? 'Adjust takes free balances into account · switch to pool-only rebalance' : 'Adjust uses the pool allocation only · switch to rebalance with free balances' }>
+            <button className="icon-btn icon-btn-lg" aria-label="Adjust rebalance mode" onClick={() => setRebalancer(rebalancer == 'cross' ? 'isolated' : 'cross')} style={ rebalancer == 'isolated' ? { background: 'var(--lime-dim)', color: 'var(--lime)' } : undefined }>
+              <Icon path={ rebalancer == 'cross' ? mdiWallet : mdiLayers } size={0.65}></Icon>
+            </button>
+          </Tooltip>
+        </div>
+      }
       <Collapsible.Content>
-        <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
-        <DataList.Root orientation={orientation}>
-          <DataList.Item>
-            <DataList.Label>Market account:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(item.marketAccount || 'NULL');
-                AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</Button>
-              <Box ml="2">
-                <Link className="router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}>▒▒</Link>
-              </Box>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Primary asset:</DataList.Label>
-            <DataList.Value>{ Assetlist.toName(item.primaryAsset) }</DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Secondary asset:</DataList.Label>
-            <DataList.Value>{ Assetlist.toName(item.secondaryAsset) }</DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Reference:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(item.poolId.toString(16));
-                AlertBox.open(AlertType.Info, 'Reference copied!')
-              }}>0x{ item.poolId.toString(16).length > 8 ? UiUtil.toHash(item.poolId.toString(16), 6) : item.poolId.toString(16) }</Button>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Status:</DataList.Label>
-            <DataList.Value>
-              <Badge color={item.active ? (inLowerRange && inUpperRange ? undefined : 'yellow') : 'gray'}>{ item.active ? (inLowerRange && inUpperRange ? (concentrated ? 'Active (fully in range)' : 'Active') : 'Partially active (out of range)') : 'Inactive' }</Badge>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Spread:</DataList.Label>
-            <DataList.Value>
-              <Flex wrap="wrap" gap="2">
-                { inLowerRange && <Badge>BID { UiUtil.toMoney(item.secondaryAsset, bidPrice) }</Badge> }
-                { inUpperRange && <Badge color="red">ASK { UiUtil.toMoney(item.secondaryAsset, askPrice) }</Badge> }
-              </Flex>
-            </DataList.Value>
-          </DataList.Item>
+        <div className="dl dl-rule" style={{ marginTop: 16 }}>
+          <div className="dl-row"><span className="dl-k">Market account</span><span className="dl-v"><span className="copyable" onClick={() => {
+            navigator.clipboard.writeText(item.marketAccount || 'NULL');
+            AlertBox.open(AlertType.Info, 'Address copied!')
+          }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</span>
+          <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
+          <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
+          <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
+          <div className="dl-row"><span className="dl-k">Reference</span><span className="dl-v"><span className="copyable" onClick={() => {
+            navigator.clipboard.writeText(item.poolId.toString(16));
+            AlertBox.open(AlertType.Info, 'Reference copied!')
+          }}>0x{ item.poolId.toString(16).length > 8 ? UiUtil.toHash(item.poolId.toString(16), 6) : item.poolId.toString(16) }</span></span></div>
+          <div className="dl-row"><span className="dl-k">Status</span><span className="dl-v"><Badge color={item.active ? (inLowerRange && inUpperRange ? undefined : 'yellow') : 'gray'}>{ item.active ? (inLowerRange && inUpperRange ? (concentrated ? 'Active (fully in range)' : 'Active') : 'Partially active (out of range)') : 'Inactive' }</Badge></span></div>
+          <div className="dl-row"><span className="dl-k">Spread</span><span className="dl-v"><Flex wrap="wrap" gap="2" justify="end">
+            { inLowerRange && <Badge>BID { UiUtil.toMoney(item.secondaryAsset, bidPrice) }</Badge> }
+            { inUpperRange && <Badge color="red">ASK { UiUtil.toMoney(item.secondaryAsset, askPrice) }</Badge> }
+          </Flex></span></div>
           {
             (item.primaryRevenue.gt(0) || item.secondaryRevenue.gt(0)) &&
-            <DataList.Item>
-              <DataList.Label>Fees:</DataList.Label>
-              <DataList.Value>
-                <Flex wrap="wrap" gap="2">
-                  { item.primaryRevenue.gt(0) && <Badge>{ UiUtil.toMoney(item.primaryAsset, item.primaryRevenue) }</Badge> }
-                  { item.secondaryRevenue.gt(0) && <Badge>{ UiUtil.toMoney(item.secondaryAsset, item.secondaryRevenue) }</Badge> }
-                </Flex>
-              </DataList.Value>
-            </DataList.Item>
+            <div className="dl-row"><span className="dl-k">Fees</span><span className="dl-v"><Flex wrap="wrap" gap="2" justify="end">
+              { item.primaryRevenue.gt(0) && <Badge>{ UiUtil.toMoney(item.primaryAsset, item.primaryRevenue) }</Badge> }
+              { item.secondaryRevenue.gt(0) && <Badge>{ UiUtil.toMoney(item.secondaryAsset, item.secondaryRevenue) }</Badge> }
+            </Flex></span></div>
           }
-          <DataList.Item>
-            <DataList.Label>Revenue:</DataList.Label>
-            <DataList.Value>
-              <Flex wrap="wrap" gap="2">
-                <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ UiUtil.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</Badge> 
-                <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ state.relativeRevenue.gt(0) ? '+' : '' }{ state.relativeRevenue.multipliedBy(100).toFixed(2) }%</Badge>
-              </Flex>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Price:</DataList.Label>
-            <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.price) }</DataList.Value>
-          </DataList.Item>
+          <div className="dl-row"><span className="dl-k">Revenue</span><span className="dl-v"><Flex wrap="wrap" gap="2" justify="end">
+            <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ UiUtil.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</Badge>
+            <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ state.relativeRevenue.gt(0) ? '+' : '' }{ state.relativeRevenue.multipliedBy(100).toFixed(2) }%</Badge>
+          </Flex></span></div>
+          <div className="dl-row"><span className="dl-k">Price</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.price) }</span></div>
           {
             concentrated &&
-            <DataList.Item>
-              <DataList.Label>Price range:</DataList.Label>
-              <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.minPrice || null) } — { UiUtil.toMoney(item.secondaryAsset, item.maxPrice || null) }</DataList.Value>
-            </DataList.Item>
+            <div className="dl-row"><span className="dl-k">Price range</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.minPrice || null) } — { UiUtil.toMoney(item.secondaryAsset, item.maxPrice || null) }</span></div>
           }
-          <DataList.Item>
-            <DataList.Label>{ UiUtil.toAssetSymbol(item.primaryAsset) } reserve:</DataList.Label>
-            <DataList.Value>{ UiUtil.toMoney(item.primaryAsset, item.primaryValue) }</DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>{ UiUtil.toAssetSymbol(item.secondaryAsset) } reserve:</DataList.Label>
-            <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.secondaryValue) }</DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Fee rate:</DataList.Label>
-            <DataList.Value>{ item.feeRate.multipliedBy(100).toFixed(2) }%</DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Exit fee:</DataList.Label>
-            <DataList.Value>{ item.exitFee.multipliedBy(100).toFixed(2) }%</DataList.Value>
-          </DataList.Item>
-        </DataList.Root>
-        {
-          !props.flash && !props.readOnly && item.active &&
-          <Flex justify="between" align="center" wrap="wrap" gap="4" mt="2">
-            <Select.Root value={mode} onValueChange={(e) => setMode(e as any)}>
-              <Select.Trigger variant="ghost" />
-              <Select.Content>
-                <Select.Group>
-                  <Select.Label>Do</Select.Label>
-                  <Select.Item value="cross-rebalancer">Cross reopen</Select.Item>
-                  <Select.Item value="isolated-rebalancer">Reopen</Select.Item>
-                  <Select.Item value="closure">Close</Select.Item>
-                </Select.Group>
-              </Select.Content>
-            </Select.Root>
-            {
-              mode == 'closure' &&
-              <PerformerButton title="Do" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" color="red" onBuild={() => {
-                return Builder.withdrawPool({ poolId: item.id.toString() });
-              }}></PerformerButton>
-            }
-            {
-              mode == 'isolated-rebalancer' &&
-              <PerformerButton title="Do" description="Smart contract will re-balance this pool based on current market price and pool liquidity" color="jade" onBuild={() => rebalance(false)}></PerformerButton>
-            }
-            {
-              mode == 'cross-rebalancer' &&
-              <PerformerButton title="Do" description="Smart contract will re-balance this pool based on current market price and pool liquidity plus available balance" onBuild={() => rebalance(true)}></PerformerButton>
-            }
-          </Flex>
-        }
+          <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.primaryAsset) } reserve</span><span className="dl-v">{ UiUtil.toMoney(item.primaryAsset, item.primaryValue) }</span></div>
+          <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.secondaryAsset) } reserve</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.secondaryValue) }</span></div>
+          <div className="dl-row"><span className="dl-k">Fee rate</span><span className="dl-v">{ item.feeRate.multipliedBy(100).toFixed(2) }%</span></div>
+          <div className="dl-row"><span className="dl-k">Exit fee</span><span className="dl-v">{ item.exitFee.multipliedBy(100).toFixed(2) }%</span></div>
+        </div>
         {
           !props.flash && props.readOnly && item.active &&
           <Flex justify="center" mt="3">
@@ -321,7 +239,7 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
     </Collapsible.Root>
   );
   return (
-    <Card variant="surface" style={{ borderRadius: '22px', position: "relative" }}>
+    <Card variant="surface" style={{ padding: 16, position: "relative" }}>
       {
         props.flash &&
         <Box>
@@ -346,56 +264,28 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
             </Dialog.Trigger>
             <Dialog.Content maxWidth="450px">
               <Dialog.Title>Pool #{item.poolId.toString().length > 8 ? UiUtil.toHash(item.poolId.toString(), 4) : item.poolId.toString()}</Dialog.Title>
-              <FullPoolView open={true}></FullPoolView>
+              { renderFullPool(true) }
             </Dialog.Content>
           </Dialog.Root>
-          {
-            !props.readOnly && item.active &&
-            <Flex justify="between" align="center" wrap="wrap" gap="4" pl="1" mt="1">
-              <Select.Root value={mode} onValueChange={(e) => setMode(e as any)}>
-                <Select.Trigger variant="ghost" />
-                <Select.Content>
-                  <Select.Group>
-                    <Select.Label>Do</Select.Label>
-                    <Select.Item value="cross-rebalancer">Cross reopen</Select.Item>
-                    <Select.Item value="isolated-rebalancer">Reopen</Select.Item>
-                    <Select.Item value="closure">Close</Select.Item>
-                  </Select.Group>
-                </Select.Content>
-              </Select.Root>
-              {
-                mode == 'closure' &&
-                <PerformerButton title="Do" description="Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" color="red" onBuild={() => {
-                  return Builder.withdrawPool({ poolId: item.id.toString() });
-                }}></PerformerButton>
-              }
-              {
-                mode == 'isolated-rebalancer' &&
-                <PerformerButton title="Do" description="Smart contract will re-balance this pool based on current market price and pool liquidity" color="jade" onBuild={() => rebalance(false)}></PerformerButton>
-              }
-              {
-                mode == 'cross-rebalancer' &&
-                <PerformerButton title="Do" description="Smart contract will re-balance this pool based on current market price and pool liquidity plus available balance" onBuild={() => rebalance(true)}></PerformerButton>
-              }
-            </Flex>
-          }
         </Box>
       }
       {
         !props.flash &&
-        <Box px="1" py="1">
-          <FullPoolView></FullPoolView>
+        <Box>
+          { renderFullPool() }
         </Box>
       }
     </Card>
   );
 }
 
-export function DelegatedPoolView(props: { item: DelegatedPool, readOnly?: boolean }) {
+export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[], readOnly?: boolean }) {
   const item = props.item;
-  const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
-  const [mode, setMode] = useState<'deposit' | 'withdraw'>('withdraw');
-  const [assets, setAssets] = useState<{ primary: BigNumber, secondary: BigNumber } | null>(null);
+  const [mode, setMode] = useState<'deposit' | 'withdraw'>('deposit');
+  const assets = useMemo(() => ({
+    primary: props.assets.find((v) => v.asset.id == item.primaryAsset.id)?.available || new BigNumber(0),
+    secondary: props.assets.find((v) => v.asset.id == item.secondaryAsset.id)?.available || new BigNumber(0),
+  }), [props.assets, item]);
   const [primaryReserve, setPrimaryReserve] = useState<string>('');
   const [secondaryReserve, setSecondaryReserve] = useState<string>('');
   const [expanded, setExpanded] = useState(false);
@@ -406,8 +296,8 @@ export function DelegatedPoolView(props: { item: DelegatedPool, readOnly?: boole
       secondary: item.secondaryValue,
       delegator: delegator
     } : {
-      primary: assets?.primary || new BigNumber(0),
-      secondary: assets?.secondary || new BigNumber(0),
+      primary: assets.primary,
+      secondary: assets.secondary,
       delegator: delegator
     };
   }, [item, assets, mode]);
@@ -446,119 +336,53 @@ export function DelegatedPoolView(props: { item: DelegatedPool, readOnly?: boole
     };
   }, [primaryReserve, secondaryReserve, extra, item, mode]);
   const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, state.currentLiquidity, item.volume.multipliedBy(item.share)), [item.volume, item.share, state.currentLiquidity]);
-  useEffectAsync(async () => {
-    if (!props.readOnly && !assets && mode == 'deposit') {
-      const address = AppData.getWalletAddress();
-      if (address) {
-        try {
-          const results = await Exchange.accountBalances({ address: address });
-          setAssets({
-            primary: results.find((v) => v.asset.id == item.primaryAsset.id)?.available || new BigNumber(0),
-            secondary: results.find((v) => v.asset.id == item.secondaryAsset.id)?.available || new BigNumber(0),
-          });
-        } catch { }
-      }
-    }
-  }, [mode, item, assets, props.readOnly]);
-
+  const symP = item.primaryAsset.token || item.primaryAsset.chain;
+  const symQ = item.secondaryAsset.token || item.secondaryAsset.chain;
   return (
-    <Card variant="surface" style={{ borderRadius: '22px', position: "relative" }}>
+    <Card variant="surface" style={{ padding: 16, position: "relative" }}>
       <Collapsible.Root open={expanded}>
-        <Flex justify="start" align="center" gap="3" className="card-expander" onClick={() => setExpanded(!expanded)}>
-          <Box style={{ position: 'relative' }}>
-            <AssetImage asset={item.secondaryAsset} size="2" style={{ position: 'absolute', top: '24px', left: '-6px' }}></AssetImage>
-            <AssetImage asset={item.primaryAsset} size="4"></AssetImage>
-          </Box>
-          <Box width="100%">
-            <Flex justify="between" align="center">
-              <Flex align="center">
-                <Text size="2">{ item.primaryAsset.token || item.primaryAsset.chain }</Text>
-                <Text size="2" color="gray">x</Text>
-                <Text size="2">{ item.secondaryAsset.token || item.secondaryAsset.chain }</Text>
-              </Flex>
-              <Flex align="center" style={{ textDecoration: item.active ? undefined : 'line-through' }}>
-                <Text size="2">{ UiUtil.toMoney(Exchange.equityAsset, state.currentLiquidity) }</Text>
-              </Flex>
-            </Flex>
-            <Flex gap="2">
-              <Badge color={item.active ? 'purple' : 'gray'} variant="soft" size="2">{ revenue.toFixed(2) }% APY</Badge>
-              <Badge color={item.active ? undefined : 'gray'} variant="soft" size="2">{ UiUtil.toMoney(Exchange.equityAsset, state.currentLiquidity.multipliedBy(revenue.dividedBy(100 * 365))) } per day</Badge>
-            </Flex>
-          </Box>
-        </Flex>
+        <button type="button" className="card-expander" onClick={() => setExpanded(!expanded)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ position: 'relative', width: 42, height: 42, flex: 'none' }}>
+              <AssetImage asset={item.primaryAsset} size="2" iconSize="42px"></AssetImage>
+              <AssetImage asset={item.secondaryAsset} size="1" iconSize="20px" style={{ position: 'absolute', bottom: -3, right: -3, border: '2px solid var(--card)', borderRadius: '50%' }}></AssetImage>
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 15.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', textDecoration: item.active ? undefined : 'line-through' }}>
+                { symP }x{ symQ } <span className={ 'badge ' + (item.active ? 'info' : 'flat') } style={{ verticalAlign: 2 }}>AUTO</span>
+              </div>
+              <div className="tiny dim" style={{ marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Delegated to { UiUtil.toAddress(item.delegatorAccount || 'NULL', 6) }</div>
+            </div>
+            <span className="usd" style={{ flex: 'none' }}>{ UiUtil.toMoney(Exchange.equityAsset, state.currentLiquidity) }<span className="usd-sub">{ revenue.toFixed(2) }% APY · { UiUtil.toMoney(Exchange.equityAsset, state.currentLiquidity.multipliedBy(revenue.dividedBy(100 * 365))) }/day</span></span>
+          </div>
+        </button>
         <Collapsible.Content>
-          <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
-          <DataList.Root orientation={orientation}>
-            <DataList.Item>
-              <DataList.Label>Delegator account:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(item.delegatorAccount || 'NULL');
-                  AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ UiUtil.toAddress(item.delegatorAccount || 'NULL') }</Button>
-                <Box ml="2">
-                  <Link className="router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet-total-assets'}>▒▒</Link>
-                </Box>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Market account:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(item.marketAccount || 'NULL');
-                  AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</Button>
-                <Box ml="2">
-                  <Link className="router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}>▒▒</Link>
-                </Box>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Primary asset:</DataList.Label>
-              <DataList.Value>{ Assetlist.toName(item.primaryAsset) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Secondary asset:</DataList.Label>
-              <DataList.Value>{ Assetlist.toName(item.secondaryAsset) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Status:</DataList.Label>
-              <DataList.Value>
-                <Badge color={item.active ? undefined : 'gray'}>{ item.active ? 'Active' : 'Inactive' }</Badge>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Share:</DataList.Label>
-              <DataList.Value>{ item.share.multipliedBy(100).toFixed(2) }%</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Revenue (est.):</DataList.Label>
-              <DataList.Value>
-                <Flex wrap="wrap" gap="2">
-                  <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ UiUtil.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</Badge> 
-                  <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ state.relativeRevenue.gt(0) ? '+' : '' }{ state.relativeRevenue.multipliedBy(100).toFixed(2) }%</Badge>
-                </Flex>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>{ UiUtil.toAssetSymbol(item.primaryAsset) } reserve (est.):</DataList.Label>
-              <DataList.Value>{ UiUtil.toMoney(item.primaryAsset, item.primaryValue) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>{ UiUtil.toAssetSymbol(item.secondaryAsset) } reserve (est.):</DataList.Label>
-              <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.secondaryValue) }</DataList.Value>
-            </DataList.Item>
-            <Tooltip content="TAN subsidy gets allocated based on DLP position share each time underlying LP gets rebalanced">
-              <DataList.Item>
-                <DataList.Label>{ UiUtil.toAssetSymbol(new AssetId()) }:</DataList.Label>
-                <DataList.Value>{ UiUtil.toMoney(new AssetId(), item.rewardValue) }</DataList.Value>
-              </DataList.Item>
-            </Tooltip>
-          </DataList.Root>
+          <div className="dl dl-rule" style={{ marginTop: 14 }}>
+            <div className="dl-row"><span className="dl-k">Your share</span><span className="dl-v">{ item.share.multipliedBy(100).toFixed(2) }%</span></div>
+            <div className="dl-row"><span className="dl-k">Fees earned (est.)</span><span className="dl-v">{ UiUtil.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</span></div>
+            <div className="dl-row"><span className="dl-k">TAN subsidy</span><span className="dl-v">{ UiUtil.toMoney(new AssetId(), item.rewardValue) }</span></div>
+          </div>
+          <div className="dl dl-rule">
+            <div className="dl-row"><span className="dl-k">Delegator account</span><span className="dl-v"><span className="copyable" onClick={() => {
+              navigator.clipboard.writeText(item.delegatorAccount || 'NULL');
+              AlertBox.open(AlertType.Info, 'Address copied!')
+            }}>{ UiUtil.toAddress(item.delegatorAccount || 'NULL') }</span>
+            <Link className="dl-open router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet-total-assets'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
+            <div className="dl-row"><span className="dl-k">Market account</span><span className="dl-v"><span className="copyable" onClick={() => {
+              navigator.clipboard.writeText(item.marketAccount || 'NULL');
+              AlertBox.open(AlertType.Info, 'Address copied!')
+            }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</span>
+            <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
+            <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
+            <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
+            <div className="dl-row"><span className="dl-k">Status</span><span className="dl-v"><span className={ 'badge ' + (item.active ? 'ok' : 'flat') }>{ item.active ? 'Active' : 'Inactive' }</span></span></div>
+            <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.primaryAsset) } reserve (est.)</span><span className="dl-v">{ UiUtil.toMoney(item.primaryAsset, item.primaryValue) }</span></div>
+            <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.secondaryAsset) } reserve (est.)</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.secondaryValue) }</span></div>
+          </div>
           {
             item.active &&
             <>
-              <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
+              <Box my="4" className="dl-rule"></Box>
               <Tooltip side="left" content={`Reserve value in ${UiUtil.toAssetSymbol(item.primaryAsset)} to ${mode}`}>
                 <Box mb="3">
                   <TextField.Root placeholder={Assetlist.toName(item.primaryAsset) + ' to ' + mode} size="2" value={primaryReserve} onChange={(e) => setPrimaryReserve(TextUtil.toValue(primaryReserve, e.target.value))}>
@@ -589,15 +413,18 @@ export function DelegatedPoolView(props: { item: DelegatedPool, readOnly?: boole
                   <Text size="1" color="gray">Underlying LP will be withdrawn</Text>
                 </Flex>
               }
-              <Flex pt="2" justify="between">
-                <SegmentedControl.Root value={mode} radius="full" size="2" onValueChange={(value) => setMode(value as any)}>
-                  <SegmentedControl.Item value="deposit">Push</SegmentedControl.Item>
-                  <SegmentedControl.Item value="withdraw">Pull</SegmentedControl.Item>
-                </SegmentedControl.Root>
-                <PerformerButton title="Do" description={mode == 'deposit' ? "Smart contract will add your deposit into the delegated LP and allocate your position" : "Smart contract will re-pay your deposit and deallocate the position"} color={mode == 'deposit' ? 'jade' : 'red'} disabled={!payload} onBuild={async () => {      
-                  return payload ? (mode == 'deposit' ? await Builder.depositLiquidity(payload) : await Builder.withdrawLiquidity(payload)) : null;
-                }}></PerformerButton>
-              </Flex>
+              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 14 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <PerformerButton className="btn-sm btn-brand" title={ mode == 'deposit' ? 'Review deposit' : 'Review withdrawal' } description={mode == 'deposit' ? "Smart contract will add your deposit into the delegated LP and allocate your position" : "Smart contract will re-pay your deposit and deallocate the position"} color={mode == 'deposit' ? 'jade' : 'red'} disabled={!payload} onBuild={async () => {
+                    return payload ? (mode == 'deposit' ? await Builder.depositLiquidity(payload) : await Builder.withdrawLiquidity(payload)) : null;
+                  }}></PerformerButton>
+                </div>
+                <Tooltip content={ mode == 'deposit' ? 'Mode: adding funds · switch to withdrawal' : 'Mode: withdrawing funds · switch to adding funds' }>
+                  <button className="icon-btn icon-btn-lg" aria-label="Deposit or withdrawal mode" onClick={() => setMode(mode == 'deposit' ? 'withdraw' : 'deposit')} style={ mode == 'withdraw' ? { background: 'var(--down-dim)', color: 'var(--down)' } : undefined }>
+                    <Icon path={ mdiBankPlus } size={0.65}></Icon>
+                  </button>
+                </Tooltip>
+              </div>
             </>
           }
         </Collapsible.Content>
@@ -608,7 +435,6 @@ export function DelegatedPoolView(props: { item: DelegatedPool, readOnly?: boole
 
 export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, assets: Balance[] }) {
   const item = props.item;
-  const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [expanded, setExpanded] = useState(false);
   const [primaryReserve, setPrimaryReserve] = useState<string>('');
   const [secondaryReserve, setSecondaryReserve] = useState<string>('');
@@ -643,85 +469,47 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
   }, [primaryReserve, secondaryReserve, extra, item]);
 
   return (
-    <Card variant="surface" style={{ borderRadius: '22px', position: "relative" }}>
+    <Card variant="surface" style={{ padding: 16, position: "relative" }}>
       <Collapsible.Root open={expanded}>
-        <Flex justify="start" align="center" gap="2" className="card-expander" onClick={() => setExpanded(!expanded)}>
-          <Box style={{ position: 'relative' }}>
-            <AssetImage asset={item.secondaryAsset} size="2" style={{ position: 'absolute', top: '24px', left: '-6px' }}></AssetImage>
-            <AssetImage asset={item.primaryAsset} size="4"></AssetImage>
-          </Box>
-          <Box width="100%">
-            <Flex justify="between" align="center">
-              <Flex align="center">
-                <Text size="2">{ item.primaryAsset.token || item.primaryAsset.chain }</Text>
-                <Text size="2" color="gray">x</Text>
-                <Text size="2">{ item.secondaryAsset.token || item.secondaryAsset.chain }</Text>
-              </Flex>
-              <Flex align="center">
-                <Text size="2">{ UiUtil.toMoney(Exchange.equityAsset, item.currentValue) }</Text>
-              </Flex>
-            </Flex>
-            <Flex justify="between" align="center" gap="2" pt="1" wrap="wrap">
-              <Flex gap="2">
-                <Badge color="purple" variant="soft" size="2">{ revenue.toFixed(2) }% APY</Badge>
-                <Badge variant="soft" size="2">{ UiUtil.toMoney(Exchange.equityAsset, item.currentValue.multipliedBy(revenue.dividedBy(100 * 365))) } per day</Badge>
-              </Flex>
-              <Badge variant="soft" color="jade" size="2">{ item.delegatorAccount.substring(item.delegatorAccount.length - 6) }</Badge>
-            </Flex>
-          </Box>
-        </Flex>
+        <button type="button" className="card-expander" onClick={() => setExpanded(!expanded)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span style={{ position: 'relative', width: 42, height: 42, flex: 'none' }}>
+              <AssetImage asset={item.primaryAsset} size="2" iconSize="42px"></AssetImage>
+              <AssetImage asset={item.secondaryAsset} size="1" iconSize="20px" style={{ position: 'absolute', bottom: -3, right: -3, border: '2px solid var(--card)', borderRadius: '50%' }}></AssetImage>
+            </span>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: 15.5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                { item.primaryAsset.token || item.primaryAsset.chain }x{ item.secondaryAsset.token || item.secondaryAsset.chain } <span className="badge info" style={{ verticalAlign: 2 }}>AUTO</span>
+              </div>
+              <div className="tiny dim" style={{ marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Delegated to { item.delegatorAccount.substring(item.delegatorAccount.length - 6) }</div>
+            </div>
+            <span className="usd" style={{ flex: 'none' }}>{ UiUtil.toMoney(Exchange.equityAsset, item.currentValue) }<span className="usd-sub">{ revenue.toFixed(2) }% APY · { UiUtil.toMoney(Exchange.equityAsset, item.currentValue.multipliedBy(revenue.dividedBy(100 * 365))) }/day</span></span>
+          </div>
+        </button>
         <Collapsible.Content>
-          <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
-          <DataList.Root orientation={orientation}>
-            <DataList.Item>
-              <DataList.Label>Delegator account:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(item.delegatorAccount || 'NULL');
-                  AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ UiUtil.toAddress(item.delegatorAccount || 'NULL') }</Button>
-                <Box ml="2">
-                  <Link className="router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet-total-assets'}>▒▒</Link>
-                </Box>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Market account:</DataList.Label>
-              <DataList.Value>
-                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                  navigator.clipboard.writeText(item.marketAccount || 'NULL');
-                  AlertBox.open(AlertType.Info, 'Address copied!')
-                }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</Button>
-                <Box ml="2">
-                  <Link className="router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}>▒▒</Link>
-                </Box>
-              </DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Primary asset:</DataList.Label>
-              <DataList.Value>{ Assetlist.toName(item.primaryAsset) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Secondary asset:</DataList.Label>
-              <DataList.Value>{ Assetlist.toName(item.secondaryAsset) }</DataList.Value>
-            </DataList.Item>
+          <div className="dl dl-rule" style={{ marginTop: 14 }}>
+            <div className="dl-row"><span className="dl-k">Liquidity</span><span className="dl-v">{ UiUtil.toMoney(Exchange.equityAsset, item.currentValue) }</span></div>
+            <div className="dl-row"><span className="dl-k">Revenue</span><span className="dl-v">{ UiUtil.toMoney(Exchange.equityAsset, item.currentValue.minus(item.initialValue), true) }</span></div>
             {
               extra.delegator &&
-              <DataList.Item>
-                <DataList.Label>TAN subsidy:</DataList.Label>
-                <DataList.Value>{ UiUtil.toMoney(new AssetId(), extra.delegator.rewardEmission.dividedBy(extra.delegator.permissions.length).multipliedBy(86400000 / Chain.policy.BLOCK_TIME)) } per day</DataList.Value>
-              </DataList.Item>
+              <div className="dl-row"><span className="dl-k">TAN subsidy</span><span className="dl-v">{ UiUtil.toMoney(new AssetId(), extra.delegator.rewardEmission.dividedBy(extra.delegator.permissions.length).multipliedBy(86400000 / Chain.policy.BLOCK_TIME)) } per day</span></div>
             }
-            <DataList.Item>
-              <DataList.Label>Liquidity:</DataList.Label>
-              <DataList.Value>{ UiUtil.toMoney(Exchange.equityAsset, item.currentValue) }</DataList.Value>
-            </DataList.Item>
-            <DataList.Item>
-              <DataList.Label>Revenue:</DataList.Label>
-              <DataList.Value>{ UiUtil.toMoney(Exchange.equityAsset, item.currentValue.minus(item.initialValue)) }</DataList.Value>
-            </DataList.Item>
-          </DataList.Root>
-          <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
+          </div>
+          <div className="dl dl-rule">
+            <div className="dl-row"><span className="dl-k">Delegator account</span><span className="dl-v"><span className="copyable" onClick={() => {
+              navigator.clipboard.writeText(item.delegatorAccount || 'NULL');
+              AlertBox.open(AlertType.Info, 'Address copied!')
+            }}>{ UiUtil.toAddress(item.delegatorAccount || 'NULL') }</span>
+            <Link className="dl-open router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet-total-assets'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
+            <div className="dl-row"><span className="dl-k">Market account</span><span className="dl-v"><span className="copyable" onClick={() => {
+              navigator.clipboard.writeText(item.marketAccount || 'NULL');
+              AlertBox.open(AlertType.Info, 'Address copied!')
+            }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</span>
+            <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
+            <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
+            <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
+          </div>
+          <Box my="4" className="dl-rule"></Box>
           <Tooltip side="left" content={`Reserve value in ${UiUtil.toAssetSymbol(item.primaryAsset)} to deposit`}>
             <Box mb="3">
               <TextField.Root placeholder={Assetlist.toName(item.primaryAsset) + ' deposit'} size="2" value={primaryReserve} onChange={(e) => setPrimaryReserve(TextUtil.toValue(primaryReserve, e.target.value))}>
@@ -746,8 +534,8 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
               </Box>
             </Box>
           </Tooltip>
-          <Flex pt="2" justify="center">
-            <PerformerButton title="Deposit" description="Smart contract will add your deposit into the delegated LP and allocate your position" color="jade" disabled={!payload} onBuild={async () => {
+          <Flex pt="2">
+            <PerformerButton title="Review deposit" description="Smart contract will add your deposit into the delegated LP and allocate your position" className="btn-brand btn-cta" color="jade" style={{ width: '100%' }} disabled={!payload} onBuild={async () => {
               return payload ? await Builder.depositLiquidity(payload) : null;
             }}></PerformerButton>
           </Flex>

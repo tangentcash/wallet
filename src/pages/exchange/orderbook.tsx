@@ -1,11 +1,11 @@
-import { Badge, Box, Button, Card, Flex, Heading, SegmentedControl, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Box, SegmentedControl, TextField, Tooltip } from "@radix-ui/themes";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { AppData } from "../../core/app";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Exchange, AccountTier, AggregatedLevel, AggregatedLog, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide, Balance, Pool, Cursor, ExchangeField } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { CrosshairMode, PriceScaleMode } from "lightweight-charts";
-import { mdiAlert, mdiArrowRightThin, mdiChartBox, mdiChartGantt, mdiCheck, mdiCurrencyUsd, mdiListBox, mdiShopping } from "@mdi/js";
+import { mdiAlert, mdiArrowDownBold, mdiArrowUpBold, mdiChartTimelineVariant, mdiCheckDecagram, mdiLayersMinus, mdiLayersPlus, mdiListBoxOutline } from "@mdi/js";
 import { AlertBox, AlertType } from "../../components/alert";
 import { AssetId, LiquidityPool } from "tangentsdk/algorithm";
 import { Whitelist } from "tangentsdk/whitelist";
@@ -13,13 +13,15 @@ import { UiUtil } from "tangentsdk/ui";
 import { AppStorage } from "../../core/storage";
 import { Maker } from "../../components/exchange/maker";
 import { AssetImage } from "../../components/asset-image";
-import { ChartViewType, ChartWidget, SeriesOptions, PriceScope, ChartTitle } from "../../components/exchange/chart";
+import { AssetName } from "../../components/asset-name";
+import { ChartViewType, ChartWidget, SeriesOptions, PriceScope } from "../../components/exchange/chart";
 import { PoolView } from "../../components/exchange/pool";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import BigNumber from "bignumber.js";
 import OrderView from "../../components/exchange/order";
 import Icon from "@mdi/react";
 import Clock from "../../components/exchange/clock";
+import { Assetlist } from "tangentsdk/assetlist";
 
 type AggregatedGroupedLevel = {
   ids: number[],
@@ -122,17 +124,76 @@ export function pathOfMaker(orderbook: string): string {
 
 let accountUpdateId: any = null;
 
+type PriceScrubStore = {
+  get: () => BigNumber | null,
+  set: (price: BigNumber | null) => void,
+  subscribe: (listener: () => void) => () => void
+};
+function createPriceScrubStore(): PriceScrubStore {
+  let price: BigNumber | null = null;
+  const listeners = new Set<() => void>();
+  return {
+    get: () => price,
+    set: (next) => {
+      if ((next == null && price == null) || (next != null && price != null && next.eq(price)))
+        return;
+      price = next;
+      for (const listener of listeners)
+        listener();
+    },
+    subscribe: (listener) => {
+      listeners.add(listener);
+      return () => { listeners.delete(listener); };
+    }
+  };
+}
+function ObHeroTitle(props: {
+  store: PriceScrubStore,
+  orderbook: { primaryAsset: AssetId | null, secondaryAsset: AssetId | null } | null,
+  pair: AggregatedPair | null
+}) {
+  const scrub = useSyncExternalStore(props.store.subscribe, props.store.get);
+  const close = scrub ?? props.pair?.price.close ?? null;
+  const delta = close ? close.minus(props.pair?.price.open || new BigNumber(0)) : null;
+  const dir = delta && delta.gt(0) ? 1 : (delta && delta.lt(0) ? -1 : 0);
+  return (
+    <>
+      <div className="ob-hero-top">
+        {
+          props.orderbook?.primaryAsset && props.orderbook.secondaryAsset &&
+          <span style={{ position: 'relative', width: 30, height: 30, flex: 'none' }}>
+            <AssetImage asset={props.orderbook.primaryAsset} size="1" iconSize="24px"></AssetImage>
+            <AssetImage asset={props.orderbook.secondaryAsset} size="1" iconSize="15px" style={{ position: 'absolute', bottom: -2, right: -2, border: '2px solid var(--bg)', borderRadius: '50%' }}></AssetImage>
+          </span>
+        }
+        <AssetName asset={props.orderbook?.primaryAsset || undefined} size="4" weight="bold" tokenOnly style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden' }}></AssetName>
+      </div>
+      <div className="hero-num" style={{ fontSize: 34 }}>{ UiUtil.toMoney(props.orderbook?.secondaryAsset || null, close) }</div>
+      <div className="ob-delta-row">
+        <span className={ 'abs' + (dir != 0 ? (dir > 0 ? ' up' : ' down') : '') }>
+          { (dir > 0 ? '+ ' : (dir < 0 ? '- ' : '')) + UiUtil.toMoney(props.orderbook?.secondaryAsset || null, delta ? delta.abs() : new BigNumber(0)) }
+        </span>
+        <span className={ 'ob-delta-pill' + (dir > 0 ? ' up' : (dir == 0 ? ' flat' : '')) }>
+          { dir != 0 && <Icon path={dir > 0 ? mdiArrowUpBold : mdiArrowDownBold} size={0.55}></Icon> }
+          { UiUtil.toPercentageDelta(props.pair?.price.open || new BigNumber(0), close || new BigNumber(0)) }
+        </span>
+        <Clock></Clock>
+      </div>
+    </>
+  )
+}
 export default function OrderbookPage() {
   const params = useParams();
   const navigate = useNavigate();
   const mobile = document.body.clientWidth <= 800;
+  const leftRef = useRef<HTMLDivElement>(null);
   const [search] = useSearchParams();
-  const [blockNumber, setBlockNumber] = useState<number>(AppData.tip?.toNumber() || 0)
   const [whitelisted, setWhitelisted] = useState<boolean | null>(null);
   const [showingPools, setShowingPools] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [preset, setPreset] = useState<{ id: number, condition: OrderCondition, side: OrderSide, price: string } | null>(null);
   const [tab, setTab] = useState<'info' | 'maker' | 'book' | 'logs'>(mobile ? 'info' : 'maker');
+  const [walletView, setWalletView] = useState<'primary' | 'secondary'>('primary');
   const [orders, setOrders] = useState<Order[]>([]);
   const [pools, setPools] = useState<Pool[]>([]);
   const [levels, setLevels] = useState<{ ask: AggregatedGroupedLevel[], bid: AggregatedGroupedLevel[] }>({ ask: [], bid: [] })
@@ -147,12 +208,12 @@ export default function OrderbookPage() {
   const [incomingLevels, setIncomingLevels] = useState<CustomEvent<any>[]>([]);
   const [seriesOptions, setSeriesOptions] = useState<SeriesOptions>({
     intervals: [
-      [2628000, "1M"],
-      [604800, "1W"],
-      [259200, "3D"],
-      [86400, "1D"],
-      [14400, "4H"],
-      [3600, "1H"],
+      [2628000, "1mo"],
+      [604800, "1w"],
+      [259200, "3d"],
+      [86400, "1d"],
+      [14400, "4h"],
+      [3600, "1h"],
       [1800, "30m"],
       [900, "15m"],
       [300, "5m"],
@@ -201,25 +262,6 @@ export default function OrderbookPage() {
       secondary: { price: secondaryBalance.p.isNaN() ? null : secondaryBalance.p, value: secondaryBalance.v, total: secondaryBalance.t },
     };
   }, [polyBalances]);
-  const valuation = useMemo(() => {
-    const rate = pair ? Exchange.priceOf(pair.secondaryAsset)?.close : null;
-    const achorPrice = rate ? balances.primary.price?.dividedBy(rate) || null : null
-    const basePrice = seriesOptions.showPrimary ? achorPrice : (achorPrice ? new BigNumber(1).dividedBy(achorPrice) : null);
-    const currentPrice = rate ? (seriesOptions.showPrimary ? pair?.price.close : (pair?.price.close ? new BigNumber(1).dividedBy(pair.price.close) : null)) || null : null;
-    const quantity = seriesOptions.showPrimary ? balances.primary.total : balances.secondary.total;
-    const worth = currentPrice ? quantity.multipliedBy(currentPrice) : null;
-    const relativePL = currentPrice && basePrice ? currentPrice.minus(basePrice).dividedBy(basePrice) : new BigNumber(0);
-    return {
-      primary: (seriesOptions.showPrimary ? pair?.primaryAsset : pair?.secondaryAsset) || AssetId.fromHandle('?'),
-      secondary: (seriesOptions.showPrimary ? pair?.secondaryAsset : pair?.primaryAsset) || AssetId.fromHandle('?'),
-      basePrice: basePrice,
-      currentPrice: currentPrice,
-      quantity: quantity,
-      worth: worth,
-      absolutePL: worth?.multipliedBy(relativePL) || null,
-      relativePL: relativePL
-    }
-  }, [seriesOptions.showPrimary, pair, balances]);
   const groupedLevels = useMemo(() => {
     const range = parseFloat(seriesOptions.priceLevel);
     if (range <= 0 || isNaN(range))
@@ -410,7 +452,7 @@ export default function OrderbookPage() {
   useEffect(() => {
     const memorizedSeriesOptions = AppStorage.get(ExchangeField.OrderbookData);
     if (memorizedSeriesOptions != null && typeof memorizedSeriesOptions == 'object') {
-      setSeriesOptions(prev => ({ ...prev, ...memorizedSeriesOptions }));
+      setSeriesOptions(prev => ({ ...prev, ...memorizedSeriesOptions, intervals: prev.intervals }));
     }
 
     if (!mobile) {
@@ -420,16 +462,13 @@ export default function OrderbookPage() {
       }
     }
 
-    const updateChain = (event: any) => setBlockNumber(event.detail.tip);
     const updateTrades = (event: any) => setIncomingTrades(prev => ([...prev, event]));
     const updateLevels = (event: any) => setIncomingLevels(prev => ([...prev, event]));
-    window.addEventListener('update:chain', updateChain);
     window.addEventListener('update:trade', updateTrades);
     window.addEventListener('update:level', updateLevels);
     return () => {
       window.removeEventListener('update:level', updateLevels);
       window.removeEventListener('update:trade', updateTrades);
-      window.removeEventListener('update:chain', updateChain);
     };
   }, []);
   useEffect(() => {
@@ -438,406 +477,329 @@ export default function OrderbookPage() {
       updateTab(tab);
     }
   }, [search]);
+  useEffect(() => {
+    if (mobile) return;
+    const el = leftRef.current;
+    if (!el) return;
+    const apply = () => { el.style.top = Math.min(0, window.innerHeight - el.offsetHeight - 16) + 'px'; };
+    apply();
+    const ro = new ResizeObserver(apply);
+    ro.observe(el);
+    window.addEventListener('resize', apply);
+    return () => { ro.disconnect(); window.removeEventListener('resize', apply); };
+  }, [mobile, orderbook?.marketId?.toString()]);
 
-  return (
-    <Box minWidth={mobile ? undefined : '800px'}>
-      <Box px={mobile ? undefined : '3'} py={mobile ? undefined : '4'} width="100%" maxWidth="1680px" mx="auto">
-        <Flex gap="3" align="start">
+  const scrubStore = useMemo(() => createPriceScrubStore(), []);
+  const symP = orderbook?.primaryAsset ? UiUtil.toAssetSymbol(orderbook.primaryAsset) : '?';
+  const symQ = orderbook?.secondaryAsset ? UiUtil.toAssetSymbol(orderbook.secondaryAsset) : '?';
+  const spread = spreads.ask && spreads.bid ? spreads.ask.minus(spreads.bid) : null;
+  const deltaVal = pair && pair.price.close && pair.price.open ? pair.price.close.minus(pair.price.open) : null;
+  const deltaDir = deltaVal && deltaVal.gt(0) ? 1 : (deltaVal && deltaVal.lt(0) ? -1 : 0);
+  const change24 = UiUtil.toPercentageDelta(pair?.price.open || new BigNumber(0), pair?.price.close || new BigNumber(0)) + (deltaVal && !deltaVal.isZero() ? ' · ' + (deltaDir > 0 ? '+' : '-') + UiUtil.toMoney(orderbook!.secondaryAsset, deltaVal.abs()) : '');
+  const change24Style = deltaDir > 0 ? { color: 'var(--lime)' } : (deltaDir < 0 ? { color: 'var(--down)' } : undefined);
+  const nameP = orderbook?.primaryAsset ? Assetlist.toName(orderbook.primaryAsset).replace((orderbook.primaryAsset.chain || '') + ' ', '') : symP;
+  const nameQ = orderbook?.secondaryAsset ? Assetlist.toName(orderbook.secondaryAsset).replace((orderbook.secondaryAsset.chain || '') + ' ', '') : symQ;
+  const lpApy = market && pair?.price.poolVolume?.gt(0) && pair?.price.poolLiquidity?.gt(0) ? Exchange.toAPY(pair.poolFeeRate || market.maxPoolFeeRate, pair.price.poolLiquidity, pair.price.poolVolume) : new BigNumber(0);
+  const selPrimary = walletView == 'primary';
+  const selAsset = selPrimary ? orderbook!.primaryAsset : orderbook!.secondaryAsset;
+  const othAsset = selPrimary ? orderbook!.secondaryAsset : orderbook!.primaryAsset;
+  const selSym = selPrimary ? symP : symQ;
+  const othSym = selPrimary ? symQ : symP;
+  const selBal = selPrimary ? balances.primary.total : balances.secondary.total;
+  const pxClose = pair?.price.close || new BigNumber(0);
+  const pxRcv = balances.primary.price;
+  const pxNow = Exchange.priceOf(orderbook!.primaryAsset!).close || pxClose;
+  const hasPrice = pxRcv != null && !pxRcv.isNaN() && pxRcv.gt(0) && pxNow.gt(0);
+  const rateRcv = selPrimary ? pxRcv : ( hasPrice ? new BigNumber(1).dividedBy(pxRcv) : pxRcv );
+  const rateNow = selPrimary ? pxNow : ( pxNow.gt(0) ? new BigNumber(1).dividedBy(pxNow) : pxNow );
+  const worth = pxNow.gt(0) ? ( selPrimary ? selBal.multipliedBy(pxNow) : selBal.dividedBy(pxNow) ) : new BigNumber(0);
+  const worthRcv = hasPrice ? ( selPrimary ? selBal.multipliedBy(pxRcv) : selBal.dividedBy(pxRcv) ) : new BigNumber(0);
+  const wDelta = worth.minus(worthRcv);
+  const wPct = hasPrice ? ( selPrimary ? pxNow.minus(pxRcv).dividedBy(pxRcv) : pxRcv.minus(pxNow).dividedBy(pxNow) ).multipliedBy(100) : null;
+  const walletCard = (
+    <div className="card">
+      <div className="card-head">
+        <div className="card-title">Your wallet</div>
+        <div className="wallet-toggle">
+          <button type="button" className={ walletView == 'primary' ? 'on' : '' } onClick={ () => setWalletView('primary') } aria-label={ symP + ' view' }><AssetImage asset={ orderbook!.primaryAsset ?? undefined } size="1" iconSize="20px"></AssetImage></button>
+          <button type="button" className={ walletView == 'secondary' ? 'on' : '' } onClick={ () => setWalletView('secondary') } aria-label={ symQ + ' view' }><AssetImage asset={ orderbook!.secondaryAsset ?? undefined } size="1" iconSize="20px"></AssetImage></button>
+        </div>
+      </div>
+      <div className="wallet-view" style={{ marginTop: 10 }}>
+        <div className="wv-k">{ selSym } balance</div>
+        <div className="wv-val">{ UiUtil.toMoney(selAsset, selBal) }</div>
+        <div className="wv-sub num">{ hasPrice ? UiUtil.toValue(null, rateRcv, false, true) + ' → ' + UiUtil.toValue(null, rateNow, false, true) : '—' }</div>
+      </div>
+      <div className="wallet-view" style={{ marginTop: 14 }}>
+        <div className="wv-k">{ othSym } worth</div>
+        <div className="wv-val">{ UiUtil.toMoney(othAsset, worth) }</div>
+        <div className={ 'wv-sub num' + (hasPrice ? wDelta.gt(0) ? ' up' : wDelta.lt(0) ? ' down' : '' : '') }>{ hasPrice ? ( wDelta.gt(0) ? '+' : wDelta.lt(0) ? '-' : '±' ) + UiUtil.toValue(null, wDelta.abs(), false, true) + ' (' + ( wPct!.gt(0) ? '+' : wPct!.lt(0) ? '-' : '' ) + wPct!.abs().toFixed(2) + '%)' : '—' }</div>
+      </div>
+      {
+        tiers != null &&
+        <div className="dl dl-rule" style={{ marginTop: 12 }}>
+          <div className="dl-row"><span className="dl-k">Account volume · { selSym }</span><span className="dl-v num">{ UiUtil.toMoney(selAsset, selPrimary ? tiers.primary.volume : tiers.secondary.volume) }</span></div>
+        </div>
+      }
+    </div>
+  );
+  const aboutCards = (
+    <>
+      <div style={{ marginTop: 14 }}>{ walletCard }</div>
+      <div className="card" style={{ marginTop: 14 }}>
+        <p className="about-text">
+          <b>{ nameP }</b> trades against <b>{ nameQ }</b> in a fully on-chain order book.
+          Orders match inside the <b>{ policyOf(market) }</b> policy contract{
+            whitelisted === true ? ', and the pair is verified against the token whitelist.' : (whitelisted === false ? ' — the pair is not whitelisted, trade carefully.' : '; pair verification is still being checked.')
+          }
+        </p>
+        <div className="dl" style={{ marginTop: 12 }}>
+          <div className="dl-row"><span className="dl-k">Last price</span><span className="dl-v num">{ pair?.price.close?.gt(0) ? UiUtil.toMoney(orderbook!.secondaryAsset, pair.price.close) : 'No trades yet' }</span></div>
+          <div className="dl-row"><span className="dl-k">Best bid</span><span className="dl-v num">{ spreads.bid && spreads.bid.gt(0) ? UiUtil.toValue(null, spreads.bid, false, true) : '—' }</span></div>
+          <div className="dl-row"><span className="dl-k">Best ask</span><span className="dl-v num">{ spreads.ask && spreads.ask.gt(0) ? UiUtil.toValue(null, spreads.ask, false, true) : '—' }</span></div>
+          <div className="dl-row"><span className="dl-k">Spread</span><span className="dl-v num">{ spread ? UiUtil.toValue(null, spread, false, true) + ' · ' + (spreads.bid && spreads.bid.gt(0) ? spread.dividedBy(spreads.bid).multipliedBy(100).toFixed(2) : '0.00') + '%' : '—' }</span></div>
+          <div className="dl-row"><span className="dl-k">24h change</span><span className="dl-v num" style={ change24Style }>{ change24 }</span></div>
+          <div className="dl-row"><span className="dl-k">24h range</span><span className="dl-v num">{ UiUtil.toValue(null, pair?.price.low || null, false, true) } – { UiUtil.toValue(null, pair?.price.high || null, false, true) }</span></div>
+          <div className="dl-row"><span className="dl-k">24h volume</span><span className="dl-v num">{ UiUtil.toMoney(orderbook!.secondaryAsset, pair?.price.totalVolume || new BigNumber(0)) }</span></div>
+          <div className="dl-row"><span className="dl-k">Book liquidity</span><span className="dl-v num">{ UiUtil.toMoney(orderbook!.secondaryAsset, pair?.price.totalLiquidity || new BigNumber(0)) }</span></div>
+        </div>
+        <div className="dl dl-rule">
+          <div className="dl-row"><span className="dl-k">Maker fee</span><span className="dl-v num">{ (market?.minMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.maxMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
+          <div className="dl-row"><span className="dl-k">Taker fee</span><span className="dl-v num">{ (market?.minTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.maxTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
+          <div className="dl-row"><span className="dl-k">Fee impact rule</span><span className="dl-v num">≥ { (market?.assetVolumeTarget || new BigNumber(0)).multipliedBy(100).toFixed(0) }% of { (market?.assetResetDays || new BigNumber(0)).toString() }d volume</span></div>
+          <div className="dl-row"><span className="dl-k">LP swap fee</span><span className="dl-v num">0.00% – { (market?.maxPoolFeeRate || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
+          <div className="dl-row"><span className="dl-k">LP exit fee</span><span className="dl-v num">{ (market?.poolExitFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
+          <div className="dl-row"><span className="dl-k">LP revenue</span><span className="dl-v num" style={{ color: 'var(--lime)' }}>{ lpApy.toFixed(2) }% APY</span></div>
+        </div>
+        <div className="tiny dim" style={{ marginTop: 12 }}>Policy account <Link className="router-link mono" style={{ fontSize: 12 }} to={ '/portfolio/' + (market?.account || '') + '?view=wallet-total-assets' }>{ UiUtil.toAddress(market?.account || 'NULL', 6) }</Link></div>
+      </div>
+      <p className="tiny dim" style={{ marginTop: 14, textAlign: 'center' }}>The book lives on-chain · this view is served by the DEX indexer</p>
+    </>
+  );
+  const aboutCardsGrid = (
+    <>
+      <div className="ob-duo">
+        <div className="card">
+          <div className="card-head">
+            <div className="card-title">Market{
+              whitelisted === true ? <Tooltip content="Verified pair against the token whitelist"><Icon className="verified" path={mdiCheckDecagram} size={0.55}></Icon></Tooltip> : (whitelisted === false ? <Tooltip content="Unverified pair — trade carefully"><Icon path={mdiAlert} color="var(--warn)" size={0.55}></Icon></Tooltip> : null)
+            }</div>
+            <Link className="router-link mono" style={{ fontSize: 12 }} to={ '/portfolio/' + (market?.account || '') + '?view=wallet-total-assets' }>{ UiUtil.toAddress(market?.account || 'NULL', 6) }</Link>
+          </div>
+          <div className="stat-grid">
+            <div><div className="k">Last price</div><div className="v">{ pair?.price.close?.gt(0) ? UiUtil.toMoney(orderbook!.secondaryAsset, pair.price.close) : 'No trades yet' }</div></div>
+            <div><div className="k">24h change</div><div className="v" style={ change24Style }>{ change24 }</div></div>
+            <div><div className="k">Best bid</div><div className="v">{ spreads.bid && spreads.bid.gt(0) ? UiUtil.toValue(null, spreads.bid, false, true) : '—' }</div></div>
+            <div><div className="k">Best ask</div><div className="v">{ spreads.ask && spreads.ask.gt(0) ? UiUtil.toValue(null, spreads.ask, false, true) : '—' }</div></div>
+            <div><div className="k">Spread</div><div className="v">{ spread ? UiUtil.toValue(null, spread, false, true) + ' · ' + (spreads.bid && spreads.bid.gt(0) ? spread.dividedBy(spreads.bid).multipliedBy(100).toFixed(2) : '0.00') + '%' : '—' }</div></div>
+            <div><div className="k">24h range</div><div className="v">{ UiUtil.toValue(null, pair?.price.low || null, false, true) } – { UiUtil.toValue(null, pair?.price.high || null, false, true) }</div></div>
+            <div><div className="k">24h volume</div><div className="v">{ UiUtil.toMoney(orderbook!.secondaryAsset, pair?.price.totalVolume || new BigNumber(0)) }</div></div>
+            <div><div className="k">Book liquidity</div><div className="v">{ UiUtil.toMoney(orderbook!.secondaryAsset, pair?.price.totalLiquidity || new BigNumber(0)) }</div></div>
+          </div>
+          <div className="stat-grid dl-rule" style={{ marginTop: 14, paddingTop: 14 }}>
+            <div><div className="k">Maker fee</div><div className="v">{ (market?.minMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.maxMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</div></div>
+            <div><div className="k">Taker fee</div><div className="v">{ (market?.minTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.maxTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</div></div>
+            <div><div className="k">LP swap fee</div><div className="v">0.00% – { (market?.maxPoolFeeRate || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</div></div>
+            <div><div className="k">LP exit fee</div><div className="v">{ (market?.poolExitFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</div></div>
+            <div><div className="k">LP revenue</div><div className="v" style={{ color: 'var(--lime)' }}>{ lpApy.toFixed(2) }% APY</div></div>
+            <div><div className="k">Impact rule</div><div className="v">≥ { (market?.assetVolumeTarget || new BigNumber(0)).multipliedBy(100).toFixed(0) }% / { (market?.assetResetDays || new BigNumber(0)).toString() }d</div></div>
+          </div>
+        </div>
+        { walletCard }
+      </div>
+    </>
+  );
+  const ticketBlock = (
+    <Box>
+      <Maker
+        path={makerPath}
+        marketId={orderbook?.marketId || new BigNumber(0)}
+        pairId={pair?.id || new BigNumber(0)}
+        primaryAsset={orderbook?.primaryAsset || new AssetId()}
+        secondaryAsset={orderbook?.secondaryAsset || new AssetId()}
+        balances={loading ? undefined : polyBalances}
+        prices={spreads}
+        tiers={tiers || undefined}
+        preset={preset}
+        onStateChange={(state) => setShowingPools(state.pool)}></Maker>
+      <Box>
+        {
+          !showingPools && orders.map((item) =>
+            <Box mt="3" key={item.orderId.toString()}>
+              <OrderView flash={true} item={item}></OrderView>
+            </Box>)
+        }
+        {
+          showingPools && pools.map((item) =>
+            <Box mt="3" key={item.poolId.toString()}>
+              <PoolView flash={true} item={item}></PoolView>
+            </Box>)
+        }
+      </Box>
+    </Box>
+  );
+  const bookBlock = (
+    <>
+      <div className="card" style={{ marginTop: 14 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 12 }}>
+        <SegmentedControl.Root value={ String(seriesOptions.priceScope) } radius="full" size="2" style={{ flex: 1, minWidth: 0 }} onValueChange={(v) => updateSeriesOptions(prev => ({ ...prev, priceScope: Number(v) }))}>
+          <SegmentedControl.Item value={ String(PriceScope.Bid) }>Bids</SegmentedControl.Item>
+          <SegmentedControl.Item value={ String(PriceScope.All) }>Both</SegmentedControl.Item>
+          <SegmentedControl.Item value={ String(PriceScope.Ask) }>Asks</SegmentedControl.Item>
+        </SegmentedControl.Root>
+        <TextField.Root className="tick-input" size="2" type="number" placeholder="step" value={seriesOptions.priceLevel} onChange={(e) => updateSeriesOptions(prev => ({ ...prev, priceLevel: e.target.value }))} />
+      </div>
+      <div style={{ marginTop: 12 }}>
+        {
+          seriesOptions.priceScope != PriceScope.Ask &&
+          [...groupedLevels.ask].slice(0, 12).reverse().map((item) =>
+            <button className="book-row ask" key={'a' + item.price.toString()} onClick={() => updatePreset(OrderSide.Sell, item.price)}>
+              <span className="apx">{ UiUtil.toValue(null, item.price, false, true) }</span>
+              <span className="track"><i style={{ width: Math.min(100, item.quantity.dividedBy(liquidity.ask[0].gt(0) ? liquidity.ask[0] : new BigNumber(1)).multipliedBy(100).toNumber()) + '%' }}></i></span>
+              <span className="qty">{ UiUtil.toValue(null, item.quantity, false, true) }</span>
+            </button>)
+        }
+        {
+          seriesOptions.priceScope == PriceScope.All &&
+          <div className="book-mid">
+            <span className="num" style={{ fontWeight: 800, fontSize: 16 }}>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, pair?.price.close || null) }</span>
+            <span className="tiny dim mono">{ spread ? 'spread ' + UiUtil.toValue(null, spread, false, true) + ' · ' + (spreads.bid?.gt(0) ? spread.dividedBy(spreads.bid).multipliedBy(100).toFixed(2) : '0.00') + '%' : 'no book' }</span>
+          </div>
+        }
+        {
+          seriesOptions.priceScope != PriceScope.Bid &&
+          groupedLevels.bid.slice(0, 12).map((item) =>
+            <button className="book-row bid" key={'b' + item.price.toString()} onClick={() => updatePreset(OrderSide.Buy, item.price)}>
+              <span className="bpx">{ UiUtil.toValue(null, item.price, false, true) }</span>
+              <span className="track"><i style={{ width: Math.min(100, item.quantity.dividedBy(liquidity.bid[0].gt(0) ? liquidity.bid[0] : new BigNumber(1)).multipliedBy(100).toNumber()) + '%' }}></i></span>
+              <span className="qty">{ UiUtil.toValue(null, item.quantity, false, true) }</span>
+            </button>)
+        }
+        {
+          !groupedLevels.ask.length && !groupedLevels.bid.length &&
+          <div className="empty" style={{ padding: '32px 24px' }}>
+            <div className="art"><Icon path={mdiChartTimelineVariant} size={1.4}></Icon></div>
+            <h4>The book is empty</h4>
+            <p>No open orders on this pair yet. Place the first one from the Trade tab.</p>
+          </div>
+        }
+      </div>
+      </div>
+      <p className="tiny dim" style={{ marginTop: 14, textAlign: 'center' }}>Tap a level → the Trade tab opens with its price filled.</p>
+    </>
+  );
+  const logsBlock = (
+    <Box style={{ marginTop: 14 }}>
+      <InfiniteScroll dataLength={logs.length} hasMore={moreLogs} next={findLogs} loader={<div></div>}>
+        <div className="log-list">
           {
-            !mobile &&
-            <ChartWidget 
+            logs.map((item, index) => {
+              const pool = item.side == 'lp';
+              const buy = item.side == OrderSide.Buy;
+              const action = pool ? (item.quantity.gt(0) ? 'Push' : 'Pull') : (buy ? 'Buy' : 'Sell');
+              const color = pool ? 'var(--info)' : (buy ? 'var(--lime)' : 'var(--down)');
+              return (
+                <div className="card log-row" key={item.account + item.time.getTime().toString() + index.toString()}>
+                  <span className={'tx-ico ' + (pool ? 'dex' : (buy ? 'in' : 'out'))}><Icon path={pool ? (item.quantity.gt(0) ? mdiLayersPlus : mdiLayersMinus) : (buy ? mdiArrowDownBold : mdiArrowUpBold)} size={0.9}></Icon></span>
+                  <div className="tx-main">
+                    <div className="tx-title"><span style={{ color }}>{action} { pool ? 'liquidity' : '' }</span></div>
+                    <div className="tx-meta mono"><span className="tx-detail">{ UiUtil.toMoney(orderbook?.primaryAsset || null, item.quantity, pool) } { UiUtil.toMoney(orderbook?.secondaryAsset || null, item.price) ? 'at ' + UiUtil.toMoney(orderbook?.secondaryAsset || null, item.price) : '' }</span></div>
+                    <div className="tx-meta"><Link className="tx-hash mono" style={{ fontSize: 11.5 }} to={'/portfolio/' + item.account + '?view=wallet-total-assets'}>{ UiUtil.toAddress(item.account || 'NULL', 6) }</Link><span>·</span><span>{ UiUtil.toTimePassed(item.time) }</span></div>
+                  </div>
+                </div>)
+            })
+          }
+        </div>
+        {
+          !logs.length && !loading &&
+          <div className="card">
+            <div className="empty">
+              <div className="art"><Icon path={mdiListBoxOutline} size={1.4}></Icon></div>
+              <h4>No market activity</h4>
+              <p>Fills, pushes and pulls on this book will stream here.</p>
+            </div>
+          </div>
+        }
+      </InfiniteScroll>
+    </Box>
+  );
+  const vTab = mobile ? tab : (tab == 'info' ? 'maker' : tab);
+  return (
+    <Box width="100%" mx="auto" className={mobile ? undefined : 'term-grid'}>
+      {
+        mobile &&
+        <ObHeroTitle store={scrubStore} orderbook={orderbook} pair={pair}></ObHeroTitle>
+      }
+      {
+        mobile &&
+        <SegmentedControl.Root value={tab} radius="full" size="3" style={{ margin: '16px 0 0' }} onValueChange={(value) => {
+          updateTab(value as typeof tab);
+          setPreset(null);
+        }}>
+          <SegmentedControl.Item value="info">Market</SegmentedControl.Item>
+          <SegmentedControl.Item value="maker">Order</SegmentedControl.Item>
+          <SegmentedControl.Item value="book">Book</SegmentedControl.Item>
+          <SegmentedControl.Item value="logs">Logs</SegmentedControl.Item>
+        </SegmentedControl.Root>
+      }
+      <div style={{ display: 'flex', gap: mobile ? 0 : 20, alignItems: 'flex-start' }}>
+        {
+          !mobile &&
+          <div ref={ leftRef } className="term-left" style={{ flex: 1, minWidth: 0 }}>
+            <ChartWidget
               orderbook={orderbook}
               pair={pair}
               whitelisted={whitelisted}
-              blockNumber={blockNumber}
               options={seriesOptions}
               tradeEvents={incomingTrades}
               onOptionsChange={updateSeriesOptions}
               onTradesChange={updateIncomingTrades}
               onPairChange={setPair}></ChartWidget>
-          }
-          <Box width={ mobile ? '100%' : '460px'}>
-            <Tabs.Root value={tab} onValueChange={(e) => {
-              updateTab(e as any);
-              if (e != 'maker')
-                setPreset(null);
+            {
+              orderbook?.primaryAsset && orderbook.secondaryAsset && aboutCardsGrid
+            }
+          </div>
+        }
+        <div style={{ width: mobile ? '100%' : 'clamp(380px, 33%, 440px)', flex: 'none', minWidth: 0 }}>
+          {
+            !mobile &&
+            <SegmentedControl.Root value={vTab} radius="full" size="3" style={{ marginBottom: 14 }} onValueChange={(value) => {
+              updateTab(value as typeof tab);
+              setPreset(null);
             }}>
-              { mobile && <ChartTitle orderbook={orderbook} pair={pair} whitelisted={whitelisted}></ChartTitle> }
-              <Tabs.List size="2" justify="center" style={mobile ? { paddingTop: '10px' } : { }}>
-                <Tabs.Trigger value="info" className="tab-padding-erase">
-                  <Badge size="3" radius="large">
-                    <Flex align="center" gap="1">
-                      <Icon path={mdiChartBox} size={0.6}></Icon>
-                      <Text>Market</Text>
-                    </Flex>
-                  </Badge>
-                </Tabs.Trigger>
-                <Tabs.Trigger value="maker" className="tab-padding-erase">
-                  <Badge size="3" radius="large">
-                    <Flex align="center" gap="1">
-                      <Icon path={mdiShopping} size={0.6}></Icon>
-                      <Text>Trade</Text>
-                    </Flex>
-                  </Badge>
-                </Tabs.Trigger>
-                <Tabs.Trigger value="book" className="tab-padding-erase">
-                  <Badge size="3" radius="large">
-                    <Flex align="center" gap="1">
-                      <Icon path={mdiChartGantt} size={0.6}></Icon>
-                      <Text>Book</Text>
-                    </Flex>
-                  </Badge>
-                </Tabs.Trigger>
-                <Tabs.Trigger value="logs" className="tab-padding-erase">
-                  <Badge size="3" radius="large">
-                    <Flex align="center" gap="1">
-                      <Icon path={mdiListBox} size={0.6}></Icon>
-                      <Text>Logs</Text>
-                    </Flex>
-                  </Badge>
-                </Tabs.Trigger>
-              </Tabs.List>
-              <Clock></Clock>
-              <Box pt={mobile ? '1' : '3'}>
-                {
-                  mobile &&
-                  <Box display={tab == 'info' ? undefined : 'none'}>
-                    <ChartWidget
-                      orderbook={orderbook}
-                      pair={pair}
-                      whitelisted={whitelisted}
-                      blockNumber={blockNumber}
-                      options={seriesOptions}
-                      tradeEvents={incomingTrades}
-                      onOptionsChange={updateSeriesOptions}
-                      onTradesChange={updateIncomingTrades}
-                      onPairChange={setPair}></ChartWidget>
-                  </Box>
-                }
-                <Tabs.Content value="info">
-                  {
-                    orderbook?.primaryAsset && orderbook.secondaryAsset && 
-                    <Box px={mobile ? '3' : undefined} pt={mobile ? '2' : undefined}>
-                      <Card mb={mobile ? '5' : '3'} variant="surface" style={{ borderRadius: '22px' }}>
-                        <Flex align="center" justify="between" mb="3">
-                          <Heading size="5">Your wallet</Heading>
-                          <SegmentedControl.Root size="1" value={seriesOptions.showPrimary ? '1' : '0'} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, showPrimary: parseInt(e) > 0 }))}>
-                            <SegmentedControl.Item value="1">
-                              <Flex align="center">
-                                <AssetImage asset={orderbook.primaryAsset} size="1" iconSize="16px"></AssetImage>
-                              </Flex>
-                            </SegmentedControl.Item>
-                            <SegmentedControl.Item value="0">
-                              <Flex align="center">
-                                <AssetImage asset={orderbook.secondaryAsset} size="1" iconSize="16px"></AssetImage>
-                              </Flex>
-                            </SegmentedControl.Item>
-                          </SegmentedControl.Root>
-                        </Flex>
-                        <Flex direction="column">
-                          <Text size="2" color="gray">{ UiUtil.toAssetSymbol(valuation.primary) } balance</Text>
-                          <Text size="4">{ UiUtil.toMoney(valuation.primary, valuation.quantity) }</Text>
-                        </Flex>
-                        <Flex gap="1" align="center">
-                          <Text size="2" color="gray">{ UiUtil.toValue(null, valuation.basePrice, false, true) }</Text>
-                          <Icon path={mdiArrowRightThin} size={0.8}></Icon>
-                          <Text size="2" color="gray">{ UiUtil.toValue(null, valuation.currentPrice, false, true) }</Text>
-                        </Flex>
-                        <Flex direction="column" mt="4">
-                          <Text size="2" color="gray">{ UiUtil.toAssetSymbol(valuation.secondary) } worth</Text>
-                          <Text size="4">{ UiUtil.toMoney(valuation.secondary, valuation.worth) }</Text>
-                          <Text size="2" style={{ color: valuation.relativePL.gt(0) ? 'var(--accent-11)' : (valuation.relativePL.lt(0) ? 'var(--red-11)' : 'var(--gray-11)') }}>{ UiUtil.toValue(null, valuation.absolutePL, true, true) } ({ valuation.relativePL.gt(0) ? '+' : '' }{ valuation.relativePL.multipliedBy(100).toFixed(2) }%)</Text>
-                        </Flex>
-                      </Card>
-                      <Card mb="3" variant="surface" style={{ borderRadius: '22px' }}>
-                        <Heading mb="3" size="5">Trading pair</Heading>
-                        <Flex direction="column" gap="2">
-                          <Flex justify="between" wrap="wrap" gap="1">
-                            <Text size="2" color="gray">Pair</Text>
-                            <Flex gap="1">
-                              <Flex gap="2" align="center">
-                                <AssetImage asset={orderbook.primaryAsset} size="1" iconSize="16px"></AssetImage>
-                                <Text>{ UiUtil.toAssetSymbol(orderbook.primaryAsset) }</Text>
-                              </Flex>
-                              <Text>/</Text>
-                              <Flex gap="2" align="center">
-                                <AssetImage asset={orderbook.secondaryAsset} size="1" iconSize="16px"></AssetImage>
-                                <Text>{ UiUtil.toAssetSymbol(orderbook.secondaryAsset) }</Text>
-                              </Flex>
-                            </Flex>
-                          </Flex>
-                          <Tooltip side="left" content="Risk metric based on asset pair combination">
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">Risk</Text>
-                              <Text size="2" style={{ color: whitelisted === true ? 'var(--accent-11)' : (whitelisted === false ? 'var(--red-11)' : 'var(--gray-11)') }}>
-                                { typeof whitelisted == 'boolean' && <Icon path={whitelisted === true ? mdiCheck : mdiAlert} color={whitelisted === true ? 'var(--accent-10)' : 'var(--yellow-9)'} size={0.7} style={{ transform: 'translateY(3px)', marginRight: '5px' }}></Icon> }
-                                { whitelisted === true ? 'Low risk pair' : (whitelisted === false ? 'High risk pair' : 'Loading...') }
-                              </Text>
-                            </Flex>
-                          </Tooltip>
-                          <Tooltip side="left" content="Smart contract address that facilitates the trading">
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">{ policyOf(market) }</Text>
-                              <Flex>
-                                <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                  navigator.clipboard.writeText(market?.account || 'NULL');
-                                  AlertBox.open(AlertType.Info, 'Program account address copied!')
-                                }}>{ UiUtil.toAddress(market?.account || 'NULL', 5) }</Button>
-                                <Box ml="2">
-                                  <Link className="router-link" to={'/portfolio/' + market?.account + '?view=wallet-total-assets'}>▒▒</Link>
-                                </Box>
-                              </Flex>
-                            </Flex>
-                          </Tooltip>
-                          <Tooltip side="left" content="Price at the start of the day">
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">Open</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toMoney(orderbook.secondaryAsset, pair?.price.open || null) }</Text>
-                            </Flex>
-                          </Tooltip>
-                          <Tooltip side="left" content="Price at current time">
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">Close</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toMoney(orderbook.secondaryAsset, pair?.price.close || null) }</Text>
-                            </Flex>
-                          </Tooltip>
-                          <Tooltip side="left" content="Absolute difference between price open and price close">
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">Delta</Text>
-                              <Text size="2" style={{ color: (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'var(--red-11)' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'var(--accent-11)')}}>{ UiUtil.toMoney(orderbook.secondaryAsset, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true) }</Text>
-                            </Flex>
-                          </Tooltip>
-                          <Tooltip side="left" content="Actual amount traded within last 24 hours">
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">Volume</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toMoney(orderbook.secondaryAsset, pair?.price.totalVolume || new BigNumber(0)) }</Text>
-                            </Flex>
-                          </Tooltip>
-                          <Tooltip side="left" content="Total amount being currently open for trading including LP positions">
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">Liquidity</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toMoney(orderbook.secondaryAsset, pair?.price.totalLiquidity || new BigNumber(0)) }</Text>
-                            </Flex>
-                          </Tooltip>
-                          <Tooltip side="left" content="Average revenue of LP position">
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">Revenue</Text>
-                              <Text size="2" color="purple">{ market && pair?.price.poolVolume?.gt(0) && pair?.price.poolLiquidity?.gt(0) ? Exchange.toAPY(pair.poolFeeRate || market.maxPoolFeeRate, pair.price.poolLiquidity, pair.price.poolVolume).toFixed(2) : '0.00' }% APY</Text>
-                            </Flex>
-                          </Tooltip>
-                          <Tooltip side="left" content="Minimal to maximal price range observed during the day">
-                            <Flex justify="between" wrap="wrap" gap="1" mt="2" mb="1">
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toValue(null, pair?.price.low || null, false, true) }</Text>
-                              <Text size="2" color="gray">—</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toValue(null, pair?.price.high || null, false, true) }</Text>
-                            </Flex>
-                          </Tooltip>
-                          <Tooltip side="left" content="Fee rate range taken from order makers">
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">Maker fee</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.minMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% — { (market?.maxMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
-                            </Flex>
-                          </Tooltip>
-                          <Tooltip side="left" content="Fee rate range taken from order takers">
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">Taker fee</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.minTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% — { (market?.maxTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
-                            </Flex>
-                          </Tooltip>
-                          <Tooltip side="left" content="Fee rate range for LP positions">
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">Pool fee</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>0.00% — { (market?.maxPoolFeeRate || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
-                            </Flex>
-                          </Tooltip>
-                          <Tooltip side="left" content={`Exit fee is based on fee revenue of a pool and will be charged on pool withdrawal. Any change to exit fee only affects new pools, existing pools are not affected.`}>
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">Pool exit fee</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.poolExitFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</Text>
-                            </Flex>
-                          </Tooltip>
-                          <Tooltip side="left" content={`To reach lowest maker/taker fees, account impact must cover at least ${(market?.assetVolumeTarget || new BigNumber(0)).multipliedBy(100).toFixed(0) }% of ${ (market?.assetResetDays || new BigNumber(0)).toString() } day volume of this market pair within ${ (market?.accountResetDays || new BigNumber(0)).toString() } days`}>
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">Impact rule</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>≥ { (market?.assetVolumeTarget || new BigNumber(0)).multipliedBy(100).toFixed(0) }% of { (market?.assetResetDays || new BigNumber(0)).toString() }d VOL</Text>
-                            </Flex>
-                          </Tooltip>
-                          <Tooltip side="left" content={`Maker/taker fee impact difficulty: fee will get lower exponentially as account impact grows, higher fee impact difficulty will slow down the fee discounts on smaller impact accounts and speed up the fee discounts on higher impact accounts`}>
-                            <Flex justify="between" wrap="wrap" gap="1">
-                              <Text size="2" color="gray">Impact difficuly</Text>
-                              <Text size="2" style={{ color: 'var(--gray-12)' }}>{ (market?.makerFeeExponent || new BigNumber(0)).multipliedBy(100).toFixed(0) }% — { (market?.takerFeeExponent || new BigNumber(0)).multipliedBy(100).toFixed(0) }%</Text>
-                            </Flex>
-                          </Tooltip>
-                        </Flex>
-                      </Card>
-                    </Box>
-                  }
-                </Tabs.Content>
-                <Tabs.Content value="maker">
-                  <Maker
-                    path={makerPath}
-                    marketId={orderbook?.marketId || new BigNumber(0)}
-                    pairId={pair?.id || new BigNumber(0)}
-                    primaryAsset={orderbook?.primaryAsset || new AssetId()}
-                    secondaryAsset={orderbook?.secondaryAsset || new AssetId()}
-                    balances={loading ? undefined : polyBalances}
-                    prices={spreads}
-                    tiers={tiers || undefined}
-                    preset={preset}
-                    onStateChange={(state) => setShowingPools(state.pool)}></Maker>
-                  <Box px={mobile ? '2' : undefined}>
-                    {
-                      !showingPools && orders.map((item) =>
-                        <Box mt="3" key={item.orderId.toString()}>
-                          <OrderView flash={true} item={item}></OrderView>
-                        </Box>)
-                    }
-                    {
-                      showingPools && pools.map((item) =>
-                        <Box mt="3" key={item.poolId.toString()}>
-                          <PoolView flash={true} item={item}></PoolView>
-                        </Box>)
-                    }
-                  </Box>
-                </Tabs.Content>
-                <Tabs.Content value="book">
-                  <Card variant="surface" style={{ borderRadius: '22px', border: mobile ? 'none' : undefined }}>
-                    <Box mb="2">
-                      <SegmentedControl.Root mb="2" style={{ width: '100%' }} value={seriesOptions.priceScope.toString()} onValueChange={(e) => updateSeriesOptions(prev => ({ ...prev, priceScope: parseInt(e) }))}>
-                        <SegmentedControl.Item value={PriceScope.Bid.toString()}>Bid</SegmentedControl.Item>
-                        <SegmentedControl.Item value={PriceScope.All.toString()}>/</SegmentedControl.Item>
-                        <SegmentedControl.Item value={PriceScope.Ask.toString()}>Ask</SegmentedControl.Item>
-                      </SegmentedControl.Root>
-                      <TextField.Root type="number" placeholder="Price distance" value={seriesOptions.priceLevel} onChange={(e) => updateSeriesOptions(prev => ({ ...prev, priceLevel: e.target.value }))}>
-                        <TextField.Slot>
-                          <Icon path={mdiCurrencyUsd} />
-                        </TextField.Slot>
-                      </TextField.Root>
-                    </Box>
-                    <Flex justify={
-                      seriesOptions.priceScope == PriceScope.All ? 'between' : (seriesOptions.priceScope == PriceScope.Bid ? 'end' : 'start')
-                    } style={{ borderTopLeftRadius: '12px', borderTopRightRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--gray-3)' }} px="1" py="2" position="relative">
-                      {
-                        seriesOptions.priceScope != PriceScope.Ask &&
-                        <>
-                          <Box position="absolute" top="0" left="0" right={`${seriesOptions.priceScope == PriceScope.All ? liquidity.ask[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--accent-a5)' }}></Box>
-                          <Text size="2" style={{ zIndex: 1, color: 'var(--accent-11)' }}>{ UiUtil.toMoney(orderbook?.primaryAsset || null, liquidity.bid[2]) }</Text>
-                        </>
-                      }
-                      {
-                        seriesOptions.priceScope != PriceScope.Bid &&
-                        <>
-                          <Box position="absolute" top="0" left={`${seriesOptions.priceScope == PriceScope.All ? liquidity.bid[0].dividedBy(liquidity.bid[0].plus(liquidity.ask[0])).multipliedBy(100) : 0}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--red-a5)' }}></Box>
-                          <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ UiUtil.toMoney(orderbook?.primaryAsset || null, liquidity.ask[2]) }</Text>
-                        </>
-                      }
-                    </Flex>
-                    <Flex style={{ borderBottomLeftRadius: '12px', borderBottomRightRadius: '12px', overflow: 'hidden', backgroundColor: 'var(--gray-3)' }}>
-                      {
-                        seriesOptions.priceScope != PriceScope.Ask &&
-                        <Box width={seriesOptions.priceScope == PriceScope.All ? '50%' : '100%'}>
-                          {
-                            groupedLevels.bid.map((item) =>
-                              <Tooltip side="left" key={item.price.toString()} content={`Buy ${UiUtil.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≤ ${UiUtil.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
-                                <Button variant="ghost" radius="none" style={{ width: '100%', height: 'auto', padding: 0, margin: 0 }} onClick={() => updatePreset(OrderSide.Buy, item.price)}>
-                                  <Flex width="100%" justify="between" px="1" py="1" position="relative">
-                                    <Box position="absolute" top="0" left={`${100 - 100 * item.quantity.dividedBy(liquidity.bid[0]).toNumber()}%`} right="0" bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--accent-7)' }}></Box>
-                                    <Text size="2" style={{ zIndex: 1, color: 'var(--accent-11)' }}>{ UiUtil.toValue(null, item.price, false, true) }</Text>
-                                    {
-                                      seriesOptions.priceScope != PriceScope.All &&
-                                      <Text size="2" style={{ zIndex: 1, color: 'var(--accent-11)' }}>{ UiUtil.toValue(null, item.quantity, false, true) }</Text>
-                                    }
-                                  </Flex>
-                                </Button>
-                              </Tooltip>)
-                          }
-                          {
-                            !groupedLevels.bid.length &&
-                            <Box height="28px" style={{ backgroundColor: 'var(--gray-4)' }}></Box>
-                          }
-                        </Box>
-                      }
-                      {
-                        seriesOptions.priceScope != PriceScope.Bid &&
-                        <Box width={seriesOptions.priceScope == PriceScope.All ? '50%' : '100%'}>
-                          {
-                            groupedLevels.ask.map((item) =>
-                              <Tooltip side="left" key={item.price.toString()} content={`Sell ${UiUtil.toMoney(orderbook?.primaryAsset || null, item.quantity)} at ≥ ${UiUtil.toMoney(orderbook?.secondaryAsset || null, item.price)}`}>
-                                <Button variant="ghost" radius="none" style={{ width: '100%', height: 'auto', padding: 0, margin: 0 }} onClick={() => updatePreset(OrderSide.Sell, item.price)}>
-                                  <Flex width="100%" justify={seriesOptions.priceScope != PriceScope.All ? 'between' : 'end'} px="1" py="1" position="relative">
-                                    <Box position="absolute" top="0" left="0" right={`${100 - 100 * item.quantity.dividedBy(liquidity.ask[0]).toNumber()}%`} bottom="0" style={{ zIndex: 0, backgroundColor: 'var(--red-7)' }}></Box>
-                                    {
-                                      seriesOptions.priceScope != PriceScope.All &&
-                                      <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ UiUtil.toValue(null, item.quantity, false, true) }</Text>
-                                    }
-                                    <Text size="2" style={{ zIndex: 1, color: 'var(--red-11)' }}>{ UiUtil.toValue(null, item.price, false, true) }</Text>
-                                  </Flex>
-                                </Button>
-                              </Tooltip>)
-                          }
-                          {
-                            !groupedLevels.ask.length &&
-                            <Box height="28px" style={{ backgroundColor: 'var(--gray-5)' }}></Box>
-                          }
-                        </Box>
-                      }
-                    </Flex>
-                  </Card>
-                </Tabs.Content>
-                <Tabs.Content value="logs">
-                  <Box px={mobile ? '3' : undefined} pt={mobile ? '4' : undefined}>
-                    <InfiniteScroll dataLength={logs.length} hasMore={moreLogs} next={findLogs} loader={<div></div>}>
-                      {
-                        logs.map((item, index) => {
-                          const pool = item.side == 'lp';
-                          const action = pool ? (item.quantity.gt(0) ? 'Push' : 'Pull') : (item.side == OrderSide.Buy ? 'Buy' : 'Sell');
-                          const color = pool ? (item.quantity.gt(0) ? 'cyan' : 'orange') : (item.side == OrderSide.Buy ? 'var(--accent-11)' : 'var(--red-11)');
-                          return (
-                            <Box key={item.account + item.time.getTime().toString() + index.toString()} mb="3" className="rt-Card" style={{ width: '100%', height: 'auto', backgroundColor: 'var(--color-panel)', borderRadius: '22px' }}>
-                              <Flex direction="column" gap="2" style={{ padding: '12px' }}>
-                                <Flex justify="between" wrap="wrap" gap="1">
-                                  <Text size="2" color="gray">At</Text>
-                                  <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, item.price) }</Text>
-                                </Flex>
-                                <Flex justify="between" wrap="wrap" gap="1">
-                                  <Text size="2" style={{ color: color }}>{ action }</Text>
-                                  <Text size="2" style={{ color: color }}>{ UiUtil.toMoney(orderbook?.primaryAsset || null, item.quantity, pool) }</Text>
-                                </Flex>
-                                <Flex justify="between" wrap="wrap" gap="1">
-                                  <Text size="2" style={{ color: 'var(--gray-12)' }}>From</Text>
-                                  <Flex>
-                                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                      navigator.clipboard.writeText(item.account || 'NULL');
-                                      AlertBox.open(AlertType.Info, 'Account address copied!')
-                                    }}>{ UiUtil.toAddress(item.account || 'NULL', 5) }</Button>
-                                    <Box ml="2">
-                                      <Link className="router-link" to={'/portfolio/' + item.account + '?view=wallet-total-assets'}>▒▒</Link>
-                                    </Box>
-                                  </Flex>
-                                </Flex>
-                                <Flex justify="between" wrap="wrap" gap="1">
-                                  <Text size="2" color="gray">Age</Text>
-                                  <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toTimePassed(item.time) }</Text>
-                                </Flex>
-                              </Flex>
-                            </Box>
-                          )
-                        })
-                      }
-                    </InfiniteScroll>
-                    {
-                      !logs.length &&
-                      <Flex justify="center">
-                        <Text>No activity</Text>
-                      </Flex>
-                    }
-                  </Box>
-                </Tabs.Content>
-              </Box>
-            </Tabs.Root>
-          </Box>
-        </Flex>
-      </Box>
+              <SegmentedControl.Item value="maker">Order</SegmentedControl.Item>
+              <SegmentedControl.Item value="book">Book</SegmentedControl.Item>
+              <SegmentedControl.Item value="logs">Logs</SegmentedControl.Item>
+            </SegmentedControl.Root>
+          }
+          {
+            mobile &&
+            <div style={{ display: tab == 'info' ? undefined : 'none', paddingTop: 16 }}>
+              <ChartWidget
+                orderbook={orderbook}
+                pair={pair}
+                whitelisted={whitelisted}
+                options={seriesOptions}
+                tradeEvents={incomingTrades}
+                onOptionsChange={updateSeriesOptions}
+                onTradesChange={updateIncomingTrades}
+                onPairChange={setPair} bare={true} onScrub={scrubStore.set}></ChartWidget>
+            </div>
+          }
+          {
+            tab == 'info' && mobile && orderbook?.primaryAsset && orderbook.secondaryAsset && aboutCards
+          }
+          {
+            vTab == 'maker' && ticketBlock
+          }
+          {
+            vTab == 'book' && bookBlock
+          }
+          {
+            vTab == 'logs' && logsBlock
+          }
+        </div>
+      </div>
     </Box>
   );
 }

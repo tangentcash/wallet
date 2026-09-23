@@ -1,16 +1,12 @@
-import { Box, Button, Card, Flex, SegmentedControl, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Box, SegmentedControl, Select, TextField } from "@radix-ui/themes";
 import { AccountTier, Balance, Exchange, OrderCondition, OrderPolicy, OrderSide } from "../../core/exchange";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { mdiCurrencyUsd } from "@mdi/js";
 import { AssetId, ByteUtil, LiquidityPool } from "tangentsdk/algorithm";
 import { UiUtil } from "tangentsdk/ui";
 import { TextUtil } from "tangentsdk/text";
-import { AssetImage } from "../asset-image";
-import { AssetName } from "../asset-name";
 import { AppStorage } from "../../core/storage";
 import { PerformerButton, Builder } from "./performer";
 import BigNumber from "bignumber.js";
-import Icon from "@mdi/react";
 
 export type MakerState = {
   condition: OrderCondition,
@@ -60,7 +56,6 @@ export function Maker(props: {
   preset?: ({ id: number } & Partial<typeof defaultMakerState>) | null,
   onStateChange?: (state: MakerState) => any
 }) {
-  const mobile = document.body.clientWidth <= 800;
   const [presetId, setPresetId] = useState<number>(0);
   const [state, setState] = useState<MakerState>(defaultMakerState);
   const balances = useMemo((): {
@@ -87,6 +82,16 @@ export function Maker(props: {
   const isImmediate = useMemo((): boolean => {
     return state.condition == OrderCondition.Market;
   }, [state.condition]);
+  const priceHint = useMemo((): string => {
+    const opposite = state.side == OrderSide.Buy ? props.prices?.ask : props.prices?.bid;
+    return opposite != null && opposite.gt(0) ? UiUtil.toValue(null, opposite, false, true) : '0.0';
+  }, [props.prices, state.side]);
+  const poolPriceHint = useMemo((): string => {
+    const ask = props.prices?.ask;
+    const bid = props.prices?.bid;
+    const mid = ask != null && bid != null && ask.gt(0) && bid.gt(0) ? ask.plus(bid).dividedBy(2) : ask != null && ask.gt(0) ? ask : bid != null && bid.gt(0) ? bid : null;
+    return mid != null ? UiUtil.toValue(null, mid, false, true) : '0.0';
+  }, [props.prices]);
   const isTrailing = useMemo((): boolean => {
     return state.condition == OrderCondition.TrailingStop || state.condition == OrderCondition.TrailingStopLimit;
   }, [state.condition]);
@@ -444,253 +449,165 @@ export function Maker(props: {
 
   const makeOrder = () => (
     <Box>
-      <Box mb="4">
-        <Button variant="soft" color={state.side == OrderSide.Buy ? undefined : 'red'} style={{ display: 'block', height: 'auto', width: '100%', borderRadius: '24px' }} onClick={() => {
-          if (valueBalance != null)
-            updateState(prev => ({ ...prev, value: valueBalance.toString() }));
-        }}>
-          <Flex align="center" gap="2" px="2" py="3">
-            <AssetImage asset={valueAsset} size="2" iconSize="40px"></AssetImage>
-            <Box>
-              <AssetName asset={valueAsset}></AssetName>
-              {
-                valueBalance && 
-                <Text align="left" weight="bold" size="3" style={{ display: 'block' }}>{ UiUtil.toMoney(valueAsset, valueBalance) }</Text>
-              }
-              {
-                !valueBalance &&
-                <Box pt="1">
-                  <Spinner size="3"></Spinner>
-                </Box>
-              }
-            </Box>
-          </Flex>
-        </Button>
-      </Box>
-      <Box mb="2">
-        <Select.Root value={state.condition.toString()} onValueChange={(e) => updateState(prev => ({ ...prev, condition: parseInt(e) }))}>
-          <Tooltip side="left" content="Condition: order matching style">
-            <Select.Trigger style={{ width: '100%' }} />
-          </Tooltip>
-          <Select.Content>
-            <Select.Group>
-              <Select.Label>Execution type</Select.Label>
-              <Select.Item value={OrderCondition.Market.toString()}>Market order</Select.Item>
-              <Select.Item value={OrderCondition.Limit.toString()}>Limit order</Select.Item>
-              <Select.Item value={OrderCondition.Stop.toString()}>Stop order</Select.Item>
-              <Select.Item value={OrderCondition.StopLimit.toString()}>Stop-limit order</Select.Item>
-              <Select.Item value={OrderCondition.TrailingStop.toString()}>Trailing-stop order</Select.Item>
-              <Select.Item value={OrderCondition.TrailingStopLimit.toString()}>Trailing-stop-limit order</Select.Item>
-            </Select.Group>
-          </Select.Content>
-        </Select.Root>
-      </Box>
-      <Box mb="2">
-        <Select.Root value={state.fillOrKill ? '1' : '0'} onValueChange={(e) => updateState(prev => ({ ...prev, fillOrKill: parseInt(e) > 0 }))}>
-          <Tooltip side="left" content={`Policy: fill completely/partially${isImmediate ? ' and cancel leftovers' : ''} or fill ${ isImmediate ? 'completely and cancel if not possible to do so' : 'only completely'}`}>
-            <Select.Trigger style={{ width: '100%' }}>
-            </Select.Trigger>
-          </Tooltip>
-          <Select.Content>
-            <Select.Group>
-              <Select.Label>Fill type</Select.Label>
-              <Select.Item value="0">May partially fill</Select.Item>
-              <Select.Item value="1">Complete fill only</Select.Item>
-            </Select.Group>
-          </Select.Content>
-        </Select.Root>
-      </Box>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+        <div className="type-select" style={{ flex: 1, minWidth: 0 }}>
+          <Select.Root value={state.condition.toString()} onValueChange={(value) => updateState(prev => ({ ...prev, condition: parseInt(value) as OrderCondition }))}>
+            <Select.Trigger style={{ width: '100%', height: 36, fontSize: 14 }} aria-label="Order type" />
+            <Select.Content position="popper">
+              <Select.Item value={OrderCondition.Market.toString()}>Market</Select.Item>
+              <Select.Item value={OrderCondition.Limit.toString()}>Limit</Select.Item>
+              <Select.Item value={OrderCondition.Stop.toString()}>Stop</Select.Item>
+              <Select.Item value={OrderCondition.StopLimit.toString()}>Stop-limit</Select.Item>
+              <Select.Item value={OrderCondition.TrailingStop.toString()}>Trailing</Select.Item>
+              <Select.Item value={OrderCondition.TrailingStopLimit.toString()}>Trailing-limit</Select.Item>
+            </Select.Content>
+          </Select.Root>
+        </div>
+        <button type="button" className={ 'fill-toggle' + (state.fillOrKill ? ' hot' : '') } aria-pressed={state.fillOrKill} onClick={() => updateState(prev => ({ ...prev, fillOrKill: !prev.fillOrKill }))}>100% fill only</button>
+      </div>
       {
         hasStopPrice &&
-        <Box mb="2">
-          <Tooltip side="left" content={`Stop price: ${state.side == OrderSide.Buy ? 'maximal' : 'minimal'} ${isTrailing ? 'initial ' : ''}price to replace the ${isTrailing ? 'trailing stop' : 'stop'} order with ${isImmediate ? 'market' : 'limit'} order`}>
-            <TextField.Root placeholder={UiUtil.toAssetSymbol(props.secondaryAsset) + ' stop price'} size="2" value={state.stopPrice} onChange={(e) => updateState(prev => ({ ...prev, stopPrice: TextUtil.toValue(prev.stopPrice, e.target.value) }))}>
-              <TextField.Slot>
-                <Icon path={mdiCurrencyUsd} size={0.8} />
-              </TextField.Slot>
-            </TextField.Root>
-          </Tooltip>
-        </Box>
+        <div className="field-lite">
+          <div className="lab"><span>Stop price · { UiUtil.toAssetSymbol(props.secondaryAsset) }</span><span style={{ color: 'var(--text-3)' }}>{ isTrailing ? 'arms the trailing stop' : 'triggers the order' }</span></div>
+          <div className="val">
+            <TextField.Root placeholder={ priceHint } type="text" value={state.stopPrice} onChange={(e) => updateState(prev => ({ ...prev, stopPrice: TextUtil.toValue(prev.stopPrice, e.target.value) }))} />
+          </div>
+        </div>
       }
       {
         hasPrice &&
-        <Box mb="2">
-          <Tooltip side="left" content={`Price: match ${state.side == OrderSide.Buy ? 'selling' : 'buying'} orders with price ${state.side == OrderSide.Buy ? 'lower' : 'higher'} than or equal to ${state.price.length > 0 ? UiUtil.toMoney(props.secondaryAsset, state.price) : 'selected'}`}>
-            <TextField.Root placeholder={UiUtil.toAssetSymbol(props.secondaryAsset) + ' price'} size="2" value={state.price} onChange={(e) => updateState(prev => ({ ...prev, price: TextUtil.toValue(prev.price, e.target.value) }))}>
-              <TextField.Slot>
-                <Icon path={mdiCurrencyUsd} size={0.8} />
-              </TextField.Slot>
-            </TextField.Root>
-          </Tooltip>
-        </Box>
+        <div className="field-lite">
+          <div className="lab">
+            <span>Limit price · { UiUtil.toAssetSymbol(props.secondaryAsset) } per { UiUtil.toAssetSymbol(props.primaryAsset) }</span>
+            { bestPrice.gt(0) && <span style={{ color: 'var(--lime)', fontWeight: 700, cursor: 'pointer' }} onClick={() => updateState(prev => ({ ...prev, price: ByteUtil.bigNumberToString(bestPrice) }))}>{ state.side == OrderSide.Buy ? 'Best ask' : 'Best bid' }</span> }
+          </div>
+          <div className="val">
+            <TextField.Root placeholder={ priceHint } type="text" value={state.price} onChange={(e) => updateState(prev => ({ ...prev, price: TextUtil.toValue(prev.price, e.target.value) }))} />
+          </div>
+        </div>
       }
       {
         isTrailing &&
         <>
-          <Box mb="2">
-            <Tooltip side="left" content={`Trailing stop: minimal price ${state.side == OrderSide.Buy ? 'fall' : 'rise'} to trigger stop price change`}>
-              <TextField.Root placeholder={UiUtil.toAssetSymbol(props.secondaryAsset) + ' step or %'} size="2" value={state.trailingStep} onChange={(e) => updateState(prev => ({ ...prev, trailingStep: TextUtil.toValueOrPercent(prev.trailingStep, e.target.value) }))}>
-                <TextField.Slot>
-                  <Icon path={mdiCurrencyUsd} size={0.8} />
-                </TextField.Slot>
-              </TextField.Root>
-            </Tooltip>
-          </Box>
-          <Box mb="2">
-            <Tooltip side="left" content={`Trailing distance: stop price distance ${state.side == OrderSide.Buy ? 'above' : 'below'} market price`}>
-              <TextField.Root placeholder={UiUtil.toAssetSymbol(props.secondaryAsset) + ' distance or %'} size="2" value={state.trailingDistance} onChange={(e) => updateState(prev => ({ ...prev, trailingDistance: TextUtil.toValueOrPercent(prev.trailingDistance, e.target.value) }))}>
-                <TextField.Slot>
-                  <Icon path={mdiCurrencyUsd} size={0.8} />
-                </TextField.Slot>
-              </TextField.Root>
-            </Tooltip>
-          </Box>
+          <div className="field-lite">
+            <div className="lab"><span>Trailing step · { UiUtil.toAssetSymbol(props.secondaryAsset) } or %</span><span style={{ color: 'var(--text-3)' }}>{ state.side == OrderSide.Buy ? 'price fall' : 'price rise' } to move stop</span></div>
+            <div className="val">
+              <TextField.Root placeholder="0.0" type="text" value={state.trailingStep} onChange={(e) => updateState(prev => ({ ...prev, trailingStep: TextUtil.toValueOrPercent(prev.trailingStep, e.target.value) }))} />
+            </div>
+          </div>
+          <div className="field-lite">
+            <div className="lab"><span>Trailing distance · { UiUtil.toAssetSymbol(props.secondaryAsset) } or %</span><span style={{ color: 'var(--text-3)' }}>{ state.side == OrderSide.Buy ? 'above' : 'below' } market price</span></div>
+            <div className="val">
+              <TextField.Root placeholder="0.0" type="text" value={state.trailingDistance} onChange={(e) => updateState(prev => ({ ...prev, trailingDistance: TextUtil.toValueOrPercent(prev.trailingDistance, e.target.value) }))} />
+            </div>
+          </div>
         </>
       }
       {
         hasSlippage &&
-        <Box mb="2">
-          <Tooltip side="left" content={`Slippage: maximal unfavorable deviation from best price`}>
-            <TextField.Root placeholder={UiUtil.toAssetSymbol(props.secondaryAsset) + ' slippage or %'} size="2" value={state.slippage} onChange={(e) => updateState(prev => ({ ...prev, slippage: TextUtil.toValueOrPercent(prev.slippage, e.target.value) }))}>
-              <TextField.Slot>
-                <Icon path={mdiCurrencyUsd} size={0.8} />
-              </TextField.Slot>
-            </TextField.Root>
-          </Tooltip>
-        </Box>
+        <div className="field-lite">
+          <div className="lab"><span>Max slippage</span><span style={{ color: 'var(--text-3)' }}>walks the book to this deviation</span></div>
+          <div className="val" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ flex: 1 }}><TextField.Root placeholder="0.5%" type="text" value={state.slippage} onChange={(e) => updateState(prev => ({ ...prev, slippage: TextUtil.toValueOrPercent(prev.slippage, e.target.value) }))} /></div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button className={ 'pct' + (state.slippage == '0.1%' ? ' hot' : '') } onClick={() => updateState(prev => ({ ...prev, slippage: '0.1%' }))}>0.1</button>
+              <button className={ 'pct' + (state.slippage == '0.5%' ? ' hot' : '') } onClick={() => updateState(prev => ({ ...prev, slippage: '0.5%' }))}>0.5</button>
+              <button className={ 'pct' + (state.slippage == '1%' ? ' hot' : '') } onClick={() => updateState(prev => ({ ...prev, slippage: '1%' }))}>1.0</button>
+            </div>
+          </div>
+        </div>
       }
-      <Box mb="2">
-        <Tooltip side="left" content={`Quantity: receive ~${state.side == OrderSide.Buy ? UiUtil.toMoney(props.primaryAsset, (bestPrice.gt(0) ? payingValue.dividedBy(bestPrice) : new BigNumber(0))) : UiUtil.toMoney(props.secondaryAsset, bestPrice.multipliedBy(payingValue))} excluding fees and slippage`}>
-          <TextField.Root placeholder={UiUtil.toAssetSymbol(valueAsset) + ' quantity or %'} size="2" value={state.value} onChange={(e) => updateState(prev => ({ ...prev, value: TextUtil.toValueOrPercent(prev.value, e.target.value) }))}>
-            <TextField.Slot>
-              <Icon path={mdiCurrencyUsd} size={0.8} />
-            </TextField.Slot>
-          </TextField.Root>
-        </Tooltip>
-      </Box>
+      <div className="field-lite">
+        <div className="lab">
+          <span>Amount · { UiUtil.toAssetSymbol(valueAsset) }</span>
+          { valueBalance != null && <span style={{ color: 'var(--text-3)', fontWeight: 500 }}>≤ { UiUtil.toMoney(valueAsset, valueBalance) }</span> }
+        </div>
+        <div className="val">
+          <TextField.Root placeholder="0.0" type="text" value={state.value} onChange={(e) => updateState(prev => ({ ...prev, value: TextUtil.toValueOrPercent(prev.value, e.target.value) }))} />
+        </div>
+        {
+          valueBalance != null &&
+          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+            <button className={ 'pct' + (state.value == '25%' ? ' hot' : '') } onClick={() => updateState(prev => ({ ...prev, value: '25%' }))}>25%</button>
+            <button className={ 'pct' + (state.value == '50%' ? ' hot' : '') } onClick={() => updateState(prev => ({ ...prev, value: '50%' }))}>50%</button>
+            <button className={ 'pct' + (state.value == '75%' ? ' hot' : '') } onClick={() => updateState(prev => ({ ...prev, value: '75%' }))}>75%</button>
+            <button className={ 'pct' + (state.value == '100%' || state.value == 'Max' ? ' hot' : '') } onClick={() => updateState(prev => ({ ...prev, value: '100%' }))}>Max</button>
+          </div>
+        }
+      </div>
+      <PerformerButton className="btn-brand btn-cta" title={ 'Review ' + (state.side == OrderSide.Buy ? 'buy' : 'sell') + ' order' } description={`Order placement involves paying ${UiUtil.toAssetSymbol(valueAsset)} to smart contract that can re-pay it back by withdrawal otherwise it will pay ${UiUtil.toAssetSymbol(state.side == OrderSide.Buy ? props.primaryAsset : props.secondaryAsset)} as it executes the order`} style={{ width: '100%' }} disabled={!orderPayload} onBuild={async () => {
+        return orderPayload ? Builder.depositOrder(orderPayload) : null;
+      }}></PerformerButton>
       {
         props.tiers != null &&
-        <Box mb="5" px="2">
-          <Flex justify="between">
-            <Text size="1" color="gray">Volume</Text>
-            <Text size="1" color="gray">{ UiUtil.toMoney(state.side == OrderSide.Buy ? props.secondaryAsset : props.primaryAsset, state.side == OrderSide.Buy ? props.tiers.secondary.volume : props.tiers.primary.volume) }</Text>
-          </Flex>
-          <Flex justify="between">
-            <Text size="1" color="gray">Amount</Text>
-            <Text size="1" color="gray">~{ state.side == OrderSide.Buy ? UiUtil.toMoney(props.primaryAsset, (bestPrice.gt(0) ? payingValue.dividedBy(bestPrice) : new BigNumber(0)).multipliedBy(new BigNumber(1).minus(fee.max))) : UiUtil.toMoney(props.secondaryAsset, bestPrice.multipliedBy(payingValue)) }</Text>
-          </Flex>
-          <Flex justify="between">
-            <Text size="1" color="gray">Fee</Text>
-            <Text size="1" color="gray">{ fee.min.multipliedBy(100).toFixed(2) }% — { fee.max.multipliedBy(100).toFixed(2) }%</Text>
-          </Flex>
-        </Box>
+        <p className="dim" style={{ textAlign: 'center', fontSize: 13, margin: '10px 0 0' }}>Receive ~{ state.side == OrderSide.Buy ? UiUtil.toMoney(props.primaryAsset, (bestPrice.gt(0) ? payingValue.dividedBy(bestPrice) : new BigNumber(0)).multipliedBy(new BigNumber(1).minus(fee.max))) : UiUtil.toMoney(props.secondaryAsset, bestPrice.multipliedBy(payingValue)) } · { fee.min.isEqualTo(fee.max) ? fee.min.multipliedBy(100).toFixed(2) : fee.min.multipliedBy(100).toFixed(2) + '-' + fee.max.multipliedBy(100).toFixed(2) }% fee</p>
       }
-      <Box>
-        <PerformerButton title="Place order" description={`Order placement involves paying ${UiUtil.toAssetSymbol(valueAsset)} to smart contract that can re-pay it back by withdrawal otherwise it will pay ${UiUtil.toAssetSymbol(state.side == OrderSide.Buy ? props.primaryAsset : props.secondaryAsset)} as it executes the order`} color={state.side == OrderSide.Buy ? undefined : 'red'} style={{ width: '100%' }} disabled={!orderPayload} onBuild={async () => {
-          return orderPayload ? Builder.depositOrder(orderPayload) : null;
-        }}></PerformerButton>
-      </Box>
     </Box>
   );
   const makePool = () => (
     <Box>
-      <Box mb="4">
-        <Button variant="soft" style={{ display: 'block', height: 'auto', width: '100%', borderRadius: '24px' }}>
-          <Flex align="center" gap="2" px="2" py="3">
-            <Box style={{ position: 'relative' }}>
-              <AssetImage asset={props.secondaryAsset} size="2" iconSize="26px" style={{ position: 'absolute', top: '20px', left: '-6px' }}></AssetImage>
-              <AssetImage asset={props.primaryAsset} size="2" iconSize="40px"></AssetImage>
-            </Box>
-            {
-              balances &&
-              <Box>
-                <Text align="left" weight="bold" size="3" style={{ display: 'block' }}>{ UiUtil.toMoney(props.primaryAsset, balances.primary.value) }</Text>
-                <Text align="left" style={{ display: 'block' }}>{ UiUtil.toMoney(props.secondaryAsset, balances.secondary.value) }</Text>
-              </Box>
-            }
-            {
-              !balances &&
-              <Box pt="3" pb="3">
-                <Spinner size="3"></Spinner>
-              </Box>
-            }
-          </Flex>
-        </Button>
-      </Box>
-      <Box mb="2">
-        <Tooltip side="left" content={`Price: starting price equal to ${state.basePrice.length > 0 ? UiUtil.toMoney(props.secondaryAsset, state.basePrice) : 'selected'} that will gradually adjust to market price as trades are made`}>
-          <TextField.Root placeholder={UiUtil.toAssetSymbol(props.secondaryAsset) + ' price'} size="2" value={state.basePrice} onChange={(e) => updateState(prev => ({ ...prev, basePrice: TextUtil.toValue(prev.basePrice, e.target.value), primaryValue: '', secondaryValue: '' }))}>
-            <TextField.Slot>
-              <Icon path={mdiCurrencyUsd} size={0.8} />
-            </TextField.Slot>
-          </TextField.Root>
-        </Tooltip>
-      </Box>
-      <Box mb="2">
-        <Tooltip side="left" content={`Price range: lower/upper distance from inital price equal to ${state.rangePrice.length > 0 ? UiUtil.toMoney(props.secondaryAsset, state.rangePrice) : 'selected'} plus fee rate which will concentrate liquidity at prices below selected`}>
-          <TextField.Root placeholder={UiUtil.toAssetSymbol(props.secondaryAsset) + ' price range or none'} size="2" value={state.rangePrice} onChange={(e) => updateState(prev => ({ ...prev, rangePrice: TextUtil.toValue(prev.rangePrice, e.target.value), primaryValue: '', secondaryValue: '' }))}>
-            <TextField.Slot>
-              <Icon path={mdiCurrencyUsd} size={0.8} />
-            </TextField.Slot>
-          </TextField.Root>
-        </Tooltip>
-      </Box>
-      {
-        concentratedRange &&
-        <Tooltip side="left" content="Minimal to maximal price range">
-          <Flex justify="between" wrap="wrap" gap="1" my="3" px="2">
-            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toValue(null, concentratedRange.min, false, true) }</Text>
-            <Text size="2" color="gray">—</Text>
-            <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toValue(null, concentratedRange.max, false, true) }</Text>
-          </Flex>
-        </Tooltip>
-      }
-      <Box mb="2">
-        <Tooltip side="left" content={`Fee rate: pool fee equal to ${state.feeRate ? state.feeRate : 'N/A'} and taken from each trade with this pool`}>
-          <TextField.Root placeholder={'Exchange fee %'} size="2" value={state.feeRate} onChange={(e) => updateState(prev => ({ ...prev, feeRate: TextUtil.toPercent(prev.feeRate, e.target.value) }))}>
-            <TextField.Slot>
-              <Icon path={mdiCurrencyUsd} size={0.8} />
-            </TextField.Slot>
-          </TextField.Root>
-        </Tooltip>
-      </Box>
-      <Box mb="2">
-        <Tooltip side="left" content={`Primary reserve: initial ${UiUtil.toAssetSymbol(props.primaryAsset)} reserve equal to ${UiUtil.toMoney(props.primaryAsset, state.primaryValue)} and will adjust as trades are made`}>
-          <TextField.Root placeholder={UiUtil.toAssetSymbol(props.primaryAsset) + ' reserve or %'} size="2" value={state.primaryValue} onChange={(e) => setPrimaryValue(e.target.value)}>
-            <TextField.Slot>
-              <Icon path={mdiCurrencyUsd} size={0.8} />
-            </TextField.Slot>
-          </TextField.Root>
-        </Tooltip>
-      </Box>
-      <Box mb="2">
-        <Tooltip side="left" content={`Secondary reserve: initial ${UiUtil.toAssetSymbol(props.secondaryAsset)} reserve equal to ${UiUtil.toMoney(props.secondaryAsset, state.secondaryValue)} and will adjust as trades are made`}>
-          <TextField.Root placeholder={UiUtil.toAssetSymbol(props.secondaryAsset) + ' reserve or %'} size="2" value={state.secondaryValue} onChange={(e) => setSecondaryValue(e.target.value)}>
-            <TextField.Slot>
-              <Icon path={mdiCurrencyUsd} size={0.8} />
-            </TextField.Slot>
-          </TextField.Root>
-        </Tooltip>
-      </Box>
-      <Box>
-        <PerformerButton title="Create pool" description={`Pool creation involves paying ${UiUtil.toAssetSymbol(props.primaryAsset)} and ${UiUtil.toAssetSymbol(props.secondaryAsset)} to smart contract that will re-pay it back by withdrawal otherwise it will use it to provide liquidity for taker orders`} style={{ width: '100%' }} disabled={!poolPayload}  onBuild={async () => {
-          return poolPayload ? Builder.depositPool(poolPayload) : null;
-        }}></PerformerButton>
-      </Box>
+      <div className="field-lite">
+        <div className="lab"><span>Base price · { UiUtil.toAssetSymbol(props.secondaryAsset) }</span><span style={{ color: 'var(--text-3)' }}>drifts with the market</span></div>
+        <div className="val">
+          <TextField.Root placeholder={ poolPriceHint } type="text" value={state.basePrice} onChange={(e) => updateState(prev => ({ ...prev, basePrice: TextUtil.toValue(prev.basePrice, e.target.value), primaryValue: '', secondaryValue: '' }))} />
+        </div>
+      </div>
+      <div className="field-lite">
+        <div className="lab"><span className="nowrap">Concentration range</span><span className="nowrap" style={{ color: 'var(--text-3)' }}>tighter = deeper book</span></div>
+        <div className="val">
+          <TextField.Root placeholder="full range" type="text" value={state.rangePrice} onChange={(e) => updateState(prev => ({ ...prev, rangePrice: TextUtil.toValue(prev.rangePrice, e.target.value), primaryValue: '', secondaryValue: '' }))} />
+        </div>
+        {
+          concentratedRange &&
+          <div className="rng" style={{ marginTop: 9 }}>
+            <i style={{ left: 0, width: '100%', background: 'var(--lime-solid)' }}></i>
+            <b style={{ left: 'calc(50% - 3px)' }}></b>
+          </div>
+        }
+        {
+          concentratedRange &&
+          <div className="tiny dim num" style={{ marginTop: 7, textAlign: 'center' }}>{ UiUtil.toValue(null, concentratedRange.min, false, true) } – { UiUtil.toValue(null, concentratedRange.max, false, true) }</div>
+        }
+      </div>
+      <div className="field-lite">
+        <div className="lab"><span>Pool fee rate</span><span style={{ color: 'var(--text-3)' }}>taken from every fill</span></div>
+        <div className="val">
+          <TextField.Root placeholder="0.05%" type="text" value={state.feeRate} onChange={(e) => updateState(prev => ({ ...prev, feeRate: TextUtil.toPercent(prev.feeRate, e.target.value) }))} />
+        </div>
+      </div>
+      <div className="field-lite">
+        <div className="lab"><span className="nowrap">Reserve · { UiUtil.toAssetSymbol(props.primaryAsset) }</span>{ balances != null && <span className="nowrap" style={{ color: 'var(--text-3)', fontWeight: 500 }}>≤ { UiUtil.toMoney(props.primaryAsset, balances.primary.value) }</span> }</div>
+        <div className="val">
+          <TextField.Root placeholder="0.0" type="text" value={state.primaryValue} onChange={(e) => setPrimaryValue(e.target.value)} />
+        </div>
+      </div>
+      <div className="field-lite">
+        <div className="lab"><span className="nowrap">Reserve · { UiUtil.toAssetSymbol(props.secondaryAsset) }</span>{ balances != null && <span className="nowrap" style={{ color: 'var(--text-3)', fontWeight: 500 }}>≤ { UiUtil.toMoney(props.secondaryAsset, balances.secondary.value) }</span> }</div>
+        <div className="val">
+          <TextField.Root placeholder="0.0" type="text" value={state.secondaryValue} onChange={(e) => setSecondaryValue(e.target.value)} />
+        </div>
+      </div>
+      <PerformerButton className="btn-brand btn-cta" title="Review LP order" description={`Pool creation involves paying ${UiUtil.toAssetSymbol(props.primaryAsset)} and ${UiUtil.toAssetSymbol(props.secondaryAsset)} to smart contract that will re-pay it back by withdrawal otherwise it will use it to provide liquidity for taker orders`} style={{ width: '100%' }} disabled={!poolPayload} onBuild={async () => {
+        return poolPayload ? Builder.depositPool(poolPayload) : null;
+      }}></PerformerButton>
     </Box>
   );
   return (
-    <Box>
-      <Card variant="surface" style={{ borderRadius: '22px', border: mobile ? 'none' : undefined }}>
-        <Box mb="2">
-          <SegmentedControl.Root size="2" style={{ width: '100%' }} value={state.pool ? 'pool' : state.side.toString()} onValueChange={(e) => updateState(prev => ({ ...prev, side: e == 'pool' ? prev.side : parseInt(e), pool: e == 'pool' }))}>
-            <SegmentedControl.Item value={OrderSide.Buy.toString()}>Buy</SegmentedControl.Item>
-            <SegmentedControl.Item value={OrderSide.Sell.toString()}>Sell</SegmentedControl.Item>
-            <SegmentedControl.Item value="pool">LP</SegmentedControl.Item>
-          </SegmentedControl.Root>
-        </Box>
+    <>
+      <div className="card" style={{ marginTop: 14 }}>
+        <SegmentedControl.Root value={ state.pool ? 'lp' : (state.side == OrderSide.Buy ? 'buy' : 'sell') } radius="full" size="3" mb="3" onValueChange={(v) => {
+          if (v == 'lp')
+            updateState(prev => ({ ...prev, pool: true }));
+          else
+            updateState(prev => ({ ...prev, pool: false, side: v == 'buy' ? OrderSide.Buy : OrderSide.Sell, value: v == 'buy' && valueBalance != null ? valueBalance.toString() : prev.value }));
+        }}>
+          <SegmentedControl.Item value="buy">Buy</SegmentedControl.Item>
+          <SegmentedControl.Item value="sell">Sell</SegmentedControl.Item>
+          <SegmentedControl.Item value="lp">LP</SegmentedControl.Item>
+        </SegmentedControl.Root>
         { state.pool ? makePool() : makeOrder() }
-      </Card>
-    </Box>
+      </div>
+      { state.pool ? <p className="tiny dim" style={{ textAlign: 'center', marginTop: 10 }}>Pools settle on-chain · exit fee applies on withdrawal</p> : <p className="tiny dim" style={{ textAlign: 'center', marginTop: 10 }}>The book lives on-chain · this view is served by the DEX indexer</p> }
+    </>
   );
 }

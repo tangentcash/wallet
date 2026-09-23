@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Card, DataList, Flex, Heading, Select, Tabs, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Box, Button, Flex, SegmentedControl, Select, Tooltip } from "@radix-ui/themes";
 import { Link, useNavigate, useSearchParams } from "react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
@@ -7,7 +7,7 @@ import { AssetId, Chain, Signing, Uint256 } from "tangentsdk/algorithm";
 import { EventResolver, RPC, SummaryState } from "tangentsdk/rpc";
 import { UiUtil } from "tangentsdk/ui";
 import { Whitelist } from "tangentsdk/whitelist";
-import { mdiEye, mdiEyeOff, mdiMagnify, mdiOpenInNew } from "@mdi/js";
+import { mdiArrowUpBoldCircleOutline, mdiCubeOutline, mdiEye, mdiEyeOff, mdiLayersOutline, mdiMagnify, mdiWeb } from "@mdi/js";
 import { useEffectAsync } from "../core/react";
 import { TransactionView } from "../components/transaction";
 import { AssetImage } from "../components/asset-image";
@@ -21,8 +21,6 @@ const TRANSACTION_COUNT = 16;
 const VAULT_COUNT = 16;
 
 export default function ExplorerPage() {
-  const mobile = document.body.clientWidth < 500;
-  const orientation = mobile ? 'vertical' : 'horizontal';
   const [search, setSearch] = useSearchParams();
   const [counter, setCounter] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -220,207 +218,236 @@ export default function ExplorerPage() {
   }, [search]);
 
   return (
-    <Box px="4" pt="4" maxWidth="680px" mx="auto">
-      <Box px="1" py="2">
-        <Flex justify="center" align="center" mb="3">
-          <Button size="4" variant="ghost" onClick={() => {
-            setSubject(blockNumber?.toString() || '');
-          }}>Height { UiUtil.toValue(null, blockNumber, false, false) }</Button>
-        </Flex>
-        <form action="">
-          <Flex>
-            <TextField.Root style={{ width: '100%', borderTopRightRadius: 0, borderBottomRightRadius: 0 }} color="gray" placeholder="Address, hash or number…" size="3" variant="soft" value={subject} onChange={(e) => setSubject(e.target.value)} readOnly={loading} ref={searchInput}>
-              <TextField.Slot>
-                <Icon path={mdiMagnify} size={0.9} color="var(--accent-8)"/>
-              </TextField.Slot>
-            </TextField.Root>
-            <Button style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }} variant="surface" size="3" type="submit" color="gray" loading={loading} onClick={(e) => {
+    <Box pt="4" pb="8" maxWidth="680px" mx="auto">
+      <div className="page-head">
+        <div className="page-title">Explorer</div>
+      </div>
+      <div className="card" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '16px 18px' }}>
+        <div style={{ width: 44, height: 44, flex: 'none', borderRadius: 14, background: 'var(--lime-dim)', display: 'grid', placeItems: 'center' }}>
+          <Icon path={mdiLayersOutline} size={1.2} style={{ color: 'var(--lime)' }}></Icon>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div className="num" style={{ fontSize: 22, fontWeight: 800 }}>Height { UiUtil.toValue(null, blockNumber, false, false) }</div>
+          <div className="tiny dim">live chain state</div>
+        </div>
+        <span className="badge ok">LIVE</span>
+      </div>
+      <form action="" onSubmit={(e) => { e.preventDefault(); navigateToSearch(); }}>
+        <div className="search" style={{ height: 52, marginTop: 14 }}>
+          <Icon path={mdiMagnify} size={1}></Icon>
+          <input className="mono" placeholder="Address, hash or block" value={subject} onChange={(e) => setSubject(e.target.value)} readOnly={loading} ref={searchInput} onKeyDown={(e) => {
+            if (e.key == 'Enter') {
               e.preventDefault();
               navigateToSearch();
-            }}>Query</Button>
-          </Flex>
-        </form>
-      </Box>
-      <Tabs.Root mt="4" value={tab} onValueChange={(x) => setSearch({ view: x })}>
-        <Tabs.List>
-          <Tabs.Trigger value="blocks">Blocks</Tabs.Trigger>
-          <Tabs.Trigger value="transactions">Transactions</Tabs.Trigger>
-          <Tabs.Trigger value="vaults">Vaults</Tabs.Trigger>
-        </Tabs.List>
-        <Box pt="3">
-          <Tabs.Content value="blocks">
-            <InfiniteScroll dataLength={blocks.length} hasMore={moreBlocks} next={findBlocks} loader={<div></div>}>
+            }
+          }}></input>
+        </div>
+      </form>
+      <SegmentedControl.Root value={ tab } radius="full" size="3" my="4" onValueChange={(v) => setSearch({ view: v })}>
+        <SegmentedControl.Item value="blocks">Blocks</SegmentedControl.Item>
+        <SegmentedControl.Item value="transactions">Transactions</SegmentedControl.Item>
+        <SegmentedControl.Item value="vaults">Vaults</SegmentedControl.Item>
+      </SegmentedControl.Root>
+      {
+        tab == 'blocks' &&
+        <InfiniteScroll dataLength={blocks.length} hasMore={moreBlocks} next={findBlocks} loader={<div></div>}>
+          {
+            blocks.length > 0 ?
+            <div className="card rows">
               {
                 blocks.map((item, index) =>
-                  <Box width="100%" key={item.blockHash + index + '_block'}>
-                    <Card variant="surface" mt="4" style={{ borderRadius: '22px', position: 'relative' }}>
-                      <Flex gap="2" wrap="wrap" justify="between">
-                        <Badge size="3">H { UiUtil.toValue(null, item.blockNumber, false, false) }</Badge>
-                        <Flex gap="2" align="center">
-                          <Badge size="3">{ UiUtil.toHash(item.blockHash, 8) }</Badge>
-                          <Link className="router-link" to={'/block/' + item.blockNumber}>▒▒</Link>
-                        </Flex>
-                      </Flex>
-                    </Card>
-                  </Box>
+                  <Link key={item.blockHash + index + '_block'} to={'/block/' + item.blockNumber} style={{ color: 'inherit', textDecoration: 'none', display: 'block' }}>
+                    <div className="tx-row">
+                      <span className="tx-ico"><Icon path={mdiCubeOutline} size={1} style={{ color: index == 0 ? 'var(--lime)' : undefined }}></Icon></span>
+                      <div className="tx-main">
+                        <div className="tx-title num" style={{ fontWeight: 750, fontSize: 15.5 }}>Block #{ UiUtil.toValue(null, item.blockNumber, false, false) }</div>
+                        <div className="tx-meta mono" style={{ fontSize: 11 }}>{ UiUtil.toAddress(item.blockHash) }</div>
+                      </div>
+                      <div className="tx-time">{ index == 0 ? <span className="badge ok">HEAD</span> : <span className="badge ok">FINALIZED</span> }</div>
+                    </div>
+                  </Link>
                 )
               }
-            </InfiniteScroll>
-          </Tabs.Content>
-          <Tabs.Content value="transactions">
-            <InfiniteScroll dataLength={transactions.length} hasMore={moreTransactions} next={findTransactions} loader={<div></div>}>
+            </div> :
+            <div className="card empty">
+              <div className="art"><Icon path={mdiCubeOutline} size={1.6}></Icon></div>
+              <h4>No blocks yet</h4>
+              <p>The chain tip hasn't produced anything yet.</p>
+            </div>
+          }
+        </InfiniteScroll>
+      }
+      {
+        tab == 'transactions' &&
+        <InfiniteScroll dataLength={transactions.length} hasMore={moreTransactions} next={findTransactions} loader={<div></div>}>
+          {
+            transactions.length > 0 ?
+            <div className="card rows">
               {
                 transactions.map((item, index) =>
-                  <Box width="100%" key={item.transaction.hash + index + '_tx'}>
-                    <Box mb="4">
-                      <TransactionView ownerAddress={''} transaction={item.transaction} receipt={item.receipt} state={item.state} summary={true}></TransactionView>
-                    </Box>
-                  </Box>
+                  <TransactionView key={item.transaction.hash + index + '_tx'} variant="row" ownerAddress="" transaction={item.transaction} receipt={item.receipt} state={item.state} explorerMode={true}></TransactionView>
                 )
               }
-            </InfiniteScroll>
-          </Tabs.Content>
-          <Tabs.Content value="vaults">
-            <Box my="4">
-              <Select.Root size="3" value={asset ? asset.id : '!'} onValueChange={(e) => setAsset(e.length > 0 ? new AssetId(e) : null)}>
-                <Select.Trigger style={{ width: '100%' }} />
-                <Select.Content>
-                  <Select.Item value="!">Select network</Select.Item>
-                  {
-                    blockchains.map((item) =>
-                      <Select.Item value={item.id} key={item.id}>
-                        <Flex gap="2">
-                          <AssetImage asset={item} size="1"></AssetImage>
-                          <AssetName asset={item} size="3"></AssetName>
-                        </Flex>
-                      </Select.Item>
-                    )
-                  }
-                </Select.Content>
-              </Select.Root>
-            </Box>
-            {
-              asset &&
-              <InfiniteScroll dataLength={vaults.length} hasMore={moreVaults} next={findVaults} loader={<div></div>}>
+            </div> :
+            <div className="card empty">
+              <div className="art"><Icon path={mdiArrowUpBoldCircleOutline} size={1.6}></Icon></div>
+              <h4>No transactions yet</h4>
+              <p>Nothing has moved on this chain.</p>
+            </div>
+          }
+        </InfiniteScroll>
+      }
+      {
+        tab == 'vaults' &&
+        <>
+          <Box mb="4">
+            <Select.Root size="3" value={asset ? asset.id : '!'} onValueChange={(e) => setAsset(e.length > 0 && e != '!' ? new AssetId(e) : null)}>
+              <Select.Trigger style={{ width: '100%' }} placeholder="Select network" />
+              <Select.Content>
+                <Select.Item value="!">Select network</Select.Item>
                 {
-                  vaults.map((item, index) =>
-                    <Box width="100%" key={item.instance.hash + index} mb="4">
-                      <Card variant="surface" style={{ borderRadius: '28px' }}>
-                        <Box px="2" py="2">
-                          <Flex align="center" justify="between" gap="2" mb="4">
-                            <Heading size="5">Vault</Heading>
-                            <Button size="2" variant="surface" onClick={() => {
-                              navigator.clipboard.writeText(item.instance.bridge_hash);
-                              AlertBox.open(AlertType.Info, 'Vault hash copied!')
-                            }}>{ UiUtil.toHash(item.instance.bridge_hash, 4) }</Button>
-                          </Flex>
-                          <DataList.Root orientation={orientation}>
-                            {
-                              item.master != null && item.master.addresses &&
-                              <DataList.Item>
-                                <DataList.Label>Master address:</DataList.Label>
-                                <DataList.Value>
-                                  <Tooltip content="This is an address shared by all users (master address), send only from addresses you explicitly registered">
-                                    <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                                      navigator.clipboard.writeText(item.master.addresses[0]);
-                                      AlertBox.open(AlertType.Info, 'Address copied!')
-                                    }}>{ UiUtil.toAddress(item.master.addresses[0]) }</Button>
-                                  </Tooltip>
-                                </DataList.Value>
-                              </DataList.Item>
-                            }
-                            <Tooltip content={'Participants (signers) to involve in each created account but no less than ' + Chain.policy.PARTICIPATION_COMMITTEE[0] + ' and no more than ' + Chain.policy.PARTICIPATION_COMMITTEE[1] + ' per account, txn/account nonces and the redeem fee to be deduced from each outgoing tx to cover cross-chain network fees and to pay to vault attesters and participants'}>
-                              <DataList.Item>
-                                <DataList.Label>Public params:</DataList.Label>
-                                <DataList.Value>
-                                  <Flex gap="1" wrap="wrap">
-                                    <Badge size="1">{ UiUtil.toCount('signer', item.instance.security_level) }</Badge>
-                                    <Badge size="1" color="blue">{ UiUtil.toCount('txn', item.instance.transaction_nonce) }</Badge>
-                                    <Badge size="1" color="blue">{ UiUtil.toCount(new BigNumber(item.instance.account_nonce).gt(1) ? 'addresse' : 'address', item.instance.account_nonce) }</Badge>
-                                    <Badge size="1" color="yellow">{ UiUtil.toMoney(new AssetId(asset.id), item.instance.fee_rate) } fee</Badge>
-                                  </Flex>
-                                </DataList.Value>
-                              </DataList.Item>
-                            </Tooltip>
-                            <Tooltip content="Unspent balance of a vault usable as sendable liquidity">
-                              <DataList.Item>
-                                <DataList.Label>Asset TVL:</DataList.Label>
-                                <DataList.Value>
-                                  <Flex wrap="wrap" gap="1">
-                                    {
-                                      item.balances && item.balances.map((next: any) =>
-                                        <Badge key={item.instance.hash + index + next.asset.id} size="1" color={next.whitelist ? 'jade' : 'gray'}>{ UiUtil.toMoney(next.asset, next.supply) }</Badge>)
-                                    }
-                                    {
-                                      (!item.balances || !item.balances.length) &&
-                                      <Badge size="1" color="yellow">{ UiUtil.toMoney(asset, null) }</Badge>
-                                    }
-                                  </Flex>
-                                </DataList.Value>
-                              </DataList.Item>
-                            </Tooltip>
-                            <Tooltip content="Transactions queued for processing by selected attesters">
-                              <DataList.Item align={mobile ? undefined : 'center'}>
-                                <DataList.Label>Outgoing TX queue:</DataList.Label>
-                                <DataList.Value>
-                                  <Button size="1" variant={item.showQueue ? 'solid' : 'surface'} color={item.showQueue ? 'yellow' : 'gray'} onClick={() => {
-                                    let copy = [...vaults];
-                                    copy[index].showQueue = !copy[index].showQueue;
-                                    setVaults(copy);
-                                  }}>{ UiUtil.toCount('transaction', Array.isArray(item.queue) ? item.queue.length : null) } in queue <Icon path={item.showQueue ? mdiEye : mdiEyeOff} size={0.5}></Icon></Button>
-                                </DataList.Value>
-                              </DataList.Item>
-                            </Tooltip>
-                            <DataList.Item align={mobile ? undefined : 'center'}>
-                              <DataList.Label>Supply factory:</DataList.Label>
-                              <DataList.Value>
-                                <Flex gap="2" wrap="wrap">
-                                  <Tooltip content="Claim an address and/or sender address">
-                                    <Button size="1" variant="soft" color="jade" className="shadow-rainbow-hover" onClick={() => {
-                                      navigate(`/interaction?asset=${asset.id}&type=register&vault=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`);
-                                    }}>↙ Mint tokens <Icon path={mdiOpenInNew} size={0.5}></Icon></Button>
-                                  </Tooltip>
-                                  <Tooltip content={(item.sendable ? 'Vault has enough ' : 'Vault doesn\'t have enough ') + UiUtil.toAssetSymbol(asset) + ' to send a transaction'}>
-                                    <Button size="1" variant="soft" color="red" className="shadow-rainbow-hover" disabled={!item.sendable} onClick={() => {
-                                      if (item.sendable) {
-                                        navigate(`/interaction?asset=${asset.id}&type=withdraw&vault=${item.instance.bridge_hash}&fee=${item.instance.fee_rate.toString()}&back=${encodeURIComponent(location.pathname + location.search)}`);
-                                      }
-                                    }}>↗ Redeem tokens <Icon path={mdiOpenInNew} size={0.5}></Icon></Button>
-                                  </Tooltip>
-                                </Flex>
-                              </DataList.Value>
-                            </DataList.Item>
-                          </DataList.Root>
-                          {
-                            item.showQueue &&
-                            <>
-                              <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
-                              {
-                                Array.isArray(item.queue) && item.queue.map((tx: any, index: number) =>
-                                  <Flex gap="2" wrap="wrap" justify="between" key={tx.hash.toString()} mb={index != item.queue.length - 1 ? '4' : undefined}>
-                                    <Badge size="2" color="yellow">{ blockchainExt != null ? `in ${(blockchainExt.blocking ? blockchainExt.transactionTime * (index + 1) + '-' + (blockchainExt.transactionTime * (index + 1) + 5).toString() : 5 * (index + 1))} min.` : `P${UiUtil.toValue(null, index + 1, false, false)}` }</Badge>
-                                    <Flex gap="2" align="center">
-                                      <Badge size="2" color="yellow">{ UiUtil.toHash(tx.transaction_hash, mobile ? 6 : 12) }</Badge>
-                                      <Link className="router-link" to={'/transaction/' + tx.transaction_hash} style={{ fontSize: '0.9rem' }}>▒▒</Link>
-                                    </Flex>
-                                  </Flex>
-                                )
-                              }
-                              <Flex justify="center" mt={Array.isArray(item.queue) && item.queue.length > 0 ? '4' : undefined}>
-                                <Text color={blockchainExt ? item.queue?.length > 0 ? 'red' : (blockchainExt.blocking ? 'yellow' : 'jade') : 'gray'} size="2">Max outgoing ETA: { blockchainExt ? (blockchainExt.blocking ? (blockchainExt.transactionTime * (2 + item.queue?.length || 0) + '-' + (blockchainExt.transactionTime * (2 + item.queue?.length || 0) + 5)) : (5 * ((item.queue?.length || 0) + 1))) + ' min.' : 'unknown' }</Text>
-                              </Flex>
-                            </>
-                          }
-                        </Box>
-                      </Card>
-                    </Box>
+                  blockchains.map((item) =>
+                    <Select.Item value={item.id} key={item.id}>
+                      <Flex gap="2" align="center">
+                        <AssetImage asset={item} size="1"></AssetImage>
+                        <AssetName asset={item} size="3" badge={false}></AssetName>
+                      </Flex>
+                    </Select.Item>
                   )
                 }
-              </InfiniteScroll>
-            }
-          </Tabs.Content>
-        </Box>
-      </Tabs.Root>
+              </Select.Content>
+            </Select.Root>
+          </Box>
+          {
+            !asset &&
+            <div className="card empty">
+              <div className="art"><Icon path={mdiWeb} size={1.6}></Icon></div>
+              <h4>Select a network</h4>
+              <p>Choose an external chain to inspect its bridge vault and minting queue.</p>
+            </div>
+          }
+          {
+            asset &&
+            <InfiniteScroll dataLength={vaults.length} hasMore={moreVaults} next={findVaults} loader={<div></div>}>
+              {
+                vaults.map((item, index) =>
+                  <div className="card" style={{ marginTop: index > 0 ? 14 : 0 }} key={item.instance.hash + index}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                      <AssetImage asset={item.instance.asset || { chain: asset.chain }} iconSize="28px"></AssetImage>
+                      <div style={{ fontWeight: 750, fontSize: 15 }}>Vault { UiUtil.toHash(item.instance.bridge_hash, 4) }</div>
+                    </div>
+                    <div className="dl">
+                      <div className="dl-row">
+                        <span className="dl-k">Vault hash</span>
+                        <span className="dl-v copyable" onClick={() => {
+                          navigator.clipboard.writeText(item.instance.bridge_hash);
+                          AlertBox.open(AlertType.Info, 'Vault hash copied!');
+                        }}>{ UiUtil.toAddress(item.instance.bridge_hash) }</span>
+                      </div>
+                      {
+                        item.master != null && item.master.addresses &&
+                        <div className="dl-row">
+                          <span className="dl-k">Vault address</span>
+                          <span className="dl-v copyable" onClick={() => {
+                            navigator.clipboard.writeText(item.master.addresses[0]);
+                            AlertBox.open(AlertType.Info, 'Address copied!');
+                          }}>{ UiUtil.toAddress(item.master.addresses[0]) }</span>
+                        </div>
+                      }
+                      <div className="dl-row">
+                        <span className="dl-k">Public params</span>
+                        <span className="dl-v" style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          <Tooltip content={'Participants (signers) to involve in each created account but no less than ' + Chain.policy.PARTICIPATION_COMMITTEE[0] + ' and no more than ' + Chain.policy.PARTICIPATION_COMMITTEE[1] + ' per account, txn/account nonces and the redeem fee to be deduced from each outgoing tx to cover cross-chain network fees and to pay to vault attesters and participants'}>
+                            <span className="badge flat">{ UiUtil.toCount('signer', item.instance.security_level) }</span>
+                          </Tooltip>
+                          <span className="badge flat">{ UiUtil.toCount('txn', item.instance.transaction_nonce) }</span>
+                          <span className="badge flat">{ UiUtil.toCount(new BigNumber(item.instance.account_nonce).gt(1) ? 'addresse' : 'address', item.instance.account_nonce) }</span>
+                          <span className="badge flat">{ UiUtil.toMoney(new AssetId(asset.id), item.instance.fee_rate) } fee</span>
+                        </span>
+                      </div>
+                      <div className="dl-row" style={{ alignItems: 'center' }}>
+                        <span className="dl-k">In queue</span>
+                        <span className="dl-v" style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <button className="chip-quiet sm" onClick={() => {
+                            let copy = [...vaults];
+                            copy[index].showQueue = !copy[index].showQueue;
+                            setVaults(copy);
+                          }}>
+                            <Icon path={item.showQueue ? mdiEye : mdiEyeOff} size={1}></Icon>{ ' ' + (Array.isArray(item.queue) ? item.queue.length : 0) + ' TRANSACTIONS' }
+                          </button>
+                        </span>
+                      </div>
+                      <div className="dl-row">
+                        <span className="dl-k">Asset TVL</span>
+                        <span className="dl-v" style={{ display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                          {
+                            item.balances && item.balances.map((next: any) =>
+                              <Tooltip key={item.instance.hash + index + next.asset.id} content={next.whitelist ? 'Whitelisted asset' : 'Non-whitelisted asset'}>
+                                <span className={'badge ' + (next.whitelist ? 'ok' : 'flat')}>{ UiUtil.toMoney(next.asset, next.supply) }</span>
+                              </Tooltip>)
+                          }
+                          {
+                            (!item.balances || !item.balances.length) &&
+                            <span className="badge warn">{ UiUtil.toMoney(asset, null) }</span>
+                          }
+                        </span>
+                      </div>
+                    </div>
+                    <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <Tooltip content="Claim an address and/or sender address">
+                        <Button className="btn-brand btn-block" onClick={() => {
+                          navigate(`/interaction?asset=${asset.id}&type=register&vault=${item.instance.bridge_hash}&back=${encodeURIComponent(location.pathname + location.search)}`);
+                        }}>↙ Mint tokens</Button>
+                      </Tooltip>
+                      <Tooltip content={(item.sendable ? 'Vault has enough ' : 'Vault doesn\'t have enough ') + UiUtil.toAssetSymbol(asset) + ' to send a transaction'}>
+                        <Button className="btn-ghost btn-block" disabled={!item.sendable} onClick={() => {
+                          if (item.sendable) {
+                            navigate(`/interaction?asset=${asset.id}&type=withdraw&vault=${item.instance.bridge_hash}&fee=${item.instance.fee_rate.toString()}&back=${encodeURIComponent(location.pathname + location.search)}`);
+                          }
+                        }}>↗ Redeem tokens</Button>
+                      </Tooltip>
+                    </div>
+                    {
+                      item.showQueue &&
+                      <>
+                        <div className="dl" style={{ marginTop: 6 }}>
+                          {
+                            Array.isArray(item.queue) && item.queue.map((tx: any, queueIndex: number) =>
+                              <div className="dl-row" key={tx.hash.toString()}>
+                                <span className="dl-k">
+                                  { blockchainExt != null ? <span className="badge warn">in { (blockchainExt.blocking ? blockchainExt.transactionTime * (queueIndex + 1) + '-' + (blockchainExt.transactionTime * (queueIndex + 1) + 5).toString() : 5 * (queueIndex + 1)) } min</span> : <span className="badge flat">P{UiUtil.toValue(null, queueIndex + 1, false, false)}</span> }
+                                </span>
+                                <Link className="dl-v mono router-link" style={{ color: 'var(--info)', fontSize: 12 }} to={'/transaction/' + tx.transaction_hash}>{ UiUtil.toAddress(tx.transaction_hash) }</Link>
+                              </div>
+                            )
+                          }
+                          {
+                            !(Array.isArray(item.queue) && item.queue.length > 0) &&
+                            <div className="tiny dim" style={{ padding: '8px 0', textAlign: 'center' }}>Queue is empty — redemptions are processed immediately.</div>
+                          }
+                        </div>
+                        <div className="tiny dim" style={{ textAlign: 'center', marginTop: 10 }}>
+                          Max outgoing ETA: <span className="num" style={{ color: blockchainExt ? (blockchainExt.blocking ? 'var(--warn)' : 'var(--lime)') : undefined }}>
+                            { blockchainExt ? (blockchainExt.blocking ? (blockchainExt.transactionTime * (2 + item.queue?.length || 0) + '-' + (blockchainExt.transactionTime * (2 + item.queue?.length || 0) + 5)) : (5 * ((item.queue?.length || 0) + 1))) + ' min.' : 'unknown' }
+                          </span>
+                        </div>
+                      </>
+                    }
+                  </div>
+                )
+              }
+              {
+                vaults.length == 0 &&
+                <div className="card empty">
+                  <div className="art"><Icon path={mdiWeb} size={1.6}></Icon></div>
+                  <h4>No vaults found</h4>
+                  <p>This network has no active bridge vault yet.</p>
+                </div>
+              }
+            </InfiniteScroll>
+          }
+        </>
+      }
     </Box>
   );
 }

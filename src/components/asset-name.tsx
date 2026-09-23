@@ -7,8 +7,10 @@ import { Whitelist } from "tangentsdk/whitelist";
 import { CSSProperties } from "react";
 import Icon from "@mdi/react";
 
-export function AssetName(props: { asset?: AssetId, text?: string, size?: string, badgeSize?: number, badgeOffset?: number, symbol?: boolean, badge?: boolean, tokenOnly?: boolean, style?: CSSProperties }) {
+export function AssetName(props: { asset?: AssetId, text?: string, size?: string, weight?: string, badgeSize?: number, badgeOffset?: number, symbol?: boolean, badge?: boolean, tokenOnly?: boolean, style?: CSSProperties }) {
   const size = (props.size || '3') as any;
+  const weight = (props.weight || 'light') as any;
+
   if (!props.asset) {
     return (
       <Flex align="center" gap="1">
@@ -24,14 +26,14 @@ export function AssetName(props: { asset?: AssetId, text?: string, size?: string
       <Flex align="center" gap="1" style={props.style}>
         {
           fake &&
-          <Text as="div" size={size} weight="light">
+          <Text as="div" size={size} weight={weight}>
             { (!props.tokenOnly && props.asset.token ? props.asset.chain + ' ' : '') + UiUtil.toAssetSymbol(props.asset) }
             { props.asset.checksum ? ` (${ props.asset.checksum.substring(0, 4) })` : '' }{ props.text ? ' ' + props.text : '' }
           </Text>
         }
         {
           !fake &&
-          <Text as="div" size={size} weight="light">
+          <Text as="div" size={size} weight={weight}>
             { props.symbol ? UiUtil.toAssetSymbol(props.asset) + (!props.tokenOnly && props.asset.token ? ` (${ props.asset.chain })` : '') : Assetlist.toName(props.asset, false, props.tokenOnly) }{ props.text ? ' ' + props.text : '' }
             { contractAddress && (props.badge !== false) && <Icon path={mdiCheckDecagram} color="var(--sky-9)" size={props.badgeSize || 0.7} style={{ transform: `translateY(${props.badgeOffset || 2}px)`, paddingLeft: '2px' }}></Icon> }
           </Text>

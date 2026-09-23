@@ -1,74 +1,26 @@
-import { Badge, Box, Button, Callout, Flex, Heading, Link, Select, Text, TextArea, TextField } from "@radix-ui/themes";
-import { ReactNode, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { mdiAlertCircleOutline } from '@mdi/js';
+import { Button, Select, TextField } from "@radix-ui/themes";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { mdiAlertCircleOutline, mdiAlertOutline, mdiDownload, mdiFileDocumentOutline, mdiKeyOutline, mdiEyeOutline } from '@mdi/js';
 import { AlertBox, AlertType } from "../components/alert";
+
+import AddressAvatar from "../components/avatar";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
-import { wordlist } from '@scure/bip39/wordlists/english';
 import { SafeStorage } from "../core/storage";
 import { ByteUtil, Chain, Pubkeyhash, Signing } from "tangentsdk/algorithm";
 import { NetworkType, WalletType } from "tangentsdk/rpc";
 import { AppData } from "../core/app";
-import Typed from 'typed.js';
+import { UiUtil } from "tangentsdk/ui";
 import Icon from '@mdi/react';
 import './restore.css';
-import BorderGlow from "../components/border-glow";
 
 // @ts-ignore
 const PASSWORD_SIZE = 6;
-const COLOR_MAP = ["gray", "gold", "bronze", "brown", "yellow", "amber", "orange", "tomato", "red", "ruby", "crimson", "pink", "plum", "purple", "violet", "iris", "indigo", "blue", "cyan", "teal", "jade", "green", "grass", "lime", "mint", "sky"];
 
-function cyrb128(str: string): number[] {
-  let h1 = 1779033703, h2 = 3144134277, h3 = 1013904242, h4 = 2773480762;
-  for (let i = 0, k; i < str.length; i++) {
-      k = str.charCodeAt(i);
-      h1 = h2 ^ Math.imul(h1 ^ k, 597399067);
-      h2 = h3 ^ Math.imul(h2 ^ k, 2869860233);
-      h3 = h4 ^ Math.imul(h3 ^ k, 951274213);
-      h4 = h1 ^ Math.imul(h4 ^ k, 2716044179);
-  }
-  h1 = Math.imul(h3 ^ (h1 >>> 18), 597399067);
-  h2 = Math.imul(h4 ^ (h2 >>> 22), 2869860233);
-  h3 = Math.imul(h1 ^ (h3 >>> 17), 951274213);
-  h4 = Math.imul(h2 ^ (h4 >>> 19), 2716044179);
-  h1 ^= (h2 ^ h3 ^ h4), h2 ^= h1, h3 ^= h1, h4 ^= h1;
-  return [h1>>>0, h2>>>0, h3>>>0, h4>>>0];
-}
-
-function FancyCard(props: { children: ReactNode, mobile: boolean }) {
-  return (
-    props.mobile ? 
-    <Box className="rt-Card" style={{
-      backgroundColor: 'var(--color-panel)',
-      border: 'none',
-      borderRadius: '36px',
-      padding: '24px 16px'
-    }}>{ props.children }</Box> :
-    <BorderGlow
-      edgeSensitivity={0}
-      glowColor="40 80 80"
-      backgroundColor="#000"
-      borderRadius={36}
-      glowRadius={80}
-      glowIntensity={3}
-      coneSpread={25}
-      animated={false}
-      colors={['#c084fc', '#f472b6', '#38bdf8']}
-    >
-      <Box className="rt-Card" style={{
-        backgroundColor: 'var(--color-panel)',
-        border: 'none',
-        borderRadius: '36px',
-        padding: '24px 16px'
-      }}>{ props.children }</Box>
-    </BorderGlow>
-  )
-}
 
 export default function RestorePage() {
   const [params] = useSearchParams();
   const [passphrase, setPassphrase] = useState('');
   const [mnemonic, setMnemonic] = useState<string[]>([]);
-  const [seed, setSeed] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [activated, setActivated] = useState(false);
@@ -79,13 +31,14 @@ export default function RestorePage() {
   const options = useMemo(() => ({
     add: params.get('add')
   }), [params]);
-  const titleRef = useRef(null);
-  const contentRef = useRef(null);
+  useEffect(() => {
+    setStatus(AppData.isWalletExists() && !params.has('add') ? 'restore' : 'reset');
+  }, [params]);
   const navigate = useNavigate();
   const reportError = useCallback(() => {
     setError(true);
     setPassphrase('');
-    setTimeout(() => setError(false), 500);
+    setTimeout(() => setError(false), 2500);
   }, []);
   const importError = useMemo((): string | null => {
     switch (importType) {
@@ -157,12 +110,36 @@ export default function RestorePage() {
         return null;
     }
   }, [importType, importCandidate, networkType]);
-  const wordsList = useMemo(() => {
-    let result = [];
-    for (let i = 0; i < 4; i++)
-      result.push(wordlist[Math.floor(Math.random() * wordlist.length) % wordlist.length]);
-    return result;
-  }, [importType]);
+  const phraseWords = useMemo((): string[] => {
+    const words = importCandidate.split(/ +/);
+    return Array.from({ length: 24 }, (_, i) => words[i] || '');
+  }, [importCandidate]);
+  const setWord = useCallback((index: number, raw: string) => {
+    const tokens = raw.toLowerCase().split(/[^a-z]+/).filter(Boolean);
+    const next = phraseWords.slice();
+    if (tokens.length > 1) {
+      for (let k = 0; k < tokens.length && index + k < 24; k++)
+        next[index + k] = tokens[k];
+    } else
+      next[index] = tokens[0] || '';
+    setImportCandidate(next.join(' '));
+  }, [phraseWords]);
+  const unlockButton = useRef<HTMLButtonElement>(null);
+  const wordCells = useRef<Array<HTMLInputElement | null>>([]);
+  const advanceWord = useCallback((index: number, e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key != 'Enter' || e.nativeEvent.isComposing)
+      return;
+
+    e.preventDefault();
+    if (!Signing.verifyMnemonicWord(phraseWords[index]))
+      return;
+
+    const next = wordCells.current[index + 1];
+    if (next)
+      next.focus();
+    else
+      e.currentTarget.blur();
+  }, [phraseWords]);
   const exitPrompt = useCallback(() => {
     try {
       const to = decodeURIComponent(params.get('to') || '');
@@ -205,7 +182,6 @@ export default function RestorePage() {
         if (candidate.length != 24) {
           let rng: string = Signing.mnemonicgen();
           candidate = rng.split(' ');
-          setSeed(cyrb128(rng)[0]);
           setMnemonic(candidate);
         }
 
@@ -254,266 +230,232 @@ export default function RestorePage() {
   }, [networkType]);
   useEffect(() => {
     setActivated(true);
-    if (!titleRef.current)
-      return;
-
-    const typed = new Typed(titleRef.current, {
-      strings: ['Tangent Cash', 'Tangent DEX', 'Tangent App'],
-      typeSpeed: 100,
-      backSpeed: 30,
-      smartBackspace: false,
-      onComplete: (self: Typed) => {
-        setTimeout(() => {
-          self.cursor.style.transition = 'opacity 0.5s linear';
-          self.cursor.style.opacity = '0';
-        }, 300);
-      }
-    });
-    return () => typed.destroy()
   }, []);
-  
-  const mobile = document.body.clientWidth < 500;
+
   if (!activated && !options.add && AppData.isWalletReady()) {
     return <Navigate replace={true} to="/" state={{ from: `${location.pathname}${location.search}` }} />;
   }
 
-  return (
-    <Flex justify="center" align="center" height="calc(100dvh - 96px)" key={status} ref={contentRef}>
-      <Box maxWidth="600px" width="100%" mx="auto" px="4">
-        {
-          status == 'restore' &&
-          <Box mx="auto" style={{ maxWidth: 400, width: '100%' }}>
-            <FancyCard mobile={mobile}>
-              <Heading as="h3" size={mobile ? '7' : '8'} align="center" mb="5">
-              <Text ref={titleRef}>Tangent Wallet</Text>
-              </Heading>
-              <form action="">
-                <Box mb="6" position="relative">
-                  <TextField.Root id="card-password-field" type="password" placeholder="Enter your password" autoComplete="current-password" size="3" value={passphrase} onChange={(e) => { setPassphrase(e.target.value); }}/>
-                  <Flex justify="center" mt="2" px="2">
-                    <Text>
-                      <Text size="1" weight="light" color="gray">Encrypted.</Text>
-                      <Link size="1" color="red" ml="1" onClick={() => resetWallet(false)}>Reset wallet.</Link>
-                    </Text>
-                  </Flex>
-                </Box>
-                <Flex mt="4" justify="start" align="center" direction="column" gap="3">
-                  <Button size="3" variant="surface" type="submit" loading={loading} style={{ paddingLeft: '24px', paddingRight: '24px', transition: 'all 0.1s linear' }} disabled={passphrase.length < PASSWORD_SIZE} color={error ? 'red' : undefined} className={error ? 'shadow-rainbow-hover animation-horizontal-shake' : (passphrase.length < PASSWORD_SIZE ? 'shadow-rainbow-hover' :  'shadow-rainbow-animation')} onClick={(e) => { e.preventDefault(); restoreWallet(); }}>Unlock wallet</Button>
-                </Flex>
-              </form>
-            </FancyCard>
-          </Box>
-        }
-        {
-          status == 'reset' &&
-          <Box mx="auto" style={{ maxWidth: 400, width: '100%' }}>
-            <FancyCard mobile={mobile}>
-              <Heading as="h3" size={mobile ? '7' : '8'} align="center" mb="5">
-                <Text ref={titleRef}>Tangent Wallet</Text>
-              </Heading>
-              <form action="">
-                <Box mb="5" position="relative">
-                  {
-                    options.add &&
-                    <TextField.Root id="card-password-field" type="password" placeholder="Enter your password" autoComplete="current-password" size="3" value={passphrase} onChange={(e) => { setPassphrase(e.target.value); }}/>
-                  }
-                  {
-                    !options.add &&
-                    <TextField.Root id="card-password-field" type="password" placeholder="Come up with a password" autoComplete="new-password" size="3" value={passphrase} onChange={(e) => { setPassphrase(e.target.value); }} />
-                  }
-                  {
-                    AppData.isWalletExists() &&
-                    <Flex justify="center" mt="2" px="2">
-                      <Text>
-                        <Text size="1" weight="light" color="gray">Do not forget.</Text>
-                        <Link size="1" ml="1" color="red" onClick={tryRestoreWallet}>Restore wallet.</Link>
-                      </Text>
-                    </Flex>
-                  }
-                  {
-                    !AppData.isWalletExists() &&
-                    <Flex justify="center" mt="2" px="2">
-                      <Text>
-                        <Text size="1" weight="light" color="gray">Do not forget.</Text>
-                        <Link size="1" ml="1" style={{ color: 'var(--accent-11)' }} onClick={importWallet}>{ importError ? 'Import wallet.' : 'Change wallet.' }</Link>
-                      </Text>
-                    </Flex>
-                  }
-                </Box>
-                <Flex mt="4" justify="start" align="center" direction="column" gap="3">
-                  <Button size="3" variant="surface" type="submit" loading={loading} style={{ paddingLeft: '24px', paddingRight: '24px' }} disabled={passphrase.length < PASSWORD_SIZE} className={error ? 'shadow-rainbow-hover animation-horizontal-shake' : (passphrase.length < PASSWORD_SIZE ? 'shadow-rainbow-hover' :  'shadow-rainbow-animation')} onClick={(e) => { e.preventDefault(); createWallet(); }}>{ importError ? 'Create wallet' : 'Import wallet' }</Button>
-                  { AppData.isWalletExists() && <Link size="1" ml="1" color="gray" onClick={importWallet}>{ importError ? 'Import wallet' : 'Change wallet' }</Link> }
-                </Flex>
-              </form>
-            </FancyCard>
-          </Box>
-        }
-        {
-          status == 'import' &&
-          <Box mx="auto" style={{ maxWidth: 600, width: '100%' }}>
-            <FancyCard mobile={mobile}>
-              <Flex justify="between" align="center" mb="4">
-                <Heading as="h3" size={mobile ? '4' : '7'}>Import</Heading>
-                <Select.Root size={mobile ? '2' : '3'} value={importType} onValueChange={async (value) => {
-                    if (value == 'auto') {
-                      const file = await AppData.openFile('application/json');
-                      try {
-                        if (!file)
-                          throw 'not a json file';
+  const lockedAddress = AppData.getWalletAddress();
+  const networkPill =
+    <div style={{ display: 'flex', justifyContent: 'center', marginTop: 16 }}>
+      <Select.Root value={networkType} onValueChange={(value) => setNetworkType(value as NetworkType)}>
+        <Select.Trigger className="network-pill">
+          <span className="rp-dot"></span>
+          { networkType == 'mainnet' ? 'Mainnet' : networkType == 'testnet' ? 'Testnet' : 'Regtest' }
+        </Select.Trigger>
+        <Select.Content>
+          <Select.Group>
+            <Select.Label>Network</Select.Label>
+            <Select.Item value="regtest">Regtest<span className="tiny dim" style={{ marginLeft: 'auto' }}>local node</span></Select.Item>
+            <Select.Item value="testnet" disabled>Testnet<span className="tiny dim" style={{ marginLeft: 'auto' }}>public peers</span></Select.Item>
+            <Select.Item value="mainnet">Mainnet<span className="badge warn" style={{ marginLeft: 'auto' }}>LIVE</span></Select.Item>
+          </Select.Group>
+        </Select.Content>
+      </Select.Root>
+    </div>;
 
-                        let wallet;
-                        try {
-                          wallet = JSON.parse(ByteUtil.uint8ArrayToByteString(file));
-                        } catch {
-                          wallet = JSON.parse(ByteUtil.uint8ArrayToUtf8String(file));
-                        }
-                        if (typeof wallet.mnemonic == 'string') {
-                          setImportType(WalletType.Mnemonic);
-                          setImportCandidate(wallet.mnemonic);
-                        } else if (typeof wallet.secret_key == 'string') {
-                          setImportType(WalletType.SecretKey);
-                          setImportCandidate(wallet.secret_key);
-                        } else if (typeof wallet.public_key == 'string') {
-                          setImportType(WalletType.PublicKey);
-                          setImportCandidate(wallet.public_key);
-                        } else if (typeof wallet.public_key_hash == 'string') {
-                          setImportType(WalletType.Address);
-                          setImportCandidate(Signing.encodeAddress(new Pubkeyhash(wallet.public_key_hash)) || '');
-                        } else if (typeof wallet.address == 'string') {
-                          setImportType(WalletType.Address);
-                          setImportCandidate(wallet.address);
-                        }
-                      } catch (e: any) {
-                        AlertBox.open(AlertType.Error, 'Bad wallet file: ' + e.toString());
+  return (
+    <div className="restore-wrap" key={status}>
+      {
+        status == 'restore' &&
+        <div className="restore-hero">
+          <div className="brand-tile" style={ lockedAddress ? { background: 'transparent', overflow: 'hidden' } : undefined }>{ lockedAddress ? <AddressAvatar address={lockedAddress} size="1" style={{ width: '100%', height: '100%', borderRadius: 22 }}></AddressAvatar> : 'T' }</div>
+          <div className="page-title" style={{ fontSize: 30 }}>Welcome back</div>
+          <div className="page-sub">{ lockedAddress ? `Unlock to manage ${UiUtil.toAddress(lockedAddress, 6)}` : 'Unlock to manage your wallet' }</div>
+          <div className="card" style={{ marginTop: 26, width: '100%', maxWidth: 400 }}>
+            <div className="field" style={{ marginBottom: error ? 12 : 14 }}>
+              <span className="field-label" style={error ? { color: 'var(--down)' } : undefined}>Password</span>
+              <TextField.Root id="card-password-field" className="restore-input" type="password" placeholder="Enter your password" autoComplete="current-password" enterKeyHint="go" value={passphrase} onChange={(e) => { setError(false); setPassphrase(e.target.value); }} onKeyDown={(e) => { if (e.key == 'Enter' && !e.nativeEvent.isComposing) { e.preventDefault(); unlockButton.current?.click(); } }} />
+            </div>
+            {
+              error &&
+              <div className="callout err" style={{ marginBottom: 14 }}>
+                <Icon path={mdiAlertCircleOutline} size={1} />
+                <span>Couldn't unlock this wallet.</span>
+              </div>
+            }
+            <Button ref={unlockButton} className={'btn-brand btn-block' + (error ? ' animation-horizontal-shake' : '')} disabled={passphrase.length < PASSWORD_SIZE || loading} onClick={(e) => { e.preventDefault(); restoreWallet(); }}>
+              { loading ? 'Unlocking…' : 'Unlock wallet' }
+            </Button>
+            { networkPill }
+          </div>
+          <div style={{ marginTop: 26 }}>
+            <Button className="btn-soft btn-sm" onClick={() => navigate('/restore?add=true')}>Add or import a wallet</Button>
+          </div>
+        </div>
+      }
+      {
+        status == 'reset' &&
+        <div className="restore-hero">
+          {
+            !AppData.isWalletExists() &&
+            <>
+              <div className="page-title" style={{ fontSize: 26, whiteSpace: 'nowrap' }}>Your keys, your tangent</div>
+              <div className="page-sub" style={{ marginTop: 8 }}>Non-custodial. No email, no servers.</div>
+            </>
+          }
+          {
+            AppData.isWalletExists() &&
+            <>
+              <div className="page-title" style={{ fontSize: 26 }}>Add a wallet</div>
+              <div className="page-sub" style={{ marginTop: 8 }}>A new wallet will be added on this device.</div>
+            </>
+          }
+          <div className="card" style={{ marginTop: 26, width: '100%', maxWidth: 400 }}>
+            <div className="field" style={{ marginBottom: 14 }}>
+              <span className="field-label">{ options.add ? 'Confirm your password' : 'Choose a password' }</span>
+              <TextField.Root id="card-password-field" className="restore-input" type="password" placeholder={options.add ? 'Enter your password' : 'At least 6 characters'} autoComplete="new-password" value={passphrase} onChange={(e) => { setError(false); setPassphrase(e.target.value); }} />
+              <span className="tiny dim" style={{ display: 'block', marginTop: 8 }}>Do not forget it — the password itself cannot be recovered.</span>
+            </div>
+            <Button className={'btn-brand btn-block' + (error ? ' animation-horizontal-shake' : '')} disabled={passphrase.length < PASSWORD_SIZE || loading} onClick={(e) => { e.preventDefault(); createWallet(); }}>
+              { !importError && importCandidate.length > 0 ? 'Open wallet' : 'Create new wallet' }
+            </Button>
+            {
+              AppData.isWalletExists() &&
+              <div className="tiny dim" style={{ textAlign: 'center', marginTop: 14 }}>
+                Locked the wrong wallet? <span className="watch-link" onClick={tryRestoreWallet}>Unlock the existing one →</span>
+              </div>
+            }
+            { networkPill }
+          </div>
+          <div className="tiny dim" style={{ textAlign: 'center', marginTop: 18 }}>
+            Already have a wallet? <span className="watch-link" onClick={importWallet}>Import wallet →</span>
+          </div>
+        </div>
+      }
+      {
+        status == 'import' &&
+        <div className="restore-col">
+          <div className="page-head" style={{ width: '100%', maxWidth: 480, marginBottom: 14 }}>
+              <Select.Root value={importType} onValueChange={async (value) => {
+                  if (value == 'auto') {
+                    const file = await AppData.openFile('application/json');
+                    try {
+                      if (!file)
+                        throw 'not a json file';
+
+                      let wallet;
+                      try {
+                        wallet = JSON.parse(ByteUtil.uint8ArrayToByteString(file));
+                      } catch {
+                        wallet = JSON.parse(ByteUtil.uint8ArrayToUtf8String(file));
                       }
-                    } else {
-                      setImportType(value as WalletType);
-                      setImportCandidate('')
+                      if (typeof wallet.mnemonic == 'string') {
+                        setImportType(WalletType.Mnemonic);
+                        setImportCandidate(wallet.mnemonic);
+                      } else if (typeof wallet.secret_key == 'string') {
+                        setImportType(WalletType.SecretKey);
+                        setImportCandidate(wallet.secret_key);
+                      } else if (typeof wallet.public_key == 'string') {
+                        setImportType(WalletType.PublicKey);
+                        setImportCandidate(wallet.public_key);
+                      } else if (typeof wallet.public_key_hash == 'string') {
+                        setImportType(WalletType.Address);
+                        setImportCandidate(Signing.encodeAddress(new Pubkeyhash(wallet.public_key_hash)) || '');
+                      } else if (typeof wallet.address == 'string') {
+                        setImportType(WalletType.Address);
+                        setImportCandidate(wallet.address);
+                      }
+                    } catch (e: any) {
+                      AlertBox.open(AlertType.Error, 'Bad wallet file: ' + e.toString());
                     }
-                  }}>
-                  <Select.Trigger variant="soft" color="gray" />
-                  <Select.Content>
-                    <Select.Group>
-                      <Select.Label>Import type</Select.Label>
-                      <Select.Item value="auto">
-                        <Text>Wallet file</Text>
-                      </Select.Item>
-                      <Select.Item value="mnemonic">
-                        <Text>Recovery phrase</Text>
-                      </Select.Item>
-                      <Select.Item value="secretkey">
-                        <Text>Private key</Text>
-                      </Select.Item>
-                      <Select.Item value="publickey">
-                        <Text>Public key</Text>
-                      </Select.Item>
-                      <Select.Item value="address">
-                        <Text>Address</Text>
-                      </Select.Item>
-                    </Select.Group>
-                  </Select.Content>
-                </Select.Root>
-              </Flex>
-              {
-                importType == WalletType.Mnemonic &&
-                <>
-                  <TextArea resize="vertical" variant="classic" size="3" style={{ minHeight: 150 }} placeholder={ wordsList.join(' ') + ' ... and 20 other words' } value={importCandidate} onChange={(e) => setImportCandidate(e.target.value)} />
-                  <Flex justify="center" mt="2" px="2">
-                    <Text>
-                      <Text size="1" weight="light" color={importCandidate && importError ? 'red' : 'gray'}>{importCandidate && importError ? importError : 'Recovery phrase is a secret for wallet recovery' }.</Text>
-                      <Link size="1" style={{ color: 'var(--accent-11)' }} ml="1" onClick={() => resetWallet(false)}>Create wallet.</Link>
-                    </Text>
-                  </Flex>
-                </>
-              }
-              {
-                importType == WalletType.SecretKey &&
-                <>
-                  <TextField.Root type="text" placeholder={Chain[networkType].SECKEY_PREFIX + ' ...'} size="3" value={importCandidate} onChange={(e) => { setImportCandidate(e.target.value); }} />
-                  <Flex justify="center" mt="2" px="2">
-                    <Text>
-                      <Text size="1" weight="light" color={importCandidate && importError ? 'red' : 'gray'}>{importCandidate && importError ? importError : 'Private key is your wallet' }.</Text>
-                      <Link size="1" style={{ color: 'var(--accent-11)' }} ml="1" onClick={() => resetWallet(false)}>Create wallet.</Link>
-                    </Text>
-                  </Flex>
-                </>
-              }
-              {
-                importType == WalletType.PublicKey &&
-                <>
-                  <TextField.Root type="text" placeholder={Chain[networkType].PUBKEY_PREFIX + ' ...'} size="3" value={importCandidate} onChange={(e) => { setImportCandidate(e.target.value); }} />
-                  <Flex justify="center" mt="2" px="2">
-                    <Text>
-                      <Text size="1" weight="light" color={importCandidate && importError ? 'red' : 'gray'}>{importCandidate && importError ? importError : 'Public key unlocks watch-only wallet' }.</Text>
-                      <Link size="1" style={{ color: 'var(--accent-11)' }} ml="1" onClick={() => resetWallet(false)}>Create wallet.</Link>
-                    </Text>
-                  </Flex>
-                </>
-              }
-              {
-                importType == WalletType.Address &&
-                <>
-                  <TextField.Root type="text" placeholder={Chain[networkType].ADDRESS_PREFIX + ' ...'} size="3" value={importCandidate} onChange={(e) => { setImportCandidate(e.target.value); }} />
-                  <Flex justify="center" mt="2" px="2">
-                    <Text>
-                      <Text size="1" weight="light" color={importCandidate && importError ? 'red' : 'gray'}>{importCandidate && importError ? importError : 'Address unlocks watch-only wallet' }.</Text>
-                      <Link size="1" style={{ color: 'var(--accent-11)' }} ml="1" onClick={() => resetWallet(false)}>Create wallet.</Link>
-                    </Text>
-                  </Flex>
-                </>
-              }
-              <Flex mt="6" justify="start" align="center" direction="column" gap="3">
-                <Button size="3" variant="surface" loading={loading} disabled={ error || !!importError } style={{ paddingLeft: '24px', paddingRight: '24px' }} className={ importError ? 'shadow-rainbow-hover' : 'shadow-rainbow-animation' } onClick={() => resetWallet(true)}>Setup a password</Button>
-              </Flex>
-            </FancyCard>
-          </Box>
-        }
-        {
-          status == 'mnemonic' &&
-          <Box mx="auto" style={{ width: '100%' }}>
-            <FancyCard mobile={mobile}>
-              <Heading as="h3" size={mobile ? '4' : '7'} align="center" mb="3">Remember your recovery phrase</Heading>
-              <Callout.Root mb="5" size="1" color="red" variant="surface">
-                <Callout.Icon>
-                  <Icon path={mdiAlertCircleOutline} size={1} />
-                </Callout.Icon>
-                <Callout.Text>
-                  This list of words is your only way to restore the wallet on this device if password is lost or on any other device when you want to move your wallet.
-                </Callout.Text>
-              </Callout.Root>
-              <Flex gap="2" wrap="wrap" justify="between" minHeight="120px">
-                { 
-                  // @ts-ignore
-                  mnemonic.map((word, index) => <Badge color={COLOR_MAP[(seed + index) % COLOR_MAP.length]} size="2" key={word + index.toString()}>{ word }</Badge>)
+                  } else {
+                    setImportType(value as WalletType);
+                    setImportCandidate('')
+                  }
+                }}>
+                <Select.Trigger className="import-source" />
+                <Select.Content>
+                  <Select.Group>
+                    <Select.Label>Import source</Select.Label>
+                    <Select.Item value="auto"><Icon path={mdiFileDocumentOutline} size={0.85}></Icon>Wallet file</Select.Item>
+                    <Select.Item value="mnemonic"><Icon path={mdiDownload} size={0.85}></Icon>Recovery phrase<span className="tiny dim" style={{ marginLeft: 'auto' }}>24 words</span></Select.Item>
+                    <Select.Item value="secretkey"><Icon path={mdiKeyOutline} size={0.85}></Icon>Private key</Select.Item>
+                    <Select.Item value="publickey"><Icon path={mdiKeyOutline} size={0.85}></Icon>Public key</Select.Item>
+                    <Select.Item value="address"><Icon path={mdiEyeOutline} size={0.85}></Icon>Watch-only address</Select.Item>
+                  </Select.Group>
+                </Select.Content>
+              </Select.Root>
+          </div>
+          <div className="card" style={{ width: '100%', maxWidth: 480 }}>
+            {
+              importType == WalletType.Mnemonic &&
+              <>
+                <div className="phrase-grid">
+                  {
+                    Array.from({ length: 24 }, (_, i) =>
+                      <input key={'phrase_word_' + i} type="text" autoComplete="off" autoCapitalize="none" spellCheck={false}
+                        ref={(el) => { wordCells.current[i] = el; }} enterKeyHint={i < 23 ? 'next' : 'done'}
+                        className={'word-cell' + (phraseWords[i].length > 0 && !Signing.verifyMnemonicWord(phraseWords[i]) ? ' bad' : '')}
+                        placeholder={String(i + 1)} value={phraseWords[i]} onChange={(e) => setWord(i, e.target.value)} onKeyDown={(e) => advanceWord(i, e)} />
+                    )
+                  }
+                </div>
+                {
+                  importError && !phraseWords.some((w) => w.length == 0) &&
+                  <div className="callout err" style={{ marginTop: 12 }}>
+                    <Icon path={mdiAlertCircleOutline} size={1} />
+                    <span>{ importError }</span>
+                  </div>
                 }
-              </Flex>
-              <Flex mt="6" justify="start" align="center" direction="column" gap="3">
-                <Button size="3" variant="surface" loading={loading} style={{ paddingLeft: '24px', paddingRight: '24px' }} className="shadow-rainbow-animation" onClick={() => exitPrompt()}>Recovery phrase secured</Button>
-                <Button size="2" variant="ghost" disabled={loading} onClick={copyMnemonic}>Copy recovery phrase</Button>
-              </Flex>
-            </FancyCard>
-          </Box>
-        }
-        <Flex px="2" justify="center">
-          <Select.Root value={networkType} size="2" onValueChange={(value) => setNetworkType(value as NetworkType)}>
-            <Select.Trigger mt="4" variant="ghost" color="gray" />
-            <Select.Content color="gray">
-              <Select.Group>
-                <Select.Label>Network</Select.Label>
-                <Select.Item value="mainnet">
-                  <Text style={{ color: 'var(--gray-11)' }}>Mainnet</Text>
-                </Select.Item>
-                <Select.Item value="testnet" disabled>
-                  <Text style={{ color: 'var(--gray-5)' }}>Testnet</Text>
-                </Select.Item>
-                <Select.Item value="regtest">
-                  <Text color="red">Regtest</Text>
-                </Select.Item>
-              </Select.Group>
-            </Select.Content>
-          </Select.Root>
-        </Flex>
-      </Box>
-    </Flex>
+                <div className="tiny dim" style={{ marginTop: 12, textAlign: 'center' }}>Paste the whole phrase at once — words fill in automatically.</div>
+              </>
+            }
+            {
+              importType != WalletType.Mnemonic &&
+              <>
+                <TextField.Root className="restore-input mono-input" type="text" placeholder={ importType == WalletType.SecretKey ? Chain[networkType].SECKEY_PREFIX + ' …' : importType == WalletType.PublicKey ? Chain[networkType].PUBKEY_PREFIX + ' …' : Chain[networkType].ADDRESS_PREFIX + ' …' } value={importCandidate} onChange={(e) => { setImportCandidate(e.target.value); }} />
+                {
+                  importCandidate && importError &&
+                  <div className="callout err" style={{ marginTop: 12 }}>
+                    <Icon path={mdiAlertCircleOutline} size={1} />
+                    <span>{ importError }</span>
+                  </div>
+                }
+                {
+                  !importCandidate &&
+                  <div className="tiny dim" style={{ marginTop: 10, textAlign: 'center' }}>{ importType == WalletType.SecretKey ? 'A private key imports a full signing wallet.' : importType == WalletType.PublicKey ? 'A public key tracks a watch-only wallet.' : 'You will see balances and history, but cannot sign.' }</div>
+                }
+              </>
+            }
+            <Button className="btn-brand btn-block" style={{ marginTop: 14 }} disabled={error || !!importError || !importCandidate} onClick={() => resetWallet(true)}>Import wallet</Button>
+          </div>
+          {
+            importType == WalletType.Mnemonic &&
+            <div className="callout" style={{ width: '100%', maxWidth: 480, marginTop: 14 }}>
+              <Icon path={mdiAlertCircleOutline} size={1} />
+              <span>Words are checked against the wordlist as you type. Unknown words are flagged before any chain contact.</span>
+            </div>
+          }
+          <div className="tiny dim" style={{ textAlign: 'center', marginTop: 18 }}>
+            Changed your mind? <span className="watch-link" onClick={() => resetWallet(false)}>Create a new wallet instead →</span>
+          </div>
+        </div>
+      }
+      {
+        status == 'mnemonic' &&
+        <div className="restore-col">
+          <div className="callout warn" style={{ width: '100%', maxWidth: 480, marginBottom: 14 }}>
+            <Icon path={mdiAlertOutline} size={1} />
+            <span>This phrase is the only way to restore the wallet on any device. Save it offline — anyone with these words controls the funds.</span>
+          </div>
+          <div className="card" style={{ width: '100%', maxWidth: 480 }}>
+            <div className="card-title">Your recovery phrase</div>
+            <div className="phrase-grid">
+              {
+                mnemonic.map((word, index) =>
+                  <span className="pv-cell" key={word + index}><i>{ index + 1 }</i>{ word }</span>
+                )
+              }
+            </div>
+            <Button className="btn-brand btn-block" style={{ marginTop: 18 }} disabled={loading} onClick={() => exitPrompt()}>Finish setup</Button>
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: 10 }}>
+              <Button className="btn-soft btn-sm" disabled={loading} onClick={copyMnemonic}>Copy phrase</Button>
+            </div>
+          </div>
+        </div>
+      }
+    </div>
   );
 }

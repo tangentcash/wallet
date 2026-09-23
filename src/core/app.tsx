@@ -654,8 +654,10 @@ export class AppData {
       this.props.validator = config.validatorUrl;
     if (mustReset || !this.props.exchange)
       this.props.exchange = config.exchangeUrl;
-    if (resetNetwork)
+    if (resetNetwork) {
       RPC.clearCache();
+      RPC.disconnectSocket();
+    }
     RPC.applyValidator(this.props.validator);
   }
   static async openDevTools(): Promise<void> {
@@ -726,6 +728,7 @@ export class AppData {
   static setAppearance(value: 'dark' | 'light'): void {
     this.props.appearance = value;
     this.save();
+    this.setState();
   }
   static setState(): void {
     if (this.state.setState != null)
@@ -788,7 +791,7 @@ export function App() {
 
   return (
     <Theme appearance={AppData.props.appearance} accentColor="lime" radius="full" id={state.toString()}>
-      <Box minHeight="100vh" minWidth="285px" style={{ paddingBottom: '192px' }}>
+      <Box minHeight="100vh" minWidth="285px" className="app-shell" id="tg-app-shell">
         <BrowserRouter>
           <Routes>
             <Route path="/" element={AppData.isWalletExists() ? <AccountPage /> : (AppData.isApp() ? <RestorePage /> : <HypePage />)} />

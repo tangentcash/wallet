@@ -1,4 +1,3 @@
-import { Box, Button, Flex, Text, Tooltip } from "@radix-ui/themes";
 import { mdiContactlessPaymentCircleOutline, mdiDotsCircle, mdiRulerSquareCompass, mdiSquareRoundedBadgeOutline } from "@mdi/js";
 import { useLocation, useNavigate } from "react-router";
 import { AppData } from "../core/app";
@@ -62,42 +61,25 @@ export function Navbar() {
 
   AppData.state.setNavigation = navigate;
   return (
-    <Box position="fixed" bottom="0" left="0" right="0" style={{ zIndex: 10000 }}>
-      <Flex justify="center">
-        <Box maxWidth="640px" pb="4">
-          <Box className="rt-Card" style={{
-            display: 'inline-block',
-            backgroundColor: 'var(--color-panel)',
-            border: '1px solid var(--gray-6)',
-            borderRadius: "100px",
-            filter: "saturate(0.7) brightness(1.1)",
-            WebkitBackdropFilter: "blur(24px)",
-            backdropFilter: "blur(24px)",
-            padding: '6px 8px'
-          }}>
-            <Flex gap="1">
-              {
-                routes.map((item) =>
-                  <Box key={typeof item.path == 'string' ? item.path : item.path[0]}>
-                    <Tooltip content={item.tip}>
-                      <Button size="3" variant="outline" style={{ boxShadow: item.inner ? undefined : 'none', backgroundColor: item.selected && !item.inner ? 'var(--accent-a3)' : undefined, height: 'auto' }} disabled={item.disabled ? item.disabled(location.pathname) : false} onClick={() => {
-                        if (!item.selected || item.inner) {
-                          navigate(typeof item.path == 'string' ? item.path : item.path[0]);
-                        }
-                      }}>
-                        <Flex direction="column" align="center" py="2" px="1">
-                          <Icon path={item.icon} size={1} />
-                          <Text size="1">{item.name}</Text>
-                        </Flex>
-                      </Button>
-                    </Tooltip>
-                  </Box>
-                )
+    <nav className="tabbar" role="navigation">
+      {
+        routes.map((item) =>
+          <button
+            key={typeof item.path == 'string' ? item.path : item.path[0]}
+            className={ [ item.name == 'Dex' ? 'dex-mode' : '', item.selected ? 'active' : '', item.inner ? 'inner' : '' ].filter(Boolean).join(' ') }
+            title={ item.selected && item.inner ? 'Back to ' + item.name : item.tip }
+            disabled={item.disabled ? item.disabled(location.pathname) : false}
+            onClick={() => {
+              if (!item.selected || item.inner) {
+                navigate(typeof item.path == 'string' ? item.path : item.path[0]);
               }
-            </Flex>
-          </Box>
-        </Box>
-      </Flex>
-    </Box>
+            }}
+          >
+            <Icon path={item.icon} size={1} />
+            <span>{item.name}</span>
+          </button>
+        )
+      }
+    </nav>
   );
 }

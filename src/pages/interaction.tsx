@@ -1,5 +1,5 @@
-import { mdiAlertCircleOutline, mdiCodeJson, mdiMinus, mdiPlus, mdiProfessionalHexagon, mdiShovel, mdiTimelapse } from "@mdi/js";
-import { Box, Button, Callout, Checkbox, DropdownMenu, Flex, Heading, IconButton, Progress, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { mdiAlertCircleOutline, mdiArrowLeft, mdiCheckBold, mdiCodeJson, mdiMinus, mdiOpenInNew, mdiPlus, mdiProfessionalHexagon, mdiShovel, mdiTimelapse } from "@mdi/js";
+import { Box, Button, Callout, Checkbox, DropdownMenu, Flex, Heading, IconButton, Progress, SegmentedControl, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
@@ -12,6 +12,7 @@ import { Assetlist } from "tangentsdk/assetlist";
 import { Ledger, Transactions } from "tangentsdk/schema";
 import { TextUtil } from "tangentsdk/text";
 import { AppData } from "../core/app";
+import { AppStorage, StorageField } from "../core/storage";
 import { AssetImage } from "../components/asset-image";
 import { AssetName } from "../components/asset-name";
 import { TransactionView } from "../components/transaction";
@@ -141,7 +142,6 @@ function toSimpleTransaction(input: any): Record<string, any> {
 export default function InteractionPage() {
   const location = useLocation();
   const ownerAddress = AppData.getWalletAddress() || '';
-  const mobile = document.body.clientWidth <= 800;
   const [query] = useSearchParams();
   const [assets, setAssets] = useState<any[]>([]);
   const [asset, setAsset] = useState(-1);
@@ -157,6 +157,7 @@ export default function InteractionPage() {
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
   const [program, setProgram] = useState<ProgramTransfer | ProgramSetup | ProgramRoute | ProgramWithdraw | ProgramAnticast | ApproveTransaction | null>(null);
   const [powProgress, setPowProgress] = useState<number | null>(null);
+  const [sent, setSent] = useState<{ hash: string } | null>(null);
   const navigate = useNavigate();
   const params = useMemo(() => ({
     type: query.get('type'),
@@ -210,22 +211,6 @@ export default function InteractionPage() {
 
     return false;
   }, [asset, program]);
-  const transactionType = useMemo((): string => {
-    if (program instanceof ProgramTransfer) {
-      return program.to.length > 1 ? 'Send to many' : 'Send to one';
-    } else if (program instanceof ProgramSetup) {
-      return 'Validator setup';
-    } else if (program instanceof ProgramRoute) {
-        return 'Claim your address';
-    } else if (program instanceof ProgramWithdraw) {
-      return 'Send to your address';
-    } else if (program instanceof ProgramAnticast) {
-        return 'Reconcile relay';
-    } else if (program instanceof ApproveTransaction) {
-      return 'Approve action';
-    }
-    return 'Bad program';
-  }, [program]);
   const sendingValue = useMemo((): BigNumber => {
     if (program instanceof ProgramTransfer) {
       return program.to.reduce((value, next) => {
@@ -492,6 +477,7 @@ export default function InteractionPage() {
       return null;
     }
   }, [programError, paidGas, gasPrice, gasLimit, gasAsset, maxFeeValue, sendingValue]);
+  const gasReviewHint = transactionError == '"Review action" to set gas price/limit';
   const readOnlyApproval = useMemo((): boolean => {
     return program != null && program instanceof ApproveTransaction && params.transaction != null;
   }, [program]);
@@ -735,7 +721,7 @@ export default function InteractionPage() {
     try {
       const hash = await RPC.submitTransaction(output.data);
       if (hash != null) {
-        AlertBox.open(AlertType.Info, 'Transaction ' + hash + ' sent!');
+        setSent({ hash: hash });
         AppData.mayResetBuilder = true;
         if (AppData.approveTransaction) {
           AppData.approveTransaction({ hash: new Uint256(hash), message: ByteUtil.hexStringToUint8Array(output.data), signature: output.body.signature });
@@ -747,7 +733,8 @@ export default function InteractionPage() {
         setGasPrice('');
         setGasLimit('');
         setTransactionData(null);
-        navigate(params.back ? params.back : '/');
+        if (params.back || AppData.approveTransaction)
+          navigate(params.back ? params.back : '/');
       } else {
         AlertBox.open(AlertType.Error, 'Failed to send transaction!');
       }  
@@ -789,6 +776,12 @@ export default function InteractionPage() {
       return;
     
     let filter: string | null = null;
+    setSimulation(null);
+    setSimulationError('');
+    setNonce(null);
+    setGasPrice('');
+    setGasLimit('');
+    setTransactionData(null);
     switch (params.type) {
       case 'transfer':
       default: {
@@ -882,44 +875,75 @@ export default function InteractionPage() {
     return <Navigate replace={true} to={`/restore?to=${encodeURIComponent(location.pathname + location.search)}`} state={{ from: `${location.pathname}${location.search}` }} />;
   }
 
-  return (
-    <Box px="4" pt="4" mx="auto" maxWidth="640px">
-      <Heading>{ transactionType }</Heading>
-      <Box width="100%" mt="3" mb="4">
-        <Box style={{ border: '1px dashed var(--gray-8)' }}></Box>
+  if (sent != null) {
+    const sentSymbol = asset != -1 ? UiUtil.toAssetSymbol(assets[asset].asset) : 'TAN';
+    const sentTo = program instanceof ProgramTransfer ? (program.to[0]?.address || '') : program instanceof ProgramWithdraw ? program.address : '';
+    return (
+      <Box pt="4" mx="auto" maxWidth="640px">
+        <div style={{ textAlign: 'center', padding: '26px 0 10px' }}>
+          <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--lime-solid)', color: 'var(--ink)', display: 'grid', placeItems: 'center', margin: '0 auto 18px' }}>
+            <Icon path={mdiCheckBold} size={2}></Icon>
+          </div>
+          {
+            sendingValue.gt(0) &&
+            <div className="hero-num" style={{ fontSize: 36 }}>{ sendingValue.toString() } <span style={{ fontSize: '0.5em', color: 'var(--text-2)' }}>{ sentSymbol }</span></div>
+          }
+          {
+            sentTo != '' &&
+            <div className="page-sub">sent to <span className="mono">{ UiUtil.toAddress(sentTo, 8) }</span></div>
+          }
+        </div>
+        <div className="card" style={{ marginTop: 18 }}>
+          <div className="dl">
+            <div className="dl-row"><span className="dl-k">Status</span><span className="dl-v"><span className="badge warn">IN MEMPOOL</span></span></div>
+            <div className="dl-row"><span className="dl-k">Fee</span><span className="dl-v num">{ UiUtil.toMoney(gasAsset, maxFeeValue) }</span></div>
+            <div className="dl-row"><span className="dl-k">Hash</span><span className="dl-v mono">{ UiUtil.toAddress(sent.hash) }</span></div>
+          </div>
+        </div>
+        <Button className="btn-soft btn-block" size="3" mt="4" onClick={() => navigate('/transaction/' + sent.hash)}>View on explorer</Button>
+        <Button variant="ghost" color="gray" className="btn-block" size="3" mt="2" onClick={() => {
+          setSent(null);
+          if (program instanceof ProgramTransfer) {
+            const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+            copy.to = [{ address: '', value: '' }];
+            setProgram(copy);
+          }
+        }}>Send another</Button>
       </Box>
-      <Box className="rt-Card" style={mobile ? { border: 'none' } : {
-        backgroundColor: 'var(--color-panel)',
-        borderRadius: '28px',
-        padding: '16px'
-      }}>
-        <Flex justify="between" align="center" mb="2" px="1">
-          <Heading size="4">From account</Heading>
-          <Flex gap="2" align="center">
-            <Button variant="ghost" size="3" color={proMode ? undefined : 'gray'} onClick={() => setProMode(!proMode)}>
-              <Icon path={mdiProfessionalHexagon} size={0.9}></Icon>
-            </Button>
-            <DropdownMenu.Root>
-              <DropdownMenu.Trigger>
-                <Button variant="ghost" size="3" color="gray" disabled={readOnlyApproval}>⨎⨎</Button>
-              </DropdownMenu.Trigger>
-              <DropdownMenu.Content side="left">
-                <Tooltip content="Transfer/pay asset to one or more accounts">
-                  <DropdownMenu.Item onClick={() => navigate(`/interaction?type=transfer${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Transfer</DropdownMenu.Item>
-                </Tooltip>
-                <Tooltip content="Approve and submit transaction from unverified source">
-                  <DropdownMenu.Item onClick={() => navigate(`/interaction?type=approve${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Approve</DropdownMenu.Item>
-                </Tooltip>
-                <Tooltip content="Reconcile a cross-chain transaction to get a refund and/or reserve correction">
-                  <DropdownMenu.Item onClick={() => navigate(`/interaction?type=reconcile${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Reconcile</DropdownMenu.Item>
-                </Tooltip>
-                <Tooltip content="For validator: change block production and/or participation/attestation stake(s)">
-                  <DropdownMenu.Item onClick={() => navigate(`/interaction?type=configure${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`)}>Setup</DropdownMenu.Item>
-                </Tooltip>
-              </DropdownMenu.Content>
-            </DropdownMenu.Root>
-          </Flex>
+    );
+  }
+
+  return (
+    <Box pt="4" mx="auto" maxWidth="640px">
+      <div className="page-head">
+        <Flex align="center" gap="3" style={{ minWidth: 0 }}>
+          <button className="icon-btn" aria-label="Back" onClick={() => navigate(params.back ? params.back : '/')}>
+            <Icon path={mdiArrowLeft} size={1}></Icon>
+          </button>
+          <div style={{ minWidth: 0 }}>
+            <div className="page-title">{ params.type == 'configure' ? 'Setup' : params.type == 'approve' ? 'Approve' : params.type == 'reconcile' ? 'Assert' : params.type == 'route' ? 'Claim address' : params.type == 'withdraw' ? 'Withdraw' : 'Pay' }</div>
+            <div className="page-sub mono" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ UiUtil.toAddress(ownerAddress, 8) } · { (String(AppStorage.get(StorageField.Network) || AppData.defaultNetwork()) || '').replace(/^\w/, (c) => c.toUpperCase()) }</div>
+          </div>
         </Flex>
+        <Tooltip content="Advanced mode">
+          <button className="icon-btn" aria-label="Advanced mode" style={proMode ? { background: 'var(--lime-dim)', color: 'var(--lime)' } : undefined} onClick={() => setProMode(!proMode)}>
+            <Icon path={mdiProfessionalHexagon} size={0.9}></Icon>
+          </button>
+        </Tooltip>
+      </div>
+      <SegmentedControl.Root value={params.type || 'transfer'} radius="full" size="3" mb="4" onValueChange={(value) => {
+        if (value != (params.type || 'transfer'))
+          navigate(`/interaction?type=${value}${params.back ? '&back=' + encodeURIComponent(params.back) : ''}`);
+      }}>
+        <SegmentedControl.Item value="transfer">Transfer</SegmentedControl.Item>
+        <SegmentedControl.Item value="approve">Approve</SegmentedControl.Item>
+        <SegmentedControl.Item value="reconcile">Assert</SegmentedControl.Item>
+        <SegmentedControl.Item value="configure">Setup</SegmentedControl.Item>
+      </SegmentedControl.Root>
+      <Box className="rt-Card" style={{ padding: 20, borderRadius: 'var(--r-lg)' }}>
+        <div className="field" style={{ marginBottom: 8 }}>
+          <span className="field-label">From</span>
+        </div>
         <Select.Root size="3" value={asset.toString()} onValueChange={(value) => setAsset(parseInt(value))}>
           <Select.Trigger variant="surface" placeholder="Select account" style={{ width: '100%' }} className={asset >= 0 || !assets.length ? undefined : 'shadow-rainbow-animation'}>
           </Select.Trigger>
@@ -984,55 +1008,70 @@ export default function InteractionPage() {
               borderRadius: '32px',
               padding: '12px 16px'
             } : undefined}>
-              <Flex gap="2" mb="3">
-                <Box width="100%">
-                  <Tooltip content="Send to tangent address">
-                    <TextField.Root size="3" placeholder={'Send to tangent' + (program.to.length > 1 ? ' #' + (index + 1) : '')} type="text" value={item.address} onChange={(e) => {
-                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                      copy.to[index].address = e.target.value;
-                      setProgram(copy);
-                    }} />
-                  </Tooltip>
-                </Box>
-                {
-                  !programError &&
-                  <Button size="3" variant="outline" color="gray">
-                    <Link className="router-link" to={'/account/' + item.address}>▒▒</Link>
-                  </Button>
-                }
-              </Flex>
-              <Flex gap="2">
-                <Box width="100%">
-                  <Tooltip content="Payment value received by account">
-                    <TextField.Root size="3" placeholder={'Payment in ' + UiUtil.toAssetSymbol(assets[asset].asset)} type="number" value={item.value} onChange={(e) => {
-                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                      copy.to[index].value = e.target.value;
-                      setProgram(copy);
-                    }} />
-                  </Tooltip>
-                </Box>
-                {
-                  omniTransaction &&
-                  <Flex justify="between" gap="1">
-                    <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
-                    <IconButton variant="soft" size="3" color={index != 0 ? 'red' : undefined} disabled={!omniTransaction && index == 0} onClick={() => {
-                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                      if (index == 0) {
-                        copy.to.push({ address: '', derivation: null, value: '' });
-                      } else {
-                        copy.to.splice(index, 1);
-                      }
-                      setProgram(copy);
-                    }}>
-                      <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
-                    </IconButton>
-                  </Flex>
-                }
-                {
-                  !omniTransaction &&
-                  <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(index) }>Remaining</Button>
-                }
-              </Flex>
+              <div className="field">
+                <span className="field-label">{'Send to tangent' + (program.to.length > 1 ? ' #' + (index + 1) : '')}</span>
+                <Flex gap="2" align="center">
+                  <Box width="100%">
+                    <Tooltip content="Send to tangent address">
+                      <TextField.Root className="mono" size="3" placeholder={'Send to tangent' + (program.to.length > 1 ? ' #' + (index + 1) : '')} type="text" value={item.address} onChange={(e) => {
+                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                        copy.to[index].address = e.target.value;
+                        setProgram(copy);
+                      }} />
+                    </Tooltip>
+                  </Box>
+                  {
+                    !programError && item.address &&
+                    <Link className="icon-btn router-link" to={'/account/' + item.address} aria-label="View account">
+                      <Icon path={mdiOpenInNew} size={0.9}></Icon>
+                    </Link>
+                  }
+                </Flex>
+              </div>
+              <div className="field" style={{ marginBottom: 0 }}>
+                <span className="field-label">{ 'Payment in ' + UiUtil.toAssetSymbol(assets[asset].asset) }</span>
+                <div className="amount-box">
+                  <div className="row">
+                    <Tooltip content="Payment value received by account">
+                      <TextField.Root variant="soft" placeholder="0.0" type="number" value={item.value} onChange={(e) => {
+                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                        copy.to[index].value = e.target.value;
+                        setProgram(copy);
+                      }} />
+                    </Tooltip>
+                    <span className="token-select static">
+                      <AssetImage asset={assets[asset].asset} iconSize="24px"></AssetImage>
+                      { UiUtil.toAssetSymbol(assets[asset].asset) }
+                    </span>
+                  </div>
+                  <div className="pct-row">
+                    {
+                      [25, 50].map((percent) =>
+                        <button key={percent} className="pct" onClick={() => {
+                          const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                          copy.to[index].value = assets[asset].balance.times(percent).dividedBy(100).toString();
+                          setProgram(copy);
+                        }}>{ percent }%</button>
+                      )
+                    }
+                    <button className="pct hot" onClick={() => setRemainingValue(index)}>Remaining</button>
+                    {
+                      omniTransaction &&
+                      <IconButton variant="soft" size="1" color={index != 0 ? 'red' : undefined} disabled={!omniTransaction && index == 0} style={{ width: 30, height: 30, marginLeft: 'auto' }} onClick={() => {
+                        const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                        if (index == 0) {
+                          copy.to.push({ address: '', derivation: null, value: '' });
+                        } else {
+                          copy.to.splice(index, 1);
+                        }
+                        setProgram(copy);
+                      }}>
+                        <Icon path={index == 0 ? mdiPlus : mdiMinus} size={0.7} />
+                      </IconButton>
+                    }
+                  </div>
+                </div>
+              </div>
             </Box>
           )
         }
@@ -1401,32 +1440,43 @@ export default function InteractionPage() {
         {
           asset != -1 && program instanceof ProgramWithdraw &&  
           <Box mt="4">
-            <Box width="100%" mb="3">
+            <div className="field">
+              <span className="field-label">{`${Assetlist.toName(AssetId.fromHandle(assets[asset].asset.chain))} address`}</span>
               <Tooltip content={`Send to ${Assetlist.toName(AssetId.fromHandle(assets[asset].asset.chain))} address`}>
-                <TextField.Root size="3" placeholder={`${Assetlist.toName(AssetId.fromHandle(assets[asset].asset.chain))} address`} type="text" value={program.address} onChange={(e) => {
+                <TextField.Root className="mono" size="3" placeholder={`${Assetlist.toName(AssetId.fromHandle(assets[asset].asset.chain))} address`} type="text" value={program.address} onChange={(e) => {
                   const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                   copy.address = e.target.value;
                   setProgram(copy);
                 }} />
               </Tooltip>
-            </Box>
-            <Flex gap="2" mb="3">
-              <Box width="100%">
-                <Tooltip content="Payment value received by account">
-                  <TextField.Root size="3" placeholder={'Payment in ' + UiUtil.toAssetSymbol(assets[asset].asset)} type="number" value={program.value} onChange={(e) => {
-                    const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-                    copy.value = e.target.value;
-                    setProgram(copy);
-                  }} />
-                </Tooltip>
-              </Box>
-              <Button size="3" variant="outline" color="gray" onClick={() => setRemainingValue(0) }>Remaining</Button>
-            </Flex>
-            <Box width="100%">
+            </div>
+            <div className="field">
+              <span className="field-label">Amount</span>
+              <div className="amount-box">
+                <div className="row">
+                  <Tooltip content="Payment value received by account">
+                    <TextField.Root variant="soft" placeholder="0.0" type="number" value={program.value} onChange={(e) => {
+                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                      copy.value = e.target.value;
+                      setProgram(copy);
+                    }} />
+                  </Tooltip>
+                  <span className="token-select static">
+                    <AssetImage asset={assets[asset].asset} iconSize="24px"></AssetImage>
+                    { UiUtil.toAssetSymbol(assets[asset].asset) }
+                  </span>
+                </div>
+                <div className="pct-row">
+                  <button className="pct hot" onClick={() => setRemainingValue(0)}>MAX</button>
+                </div>
+              </div>
+            </div>
+            <div className="fee-note" style={{ display: 'flex', justifyContent: 'space-between' }}>
               <Tooltip content="Fee to be deducted from account balance">
-                <TextField.Root size="3" type="text" color="red" value={'Cost: ' + UiUtil.toMoney(AssetId.fromHandle(assets[asset].asset.chain), params.fee)} readOnly={true} />
+                <span>Vault fee</span>
               </Tooltip>
-            </Box>
+              <span className="mono">{ UiUtil.toMoney(AssetId.fromHandle(assets[asset].asset.chain), params.fee) }</span>
+            </div>
           </Box>
         }
         {
@@ -1454,6 +1504,13 @@ export default function InteractionPage() {
               <Text color="gray" size="1" weight="medium">{ program.attestateHash.length > 0 ? 'Refund excessive token reserve' : 'Refund fully due to missing off-chain tx' }</Text>
             </Flex>
           </>
+        }
+        {
+          asset != -1 && !proMode && gasLimit.length > 0 && gasPrice.length > 0 &&
+          <div className="dl" style={{ marginTop: 18 }}>
+            <div className="dl-row"><span className="dl-k">Gas limit</span><span className="dl-v num">{ new BigNumber(gasLimit).toNumber().toLocaleString() } units</span></div>
+            <div className="dl-row"><span className="dl-k">Fee</span><span className="dl-v num">{ UiUtil.toMoney(gasAsset, maxFeeValue) }</span></div>
+          </div>
         }
         {
           proMode &&
@@ -1524,11 +1581,11 @@ export default function InteractionPage() {
       {
         previewTransaction != null &&
         <Box mt="2">
-          <TransactionView ownerAddress={ownerAddress} transaction={previewTransaction} receipt={simulation?.receipt || undefined} state={simulation?.state || undefined} preview={true}></TransactionView>
+          <TransactionView variant="row" ownerAddress={ownerAddress} transaction={previewTransaction} receipt={simulation?.receipt || undefined} state={simulation?.state || undefined} preview={true}></TransactionView>
           {
             Array.isArray(previewTransaction.transactions) && previewTransaction.transactions.map((subtransaction: any, index: number) =>
               <Box mt="4" key={subtransaction.action.hash + index.toString()}>
-                <TransactionView ownerAddress={ownerAddress} transaction={subtransaction.action} preview={'Internal transaction #' + (index + 1).toString() + ' preview!'}></TransactionView>
+                <TransactionView variant="row" ownerAddress={ownerAddress} transaction={subtransaction.action} preview={'Internal transaction #' + (index + 1).toString()}></TransactionView>
               </Box>
             )
           }
@@ -1536,7 +1593,7 @@ export default function InteractionPage() {
       }
       {
         params.note != null &&
-        <Callout.Root size="1" variant="surface" mt="2" color="yellow" style={{ borderRadius: '28px' }}>
+        <Callout.Root size="1" variant="surface" mt="2" color="yellow" style={{ borderRadius: 'var(--r-lg, 16px)' }}>
           <Callout.Icon>
             <Icon path={mdiAlertCircleOutline} size={1} />
           </Callout.Icon>
@@ -1547,7 +1604,7 @@ export default function InteractionPage() {
         program instanceof ProgramRoute &&
         <>
           <Box px="0">
-            <Callout.Root size="1" variant="surface" mt="2" color="yellow" style={{ borderRadius: '28px' }}>
+            <Callout.Root size="1" variant="surface" mt="2" color="yellow" style={{ borderRadius: 'var(--r-lg, 16px)' }}>
               <Callout.Icon>
                 <Icon path={mdiTimelapse} size={1} />
               </Callout.Icon>
@@ -1567,27 +1624,29 @@ export default function InteractionPage() {
         </>
       }
       {
-        !programError &&
-        <Flex direction="column" justify="center" align="center" gap="4" mt="8">
-          <Button variant="surface" size="4" color={simulationError ? 'yellow' : undefined} className={simulationError ? undefined : 'shadow-rainbow-animation'} loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => transactionError ? calculateTransactionGas(0.60) : submitTransaction()}>{transactionError ? (simulationError ? 'Retry' : 'Review') : 'Submit'} action</Button>   
+        <Flex direction="column" gap="2" mt="6">
+          <Button className="btn-brand btn-block" size="4" disabled={!!programError} loading={loadingGasPriceAndPrice || loadingTransaction} onClick={() => transactionError ? calculateTransactionGas(0.60) : submitTransaction()}>
+            { transactionError ? (simulationError ? 'Retry action' : 'Review action') : 'Submit action' }
+          </Button>
           {
             !transactionError &&
-            <Button variant="ghost" color="gray" size="1" onClick={() => {
+            <Button variant="ghost" color="gray" style={{ alignSelf: 'center' }} onClick={() => {
               setSimulation(null);
               setSimulationError('');
               setGasPrice('');
               setGasLimit('');
-              AlertBox.open(AlertType.Info, 'Back to review!')
             }}>Back to review</Button>
           }
         </Flex>
       }
       {
-        (programError || transactionError || simulationError) &&
-        <Flex justify="center" mt="6">
-          <Text color="gray" size="1">{ programError || simulationError || transactionError }</Text>
-        </Flex>
+        (program instanceof ProgramTransfer ? program.to.some((item) => item.address.length > 0 || String(item.value).length > 0) : program instanceof ProgramWithdraw ? program.address.length > 0 || program.value.length > 0 : true) && (programError || simulationError || (transactionError && !gasReviewHint)) ?
+        <div className="callout err" style={{ marginTop: 14 }}>
+          <Icon path={mdiAlertCircleOutline} size={1} />
+          <span>{ programError || simulationError || transactionError }</span>
+        </div> : null
       }
+      <p className="tiny" style={{ textAlign: 'center', marginTop: 12, color: gasReviewHint ? 'var(--warn)' : 'var(--text-3)' }}>{ gasReviewHint ? '"Review action" to set gas price/limit' : 'Signed locally · broadcast to the P2P network' }</p>
     </Box>
   )
 }

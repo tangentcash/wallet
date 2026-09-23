@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Card, DataList, Dialog, Flex, Text } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, Dialog, Flex, Text } from "@radix-ui/themes";
 import { Order, OrderCondition, OrderPolicy, OrderSide, Exchange } from "../../core/exchange";
 import { AssetId } from "tangentsdk/algorithm";
 import { UiUtil } from "tangentsdk/ui";
@@ -6,15 +6,13 @@ import { Assetlist } from "tangentsdk/assetlist";
 import { useMemo, useState } from "react";
 import { AlertBox, AlertType } from "../alert";
 import { Link } from "react-router";
-import { mdiInformationOutline } from "@mdi/js";
-import { AssetImage } from "../asset-image";
+import { mdiOpenInNew } from "@mdi/js";
+import Icon from "@mdi/react";
 import { PerformerButton, Builder } from "./performer";
 import * as Collapsible from "@radix-ui/react-collapsible";
-import Icon from "@mdi/react";
 
 export default function OrderView(props: { item: Order, open?: boolean, flash?: boolean, readOnly?: boolean }) {
   const item = props.item;
-  const orientation = document.body.clientWidth < 500 ? 'vertical' : 'horizontal';
   const [expanded, setExpanded] = useState(props.open || false);
   const price = useMemo((): BigNumber | null => {
     return item.price || item.stopPrice || item.fillingPrice || null;
@@ -85,154 +83,80 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
     return (progress > 0 ? (progress >= 100 ? 'Filled' : 'Partially filled') : 'No match yet');
   }, [progress]);
 
+  const symP = item.primaryAsset.token || item.primaryAsset.chain;
+  const symQ = item.secondaryAsset.token || item.secondaryAsset.chain;
   const FullOrderView = (subprops: { open?: boolean }) => (
     <Collapsible.Root open={subprops.open || expanded}>
-      <Flex justify="start" align="center" gap="3" className={subprops.open ? undefined : 'card-expander'} onClick={() => subprops.open ? undefined : setExpanded(!expanded)}>
-        <Box style={{ position: 'relative' }}>
-          <AssetImage asset={item.secondaryAsset} size="2" style={{ position: 'absolute', top: '24px', left: '-6px' }}></AssetImage>
-          <AssetImage asset={item.primaryAsset} size="4"></AssetImage>
-        </Box>
-        <Box width="100%">
-          <Flex justify="between" align="center">
-            <Flex align="center">
-              <Text size="2">{ item.primaryAsset.token || item.primaryAsset.chain }</Text>
-              <Text size="2" color="gray">x</Text>
-              <Text size="2">{ item.secondaryAsset.token || item.secondaryAsset.chain }</Text>
-            </Flex>
-            <Flex align="center" style={{ textDecoration: item.active ? undefined : 'line-through' }}>
-              <Text size="2">{ quantity ? UiUtil.toMoney(null, quantity) : '(N/A)' }</Text>
-              <Text size="2" color="gray">x</Text>
-              <Text size="2">{ price ? UiUtil.toMoney(null, price) : '(N/A)' }</Text>
-            </Flex>
-          </Flex>
-          <Flex justify="between" align="center">
-            <Flex align="center" gap="2" pt="1">
-              <Badge variant="soft" color={item.active ? (item.side == OrderSide.Buy ? undefined : 'red') : 'gray'} size="2">{ side } — { condition }</Badge>
-            </Flex>
-            <Badge size="2" variant="soft" color={item.active ? (progress > 0 ? (progress >= 100 ? undefined : 'yellow') : 'gray') : 'gray'} mt="1">
-              <Icon path={mdiInformationOutline} size={0.65}></Icon>
-              <Text size="1">{ progress.toFixed(1) }% fill</Text>
-            </Badge>
-          </Flex>
-        </Box>
-      </Flex>
+      <div className={subprops.open ? undefined : 'card-expander'} style={{ width: '100%', textAlign: 'left', background: 'none', border: 0, color: 'inherit', cursor: subprops.open ? undefined : 'pointer' }} onClick={() => subprops.open ? undefined : setExpanded(!expanded)}>
+        <div className="order-head">
+          <span className={ 'side ' + (item.side == OrderSide.Buy ? 'buy' : 'sell') } style={{ textDecoration: item.active ? undefined : 'line-through' }}>{ side }-{ condition }</span>
+          <span className="badge flat mono" style={{ flex: 'none' }}>{ symP }x{ symQ }</span>
+        </div>
+        <div className="mono tiny dim" style={{ marginTop: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          { quantity ? UiUtil.toMoney(null, quantity) : '(N/A)' } × { price ? UiUtil.toMoney(item.secondaryAsset, price) : 'market price' }
+        </div>
+        <div className="progress"><i style={{ width: Math.min(100, Math.max(0, progress)) + '%', background: progress > 0 ? undefined : 'var(--elev)' }}></i></div>
+        <div className="pct-label">
+          <span>{ progress.toFixed(1) }% filled</span>
+          <span style={{ textAlign: 'right' }}>{ item.active ? (progress > 0 ? UiUtil.toMoney(item.primaryAsset, leftoverQuantity) + ' open' : 'waiting for match') : status.toLowerCase() }</span>
+        </div>
+      </div>
+        {
+          !props.flash && !props.readOnly && item.active &&
+          <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <PerformerButton className="btn-sm btn-ghost" title="Cancel" description="Smart contract will re-pay you back all unfilled value after this action" variant="classic" color="gray" onBuild={() => {
+                return Builder.withdrawOrder({ orderId: item.id.toString() });
+              }}></PerformerButton>
+            </div>
+          </div>
+        }
       <Collapsible.Content>
-        <Box my="4" style={{ border: '1px dashed var(--gray-8)' }}></Box>
-        <DataList.Root orientation={orientation}>
-          <DataList.Item>
-            <DataList.Label>Market account:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(item.marketAccount || 'NULL');
-                AlertBox.open(AlertType.Info, 'Address copied!')
-              }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</Button>
-              <Box ml="2">
-                <Link className="router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}>▒▒</Link>
-              </Box>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Primary asset:</DataList.Label>
-            <DataList.Value>{ Assetlist.toName(item.primaryAsset) }</DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Secondary asset:</DataList.Label>
-            <DataList.Value>{ Assetlist.toName(item.secondaryAsset) }</DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Reference:</DataList.Label>
-            <DataList.Value>
-              <Button size="2" variant="ghost" color="indigo" onClick={() => {
-                navigator.clipboard.writeText(item.orderId.toString(16));
-                AlertBox.open(AlertType.Info, 'Reference copied!')
-              }}>0x{ item.orderId.toString(16).length > 8 ? UiUtil.toHash(item.orderId.toString(16), 6) : item.orderId.toString(16) }</Button>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Status:</DataList.Label>
-            <DataList.Value>
-              <Badge color={item.active ? (progress > 0 ? (progress >= 100 ? undefined : 'yellow') : 'gray') : 'gray'}>{ status }</Badge>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Side:</DataList.Label>
-            <DataList.Value>
-              <Badge color={item.side == OrderSide.Buy ? undefined : 'red'}>{ side } order</Badge>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Trigger:</DataList.Label>
-            <DataList.Value>
-              <Badge color="yellow">{ condition } price</Badge>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Condition:</DataList.Label>
-            <DataList.Value>
-              <Badge color="blue">{ policy }</Badge>
-            </DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Price:</DataList.Label>
-            <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, price) }</DataList.Value>
-          </DataList.Item>
+        <div className="dl dl-rule" style={{ marginTop: 16 }}>
+          <div className="dl-row"><span className="dl-k">Market account</span><span className="dl-v"><span className="copyable" onClick={() => {
+            navigator.clipboard.writeText(item.marketAccount || 'NULL');
+            AlertBox.open(AlertType.Info, 'Address copied!')
+          }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</span>
+          <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
+          <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
+          <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
+          <div className="dl-row"><span className="dl-k">Reference</span><span className="dl-v"><span className="copyable" onClick={() => {
+            navigator.clipboard.writeText(item.orderId.toString(16));
+            AlertBox.open(AlertType.Info, 'Reference copied!')
+          }}>0x{ item.orderId.toString(16).length > 8 ? UiUtil.toHash(item.orderId.toString(16), 6) : item.orderId.toString(16) }</span></span></div>
+          <div className="dl-row"><span className="dl-k">Status</span><span className="dl-v"><Badge color={item.active ? (progress > 0 ? (progress >= 100 ? undefined : 'yellow') : 'gray') : 'gray'}>{ status }</Badge></span></div>
+          <div className="dl-row"><span className="dl-k">Side</span><span className="dl-v"><Badge color={item.side == OrderSide.Buy ? undefined : 'red'}>{ side } order</Badge></span></div>
+          <div className="dl-row"><span className="dl-k">Trigger</span><span className="dl-v"><Badge color="yellow">{ condition } price</Badge></span></div>
+          <div className="dl-row"><span className="dl-k">Condition</span><span className="dl-v"><Badge color="blue">{ policy }</Badge></span></div>
+          <div className="dl-row"><span className="dl-k">Price</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, price) }</span></div>
           {
             item.price && (!price || !item.price.eq(price)) &&
-            <DataList.Item>
-              <DataList.Label>Base price:</DataList.Label>
-              <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.price) }</DataList.Value>
-            </DataList.Item>
+            <div className="dl-row"><span className="dl-k">Base price</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.price) }</span></div>
           }
           {
             item.stopPrice &&
-            <DataList.Item>
-              <DataList.Label>Stop price:</DataList.Label>
-              <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.stopPrice) }</DataList.Value>
-            </DataList.Item>
+            <div className="dl-row"><span className="dl-k">Stop price</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.stopPrice) }</span></div>
           }
           {
             item.trailingStep &&
-            <DataList.Item>
-              <DataList.Label>Trailing step:</DataList.Label>
-              <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.trailingStep) }</DataList.Value>
-            </DataList.Item>
+            <div className="dl-row"><span className="dl-k">Trailing step</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.trailingStep) }</span></div>
           }
           {
             item.trailingDistance &&
-            <DataList.Item>
-              <DataList.Label>Trailing distance:</DataList.Label>
-              <DataList.Value>{ UiUtil.toMoney(item.secondaryAsset, item.trailingDistance) }</DataList.Value>
-            </DataList.Item>
+            <div className="dl-row"><span className="dl-k">Trailing distance</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.trailingDistance) }</span></div>
           }
           {
             item.slippage &&
-            <DataList.Item>
-              <DataList.Label>{ item.condition == OrderCondition.Market ? 'Slippage price:' : 'Price slippage:' }</DataList.Label>
-              <DataList.Value>{ item.slippage.lt(0) ? item.slippage.negated().multipliedBy(100).toFixed(2) + '%' : UiUtil.toMoney(item.secondaryAsset, item.slippage) }</DataList.Value>
-            </DataList.Item>
+            <div className="dl-row"><span className="dl-k">{ item.condition == OrderCondition.Market ? 'Slippage price' : 'Price slippage' }</span><span className="dl-v">{ item.slippage.lt(0) ? item.slippage.negated().multipliedBy(100).toFixed(2) + '%' : UiUtil.toMoney(item.secondaryAsset, item.slippage) }</span></div>
           }
-          <DataList.Item>
-            <DataList.Label>Quantity:</DataList.Label>
-            <DataList.Value>{ UiUtil.toMoney(item.primaryAsset, quantity) } { quantity && quantity.isFinite() && price && price.isFinite() ? `/ ${UiUtil.toMoney(item.secondaryAsset, quantity.multipliedBy(price))}` : '' }</DataList.Value>
-          </DataList.Item>
-          <DataList.Item>
-            <DataList.Label>Leftover:</DataList.Label>
-            <DataList.Value>{ UiUtil.toMoney(paidAsset, item.value) } / { (100 - progress).toFixed(2) }%</DataList.Value>
-          </DataList.Item>
-        </DataList.Root>
-        {
-          !props.flash && !props.readOnly && item.active &&
-          <Flex justify="center" mt="4">
-            <PerformerButton title="Close order" description="Smart contract will re-pay you back all unfilled value after this action" variant="surface" color="red" onBuild={() => {
-              return Builder.withdrawOrder({ orderId: item.id.toString() });
-            }}></PerformerButton>
-          </Flex>
-        }
+          <div className="dl-row"><span className="dl-k">Quantity</span><span className="dl-v">{ UiUtil.toMoney(item.primaryAsset, quantity) }{ quantity && quantity.isFinite() && price && price.isFinite() ? ` / ${UiUtil.toMoney(item.secondaryAsset, quantity.multipliedBy(price))}` : '' }</span></div>
+          <div className="dl-row"><span className="dl-k">Leftover</span><span className="dl-v">{ UiUtil.toMoney(paidAsset, item.value) } / { (100 - progress).toFixed(2) }%</span></div>
+        </div>
       </Collapsible.Content>
     </Collapsible.Root>
   );
   return (
-    <Card variant="surface" style={{ borderRadius: '22px', position: "relative" }}>
+    <Card variant="surface" style={{ padding: '18px 18px 16px', position: "relative" }}>
       {
         props.flash &&
         <Box>

@@ -1,11 +1,11 @@
-import { AspectRatio, Badge, Box, Dialog, Flex, IconButton, Select, Text, Tooltip } from "@radix-ui/themes";
+import { Box, Dialog, Flex, Select, Tabs, Text, Tooltip } from "@radix-ui/themes";
 import { AppData } from "../../core/app";
 import { RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Exchange, AggregatedLog, AggregatedPair, OrderSide } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { AreaSeries, BarSeries, CandlestickSeries, Chart, HistogramSeries, LineSeries, TimeScale, TimeScaleFitContentTrigger, SeriesApiRef } from "lightweight-charts-react-components";
 import { LogicalRangeChangeEventHandler, MouseEventHandler, BarPrice, ChartOptions, CrosshairMode, DeepPartial, IChartApi, LogicalRange, MouseEventParams, PriceScaleMode, Time } from "lightweight-charts";
-import { mdiAlert, mdiCheckDecagram, mdiCog, mdiCubeOutline, mdiTimelapse } from "@mdi/js";
+import { mdiAlert, mdiArrowDownBold, mdiArrowUpBold, mdiCheckDecagram, mdiCog, mdiTimelapse } from "@mdi/js";
 import { AssetId } from "tangentsdk/algorithm";
 import { UiUtil } from "tangentsdk/ui";
 import { Assetlist } from "tangentsdk/assetlist";
@@ -13,6 +13,7 @@ import { AssetImage } from "../../components/asset-image";
 import Color from 'colorjs.io';
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
+import Clock from "./clock";
 
 export enum PriceScope {
   Bid,
@@ -45,12 +46,13 @@ export type ChartProps = {
   orderbook: { marketId: BigNumber | null, primaryAsset: AssetId | null, secondaryAsset: AssetId | null } | null,
   pair: AggregatedPair | null,
   whitelisted: boolean | null,
-  blockNumber: number,
   options: SeriesOptions,
   tradeEvents: CustomEvent<any>[],
   onOptionsChange: (callback: (prev: SeriesOptions) => SeriesOptions) => any,
   onTradesChange: (trades: AggregatedLog[]) => any,
-  onPairChange: (pair: AggregatedPair) => any
+  onPairChange: (pair: AggregatedPair) => any,
+  onScrub?: (price: BigNumber | null) => any,
+  bare?: boolean,
 };
 
 export type GenericBar = {
@@ -198,6 +200,9 @@ export function ChartView(props: {
       crosshairTimeout = null;
     }, 50) as any;
   }, [props.onCrosshairMove]);
+  const mobile = document.body.clientWidth <= 800;
+  const priceScaleActive = !mobile || props.type == ChartViewType.Candles || props.type == ChartViewType.Bars;
+  const priceLine = { priceLineVisible: priceScaleActive, lastValueVisible: priceScaleActive };
   return (
     <Chart options={props.options} onInit={props.onInit} onCrosshairMove={onCrosshairMove}>
       {
@@ -208,7 +213,8 @@ export function ChartView(props: {
           borderUpColor: UP_COLOR,
           downColor: DOWN_COLOR,
           wickDownColor: DOWN_COLOR,
-          borderDownColor: DOWN_COLOR
+          borderDownColor: DOWN_COLOR,
+          ...priceLine
         }} />
       }
       {
@@ -216,6 +222,7 @@ export function ChartView(props: {
         <BarSeries ref={props.priceRef as any} data={props.priceData} options={{
           upColor: UP_COLOR,
           downColor: DOWN_COLOR,
+          ...priceLine
         }}  />
       }
       {
@@ -223,13 +230,15 @@ export function ChartView(props: {
         <AreaSeries ref={props.priceRef as any} data={props.priceData} options={{
           lineColor: colorOf('--accent-10'),
           topColor: colorOf('--accent-a4'),
-          bottomColor: colorOf('--accent-a1')
+          bottomColor: colorOf('--accent-a1'),
+          ...priceLine
         }} />
       }
       {
         props.type == ChartViewType.Line &&
         <LineSeries ref={props.priceRef as any} data={props.priceData} options={{
-          color: colorOf('--accent-a10')
+          color: colorOf('--accent-a10'),
+          ...priceLine
         }} />
       }
       {
@@ -254,47 +263,53 @@ export function ChartTitle({
   pair: AggregatedPair | null,
   whitelisted: boolean | null
 }) {
-  const mobile = document.body.clientWidth <= 800;
-  return (  
-    <Flex align="center" pt={mobile ? '4' : '3'} pb={mobile ? '1' : '3'} px="3">
-      <Box style={{ position: 'relative' }} mr="2">
-        <AssetImage asset={orderbook?.secondaryAsset || undefined} size="2" style={{ position: 'absolute', top: mobile ? '18px' : '24px', left: '-6px' }}></AssetImage>
-        <AssetImage asset={orderbook?.primaryAsset || undefined} size={mobile ? '3' : '4'}></AssetImage>
-      </Box>
-      <Flex direction="column" width="100%">
-        <Flex justify="between">
-          <Tooltip side="left" content={whitelisted === true ? 'Well-known trading pair — current price is possibly within reasonable market ranges' : (whitelisted === false ? 'One or both of assets in trading pair are unknown and are possibly malicious — current price is likely not representative of actual market conditions' : 'Loading...')}>
-            <Flex gap="1">
-              <Text size={mobile ? '3' : '4'} style={{ height: '18px', color: 'var(--gray-12)' }}>{ orderbook?.primaryAsset ? Assetlist.toName(orderbook.primaryAsset) : '?' }</Text>
-              { <Icon path={whitelisted === true ? mdiCheckDecagram : (whitelisted === false ? mdiAlert : mdiTimelapse)} color={whitelisted === true ? 'var(--sky-9)' : (whitelisted === false ? 'var(--yellow-9)' : 'var(--gray-9)')} size={0.75} style={{ transform: 'translateY(3px)' }}></Icon> }
-            </Flex>
-          </Tooltip>
-          <Text size={mobile ? '3' : '4'} style={{ height: '18px' }}>{ UiUtil.toValue(null, pair?.price.close || null, false, true) }</Text>
-        </Flex>
-        <Flex justify="between" align="center" mt={mobile ? undefined : '1'}>
-          <Text size={mobile ? '1' : '2'} color="gray">{ (orderbook?.primaryAsset ? UiUtil.toAssetSymbol(orderbook.primaryAsset) : '?') + 'x' + (orderbook?.secondaryAsset ? UiUtil.toAssetSymbol(orderbook.secondaryAsset) : '?') }</Text>
-          <Box>
-            <Text size={mobile ? '1' : '2'}>{ UiUtil.toValue(null, (pair?.price.close || new BigNumber(0)).minus(pair?.price.open || new BigNumber(0)), true, true) }</Text>
-            <Text size={mobile ? '1' : '2'} color="gray"> | </Text>
-            <Text size={mobile ? '1' : '2'} style={{ color: (pair?.price.open || new BigNumber(0)).gt(pair?.price.close || new BigNumber(0)) ? 'var(--red-11)' : ((pair?.price.open || new BigNumber(0)).eq(pair?.price.close || new BigNumber(0)) ? undefined : 'var(--accent-11)') }}>{ UiUtil.toPercentageDelta(pair?.price.open || new BigNumber(0), pair?.price.close || new BigNumber(0)) }</Text>
-          </Box>
-        </Flex>
-      </Flex>
-    </Flex>
+  const close = pair?.price.close || null;
+  const delta = close ? close.minus(pair?.price.open || new BigNumber(0)) : null;
+  const dir = delta && delta.gt(0) ? 1 : (delta && delta.lt(0) ? -1 : 0);
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 2px 12px', borderBottom: '1px solid var(--line)', marginBottom: 10 }}>
+      <span style={{ position: 'relative', width: 50, height: 50, flex: 'none' }}>
+        <AssetImage asset={orderbook?.primaryAsset || undefined} size="3" iconSize="46px"></AssetImage>
+        <AssetImage asset={orderbook?.secondaryAsset || undefined} size="2" iconSize="30px" style={{ position: 'absolute', bottom: -6, right: -6, border: '2px solid var(--card)', borderRadius: '50%' }}></AssetImage>
+      </span>
+      <div style={{ minWidth: 0 }}>
+        <Tooltip content={whitelisted === true ? 'Well-known trading pair — current price is possibly within reasonable market ranges' : (whitelisted === false ? 'One or both of assets in trading pair are unknown and are possibly malicious — current price is likely not representative of actual market conditions' : 'Loading...')}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
+            <span style={{ fontWeight: 750, fontSize: 18, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ orderbook?.primaryAsset ? Assetlist.toName(orderbook.primaryAsset) : '?' }</span>
+            { whitelisted === true && <Icon className="verified" path={mdiCheckDecagram} size={0.8}></Icon> }
+            { whitelisted === false && <Icon path={mdiAlert} color="var(--warn)" size={0.8} style={{ flex: 'none' }}></Icon> }
+            { whitelisted == null && <Icon path={mdiTimelapse} color="var(--text-3)" size={0.8} style={{ flex: 'none' }}></Icon> }
+          </div>
+        </Tooltip>
+        <div className="mono dim" style={{ marginTop: 2, whiteSpace: 'nowrap', fontSize: 12.5 }}>{ (orderbook?.primaryAsset ? UiUtil.toAssetSymbol(orderbook.primaryAsset) : '?') + ' × ' + (orderbook?.secondaryAsset ? UiUtil.toAssetSymbol(orderbook.secondaryAsset) : '?') }</div>
+      </div>
+      <div style={{ marginLeft: 'auto', textAlign: 'right', minWidth: 0 }}>
+        <div className="num" style={{ fontWeight: 800, fontSize: 21, color: dir > 0 ? 'var(--lime)' : (dir < 0 ? 'var(--down)' : 'var(--text)'), whiteSpace: 'nowrap' }}>{ UiUtil.toValue(null, close, false, true) }</div>
+        <div className="ob-delta-row" style={{ justifyContent: 'flex-end', marginTop: 3 }}>
+          <span className={ 'abs' + (dir != 0 ? (dir > 0 ? ' up' : ' down') : '') }>{ (dir > 0 ? '+' : (dir < 0 ? '-' : '')) + UiUtil.toValue(null, delta ? delta.abs() : new BigNumber(0), false, true) }</span>
+          <span className={ 'ob-delta-pill' + (dir > 0 ? ' up' : (dir == 0 ? ' flat' : '')) }>
+            { dir != 0 && <Icon path={dir > 0 ? mdiArrowUpBold : mdiArrowDownBold} size={0.55}></Icon> }
+            { UiUtil.toPercentageDelta(pair?.price.open || new BigNumber(0), close || new BigNumber(0)) }
+          </span>
+        </div>
+      </div>
+    </div>
   )
 }
 export function ChartWidget({
   orderbook,
   pair,
   whitelisted,
-  blockNumber,
   options,
   tradeEvents,
   onOptionsChange,
   onTradesChange,
-  onPairChange
+  onPairChange,
+  onScrub,
+  bare
 }: ChartProps) {
   const mobile = document.body.clientWidth <= 800;
+  const frameRef = useRef<HTMLDivElement>(null);
   const seriesRef = useRef<IChartApi>(null);
   const priceSeriesRef = useRef<SeriesApiRef<'Candlestick' | 'Bar' | 'Area' | 'Line'>>(null);
   const volumeSeriesRef = useRef<SeriesApiRef<'Histogram'>>(null);
@@ -334,6 +349,7 @@ export function ChartWidget({
         horzLines: { color: colorOf('--gray-5'), visible: options.view == ChartViewType.Candles || options.view == ChartViewType.Bars }
       },
       rightPriceScale: {
+        visible: !mobile || options.view == ChartViewType.Candles || options.view == ChartViewType.Bars,
         borderColor: colorOf('--gray-5'),
         autoScale: true,
         ticksVisible: true,
@@ -349,7 +365,7 @@ export function ChartWidget({
           priceFormatter: (price: BarPrice): string => UiUtil.toValue(null, price, false, true)
       }
     };
-  }, [pair?.id, options.crosshair, options.view, options.inverted, options.price]);
+  }, [pair?.id, options.crosshair, options.view, options.inverted, options.price, mobile]);
   const fetchSeries = useCallback(async (range: LogicalRange | null) => {
     if (!pair || !priceSeriesRef.current || state.loading)
       return;
@@ -419,9 +435,9 @@ export function ChartWidget({
       seriesRef.current = api;
     }
 
-    const box = seriesRef.current?.chartElement().parentElement?.parentElement;
-    if (box != null) {
-      seriesRef.current?.resize(box.clientWidth, box.clientHeight);
+    const box = frameRef.current;
+    if (box != null && seriesRef.current != null) {
+      seriesRef.current.resize(box.clientWidth, box.clientHeight);
     }
     
     if (options.volume) {
@@ -437,11 +453,16 @@ export function ChartWidget({
   const fitLegend = useCallback((event: MouseEventParams) => {
     const priceSeriesApi = priceSeriesRef.current?.api();
     const priceBar = event && priceSeriesApi ? event.seriesData.get(priceSeriesApi) as PriceBar : undefined;
+    if (onScrub) {
+      const close = priceBar ? (priceBar as PriceBar).close ?? (priceBar as unknown as VolumeBar).value : undefined;
+      onScrub(event?.time != null && close != null && Number.isFinite(close) ? new BigNumber(close) : null);
+      return;
+    }
     const volumeSeriesApi = volumeSeriesRef.current?.api();
     const volumeBar = event && volumeSeriesApi ? event.seriesData.get(volumeSeriesApi) as VolumeBar : undefined;
     if (priceBar || volumeBar)
       setLegendBar({ price: priceBar, volume: volumeBar });
-  }, []);
+  }, [onScrub]);
   useEffectAsync(async () => {
     if (!state.ready && priceSeriesRef.current) {
       await fetchSeries(null);
@@ -535,76 +556,103 @@ export function ChartWidget({
     });
   }, [tradeEvents, pair, state.ready, options.interval, onTradesChange, onPairChange]);
   useEffect(() => {
-    const resize = () => fitChart(); resize();
-    window.addEventListener('resize', resize);
-    return () => window.removeEventListener('resize', resize);
-  }, [options.volume]);
+    if (!frameRef.current)
+      return;
+    const observer = new ResizeObserver(() => fitChart());
+    observer.observe(frameRef.current);
+    return () => observer.disconnect();
+  }, [fitChart]);
 
   return (
-    <Box width="100%" className={mobile ? undefined : 'rt-Card'} mb={mobile ? undefined : '3'} style={mobile ? { } : { backgroundColor: 'var(--color-panel)', borderRadius: '22px', overflow: 'hidden' }}>
+    <Box width="100%" className={bare ? 'chart-bare' : 'card'} style={{ padding: bare ? 0 : '14px 14px 12px', marginBottom: mobile ? 14 : 12 }}>
       { !mobile && <ChartTitle orderbook={orderbook} pair={pair} whitelisted={whitelisted}></ChartTitle> }
-      <AspectRatio ratio={mobile ? (7 / 9) : (16 / 9)}>
-        <ChartView
-          type={options.view}
-          options={chartOptions}
-          priceRef={priceSeriesRef}
-          priceData={series.price}
-          volumeRef={options.volume ? volumeSeriesRef : undefined}
-          volumeData={series.volume}
-          onInit={(api) => fitChart(api)}
-          onCrosshairMove={(e) => fitLegend(e)}
-          onVisibleLogicalRangeChange={fetchSeries}></ChartView>
-        <Box position="absolute" top="0" left="0" pl="3" pt="2" style={{ zIndex: 1 }}>
+      <div ref={frameRef} className={bare ? 'chart-bleed' : undefined} style={{ position: 'relative', height: mobile ? 'max(300px, 50vh)' : 660 }}>
+        <div style={{ position: 'absolute', inset: 0 }}>
+          <ChartView
+            type={options.view}
+            options={chartOptions}
+            priceRef={priceSeriesRef}
+            priceData={series.price}
+            volumeRef={options.volume ? volumeSeriesRef : undefined}
+            volumeData={series.volume}
+            onInit={(api) => fitChart(api)}
+            onCrosshairMove={(e) => fitLegend(e)}
+            onVisibleLogicalRangeChange={fetchSeries}></ChartView>
+          { !mobile && <Box position="absolute" top="0" left="0" pl="3" pt="2" style={bare ? { zIndex: 1, paddingInlineStart: 'var(--shell-pad)' } : { zIndex: 1 }}>
+            {
+              orderbook?.primaryAsset && orderbook?.secondaryAsset &&
+              <Text>{ UiUtil.toAssetSymbol(orderbook.primaryAsset) }/{ UiUtil.toAssetSymbol(orderbook.secondaryAsset) } { interval }</Text>
+            }
+            {
+              !mobile && (options.view == ChartViewType.Bars || options.view == ChartViewType.Candles ?
+              <Flex direction="column">
+                <Text size="1"><Text color="gray" mr="1">O</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.open || null) }</Text>
+                <Text size="1"><Text color="gray" mr="1">H</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.high || null) }</Text>
+                <Text size="1"><Text color="gray" mr="1">L</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.low || null) }</Text>
+                <Text size="1"><Text color="gray" mr="1">C</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.close || null) }</Text>
+                { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ UiUtil.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
+              </Flex> :
+              <Flex direction="column">
+                <Text size="1"><Text color="gray" mr="1">C</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.value || null) }</Text>
+                { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ UiUtil.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
+              </Flex>)
+            }
+          </Box> }
+        </div>
+      </div>
+      <div className="chart-foot">
+        <Tabs.Root className="range-tabs" value={ String(options.interval) } onValueChange={(v) => {
+          onOptionsChange(prev => ({ ...prev, interval: parseInt(v) }));
+          setState(prev => ({ ...prev, ready: false }));
+        }}>
+          <Tabs.List size="1">
+            {
+              ([
+                [1800, '30m'],
+                [3600, '1h'],
+                [14400, '4h'],
+                [86400, '1d'],
+                [604800, '1w']
+              ] as [number, string][]).map(([value, label]) =>
+                <Tabs.Trigger key={value} value={ String(value) }>{ label }</Tabs.Trigger>)
+            }
+          </Tabs.List>
+        </Tabs.Root>
+        {
+          !mobile && ![1800, 3600, 14400, 86400, 604800].includes(options.interval) &&
+          <span className="badge flat mono">{ interval }</span>
+        }
+        <div className="chart-foot-side">
           {
-            orderbook?.primaryAsset && orderbook?.secondaryAsset &&
-            <Text>{ UiUtil.toAssetSymbol(orderbook.primaryAsset) }/{ UiUtil.toAssetSymbol(orderbook.secondaryAsset) } { interval }</Text>
+            !mobile &&
+            <>
+              <span className="chart-foot-next">NEXT BLOCK</span>
+              <Clock></Clock>
+              <span className="chart-foot-div"></span>
+            </>
           }
-          {
-            !mobile && (options.view == ChartViewType.Bars || options.view == ChartViewType.Candles ?
-            <Flex direction="column">
-              <Text size="1"><Text color="gray" mr="1">O</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.open || null) }</Text>
-              <Text size="1"><Text color="gray" mr="1">H</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.high || null) }</Text>
-              <Text size="1"><Text color="gray" mr="1">L</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.low || null) }</Text>
-              <Text size="1"><Text color="gray" mr="1">C</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.close || null) }</Text>
-              { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ UiUtil.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
-            </Flex> :
-            <Flex direction="column">
-              <Text size="1"><Text color="gray" mr="1">C</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.value || null) }</Text>
-              { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ UiUtil.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
-            </Flex>)
-          }
-        </Box>
-      </AspectRatio>
-      <Flex mt="2" px="3" pb="3" gap="2" justify="between" align="center">
-        <Badge size="3" color="gray" style={{ fontSize: '1.05rem', padding: '10px 15px' }}>
-          <Icon path={mdiCubeOutline} size={0.8}></Icon>
-          { blockNumber > 0 && UiUtil.toValue(null, blockNumber, false, false) }
-        </Badge>
-        <Flex gap="2">
-          <Select.Root size="3" value={options.interval.toString()} onValueChange={(e) => {
-            onOptionsChange(prev => ({ ...prev, interval: parseInt(e) }));
-            setState(prev => ({ ...prev, ready: false }));
-          }}>
-            <Select.Trigger variant="soft" color="gray" />
-            <Select.Content>
-              <Select.Group>
-                <Select.Label>Interval</Select.Label>
-                {
-                  options.intervals.map((item) =>
-                    <Select.Item key={item[0]} value={item[0].toString()}>{ item[1] }</Select.Item>)
-                }
-              </Select.Group>
-            </Select.Content>
-          </Select.Root>
           <Dialog.Root>
             <Dialog.Trigger>
-              <IconButton size="3" variant="surface" color="gray" loading={state.loading}>
-                <Icon path={mdiCog} size={0.95}></Icon>
-              </IconButton>
+              <button className="icon-btn" aria-label="Chart settings"><Icon path={mdiCog} size={0.9}></Icon></button>
             </Dialog.Trigger>
             <Dialog.Content maxWidth="450px">
               <Dialog.Title>Configure</Dialog.Title>
               <Flex direction="column" gap="2">
+                <Select.Root value={options.interval.toString()} onValueChange={(e) => {
+                  onOptionsChange(prev => ({ ...prev, interval: parseInt(e) }));
+                  setState(prev => ({ ...prev, ready: false }));
+                }}>
+                  <Select.Trigger />
+                  <Select.Content>
+                    <Select.Group>
+                      <Select.Label>Interval</Select.Label>
+                      {
+                        options.intervals.map((item) =>
+                          <Select.Item key={item[0]} value={item[0].toString()}>{ item[1] } interval</Select.Item>)
+                      }
+                    </Select.Group>
+                  </Select.Content>
+                </Select.Root>
                 <Select.Root value={options.view.toString()} onValueChange={(e) => onOptionsChange(prev => ({ ...prev, view: parseInt(e) }))}>
                   <Select.Trigger />
                   <Select.Content>
@@ -649,26 +697,23 @@ export function ChartWidget({
                     </Select.Group>
                   </Select.Content>
                 </Select.Root>
-                {
-                  !mobile &&
-                  <Select.Root value={options.crosshair.toString()} onValueChange={(e) => onOptionsChange(prev => ({ ...prev, crosshair: parseInt(e) }))}>
-                    <Select.Trigger />
-                    <Select.Content>
-                      <Select.Group>
-                        <Select.Label>Crosshair mode</Select.Label>
-                        <Select.Item value={CrosshairMode.Normal.toString()}>Normal crosshair</Select.Item>
-                        <Select.Item value={CrosshairMode.Magnet.toString()}>Magnet crosshair</Select.Item>
-                        <Select.Item value={CrosshairMode.Hidden.toString()}>Hidden crosshair</Select.Item>
-                        <Select.Item value={CrosshairMode.MagnetOHLC.toString()}>Magent OHLC crosshair</Select.Item>
-                      </Select.Group>
-                    </Select.Content>
-                  </Select.Root>
-                }
+                <Select.Root value={options.crosshair.toString()} onValueChange={(e) => onOptionsChange(prev => ({ ...prev, crosshair: parseInt(e) }))}>
+                  <Select.Trigger />
+                  <Select.Content>
+                    <Select.Group>
+                      <Select.Label>Crosshair mode</Select.Label>
+                      <Select.Item value={CrosshairMode.Normal.toString()}>Normal crosshair</Select.Item>
+                      <Select.Item value={CrosshairMode.Magnet.toString()}>Magnet crosshair</Select.Item>
+                      <Select.Item value={CrosshairMode.Hidden.toString()}>Hidden crosshair</Select.Item>
+                      <Select.Item value={CrosshairMode.MagnetOHLC.toString()}>Magent OHLC crosshair</Select.Item>
+                    </Select.Group>
+                  </Select.Content>
+                </Select.Root>
               </Flex>
             </Dialog.Content>
-          </Dialog.Root>
-        </Flex>
-      </Flex>
+            </Dialog.Root>
+        </div>
+      </div>
     </Box>
   );
 }
