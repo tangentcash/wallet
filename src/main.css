@@ -32,6 +32,19 @@
   --warn-dim: rgba(232, 195, 92, 0.13);
   --info: #8FC3FF;
   --info-dim: rgba(143, 195, 255, 0.12);
+  --tx-reverted: #FF3B5C;
+  --tx-deploy: #35D0BA;
+  --tx-call: #A78BFA;
+  --tx-rollup: #5B9DFF;
+  --tx-route: #3BC9F5;
+  --tx-bind: #4CC764;
+  --tx-imbind: #22B8A6;
+  --tx-rebind: #C084FC;
+  --tx-setup: #94A3B8;
+  --tx-withdraw: #FB923C;
+  --tx-broadcast: #F472B6;
+  --tx-anticast: #C8863C;
+  --tx-attestate: #6EE7B7;
   --r-xl: 32px;
   --r-lg: 28px;
   --r-md: 18px;
@@ -207,6 +220,19 @@ body {
   --warn-dim: rgba(232, 195, 92, 0.22);
   --info: #2F6DB5;
   --info-dim: rgba(47, 109, 181, 0.12);
+  --tx-reverted: #DB2744;
+  --tx-deploy: #0E9384;
+  --tx-call: #6D4AE0;
+  --tx-rollup: #1F6FEB;
+  --tx-route: #0891B2;
+  --tx-bind: #1E9E3E;
+  --tx-imbind: #0F766E;
+  --tx-rebind: #9333EA;
+  --tx-setup: #5B6B7A;
+  --tx-withdraw: #C2610B;
+  --tx-broadcast: #DB2777;
+  --tx-anticast: #9A6420;
+  --tx-attestate: #059669;
   background: #F2F4F3;
   color-scheme: light;
 }
@@ -770,6 +796,24 @@ button.asset-row:hover { background: var(--elev); }
 .tx-ico.dex svg { color: var(--info); }
 .tx-ico.pending { background: var(--warn-dim); color: var(--warn); }
 .tx-ico.pending svg { color: var(--warn); }
+.tx-ico.in { background: color-mix(in srgb, var(--up) 12%, transparent); }
+.tx-ico.out { background: color-mix(in srgb, var(--down) 12%, transparent); }
+.tx-ico.dex { background: color-mix(in srgb, var(--info) 12%, transparent); }
+.tx-ico.reverted, .tx-ico[class*=" t-"] { background: color-mix(in srgb, var(--txc) 13%, transparent); color: var(--txc); }
+.tx-ico.reverted svg, .tx-ico[class*=" t-"] svg { color: var(--txc); }
+.tx-ico.reverted { --txc: var(--tx-reverted); }
+.tx-ico.t-deploy { --txc: var(--tx-deploy); }
+.tx-ico.t-call { --txc: var(--tx-call); }
+.tx-ico.t-rollup { --txc: var(--tx-rollup); }
+.tx-ico.t-route { --txc: var(--tx-route); }
+.tx-ico.t-bind { --txc: var(--tx-bind); }
+.tx-ico.t-imbind { --txc: var(--tx-imbind); }
+.tx-ico.t-rebind { --txc: var(--tx-rebind); }
+.tx-ico.t-setup { --txc: var(--tx-setup); }
+.tx-ico.t-withdraw { --txc: var(--tx-withdraw); }
+.tx-ico.t-broadcast { --txc: var(--tx-broadcast); }
+.tx-ico.t-anticast { --txc: var(--tx-anticast); }
+.tx-ico.t-attestate { --txc: var(--tx-attestate); }
 .tx-main { flex: 1; min-width: 0; }
 .tx-meta.mono { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .tx-title { font-weight: 650; font-size: 14.5px; }

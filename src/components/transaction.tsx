@@ -90,20 +90,20 @@ export function toFlow(state: SummaryState | null | undefined, receipt: ReceiptR
 }
 function toIcon(type: string | null, direction: 'in' | 'out' | 'neutral', pending: boolean, reverted: boolean): { cls: string, path: string } {
   if (reverted)
-    return { cls: '', path: mdiAlertCircleOutline };
+    return { cls: 'reverted', path: mdiAlertCircleOutline };
   switch (type) {
-    case 'deploy': return { cls: '', path: mdiPackageVariant };
-    case 'call': return { cls: '', path: mdiConsoleLine };
-    case 'rollup': return { cls: '', path: mdiLayersTriple };
-    case 'route': return { cls: 'dex', path: mdiBridge };
-    case 'bind': return { cls: 'dex', path: mdiSafeSquareOutline };
-    case 'imbind': return { cls: 'dex', path: mdiSafe };
-    case 'rebind': return { cls: 'dex', path: mdiKeyChange };
-    case 'setup': return { cls: 'dex', path: mdiCogOutline };
-    case 'withdraw': return { cls: 'dex', path: mdiBankTransfer };
-    case 'broadcast': return { cls: 'dex', path: mdiBroadcast };
-    case 'anticast': return { cls: 'dex', path: mdiBackupRestore };
-    case 'attestate': return { cls: 'dex', path: mdiSync };
+    case 'deploy': return { cls: 't-deploy', path: mdiPackageVariant };
+    case 'call': return { cls: 't-call', path: mdiConsoleLine };
+    case 'rollup': return { cls: 't-rollup', path: mdiLayersTriple };
+    case 'route': return { cls: 't-route', path: mdiBridge };
+    case 'bind': return { cls: 't-bind', path: mdiSafeSquareOutline };
+    case 'imbind': return { cls: 't-imbind', path: mdiSafe };
+    case 'rebind': return { cls: 't-rebind', path: mdiKeyChange };
+    case 'setup': return { cls: 't-setup', path: mdiCogOutline };
+    case 'withdraw': return { cls: 't-withdraw', path: mdiBankTransfer };
+    case 'broadcast': return { cls: 't-broadcast', path: mdiBroadcast };
+    case 'anticast': return { cls: 't-anticast', path: mdiBackupRestore };
+    case 'attestate': return { cls: 't-attestate', path: mdiSync };
   }
   if (pending)
     return { cls: 'pending', path: mdiClockOutline };

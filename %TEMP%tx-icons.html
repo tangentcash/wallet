@@ -1,0 +1,10 @@
+<!doctype html><html><head><meta charset="utf-8">
+<link rel="stylesheet" href="file:///I:/dev/tangent/wallet/src/main.css"></head>
+<body class="radix-themes" style="background:var(--bg);padding:30px">
+<div id="dark"></div>
+<div class="radix-themes light" style="background:var(--bg);padding:20px;margin-top:20px"><div id="light"></div></div>
+<script>
+const cls=['reverted','t-deploy','t-call','t-rollup','t-route','t-bind','t-imbind','t-rebind','t-setup','t-withdraw','t-broadcast','t-anticast','t-attestate','pending','in','out',''];
+const mk=(id)=>{const w=document.getElementById(id);for(const c of cls){const s=document.createElement('span');s.className='tx-ico '+c;s.textContent=(c||'neutral').replace('t-','');w.appendChild(s);w.appendChild(document.createTextNode(' '+c+'\u00a0\u00a0\u00a0'));}};
+mk('dark');mk('light');
+</script></body></html>
