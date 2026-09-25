@@ -21,6 +21,9 @@ export default function ConfigurePage() {
   const [validatorAddress, setValidatorAddress] = useState(AppData.props.validator || '');
   const [exchangeAddress, setExchangeAddress] = useState(AppData.props.exchange || '');
   const [loadingProps, setLoadingProps] = useState(false);
+  useEffect(() => {
+    AppData.setTitle('App settings');
+  }, []);
   const highlightExport = useMemo(() => {
     return searchParams.has('export');
   }, [searchParams]);

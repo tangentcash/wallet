@@ -157,7 +157,7 @@ export default function InteractionPage() {
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
   const [program, setProgram] = useState<ProgramTransfer | ProgramSetup | ProgramRoute | ProgramWithdraw | ProgramAnticast | ApproveTransaction | null>(null);
   const [powProgress, setPowProgress] = useState<number | null>(null);
-  const [sent, setSent] = useState<{ hash: string } | null>(null);
+  const [sent, setSent] = useState<{ hash: string } | null>();
   const navigate = useNavigate();
   const params = useMemo(() => ({
     type: query.get('type'),
@@ -508,20 +508,22 @@ export default function InteractionPage() {
       setProgram(copy);
     }
   }, [assets, asset, program]);
-  const buildTransaction = useCallback(async (options?: { prebuilt?: TransactionOutput, gasPrice?: BigNumber, gasLimit?: BigNumber }): Promise<TransactionOutput | null> => {
+  const buildTransaction = useCallback(async (options?: { prebuilt?: TransactionOutput, gasPrice?: BigNumber, gasLimit?: BigNumber, nonce?: BigNumber, nonceFresh?: boolean }): Promise<TransactionOutput | null> => {
     if (programError || loadingTransaction)
       return null;
     
+    let resolvedNonce = options?.nonce ?? nonce;
+    let nonceFresh = options?.nonceFresh === true && resolvedNonce != null && resolvedNonce.gte(0);
     setLoadingTransaction(true);
     try {
       const buildProgram = async (method: { type: Ledger.Transaction | Ledger.Commitment | Ledger.Unknown, args: { [key: string]: any } }) => {
         const output = await AppData.buildWalletTransaction({
           asset: new AssetId(assets[asset].asset.id),
-          nonce:  options?.prebuilt ? options.prebuilt.body.nonce.toString() : (nonce || undefined),
+          nonce: options?.prebuilt ? options.prebuilt.body.nonce.toString() : (resolvedNonce || undefined),
           gasPrice: options?.gasPrice ? options.gasPrice : gasPrice,
           gasLimit: options?.gasLimit ? options.gasLimit : (options?.prebuilt ? options.prebuilt.body.gasLimit.toString() : gasLimit),
           method: method
-        });
+        }, { nonceFresh: nonceFresh && !options?.prebuilt });
         setNonce(new BigNumber(output.body.nonce.toString()));
         setTransactionData(output);
         if (program instanceof ApproveTransaction)
@@ -571,11 +573,13 @@ export default function InteractionPage() {
           }
         });
       } else if (program instanceof ProgramRoute) {
-        let powNonce = nonce;
+        let powNonce = resolvedNonce;
         if (!powNonce?.gte(0)) {
           const latestNonce = await RPC.getNextAccountNonce(ownerAddress);
           powNonce = typeof latestNonce == 'string' ? new BigNumber(latestNonce, 16) : (latestNonce != null ? latestNonce : new BigNumber(0));
           setNonce(powNonce);
+          resolvedNonce = powNonce;
+          nonceFresh = true;
         }
         let powChallenge = await toPowChallenge(ownerAddress, powNonce, setPowProgress);
         let includeRoutingAddress = true;
@@ -659,16 +663,19 @@ export default function InteractionPage() {
       presetGasPrice = presetGasPrice != null && BigNumber.isBigNumber(presetGasPrice) && presetGasPrice.gte(0) ? presetGasPrice : new BigNumber(0);
     } catch { }
     
+    let resolvedNonce: BigNumber | null = null;
     try {
       let output = await buildTransaction({ gasPrice: presetGasPrice });
       if (!output)
         throw new Error('cannot build transaction');
+      resolvedNonce = new BigNumber(output.body.nonce.toString());
 
       if (!presetGasPrice.gt(0) && output.data.length / 2 > Chain.policy.ZERO_GAS_PRICE_SIZE_LIMIT) {
         presetGasPrice = new BigNumber(Chain.policy.MIN_GAS_PRICE);
-        output = await buildTransaction({ gasPrice: presetGasPrice });
+        output = await buildTransaction({ gasPrice: presetGasPrice, nonce: resolvedNonce, nonceFresh: true });
         if (!output)
           throw new Error('cannot build transaction');
+        resolvedNonce = new BigNumber(output.body.nonce.toString());
       }
 
       let receipt = await RPC.simulateTransaction(output.data);
@@ -697,7 +704,9 @@ export default function InteractionPage() {
       if (presetGasPrice.gte(0) && presetGasLimit.gte(0)) {
         await buildTransaction({
           gasPrice: presetGasPrice,
-          gasLimit: presetGasLimit
+          gasLimit: presetGasLimit,
+          nonce: resolvedNonce ?? undefined,
+          nonceFresh: resolvedNonce != null
         });
       }
     } catch { }
@@ -870,6 +879,9 @@ export default function InteractionPage() {
       }
     }
   }, []);
+  useEffect(() => {
+    AppData.setTitle((params.type == 'configure' ? 'Setup' : params.type == 'approve' ? 'Approve' : params.type == 'reconcile' ? 'Assert' : params.type == 'route' ? 'Claim address' : params.type == 'withdraw' ? 'Withdraw' : 'Pay') + (asset != -1 && assets[asset] != null ? ' ' + UiUtil.toAssetSymbol(assets[asset].asset) : ''));
+  }, [params.type, asset, assets]);
 
   if (!AppData.isWalletReady()) {
     return <Navigate replace={true} to={`/restore?to=${encodeURIComponent(location.pathname + location.search)}`} state={{ from: `${location.pathname}${location.search}` }} />;
@@ -896,19 +908,20 @@ export default function InteractionPage() {
         <div className="card" style={{ marginTop: 18 }}>
           <div className="dl">
             <div className="dl-row"><span className="dl-k">Status</span><span className="dl-v"><span className="badge warn">IN MEMPOOL</span></span></div>
-            <div className="dl-row"><span className="dl-k">Fee</span><span className="dl-v num">{ UiUtil.toMoney(gasAsset, maxFeeValue) }</span></div>
             <div className="dl-row"><span className="dl-k">Hash</span><span className="dl-v mono">{ UiUtil.toAddress(sent.hash) }</span></div>
           </div>
         </div>
         <Button className="btn-soft btn-block" size="3" mt="4" onClick={() => navigate('/transaction/' + sent.hash)}>View on explorer</Button>
-        <Button variant="ghost" color="gray" className="btn-block" size="3" mt="2" onClick={() => {
-          setSent(null);
-          if (program instanceof ProgramTransfer) {
-            const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
-            copy.to = [{ address: '', value: '' }];
-            setProgram(copy);
-          }
-        }}>Send another</Button>
+        <Flex justify="center" mt="2">
+          <Button variant="ghost" color="gray" style={{ alignSelf: 'center' }} onClick={() => {
+            setSent(null);
+            if (program instanceof ProgramTransfer) {
+              const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+              copy.to = [{ address: '', value: '' }];
+              setProgram(copy);
+            }
+          }}>Send another one</Button>
+        </Flex>
       </Box>
     );
   }
@@ -990,7 +1003,7 @@ export default function InteractionPage() {
                 <TextField.Root size="3" placeholder="Raw transaction data" type="text" value={'Data: ' + UiUtil.toAddress(program.hexMessage, 12)} readOnly={true} />
               </Tooltip>
             </Box>
-            <Button size="3" variant="surface" disabled={readOnlyApproval} onClick={async () => {
+            <Button size="3" variant="surface" style={{ height: 'var(--space-7)' }} disabled={readOnlyApproval} onClick={async () => {
               try {
                 const result = await AppData.openFile('');
                 if (result != null) {
@@ -1555,7 +1568,7 @@ export default function InteractionPage() {
               </Box>
               <DropdownMenu.Root>
                 <DropdownMenu.Trigger>
-                  <Button size="3" variant="outline" color="gray" style={{ outlineColor: 'red' }} disabled={!!programError || loadingTransaction || loadingGasPriceAndPrice} loading={loadingGasPriceAndPrice}>
+                  <Button size="3" variant="outline" color="gray" style={{ outlineColor: 'red', height: 'var(--space-7)' }} disabled={!!programError || loadingTransaction || loadingGasPriceAndPrice} loading={loadingGasPriceAndPrice}>
                     Auto
                     <DropdownMenu.TriggerIcon />
                   </Button>
@@ -1604,12 +1617,10 @@ export default function InteractionPage() {
         program instanceof ProgramRoute &&
         <>
           <Box px="0">
-            <Callout.Root size="1" variant="surface" mt="2" color="yellow" style={{ borderRadius: 'var(--r-lg, 16px)' }}>
-              <Callout.Icon>
-                <Icon path={mdiTimelapse} size={1} />
-              </Callout.Icon>
-              <Callout.Text style={{ whiteSpace: 'pre-wrap' }}>Claim is free of charge but takes a bit more time to submit</Callout.Text>
-            </Callout.Root>
+            <div className="callout warn" style={{ marginTop: 8 }}>
+              <Icon path={mdiTimelapse} size={1} />
+              <span>Claim is free of charge but takes a bit more time to submit</span>
+            </div>
             {
               powProgress != null &&
               <Box pt="3" px="3">
@@ -1622,6 +1633,13 @@ export default function InteractionPage() {
             }
           </Box>
         </>
+      }
+      {
+        (program instanceof ProgramTransfer ? program.to.some((item) => item.address.length > 0 || String(item.value).length > 0) : program instanceof ProgramWithdraw ? program.address.length > 0 || program.value.length > 0 : true) && (programError || simulationError || (transactionError && !gasReviewHint)) ?
+        <div className="callout err" style={{ marginTop: 8 }}>
+          <Icon path={mdiAlertCircleOutline} size={1} />
+          <span>{ programError || simulationError || transactionError }</span>
+        </div> : null
       }
       {
         <Flex direction="column" gap="2" mt="6">
@@ -1638,13 +1656,6 @@ export default function InteractionPage() {
             }}>Back to review</Button>
           }
         </Flex>
-      }
-      {
-        (program instanceof ProgramTransfer ? program.to.some((item) => item.address.length > 0 || String(item.value).length > 0) : program instanceof ProgramWithdraw ? program.address.length > 0 || program.value.length > 0 : true) && (programError || simulationError || (transactionError && !gasReviewHint)) ?
-        <div className="callout err" style={{ marginTop: 14 }}>
-          <Icon path={mdiAlertCircleOutline} size={1} />
-          <span>{ programError || simulationError || transactionError }</span>
-        </div> : null
       }
       <p className="tiny" style={{ textAlign: 'center', marginTop: 12, color: gasReviewHint ? 'var(--warn)' : 'var(--text-3)' }}>{ gasReviewHint ? '"Review action" to set gas price/limit' : 'Signed locally · broadcast to the P2P network' }</p>
     </Box>

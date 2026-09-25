@@ -54,9 +54,10 @@ export function toFlow(state: SummaryState | null | undefined, receipt: ReceiptR
       Object.keys(balance).forEach((id) => {
         const item = balance[id];
         const reserve = item.reserve || new BigNumber(0);
-        const value = (item.supply || new BigNumber(0)).minus(reserve);
+        const supply = item.supply || new BigNumber(0);
+        const value = supply.isZero() ? reserve.negated() : supply;
         if (!value.eq(0))
-          deltas.push({ asset: item.asset, value, reserved: !reserve.eq(0) });
+          deltas.push({ asset: item.asset, value, reserved: reserve.gt(0) });
       });
     } else {
       const totals: Record<string, { asset: AssetId, value: BigNumber }> = { };
@@ -801,7 +802,7 @@ function TransactionDetails(props: { transaction: any, receipt?: any, state?: Su
         <TransactionInputFields transaction={transaction}></TransactionInputFields>
         {
           isDeploy && transaction.callable != null &&
-          <Button className="btn-brand btn-block" style={{ marginTop: 14 }} onClick={() => navigate('/program/' + transaction.callable)}>Open program</Button>
+          <Button className="btn-brand btn-block" style={{ marginTop: 14 }} onClick={() => navigate('/account/' + transaction.callable + '?view=data')}>Open program account</Button>
         }
       </div>
       {

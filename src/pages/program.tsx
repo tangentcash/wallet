@@ -1,17 +1,21 @@
 import { useParams } from "react-router";
 import { useEffectAsync } from "../core/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Box, Button } from "@radix-ui/themes";
 import { mdiAlertCircleOutline, mdiContentCopy, mdiOpenInNew } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
 import { RPC } from "tangentsdk/rpc";
 import { UiUtil } from "tangentsdk/ui";
 import Icon from "@mdi/react";
+import { AppData } from "../core/app";
 
 export default function ProgramPage() {
   const params = useParams();
   const [program, setProgram] = useState<{ hashcode: string, storage: string } | null>(null);
   const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    AppData.setTitle('Program ' + UiUtil.toAddress(program != null ? program.hashcode : params.id || '', 12));
+  }, [program, params.id]);
   useEffectAsync(async () => {
     try {
       const id = params.id;

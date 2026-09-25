@@ -1,8 +1,8 @@
 import './account.css';
 import { Box, Button, Card, Dialog, Flex, SegmentedControl, Spinner, Tabs, Text } from "@radix-ui/themes";
-import { useNavigate, useParams, Link } from "react-router";
+import { useNavigate, useParams, useSearchParams, Link } from "react-router";
 import { mdiAlertCircleOutline, mdiAlertDecagram, mdiBankOutline, mdiCheckBold, mdiCheckDecagram, mdiChevronDown, mdiContentCopy, mdiDatabaseOutline, mdiImport, mdiLock, mdiLockOpen, mdiMagnify, mdiOpenInNew, mdiPlus, mdiRefresh } from "@mdi/js";
-import { useCallback, useState, useMemo, useRef } from "react";
+import { useCallback, useEffect, useState, useMemo, useRef } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData } from "../core/app";
 import { RPC, EventResolver, SummaryState } from "tangentsdk/rpc";
@@ -30,6 +30,7 @@ export default function AccountPage() {
   const ownerAddress = useParams().id || ownerBaseAddress;
   const self = ownerAddress == ownerBaseAddress;
   const navigate = useNavigate();
+  const [search, setSearch] = useSearchParams();
   const prevState = useRef<{ control: any, ownerAddress: any, nonce: any }>({ control: undefined, ownerAddress: undefined, nonce: undefined });
   const [loading, setLoading] = useState(false);
   const [nonce, setNonce] = useState(0);
@@ -44,12 +45,18 @@ export default function AccountPage() {
   const [participation, setParticipation] = useState<any>(null);
   const [production, setProduction] = useState<any>(null);
   const [selectedAddress, setSelectedAddress] = useState<number>(0);
-  const [control, setControl] = useState<'balance' | 'address' | 'storage'>('balance');
+  const [control, setControl] = useState<'balance' | 'address' | 'storage'>(() => search.get('view') == 'fund' ? 'address' : search.get('view') == 'data' ? 'storage' : 'balance');
   const [finalizedTransactions, setFinalizedTransactions] = useState<{ transaction: any, receipt?: any, state?: SummaryState }[]>([]);
   const [mempoolTransactions, setMempoolTransactions] = useState<any[]>([]);
   const [moreTransactions, setMoreTransactions] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [rpcError, setRpcError] = useState<string | null>(null);
+  useEffect(() => {
+    AppData.setTitle((control == 'address' ? 'Fund ' : control == 'storage' ? 'Data of ' : 'Balance of ') + UiUtil.toAddress(ownerAddress, 12));
+  }, [control, ownerAddress]);
+  useEffect(() => {
+    setControl(search.get('view') == 'fund' ? 'address' : search.get('view') == 'data' ? 'storage' : 'balance');
+  }, [search]);
   const transactions = useMemo((): { transaction: any, receipt?: any, state?: SummaryState }[] => {
     return [...mempoolTransactions.map((x) => ({ transaction: x })), ...finalizedTransactions];
   }, [finalizedTransactions, mempoolTransactions]);
@@ -472,7 +479,7 @@ export default function AccountPage() {
             { tanFee != null && <> · fee { tanFee }</> }
           </div>
 
-          <SegmentedControl.Root value={control} radius="full" size="3" mt="4" mb="4" onValueChange={(value) => setControl(value as 'balance' | 'address' | 'storage')}>
+          <SegmentedControl.Root value={control} radius="full" size="3" mt="4" mb="4" onValueChange={(value) => setSearch({ view: value == 'address' ? 'fund' : value == 'storage' ? 'data' : 'balance' })}>
             <SegmentedControl.Item value="address">
               <Flex gap="2" align="center">
                 { loading && control == 'address' && <Spinner /> }

@@ -2,10 +2,10 @@ import { Box, Button, Dialog, Flex, Spinner, Text, Tooltip } from "@radix-ui/the
 import { CSSProperties, useCallback, useEffect, useState } from "react";
 import { OrderCondition, OrderPolicy, OrderSide, Exchange, RouterPath, Market, AggregatedPair } from "../../core/exchange";
 import { AlertBox, AlertType } from "./../alert";
-import { mdiArrowRight, mdiBookPlus, mdiBookRemove, mdiCashRefund, mdiClose, mdiCollage, mdiSwapHorizontalVariant, mdiWater, mdiWaterOff } from "@mdi/js";
+import { mdiArrowRight, mdiBookPlus, mdiBookRemove, mdiCashPlus, mdiCashRefund, mdiClose, mdiCollage, mdiSwapHorizontalVariant, mdiWater, mdiWaterOff } from "@mdi/js";
 import { useNavigate } from "react-router";
 import { AppData } from "../../core/app";
-import { AssetId, Hashsig, Signing, Uint256 } from "tangentsdk/algorithm";
+import { AssetId, Chain, Hashsig, Signing, Uint256 } from "tangentsdk/algorithm";
 import { UiUtil } from "tangentsdk/ui";
 import { Spot } from "tangentsdk/types";
 import { Assetlist } from "tangentsdk/assetlist";
@@ -451,6 +451,55 @@ export class Builder {
               pays: [],
               function: UiUtil.toFunction(Spot.DEX.withdrawPool),
               args: [new Uint256(pool.poolId.toString())]
+            }
+        };
+    }
+    static async payUnifiedAsset(args: {
+        pays: Record<string, string>, 
+        marketId: string,
+        primaryAssetHash: string,
+        secondaryAssetHash: string
+    }): Promise<BuilderResult> {
+        const payment = Exchange.parsePayment(args.pays);
+        if (!payment)
+            throw new Error('Order value must be positive');
+        
+        const marketId = typeof args.marketId == 'string' || typeof args.marketId == 'number' ? new BigNumber(args.marketId) : null;
+        if (!marketId)
+            throw new Error('Market id must be set');
+
+        const market = Exchange.markets.find((v) => v.id.eq(marketId));
+        if (!market || !market.account || !market.unifiedAssetProxyAccount)
+            throw new Error('Market ' + args.marketId.toString() + ' account cannot be found');
+
+        const primaryAsset = typeof args.primaryAssetHash == 'string' || typeof args.primaryAssetHash == 'number' ? new AssetId(args.primaryAssetHash) : null;
+        if (!primaryAsset)
+            throw new Error('Primary asset must be set');
+
+        const secondaryAsset = typeof args.secondaryAssetHash == 'string' || typeof args.secondaryAssetHash == 'number' ? new AssetId(args.secondaryAssetHash) : null;
+        if (!secondaryAsset)
+            throw new Error('Secondary asset must be set');
+
+        const marketAccount = Signing.decodeAddress(market.account || '');
+        if (!marketAccount)
+            throw new Error('Market ' + market.id.toString() + ' account cannot be found');
+
+        const unifiedAssetProxyAccount = Signing.decodeAddress(market.unifiedAssetProxyAccount || '');
+        if (!unifiedAssetProxyAccount)
+            throw new Error('Market ' + market.id.toString() + ' unified asset proxy account cannot be found');
+
+        const pair = await Exchange.marketPair(market.id, primaryAsset, secondaryAsset, true);
+        if (!pair)
+            throw new Error('Pair cannot be found');
+        
+        return {
+            icon: mdiCashPlus,
+            text: `Pay ${payment.pays.map((v) => UiUtil.toMoney(v.asset, v.value)).join(' + ')} as unified ${UiUtil.toMoney(AssetId.fromHandle(Chain.policy.TOKEN_NAME, payment.pays[0].asset.token || undefined, market.account), payment.value)}`,
+            body: {
+              callable: unifiedAssetProxyAccount,
+              pays: payment.pays,
+              function: UiUtil.toFunction(Spot.UAP.payUnifiedAsset),
+              args: [primaryAsset.toUint256(), secondaryAsset.toUint256(), marketAccount]
             }
         };
     }

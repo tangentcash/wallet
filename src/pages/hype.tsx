@@ -3,7 +3,7 @@ import { Avatar, Box, Button, DropdownMenu, Flex, Heading, Text } from "@radix-u
 import { Link, useNavigate } from "react-router";
 import { AppData } from "../core/app";
 import { useEffectAsync } from "../core/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getGPUTier } from "../core/gpu";
 import { secondsToDuration } from "../core/utils";
 import BigNumber from "bignumber.js";
@@ -63,6 +63,9 @@ export default function HypePage() {
   const mobile = document.body.clientWidth < 510;
   const navigate = useNavigate();
   const [unoptimzed, setUnoptimized] = useState(false);
+  useEffect(() => {
+    AppData.setTitle();
+  }, []);
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   useEffectAsync(async () => {
     const gpu = await getGPUTier();

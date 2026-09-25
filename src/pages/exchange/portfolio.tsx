@@ -1,11 +1,11 @@
-import { Box, Button, Dialog, Flex, SegmentedControl, Select, Spinner, Text, TextField, Tooltip, Callout } from "@radix-ui/themes";
-import { mdiAlert, mdiArrowLeft, mdiArrowRight, mdiChartTimelineVariant, mdiChevronDown, mdiEyeOffOutline, mdiEyeOutline, mdiListBoxOutline, mdiLockOutline, mdiPlus, mdiRefresh, mdiSwapVertical } from "@mdi/js";
+import { Box, Button, Dialog, Flex, SegmentedControl, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { mdiArrowLeft, mdiArrowRight, mdiChartTimelineVariant, mdiChevronDown, mdiEyeOutline, mdiListBoxOutline, mdiLockOutline, mdiPlus, mdiRefresh, mdiSwapVertical, mdiWalletOutline } from "@mdi/js";
 import { AssetId, ByteUtil, Signing } from "tangentsdk/algorithm";
 import { UiUtil } from 'tangentsdk/ui';
 import { Whitelist } from 'tangentsdk/whitelist';
 import { Assetlist } from 'tangentsdk/assetlist';
 import { TextUtil } from 'tangentsdk/text';
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Exchange, Balance, Order, Pool, Cursor, AggregatedPair, OrderSide, RouterPath, Market, PolyAsset, PseudoDelegatedPool, DelegatedPool, ExchangeField } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { AppData } from "../../core/app";
@@ -35,7 +35,7 @@ let swapPathTimeoutId: number | null = null;
 let portfolioSyncTimeoutId: number | null = null;
 let toAssetSymbol = (asset: AssetId): string => asset.chain == 'TAN' && asset.token ? (asset.token || '') : ((asset.token || '') + (asset.chain || ''));
 let toEquityAssets = (assets: Balance[], todayProfits: boolean, available?: boolean) => {
-  return (): (Balance & { value: BigNumber, equity: { current: BigNumber | null, previous: BigNumber | null } })[] => {
+  return (): (Balance & { type: 'std' | 'wrapped' | 'unwrapped', value: BigNumber, equity: { current: BigNumber | null, previous: BigNumber | null } })[] => {
     const list = assets.map((v: Balance) => {
       const price = Exchange.priceOf(v.asset);
       const value = available ? v.available : v.available.plus(v.unavailable);
@@ -43,6 +43,8 @@ let toEquityAssets = (assets: Balance[], todayProfits: boolean, available?: bool
       const currentEquity = price.close ? new BigNumber(price.close.multipliedBy(value).toFixed(2)) : null;
       return {
         asset: v.asset as AssetId,
+        poly: v.poly,
+        type: (v.poly ? (v.asset.token != null && v.asset.chain == new AssetId().chain ? 'wrapped' : 'unwrapped') : 'std') as 'std' | 'wrapped' | 'unwrapped',
         unavailable: v.unavailable as BigNumber,
         available: v.available as BigNumber,
         price: v.price as BigNumber,
@@ -50,13 +52,23 @@ let toEquityAssets = (assets: Balance[], todayProfits: boolean, available?: bool
         equity: { previous: previousEquity, current: currentEquity }
       };
     }).sort((a, b) => (b.equity.current || new BigNumber(0)).minus(a.equity.current || 0).toNumber());
-    return available ? list.filter(x => x.value.gt(0)) : list;
+    return (available ? list.filter(x => x.value.gt(0)) : list).sort((a, b) => Number(b.poly) - Number(a.poly));
   };
 };
 let approxEq = (a: BigNumber, b: BigNumber) => a.lte(b.multipliedBy(1.005)) && a.gte(b.multipliedBy(0.995));
+let toMarketExplorerType = (viewer: string): 'pairs' | 'router' | 'pools' | 'delegated-pools' => {
+  if (viewer == 'market-router')
+    return 'router';
+  if (viewer == 'market-pools')
+    return 'pools';
+  if (viewer == 'market-delegated-pools')
+    return 'delegated-pools';
+  return 'pairs';
+};
 
-function RepayableBalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } }, available?: boolean }) {
+function RepayableBalanceView(props: { item: Balance & { type: 'std' | 'wrapped' | 'unwrapped', equity: { current: BigNumber | null, previous: BigNumber | null } }, available?: boolean }) {
   const item = props.item;
+  const wrapping = item.type == 'unwrapped';
   const baseEquity = item.equity.current || item.equity.previous || new BigNumber(0);
   const previousEquity = item.equity.previous ? item.equity.previous : baseEquity;
   const currentEquity = item.equity.current ? item.equity.current : baseEquity;
@@ -95,7 +107,7 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
       try {
         const chain = new AssetId().chain;
         const assets = await Exchange.marketAssets(item.asset, true);
-        setAssets(assets.filter((v) => v.chain != chain));
+        setAssets(assets.filter((v) => wrapping ? v.chain == chain : v.chain != chain));
       } catch {
         setAssets([]);
       }
@@ -107,43 +119,50 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
   return (
     <>
       <div className="asset-row">
-        <AssetImage asset={item.asset} size="3" iconSize="38px"></AssetImage>
+        <AssetImage asset={item.asset} size="3" iconSize="42px"></AssetImage>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <AssetName asset={item.asset} size="2"></AssetName>
-          <div className="mono tiny dim" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <AssetName asset={item.asset} size="3" style={{ lineHeight: '24px' }}></AssetName>
+          <div className="mono tiny dim" style={{ display: 'flex', alignItems: 'center', gap: 2, height: 28, lineHeight: '28px' }}>
             { item.unavailable.gt(0) && <Tooltip content={ 'Currently locked: ' + UiUtil.toMoney(item.asset, item.unavailable) }><span className="lock"><Icon path={mdiLockOutline} size={0.55}></Icon></span></Tooltip> }
             <span>{ UiUtil.toMoney(null, props.available ? item.available : item.available.plus(item.unavailable)) }</span>
             <span style={{ color: previousEquity.gt(currentEquity) ? 'var(--down)' : (previousEquity.eq(currentEquity) ? 'var(--text-3)' : 'var(--lime)') }}>{ UiUtil.toPercentageDelta(previousEquity, currentEquity) }</span>
           </div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6, flex: 'none' }}>
-          <div className={ 'usd' + (item.equity.current == null ? ' na' : '') }>{ UiUtil.toMoney(Exchange.equityAsset, item.equity.current) }</div>
-          <Tooltip content={ 'Convert 1:1 into the native ' + (item.asset.token || '') }>
-            <button className="chip-quiet sm" aria-label="Convert asset" onClick={() => setOpen(true)}>
-              Convert
-            </button>
-          </Tooltip>
+        <div style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+          <div className={ 'usd' + (item.equity.current == null ? ' na' : '') } style={{ lineHeight: '24px' }}>{ UiUtil.toMoney(Exchange.equityAsset, item.equity.current) }</div>
+          <div style={{ height: 28, display: 'flex', alignItems: 'center' }}>
+            <Tooltip content={ wrapping ? 'Wrap 1:1 into the unified ' + (item.asset.token || '') + ' asset to trade on the market' : 'Convert 1:1 into the native ' + (item.asset.token || '') }>
+              <button className="settled-toggle" aria-label={ wrapping ? 'Wrap asset' : 'Unwrap asset' } onClick={() => setOpen(true)}>
+                { wrapping ? 'Wrap' : 'Unwrap' }
+              </button>
+            </Tooltip>
+          </div>
         </div>
       </div>
       <Dialog.Root open={open} onOpenChange={(value) => { setOpen(value); if (!value) { setAmount(''); } }}>
         <Dialog.Content className="sheet-content" maxWidth="560px">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <AssetImage asset={item.asset} size="3" iconSize="42px"></AssetImage>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 750, fontSize: 16 }}>{ Assetlist.toName(item.asset, false, true) }</div>
-              <div className="tiny dim">Synthetic asset — redeem it 1:1 for the native token.</div>
+          <Dialog.Title>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <AssetImage asset={item.asset} size="3" iconSize="42px"></AssetImage>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 750, fontSize: 16 }}>{ Assetlist.toName(item.asset, false, true) }</div>
+                <div className="tiny dim">{ wrapping ? 'Native asset — wrap it 1:1 into the unified token to trade on the market.' : 'Synthetic asset — redeem it 1:1 for the native token.' }</div>
+              </div>
             </div>
-          </div>
+          </Dialog.Title>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 18 }}>
             <Select.Root value={asset?.id} onValueChange={(value) => setAsset(assets?.find(x => x.id == value) || null)}>
-              <Select.Trigger variant="surface" placeholder="Receive on" className="token-select dot" style={{ width: '100%', justifyContent: 'space-between' }}>
+              <Select.Trigger variant="surface" placeholder={ wrapping ? 'Wrap into' : 'Receive on' } className="token-select dot" style={{ width: '100%', justifyContent: 'space-between' }}>
               </Select.Trigger>
               <Select.Content variant="soft">
                 <Select.Group>
                   {
                     assets && assets.map((option) =>
                       <Select.Item key={option.id + '_select'} value={option.id}>
-                        <AssetName asset={AssetId.fromHandle(option.chain || '')} size="3"></AssetName>
+                        <Flex align="center" gap="1">
+                          <AssetImage asset={AssetId.fromHandle(option.chain || '')} size="1" iconSize="16px"></AssetImage>
+                          <AssetName asset={option} symbol={true} badgeOffset={3} size="3"></AssetName>
+                        </Flex>
                       </Select.Item>
                     )
                   }
@@ -156,8 +175,15 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
               <span className="lime-link" onClick={() => setAmount(max.gt(0) ? max.toFixed() : '')}>Max</span>
             </div>
           </div>
-          <PerformerButton className="btn-brand" style={{ width: '100%', marginTop: 16 }} title={ 'Receive on ' + Assetlist.toName(AssetId.fromHandle(asset?.chain || '')) } description="Smart contract will re-pay you back the 1:1 value of selected token after this action" disabled={!assetPayload} onBuild={async () => {
-            return assetPayload ? Builder.repayAsset(assetPayload) : null;
+          <PerformerButton className="btn-brand" style={{ width: '100%', marginTop: 16 }} title={ wrapping ? (asset ? 'Wrap into ' + Assetlist.toName(asset) : 'Wrap into unified asset') : 'Receive on ' + Assetlist.toName(AssetId.fromHandle(asset?.chain || '')) } description={ wrapping ? 'Selected token will be locked 1:1 into the unified asset of the chosen market' : "Smart contract will re-pay you back the 1:1 value of selected token after this action" } disabled={!assetPayload} onBuild={async () => {
+            if (!assetPayload)
+              return null;
+            return wrapping ? Builder.payUnifiedAsset({
+              pays: { [assetPayload.paymentAssetHash]: assetPayload.pays },
+              marketId: assetPayload.marketId,
+              primaryAssetHash: AssetId.fromHandle(item.asset.chain || '').id,
+              secondaryAssetHash: assetPayload.repaymentAssetHash
+            }) : Builder.repayAsset(assetPayload);
           }}></PerformerButton>
         </Dialog.Content>
       </Dialog.Root>
@@ -165,30 +191,25 @@ function RepayableBalanceView(props: { item: Balance & { equity: { current: BigN
   )
 }
 
-function DefaultBalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } }, available?: boolean }) {
+function StandardBalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } }, available?: boolean }) {
   const item = props.item;
   const baseEquity = item.equity.current || item.equity.previous || new BigNumber(0);
   const previousEquity = item.equity.previous ? item.equity.previous : baseEquity;
   const currentEquity = item.equity.current ? item.equity.current : baseEquity;
   return (
     <div className="asset-row">
-      <AssetImage asset={item.asset} size="3" iconSize="38px"></AssetImage>
+      <AssetImage asset={item.asset} size="3" iconSize="42px"></AssetImage>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <AssetName asset={item.asset} size="2"></AssetName>
-        <div className="mono tiny dim" style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+        <AssetName asset={item.asset} size="3" style={{ lineHeight: '24px' }}></AssetName>
+        <div className="mono tiny dim" style={{ display: 'flex', alignItems: 'center', gap: 2, height: 28, lineHeight: '28px' }}>
           { item.unavailable.gt(0) && <Tooltip content={ 'Currently locked: ' + UiUtil.toMoney(item.asset, item.unavailable) }><span className="lock"><Icon path={mdiLockOutline} size={0.55}></Icon></span></Tooltip> }
           <span>{ UiUtil.toMoney(null, props.available ? item.available : item.available.plus(item.unavailable)) }</span>
           <span style={{ color: previousEquity.gt(currentEquity) ? 'var(--down)' : (previousEquity.eq(currentEquity) ? 'var(--text-3)' : 'var(--lime)') }}>{ UiUtil.toPercentageDelta(previousEquity, currentEquity) }</span>
         </div>
       </div>
-      <div className={ 'usd' + (item.equity.current == null ? ' na' : '') }>{ UiUtil.toMoney(Exchange.equityAsset, item.equity.current) }</div>
+      <div className={ 'usd' + (item.equity.current == null ? ' na' : '') } style={{ alignSelf: 'flex-start', lineHeight: '24px' }}>{ UiUtil.toMoney(Exchange.equityAsset, item.equity.current) }</div>
     </div>
   )
-}
-
-function BalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } }, readOnly?: boolean, available?: boolean }) {
-  const repayable = props.item.asset.token != null && props.item.asset.chain == new AssetId().chain;
-  return repayable && !props.readOnly ? RepayableBalanceView(props) : DefaultBalanceView(props);
 }
 
 function WalletNavigator(props: {
@@ -198,7 +219,6 @@ function WalletNavigator(props: {
   readOnly: boolean,
   todayProfits: boolean,
   available: boolean,
-  subExtra?: ReactNode,
   onTodayProfitsChange: (value: boolean) => any,
   onAssetsChange?: (value: CachedBalance[] | ((prev: CachedBalance[]) => CachedBalance[])) => any
 }) {
@@ -223,14 +243,16 @@ function WalletNavigator(props: {
       setLoading(true);
       try {
         const process = (data: Balance[]) => (data || []).map((x) => ({ ...x, cached: false }));
-        const result = process(await Exchange.accountBalances({ address: props.address, resync: sync == -1 }, (cache) => {
+        const result = await Exchange.accountBalances({ address: props.address, resync: sync == -1 }, (cache) => {
           setAssets(prev => prev.length > 0 ? prev : process(cache));
           if (props.onAssetsChange)
             props.onAssetsChange(prev => prev.length > 0 ? prev : process(cache));
-        }));
-        setAssets(result);
-        if (props.onAssetsChange)
-          props.onAssetsChange(result);
+        });
+        if (result != null) {
+          setAssets(process(result));
+          if (props.onAssetsChange)
+            props.onAssetsChange(process(result));
+        }
       } catch { }
       setLoading(false);
     } else {
@@ -241,30 +263,20 @@ function WalletNavigator(props: {
     setSync(new Date().getTime());
   }, [props.address, sync]);
   useEffect(() => {
-    const resync = (normal: boolean) => {
-      if (portfolioSyncTimeoutId)
-        clearTimeout(portfolioSyncTimeoutId);
-      portfolioSyncTimeoutId = setTimeout(() => {
+    const updateBalances = () => {
+      clearTimeout(portfolioSyncTimeoutId ?? undefined);
+      portfolioSyncTimeoutId = window.setTimeout(() => {
         portfolioSyncTimeoutId = null;
-        if (normal)
-          setSync((prev) => prev == -1 ? -1 : new Date().getTime());
-        else
-          setSync(-1);
-      }, 500) as any;
+        setSync(-1);
+      }, 500);
     };
-    const updateNormal = () => resync(true);
-    const updateForced = () => resync(false);
-    window.addEventListener('update:trade', updateNormal);
-    window.addEventListener('update:order', updateForced);
-    window.addEventListener('update:pool', updateForced);
-    window.addEventListener('update:delegated-pool', updateForced);
-    window.addEventListener('exchange:ready', updateNormal);
+    window.addEventListener('update:order', updateBalances);
+    window.addEventListener('update:pool', updateBalances);
+    window.addEventListener('update:delegated-pool', updateBalances);
     return () => {
-      window.removeEventListener('update:trade', updateNormal);
-      window.removeEventListener('update:order', updateForced);
-      window.removeEventListener('update:pool', updateForced);
-      window.removeEventListener('update:delegated-pool', updateForced);
-      window.removeEventListener('exchange:ready', updateNormal);
+      window.removeEventListener('update:order', updateBalances);
+      window.removeEventListener('update:pool', updateBalances);
+      window.removeEventListener('update:delegated-pool', updateBalances);
     };
   }, [props.address]);
   useEffect(() => {
@@ -287,7 +299,6 @@ function WalletNavigator(props: {
       }
       <div className="hero-sub-row">
         <button className="page-sub hero-sub-btn" onClick={() => props.onTodayProfitsChange(!props.todayProfits)}>{ UiUtil.toMoney(Exchange.equityAsset, equity.current.minus(equity.previous), true) } ({ UiUtil.toPercentageDelta(equity.previous, equity.current) }) { props.todayProfits ? 'today' : 'total' }</button>
-        { props.subExtra }
       </div>
     </Box>
   )
@@ -297,45 +308,30 @@ function WalletAssets(props: {
   assets: CachedBalance[],
   todayProfits: boolean,
   available: boolean,
-  readOnly: boolean
+  readOnly: boolean,
+  onAvailableChange: (value: boolean) => any
 }) {
   const equityAssets = useMemo(toEquityAssets(props.assets, props.todayProfits, props.available), [props.assets, props.todayProfits, props.available]);
-  const repayableAssets = useMemo(() => equityAssets.filter(x => x.asset.token != null && x.asset.chain == new AssetId().chain), [equityAssets]);
-  const nativeAssets = useMemo(() => equityAssets.filter(x => x.asset.token == null || x.asset.chain != new AssetId().chain), [equityAssets]);
   return (
     <Box>
       {
-        repayableAssets.length > 0 &&
-        <Box mb="4">
-          <Callout.Root color="yellow">
-            <Callout.Icon>
-              <Icon path={mdiAlert} />
-            </Callout.Icon>
-            <Callout.Text>Trading often gets you synthetic assets, redeem native tokens here.</Callout.Text>
-          </Callout.Root>
-        </Box>
-      }
-      {
-        repayableAssets.length > 0 &&
-        <div className="card" style={{ marginBottom: 12 }}>
-          <div className="card-title">Synthetic assets</div>
-          { repayableAssets.map((item) => <BalanceView key={item.asset.id} item={item} readOnly={props.readOnly} available={props.available}></BalanceView>) }
-        </div>
-      }
-      {
-        (nativeAssets.length > 0 || !props.assets.length) &&
-        <div className="card">
-          <div className="card-title">Native assets</div>
-          { nativeAssets.map((item) => <BalanceView key={item.asset.id} item={item} readOnly={props.readOnly} available={props.available}></BalanceView>) }
+        (equityAssets.length > 0 || props.assets.length == 0) &&
+        <>
+          <div className="card-head" style={{ margin: `4px 2px 10px` }}>
+            <div className="card-title">{ props.available ? 'Available' : 'All' } assets</div>
+            <Tooltip content={ props.available ? 'Show all holdings, including balance locked by orders and positions' : 'Show only balance available to spend' }>
+              <button className="settled-toggle" onClick={() => props.onAvailableChange(!props.available)}>{ props.available ? 'Total' : 'Available' }</button>
+            </Tooltip>
+          </div>
           {
-            !props.assets.length &&
-            <Flex px="4" pt="2" pb="2" justify="center">
-              <Text size="2" align="center" className="dim">No assets to show.</Text>
-            </Flex>
+            equityAssets.map((item) =>
+              <div className="asset-card" key={item.asset.id}>
+                { item.type == 'std' ? <StandardBalanceView item={item} available={props.available}></StandardBalanceView> : <RepayableBalanceView item={item} available={props.available}></RepayableBalanceView> }
+              </div>
+            )
           }
-        </div>
+        </>
       }
-      <p className="tiny dim" style={{ marginTop: 14, textAlign: 'center' }}>Positions are on-chain. USD values come from indexed prices.</p>
     </Box>
   )
 }
@@ -345,6 +341,7 @@ function MarketRouter(props: {
   market: Market | null
   pair: { primary: AssetId | null, secondary: AssetId | null }
   setPair: (p: { primary: AssetId | null, secondary: AssetId | null }) => any
+  onPair?: (pair: { primary: AssetId | null, secondary: AssetId | null }) => void
 }) {
   const assets = props.assets;
   const superMobile = document.body.clientWidth <= 400;
@@ -432,6 +429,9 @@ function MarketRouter(props: {
     }
     setLoadingPoly(false);
   }, [props.pair.primary]);
+  useEffect(() => {
+    props.onPair?.(props.pair);
+  }, [props.pair]);
   useEffect(() => {
     if (swapPathTimeoutId != null) {
       clearTimeout(swapPathTimeoutId);
@@ -630,6 +630,7 @@ function MarketExplorer(props: {
   market: Market | null,
   type: 'pairs' | 'router' | 'pools' | 'delegated-pools',
   setType: (type: string) => any
+  onPair?: (pair: { primary: AssetId | null, secondary: AssetId | null }) => void
 }) {
   const navigate = useNavigate();
   const [launchablePair, setLaunchablePair] = useState<AggregatedPair | null>(null);
@@ -824,18 +825,13 @@ function MarketExplorer(props: {
 
   return (
     <Box>
-          <SegmentedControl.Root value={props.type == 'pairs' ? 'pairs' : props.type == 'router' ? 'router' : 'earn'} radius="full" size="3" mb="4" onValueChange={(value) => {
-            if (value == 'pairs')
-              props.setType('pairs');
-            else if (value == 'router')
-              props.setType('router');
-            else
-              props.setType(props.type == 'pools' ? 'pools' : 'delegated-pools');
-          }}>
-            <SegmentedControl.Item value="pairs"><Text size="2">Trade</Text></SegmentedControl.Item>
-            <SegmentedControl.Item value="router"><Text size="2">Swap</Text></SegmentedControl.Item>
-            <SegmentedControl.Item value="earn"><Text size="2">Earn</Text></SegmentedControl.Item>
-          </SegmentedControl.Root>
+      {
+        (props.type == 'pools' || props.type == 'delegated-pools') &&
+        <div className="card-head" style={{ margin: '4px 2px 10px' }}>
+          <div className="card-title">{ props.type == 'pools' ? 'Liquidity pools' : 'Delegated liquidity' }</div>
+          <button className="settled-toggle" onClick={() => props.setType(props.type == 'pools' ? 'delegated-pools' : 'pools')}>{ props.type == 'pools' ? <><Icon path={mdiArrowLeft} size={0.7}></Icon>Delegated liquidity</> : <>Liquidity pools<Icon path={mdiArrowRight} size={0.7}></Icon></> }</button>
+        </div>
+      }
       {
         props.type == 'pairs' &&
         <>
@@ -914,15 +910,11 @@ function MarketExplorer(props: {
       }
       {
         props.type == 'router' && props.assets != null &&
-        <MarketRouter market={props.market} assets={props.assets} pair={searchPair} setPair={setSearchPair}></MarketRouter>
+        <MarketRouter market={props.market} assets={props.assets} pair={searchPair} setPair={setSearchPair} onPair={props.onPair}></MarketRouter>
       }
       {
         (props.type == 'pools' || props.type == 'delegated-pools') &&
         <Box>
-          <SegmentedControl.Root value={ props.type } radius="full" size="3" style={{ marginBottom: 18 }} onValueChange={(v) => props.setType(v as 'pools' | 'delegated-pools')}>
-            <SegmentedControl.Item value="delegated-pools">Auto LPs</SegmentedControl.Item>
-            <SegmentedControl.Item value="pools">Manual LPs</SegmentedControl.Item>
-          </SegmentedControl.Root>
           {
             props.type == 'pools' ?
             <Box>
@@ -934,7 +926,7 @@ function MarketExplorer(props: {
                     <div className="empty" style={{ padding: '32px 24px' }}>
                       <div className="art"><Icon path={mdiChartTimelineVariant} size={1.4}></Icon></div>
                       <h4>No pools yet</h4>
-                      <p>New Manual LPs will appear here once the market has liquidity.</p>
+                      <p>New liquidity pools will appear here once the market has liquidity.</p>
                     </div>
                   </div>
                 }
@@ -948,7 +940,7 @@ function MarketExplorer(props: {
                   <div className="empty" style={{ padding: '32px 24px' }}>
                     <div className="art"><Icon path={mdiChartTimelineVariant} size={1.4}></Icon></div>
                     <h4>No pools yet</h4>
-                    <p>New Auto LPs will appear here once the market has liquidity.</p>
+                      <p>New delegated liquidity will appear here once the market has liquidity.</p>
                   </div>
                 </div>
               }
@@ -980,28 +972,59 @@ export default function PortfolioPage() {
   const [dexPull, setDexPull] = useState(0);
   const [query, setQuery] = useState('');
   const [assets, setAssets] = useState<CachedBalance[]>([]);
-  const [viewer, setViewer] = useState<'market-pairs' | 'market-router' | 'market-pools' | 'market-delegated-pools' | 'wallet-closed-assets' | 'wallet-open-assets' | 'wallet-open-orders' | 'wallet-closed-orders' | 'wallet-open-pools' | 'wallet-closed-pools' | 'wallet-open-delegated-pools' | 'wallet-closed-delegated-pools'>('market-pairs');
+  const [viewer, setViewer] = useState<'market-pairs' | 'market-router' | 'market-pools' | 'market-delegated-pools' | 'wallet'>('market-pairs');
   const [searching, setSearching] = useState(false);
   const [loading, setLoading] = useState<boolean>(false);
   const [todayProfits, setTodayProfits] = useState(true);
+  const [settled, setSettled] = useState(false);
+  const [historic, setHistoric] = useState<'orders' | 'pools' | 'delegated' | null>(null);
+  const [availableOnly, setAvailableOnly] = useState(false);
+  const [assetsReady, setAssetsReady] = useState(false);
+  const [swapPair, setSwapPair] = useState<{ primary: AssetId | null, secondary: AssetId | null }>({ primary: null, secondary: null });
   const [orders, setOrders] = useState<Order[]>([]);
   const [pools, setPools] = useState<Pool[]>([]);
   const [delegatedPools, setDelegatedPools] = useState<DelegatedPool[]>([]);
   const [moreOrders, setMoreOrders] = useState(true);
   const [morePools, setMorePools] = useState(true);
+  const [moreDelegatedPools, setMoreDelegatedPools] = useState(true);
+  const inflight = useRef(0);
+  const ordersSeq = useRef(0);
+  const poolsSeq = useRef(0);
+  const delegatedSeq = useRef(0);
   const findOrders = useCallback(async (refresh?: boolean) => {
     if (!baseAddress) {
       setOrders([]);
       setMoreOrders(false);
       return false;
-    } else if (loading) {
+    } else if (loading && !refresh) {
       return true;
     }
-    
+
+    const seq = ++ordersSeq.current;
+    inflight.current++;
     setLoading(true);
     try {
+      if (refresh && !(historic != null || settled)) {
+        const cursor = Cursor.offset(0);
+        let all: Order[] = [];
+        for (let page = 0; ; page++) {
+          const data = await Exchange.accountOrders({ address: baseAddress, page, active: true });
+          if (seq != ordersSeq.current)
+            return false;
+          if (!Array.isArray(data))
+            break;
+          all = all.concat(data);
+          if (data.length < cursor.count)
+            break;
+        }
+        setOrders(all);
+        setMoreOrders(false);
+        return all.length > 0;
+      }
       const cursor = Cursor.offset(refresh ? 0 : orders.length);
-      const data = await Exchange.accountOrders({ address: baseAddress, page: Math.floor(cursor.offset / cursor.count), active: viewer == 'wallet-open-orders' });
+      const data = await Exchange.accountOrders({ address: baseAddress, page: Math.floor(cursor.offset / cursor.count), active: !(historic != null || settled) });
+      if (seq != ordersSeq.current)
+        return false;
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setOrders([]);
@@ -1013,99 +1036,143 @@ export default function PortfolioPage() {
       setMoreOrders(data.length >= cursor.count);
       return data.length > 0;
     } catch (exception) {
+      if (seq != ordersSeq.current)
+        return false;
       AlertBox.open(AlertType.Error, 'Failed to fetch orders: ' + (exception as Error).message);
       if (refresh)
         setOrders([]);
       setMoreOrders(false);
       return false;
     } finally {
-      setLoading(false);
+      inflight.current--;
+      if (!inflight.current)
+        setLoading(false);
     }
-  }, [params.account, pools, viewer]);
+  }, [baseAddress, orders, settled, historic, loading]);
   const findPools = useCallback(async (refresh?: boolean) => {
     if (!baseAddress) {
       setPools([]);
-      setDelegatedPools([]);
       setMorePools(false);
       return false;
-    } else if (loading) {
+    } else if (loading && !refresh) {
       return true;
     }
 
-    if (viewer == 'wallet-open-pools' || viewer == 'wallet-closed-pools') {
-      setLoading(true);
-      setDelegatedPools([]);
-      try {
-        const cursor = Cursor.offset(refresh ? 0 : pools.length);
-        const page = Math.floor(cursor.offset / cursor.count);
-        const data = await Exchange.accountPools({ address: baseAddress || '', page: page, active: viewer == 'wallet-open-pools' });
-        if (!Array.isArray(data) || !data.length) {
-          if (refresh)
-            setPools([]);
-          setMorePools(false);
-          return false;
+    const seq = ++poolsSeq.current;
+    inflight.current++;
+    setLoading(true);
+    try {
+      if (refresh && !(historic != null || settled)) {
+        const cursor = Cursor.offset(0);
+        let all: Pool[] = [];
+        for (let page = 0; ; page++) {
+          const data = await Exchange.accountPools({ address: baseAddress, page, active: true });
+          if (seq != poolsSeq.current)
+            return false;
+          if (!Array.isArray(data))
+            break;
+          all = all.concat(data);
+          if (data.length < cursor.count)
+            break;
         }
-
-        setPools(refresh ? data : prev => prev.concat(data));
-        setMorePools(data.length >= cursor.count);
-        return data.length > 0;
-      } catch (exception) {
-        AlertBox.open(AlertType.Error, 'Failed to fetch LPs: ' + (exception as Error).message);
+        setPools(all);
+        setMorePools(false);
+        return all.length > 0;
+      }
+      const cursor = Cursor.offset(refresh ? 0 : pools.length);
+      const data = await Exchange.accountPools({ address: baseAddress, page: Math.floor(cursor.offset / cursor.count), active: !(historic != null || settled) });
+      if (seq != poolsSeq.current)
+        return false;
+      if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setPools([]);
         setMorePools(false);
         return false;
-      } finally {
-        setLoading(false);
       }
-    } else if (viewer == 'wallet-open-delegated-pools' || viewer == 'wallet-closed-delegated-pools') {
-      setLoading(true);
-      setPools([]);
-      try {
-        const cursor = Cursor.offset(refresh ? 0 : pools.length);
-        const page = Math.floor(cursor.offset / cursor.count);
-        const data = await Exchange.accountDelegatedPools({ address: baseAddress || '', page: page, active: viewer == 'wallet-open-delegated-pools' });
-        if (!Array.isArray(data) || !data.length) {
-          if (refresh)
-            setDelegatedPools([]);
-          setMorePools(false);
-          return false;
-        }
 
-        setDelegatedPools(refresh ? data : prev => prev.concat(data));
-        setMorePools(data.length >= cursor.count);
-        return data.length > 0;
-      } catch (exception) {
-        AlertBox.open(AlertType.Error, 'Failed to fetch LPs: ' + (exception as Error).message);
+      setPools(refresh ? data : prev => prev.concat(data));
+      setMorePools(data.length >= cursor.count);
+      return data.length > 0;
+    } catch (exception) {
+      if (seq != poolsSeq.current)
+        return false;
+      AlertBox.open(AlertType.Error, 'Failed to fetch LPs: ' + (exception as Error).message);
+      if (refresh)
+        setPools([]);
+      setMorePools(false);
+      return false;
+    } finally {
+      inflight.current--;
+      if (!inflight.current)
+        setLoading(false);
+    }
+  }, [baseAddress, pools, settled, historic, loading]);
+  const findDelegatedPools = useCallback(async (refresh?: boolean) => {
+    if (!baseAddress) {
+      setDelegatedPools([]);
+      setMoreDelegatedPools(false);
+      return false;
+    } else if (loading && !refresh) {
+      return true;
+    }
+
+    const seq = ++delegatedSeq.current;
+    inflight.current++;
+    setLoading(true);
+    try {
+      if (refresh && !(historic != null || settled)) {
+        const cursor = Cursor.offset(0);
+        let all: DelegatedPool[] = [];
+        for (let page = 0; ; page++) {
+          const data = await Exchange.accountDelegatedPools({ address: baseAddress, page, active: true });
+          if (seq != delegatedSeq.current)
+            return false;
+          if (!Array.isArray(data))
+            break;
+          all = all.concat(data);
+          if (data.length < cursor.count)
+            break;
+        }
+        setDelegatedPools(all);
+        setMoreDelegatedPools(false);
+        return all.length > 0;
+      }
+      const cursor = Cursor.offset(refresh ? 0 : delegatedPools.length);
+      const data = await Exchange.accountDelegatedPools({ address: baseAddress, page: Math.floor(cursor.offset / cursor.count), active: !(historic != null || settled) });
+      if (seq != delegatedSeq.current)
+        return false;
+      if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setDelegatedPools([]);
-        setMorePools(false);
+        setMoreDelegatedPools(false);
         return false;
-      } finally {
+      }
+
+      setDelegatedPools(refresh ? data : prev => prev.concat(data));
+      setMoreDelegatedPools(data.length >= cursor.count);
+      return data.length > 0;
+    } catch (exception) {
+      if (seq != delegatedSeq.current)
+        return false;
+      AlertBox.open(AlertType.Error, 'Failed to fetch LPs: ' + (exception as Error).message);
+      if (refresh)
+        setDelegatedPools([]);
+      setMoreDelegatedPools(false);
+      return false;
+    } finally {
+      inflight.current--;
+      if (!inflight.current)
         setLoading(false);
-      }
     }
-  }, [params.account, pools, viewer, loading]);
+  }, [baseAddress, delegatedPools, settled, historic, loading]);
   useEffectAsync(async () => {
-    if (!readOnly) {
-      if (viewer.startsWith('market')) {
-        AppStorage.set(ExchangeField.PortfolioMarket, viewer);
-      } else if (viewer.startsWith('wallet')) {
-        AppStorage.set(ExchangeField.PortfolioWallet, viewer);
-      }
-    }
+    if (!readOnly && viewer.startsWith('market'))
+      AppStorage.set(ExchangeField.PortfolioMarket, viewer);
 
-    if (viewer == 'wallet-open-orders' || viewer == 'wallet-closed-orders') {
-      await findOrders(true);
-    } else if (viewer == 'wallet-open-pools' || viewer == 'wallet-closed-pools' || viewer == 'wallet-open-delegated-pools' || viewer == 'wallet-closed-delegated-pools') {
-      if (viewer.includes('delegated') && !AppData.tip)
-        await AppData.sync();
-
-      await findPools(true);
-    } else if (viewer == 'wallet-closed-assets' || viewer == 'wallet-open-assets' || viewer == 'market-router' || viewer == 'market-delegated-pools') {
-      setAssetResync(new Date().getTime());
+    if (viewer == 'wallet') {
+      await Promise.all([findOrders(true), findPools(true), findDelegatedPools(true)]);
     }
-  }, [viewer, params.account, readOnly]);
+  }, [viewer, params.account, readOnly, settled, historic]);
   useEffectAsync(async () => {
     await Exchange.connectSocket();
     if (Exchange.markets.length > 0) {
@@ -1114,35 +1181,75 @@ export default function PortfolioPage() {
   }, []);
   useEffect(() => {
     const view = search.get('view') || AppStorage.get(ExchangeField.PortfolioView) || null;
-    if (view != null && ['market-pairs', 'market-router', 'market-pools', 'market-delegated-pools', 'wallet-closed-assets', 'wallet-open-assets', 'wallet-open-orders', 'wallet-closed-orders', 'wallet-open-pools', 'wallet-closed-pools', 'wallet-open-delegated-pools', 'wallet-closed-delegated-pools'].includes(view)) {
+    const marketView = view != null ? (['market-pairs', 'market-router', 'market-pools', 'market-delegated-pools'] as ('market-pairs' | 'market-router' | 'market-pools' | 'market-delegated-pools')[]).find((x) => x == view) : undefined;
+    if (marketView != null) {
+      setHistoric(null);
       if (!readOnly) {
-        AppStorage.set(ExchangeField.PortfolioView, view);
+        AppStorage.set(ExchangeField.PortfolioView, marketView);
       }
-      setViewer(view as any);
-    } else if (!readOnly) {
-      AppStorage.set(ExchangeField.PortfolioView);
+      setSettled(false);
+      setViewer(marketView);
+    } else if (view != null && view.startsWith('wallet')) {
+      if (!readOnly) {
+        AppStorage.set(ExchangeField.PortfolioView, 'wallet');
+      }
+      const hist = view.includes('historic-orders') ? 'orders' : (view.includes('historic-pools') ? 'pools' : (view.includes('historic-delegated-pools') ? 'delegated' : null));
+      setSettled(view.includes('closed') || hist != null);
+      setHistoric(hist);
+      setViewer('wallet');
+    } else {
+      setHistoric(null);
+      if (!readOnly) {
+        AppStorage.set(ExchangeField.PortfolioView);
+      }
     }
-  }, [search, readOnly]);
+  }, [search, readOnly, params.account]);
   useEffect(() => {
-    switch (viewer) {
-      case 'wallet-open-orders': {
-        const update = () => findOrders(true);
-        window.addEventListener('update:orders', update);
-        return () => { window.removeEventListener('update:orders', update); };
-      }
-      case 'wallet-open-pools': {
-        const update = () => findPools(true);
-        window.addEventListener('update:pool', update);
-        return () => { window.removeEventListener('update:pool', update); };
-      }
-      case 'wallet-open-delegated-pools': {
-        const update = () => findPools(true);
-        window.addEventListener('update:delegated-pool', update);
-        return () => { window.removeEventListener('update:delegated-pool', update); };
-      }
-    }
-  }, [baseAddress, viewer]);
+    if (viewer != 'wallet')
+      return;
+    const ordersUpdate = () => findOrders(true);
+    const poolsUpdate = () => findPools(true);
+    const delegatedUpdate = () => findDelegatedPools(true);
+    window.addEventListener('update:orders', ordersUpdate);
+    window.addEventListener('update:pool', poolsUpdate);
+    window.addEventListener('update:delegated-pool', delegatedUpdate);
+    return () => {
+      window.removeEventListener('update:orders', ordersUpdate);
+      window.removeEventListener('update:pool', poolsUpdate);
+      window.removeEventListener('update:delegated-pool', delegatedUpdate);
+    };
+  }, [baseAddress, viewer, settled, historic]);
 
+  const tab: 'trade' | 'swap' | 'earn' | 'wallet' = (() => {
+    if (viewer == 'market-router')
+      return 'swap';
+    if (viewer == 'market-pools' || viewer == 'market-delegated-pools')
+      return 'earn';
+    if (viewer.startsWith('wallet'))
+      return 'wallet';
+    return 'trade';
+  })();
+  useEffect(() => {
+    if (tab == 'swap')
+      AppData.setTitle('Swap' + (swapPair.primary != null ? ' ' + UiUtil.toAssetSymbol(swapPair.primary) + ' → ' + (swapPair.secondary != null ? UiUtil.toAssetSymbol(swapPair.secondary) : '?') : ''));
+    else if (tab == 'earn')
+      AppData.setTitle(viewer == 'market-pools' ? 'Liquidity pools' : 'Delegated liquidity');
+    else if (tab == 'wallet')
+      AppData.setTitle((historic != null ? (historic == 'orders' ? 'Order history' : historic == 'pools' ? 'Pool history' : 'Vault history') : 'Wallet') + (baseAddress != null ? ' of ' + UiUtil.toAddress(baseAddress, 12) : ''));
+    else
+      AppData.setTitle('Trading pairs');
+  }, [tab, swapPair, viewer, historic, baseAddress]);
+  const openTab = useCallback((next: 'trade' | 'swap' | 'earn' | 'wallet') => {
+    const marketType = AppStorage.get(ExchangeField.PortfolioMarket);
+    if (next == 'swap')
+      setSearch({ view: 'market-router' });
+    else if (next == 'earn')
+      setSearch({ view: marketType == 'market-pools' || marketType == 'market-delegated-pools' ? marketType : 'market-delegated-pools' });
+    else if (next == 'wallet')
+      setSearch({ view: 'wallet' });
+    else
+      setSearch({ view: 'market-pairs' });
+  }, [setSearch]);
   return (
     <Box pt="2" minWidth="285px" maxWidth="680px" mx="auto" pb="2">
       <Box>
@@ -1169,7 +1276,7 @@ export default function PortfolioPage() {
               </div>
               <Button className="btn-brand btn-block" style={{ marginTop: 14, height: 46, borderRadius: 'var(--r-md)', fontWeight: 700, fontSize: 15 }} type="submit" disabled={!query.trim().length || !Signing.verifyAddress(query.trim())} onClick={(e) => {
                 e.preventDefault();
-                navigate(`/portfolio/${query.trim()}?view=wallet-open-assets`);
+                navigate(`/portfolio/${query.trim()}?view=wallet`);
                 setAssetResync(new Date().getTime());
                 setSearching(false);
               }}>Search</Button>
@@ -1194,96 +1301,188 @@ export default function PortfolioPage() {
           </div>
           </Dialog.Content>
         </Dialog.Root>
-          {
-            !readOnly &&
-            <button className="viewer-switch" onClick={() => {
-              if (viewer.startsWith('market')) {
-                const type = AppStorage.get(ExchangeField.PortfolioWallet) || 'wallet-open-assets';
-                setSearch({ view: ['wallet-closed-assets', 'wallet-open-assets', 'wallet-open-orders', 'wallet-closed-orders', 'wallet-open-pools', 'wallet-closed-pools', 'wallet-open-delegated-pools', 'wallet-closed-delegated-pools'].includes(type) ? type : 'wallet-open-assets' });
-              } else {
-                const type = AppStorage.get(ExchangeField.PortfolioMarket) || 'market-pairs';
-                setSearch({ view: ['market-pairs', 'market-router', 'market-pools', 'market-delegated-pools'].includes(type) ? type : 'market-pairs' });
-              }
-            }}>{ viewer.startsWith('market') ? <>My wallet<Icon path={mdiArrowRight} size={0.6}></Icon></> : <><Icon path={mdiArrowLeft} size={0.6}></Icon>Markets</> }</button>
-          }
         </div>
       </Box>
       <Box>
-        <WalletNavigator address={baseAddress} available={viewer == 'wallet-closed-assets'} assetResync={assetResync} forceResync={dexPull} readOnly={readOnly} todayProfits={todayProfits} subExtra={ (() => {
-          if (!viewer.includes('open') && !viewer.includes('closed'))
-            return undefined;
-          const showSide = viewer.includes('open') === viewer.includes('assets');
-          return <button className={ 'settled-toggle' + (showSide ? ' on' : '') } onClick={() => setSearch({ view: viewer.replace(viewer.includes('open') ? 'open' : 'closed', viewer.includes('open') ? 'closed' : 'open') })}><Icon path={showSide ? mdiEyeOutline : mdiEyeOffOutline} size={0.8}></Icon>{ showSide ? 'Show settled' : 'Hide settled' }</button>;
-        })() } onTodayProfitsChange={setTodayProfits} onAssetsChange={viewer == 'market-router' || viewer == 'market-delegated-pools' || viewer == 'wallet-closed-assets' || viewer == 'wallet-open-assets' || viewer == 'wallet-open-delegated-pools' || viewer == 'wallet-closed-delegated-pools' ? setAssets : undefined}></WalletNavigator>
+        <WalletNavigator address={baseAddress} available={viewer == 'wallet' ? availableOnly : false} assetResync={assetResync} forceResync={dexPull} readOnly={readOnly} todayProfits={todayProfits} onTodayProfitsChange={setTodayProfits} onAssetsChange={(value: CachedBalance[] | ((prev: CachedBalance[]) => CachedBalance[])) => { setAssets(value); setAssetsReady(true); }}></WalletNavigator>
       </Box>
       <Box style={{ marginTop: 2 }}>
+        <SegmentedControl.Root value={tab} radius="full" size="3" mb="4" onValueChange={(value) => openTab(value as 'trade' | 'swap' | 'earn' | 'wallet')}>
+          <SegmentedControl.Item value="trade"><Text size="2">Trade</Text></SegmentedControl.Item>
+          <SegmentedControl.Item value="swap"><Text size="2">Swap</Text></SegmentedControl.Item>
+          <SegmentedControl.Item value="earn"><Text size="2">Earn</Text></SegmentedControl.Item>
+          <SegmentedControl.Item value="wallet"><Text size="2">Wallet</Text></SegmentedControl.Item>
+        </SegmentedControl.Root>
         {
-          viewer.startsWith('market-') &&
-          <MarketExplorer market={market} assets={viewer == 'market-router' || viewer == 'market-delegated-pools' ? assets : undefined} type={viewer.replace('market-', '') as any} setType={(type) => setSearch({ view: 'market-' + type })}></MarketExplorer>
+          tab != 'wallet' &&
+          <MarketExplorer market={market} assets={viewer == 'market-router' || viewer == 'market-delegated-pools' ? assets : undefined} type={toMarketExplorerType(viewer)} setType={(type) => setSearch({ view: 'market-' + type })} onPair={setSwapPair}></MarketExplorer>
         }
         {
-          viewer.startsWith('wallet-') &&
+          viewer == 'wallet' &&
           <Box>
-            <SegmentedControl.Root value={viewer.replace(/^wallet-(open|closed)-/, '')} radius="full" size="3" mb="4" onValueChange={(value) => {
-              setSearch({ view: (viewer.includes('closed') ? 'wallet-closed-' : 'wallet-open-') + value });
-            }}>
-              <SegmentedControl.Item value="assets"><Text size="2">Assets</Text></SegmentedControl.Item>
-              <SegmentedControl.Item value="orders"><Text size="2">Orders</Text></SegmentedControl.Item>
-              <SegmentedControl.Item value="delegated-pools"><Text size="2">DLPs</Text></SegmentedControl.Item>
-              <SegmentedControl.Item value="pools"><Text size="2">LPs</Text></SegmentedControl.Item>
-            </SegmentedControl.Root>
+            { historic == null && <WalletAssets assets={assets} todayProfits={todayProfits} readOnly={readOnly} available={availableOnly} onAvailableChange={setAvailableOnly}></WalletAssets> }
             {
-              (viewer == 'wallet-closed-assets' || viewer == 'wallet-open-assets') &&
-              <WalletAssets assets={assets} todayProfits={todayProfits} readOnly={readOnly} available={viewer == 'wallet-closed-assets'}></WalletAssets>
+              historic == null && assetsReady && !assets.length &&
+              <Box>
+                <div className="card">
+                  <div className="empty">
+                    <div className="art"><Icon path={mdiWalletOutline} size={1.4}></Icon></div>
+                    <h4>No assets</h4>
+                    <p>Deposit tokens to this account - balances appear here with live USD values.</p>
+                  </div>
+                </div>
+              </Box>
             }
             {
-              (viewer == 'wallet-open-orders' || viewer == 'wallet-closed-orders') &&
-              <>
-                <InfiniteScroll dataLength={orders.length} hasMore={moreOrders} next={findOrders} loader={<div></div>}>
-                  {
-                    orders.map((item) =>
-                      <Box key={item.orderId.toString()} mb="4">
-                        <OrderView item={item} readOnly={readOnly}></OrderView>
-                      </Box>)
-                  }
-                </InfiniteScroll>
+              historic == null &&
+              <Box mt="6">
+                <div className="card-head" style={{ margin: '0 2px 10px' }}>
+                  <div className="card-title">{ settled ? 'Order history' : 'Open orders' }</div>
+                  { !settled && <button className="settled-toggle" onClick={() => setSearch({ view: 'wallet-historic-orders' })}>History<Icon path={mdiArrowRight} size={0.7}></Icon></button> }
+                </div>
                 {
-                  !orders.length &&
+                  orders.length > 0 ?
+                  <div className="wallet-list">
+                    <InfiniteScroll dataLength={orders.length} hasMore={moreOrders} next={findOrders} loader={<div></div>}>
+                      {
+                        orders.map((item) =>
+                          <Box key={item.orderId.toString()} mb="3">
+                            <OrderView item={item} readOnly={readOnly}></OrderView>
+                          </Box>)
+                      }
+                    </InfiniteScroll>
+                  </div>
+                  : !moreOrders &&
                   <div className="card">
                     <div className="empty">
                       <div className="art"><Icon path={mdiListBoxOutline} size={1.4}></Icon></div>
-                      <h4>No { viewer.includes('open') ? 'open ' : 'settled ' }orders</h4>
-                      <p>{ viewer.includes('open') ? 'Your working orders will show up here.' : 'Filled and cancelled orders will show up here.' }</p>
+                      <h4>{ settled ? 'No order history' : 'No open orders' }</h4>
+                      <p>{ settled ? 'Settled and cancelled orders will show up here.' : 'Place a limit order on the Trade tab or route a swap on the Swap tab - activity lands here.' }</p>
                     </div>
                   </div>
                 }
-              </>
+              </Box>
             }
             {
-              (viewer == 'wallet-open-pools' || viewer == 'wallet-closed-pools' || viewer == 'wallet-open-delegated-pools' || viewer == 'wallet-closed-delegated-pools') &&
-              <>
-                <InfiniteScroll dataLength={pools.length} hasMore={morePools} next={findPools} loader={<div></div>}>
-                  {
-                    (viewer == 'wallet-open-pools' || viewer == 'wallet-closed-pools') ? pools.map((item) =>
-                      <Box key={item.poolId.toString()} mb="4">
-                        <PoolView item={item} readOnly={readOnly}></PoolView>
-                      </Box>) : delegatedPools.map((item) =>
-                      <Box key={item.id.toString()} mb="4">
-                        <DelegatedPoolView item={item} assets={assets} readOnly={readOnly}></DelegatedPoolView>
-                      </Box>)
-                  }
-                </InfiniteScroll>
+              historic == null &&
+              <Box mt="6">
+                <div className="card-head" style={{ margin: '0 2px 10px' }}>
+                  <div className="card-title">{ settled ? 'Closed delegated liquidity' : 'Delegated liquidity' }</div>
+                  { !settled && <button className="settled-toggle" onClick={() => setSearch({ view: 'wallet-historic-delegated-pools' })}>History<Icon path={mdiArrowRight} size={0.7}></Icon></button> }
+                </div>
                 {
-                  !pools.length && !delegatedPools.length &&
+                  delegatedPools.length > 0 ?
+                  <div className="wallet-list">
+                    <InfiniteScroll dataLength={delegatedPools.length} hasMore={moreDelegatedPools} next={findDelegatedPools} loader={<div></div>}>
+                      {
+                        delegatedPools.map((item) =>
+                          <Box key={item.id.toString()} mb="3">
+                            <DelegatedPoolView item={item} assets={assets} readOnly={readOnly}></DelegatedPoolView>
+                          </Box>)
+                      }
+                    </InfiniteScroll>
+                  </div>
+                  : !moreDelegatedPools &&
                   <div className="card">
                     <div className="empty">
                       <div className="art"><Icon path={mdiChartTimelineVariant} size={1.4}></Icon></div>
-                      <h4>No { viewer.includes('open') ? 'open ' : 'settled ' }pools</h4>
-                      <p>Your positions will show up here once you have liquidity in the market.</p>
+                      <h4>{ settled ? 'No closed positions' : 'No delegated liquidity' }</h4>
+                      <p>{ settled ? 'Withdrawn vault positions will show up here.' : 'Fund a vault on the Earn tab once - the operator manages the range for you.' }</p>
                     </div>
                   </div>
                 }
-              </>
+              </Box>
+            }
+            {
+              historic == null &&
+              <Box mt="6">
+                <div className="card-head" style={{ margin: '0 2px 10px' }}>
+                  <div className="card-title">{ settled ? 'Closed liquidity pools' : 'Liquidity pools' }</div>
+                  { !settled && <button className="settled-toggle" onClick={() => setSearch({ view: 'wallet-historic-pools' })}>History<Icon path={mdiArrowRight} size={0.7}></Icon></button> }
+                </div>
+                {
+                  pools.length > 0 ?
+                  <div className="wallet-list">
+                    <InfiniteScroll dataLength={pools.length} hasMore={morePools} next={findPools} loader={<div></div>}>
+                      {
+                        pools.map((item) =>
+                          <Box key={item.poolId.toString()} mb="3">
+                            <PoolView item={item} readOnly={readOnly}></PoolView>
+                          </Box>)
+                      }
+                    </InfiniteScroll>
+                  </div>
+                  : !morePools &&
+                  <div className="card">
+                    <div className="empty">
+                      <div className="art"><Icon path={mdiChartTimelineVariant} size={1.4}></Icon></div>
+                      <h4>{ settled ? 'No closed positions' : 'No liquidity pools' }</h4>
+                      <p>{ settled ? 'Settled positions will show up here.' : "Open an LP on the Earn tab - you set the range yourself, or tap another trader's LP to copy its composition." }</p>
+                    </div>
+                  </div>
+                }
+              </Box>
+            }
+            {
+              historic == null && (assets.length > 0 || orders.length > 0 || pools.length > 0 || delegatedPools.length > 0) &&
+              <p className="tiny dim" style={{ marginTop: 16, textAlign: 'center' }}>Assets, orders and liquidity are on-chain. USD values and estimates come from the DEX indexer.</p>
+            }
+            {
+              historic != null &&
+              <Box>
+                <div className="card-head" style={{ margin: '4px 2px 10px' }}>
+                  <div className="card-title">{ historic == 'orders' ? 'Order history' : (historic == 'pools' ? 'Liquidity pools history' : 'Delegated liquidity history') }</div>
+                  <button className="settled-toggle" onClick={() => setSearch({ view: 'wallet' })}><Icon path={mdiArrowLeft} size={0.7}></Icon>Hide</button>
+                </div>
+                {
+                  historic == 'orders' &&
+                  <Box>
+                    <div className="wallet-list">
+                      <InfiniteScroll dataLength={orders.length} hasMore={moreOrders} next={findOrders} loader={<div></div>}>
+                        {
+                          orders.map((item) =>
+                            <Box key={item.orderId.toString()} mb="3">
+                              <OrderView item={item} readOnly={readOnly}></OrderView>
+                            </Box>)
+                        }
+                      </InfiniteScroll>
+                    </div>
+                    { !loading && !orders.length && <div className="card"><div className="empty"><div className="art"><Icon path={mdiListBoxOutline} size={1.4}></Icon></div><h4>No historic orders</h4><p>Settled and cancelled orders will show up here.</p></div></div> }
+                  </Box>
+                }
+                {
+                  historic == 'pools' &&
+                  <Box>
+                    <div className="wallet-list">
+                      <InfiniteScroll dataLength={pools.length} hasMore={morePools} next={findPools} loader={<div></div>}>
+                        {
+                          pools.map((item) =>
+                            <Box key={item.poolId.toString()} mb="3">
+                              <PoolView item={item} readOnly={readOnly}></PoolView>
+                            </Box>)
+                        }
+                      </InfiniteScroll>
+                    </div>
+                    { !loading && !pools.length && <div className="card"><div className="empty"><div className="art"><Icon path={mdiChartTimelineVariant} size={1.4}></Icon></div><h4>No liquidity pools history</h4><p>Settled positions will show up here.</p></div></div> }
+                  </Box>
+                }
+                {
+                  historic == 'delegated' &&
+                  <Box>
+                    <div className="wallet-list">
+                      <InfiniteScroll dataLength={delegatedPools.length} hasMore={moreDelegatedPools} next={findDelegatedPools} loader={<div></div>}>
+                        {
+                          delegatedPools.map((item) =>
+                            <Box key={item.id.toString()} mb="3">
+                              <DelegatedPoolView item={item} assets={assets} readOnly={readOnly}></DelegatedPoolView>
+                            </Box>)
+                        }
+                      </InfiniteScroll>
+                    </div>
+                    { !loading && !delegatedPools.length && <div className="card"><div className="empty"><div className="art"><Icon path={mdiChartTimelineVariant} size={1.4}></Icon></div><h4>No delegated liquidity history</h4><p>Withdrawn vault positions will show up here.</p></div></div> }
+                  </Box>
+                }
+              </Box>
             }
           </Box>
         }

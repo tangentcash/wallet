@@ -1,8 +1,12 @@
 import { Box, Heading, Separator, Table, Tabs, Text } from "@radix-ui/themes";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { AppData } from "../core/app";
 
 export default function LegalPage() {
   const [state, setState] = useState<'terms-of-use' | 'privacy-policy'>('terms-of-use');
+  useEffect(() => {
+    AppData.setTitle(state == 'privacy-policy' ? 'Privacy policy' : 'Terms of use');
+  }, [state]);
   return (
     <Box px="5" pt="4" pb="8" maxWidth="680px" mx="auto">
       <div className="card">

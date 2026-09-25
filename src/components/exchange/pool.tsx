@@ -182,7 +182,7 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
             navigator.clipboard.writeText(item.marketAccount || 'NULL');
             AlertBox.open(AlertType.Info, 'Address copied!')
           }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</span>
-          <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
+          <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
           <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
           <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
           <div className="dl-row"><span className="dl-k">Reference</span><span className="dl-v"><span className="copyable" onClick={() => {
@@ -367,12 +367,12 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
               navigator.clipboard.writeText(item.delegatorAccount || 'NULL');
               AlertBox.open(AlertType.Info, 'Address copied!')
             }}>{ UiUtil.toAddress(item.delegatorAccount || 'NULL') }</span>
-            <Link className="dl-open router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet-total-assets'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
+            <Link className="dl-open router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
             <div className="dl-row"><span className="dl-k">Market account</span><span className="dl-v"><span className="copyable" onClick={() => {
               navigator.clipboard.writeText(item.marketAccount || 'NULL');
               AlertBox.open(AlertType.Info, 'Address copied!')
             }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</span>
-            <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
+            <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
             <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
             <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
             <div className="dl-row"><span className="dl-k">Status</span><span className="dl-v"><span className={ 'badge ' + (item.active ? 'ok' : 'flat') }>{ item.active ? 'Active' : 'Inactive' }</span></span></div>
@@ -500,12 +500,12 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
               navigator.clipboard.writeText(item.delegatorAccount || 'NULL');
               AlertBox.open(AlertType.Info, 'Address copied!')
             }}>{ UiUtil.toAddress(item.delegatorAccount || 'NULL') }</span>
-            <Link className="dl-open router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet-total-assets'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
+            <Link className="dl-open router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
             <div className="dl-row"><span className="dl-k">Market account</span><span className="dl-v"><span className="copyable" onClick={() => {
               navigator.clipboard.writeText(item.marketAccount || 'NULL');
               AlertBox.open(AlertType.Info, 'Address copied!')
             }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</span>
-            <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
+            <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
             <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
             <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
           </div>

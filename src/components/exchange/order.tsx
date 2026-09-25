@@ -117,7 +117,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
             navigator.clipboard.writeText(item.marketAccount || 'NULL');
             AlertBox.open(AlertType.Info, 'Address copied!')
           }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</span>
-          <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet-total-assets'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
+          <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
           <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
           <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
           <div className="dl-row"><span className="dl-k">Reference</span><span className="dl-v"><span className="copyable" onClick={() => {

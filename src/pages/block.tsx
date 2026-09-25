@@ -18,6 +18,9 @@ export default function BlockPage() {
   const [timeoutId, setTimeoutId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  useEffect(() => {
+    AppData.setTitle('Block #' + (block != null ? block.number.toString() : params.id), block != null && block.transaction_count != null ? UiUtil.toCount('transaction', block.transaction_count) : null);
+  }, [block, params.id]);
   const supply = useMemo(() => {
     if (!block)
       return null;

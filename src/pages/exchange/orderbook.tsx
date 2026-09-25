@@ -237,6 +237,11 @@ export default function OrderbookPage() {
     Exchange.setOrderbook(params.orderbook);
     return Exchange.fromOrderbookQuery(params.orderbook);
   }, [params]);
+  useEffect(() => {
+    const close = pair?.price.close || null;
+    const price = close != null && close.gt(0) ? (close.gte(100) ? close.toFixed(2) : close.gte(1) ? close.toFixed(4) : UiUtil.toValue(null, close, false, true)) + (orderbook?.secondaryAsset != null ? ' ' + UiUtil.toAssetSymbol(orderbook.secondaryAsset) : '') : null;
+    AppData.setTitle(orderbook?.primaryAsset != null && orderbook.secondaryAsset != null ? UiUtil.toAssetSymbol(orderbook.primaryAsset) + '/' + UiUtil.toAssetSymbol(orderbook.secondaryAsset) + (price != null ? ' ' + price : '') : 'Orderbook');
+  }, [orderbook, pair]);
   const makerPath = useMemo(() => {
     return params.orderbook ? pathOfMaker(params.orderbook) : undefined;
   }, [params]);
@@ -362,8 +367,8 @@ export default function OrderbookPage() {
           const accountBalances = await balancesResult;
           setPolyAssets((poly) => {
             setPolyBalances({
-              primary: accountBalances?.filter((v) => v.asset.id == result.primaryAsset.id || poly.primary.findIndex((i) => i.id == v.asset.id) != -1),
-              secondary: accountBalances?.filter((v) => v.asset.id == result.secondaryAsset.id || poly.secondary.findIndex((i) => i.id == v.asset.id) != -1)
+              primary: accountBalances?.filter((v) => v.poly && (v.asset.id == result.primaryAsset.id || poly.primary.findIndex((i) => i.id == v.asset.id) != -1)) ?? [],
+              secondary: accountBalances?.filter((v) => v.poly && (v.asset.id == result.secondaryAsset.id || poly.secondary.findIndex((i) => i.id == v.asset.id) != -1)) ?? []
             });
             return poly;
           });
@@ -571,7 +576,7 @@ export default function OrderbookPage() {
           <div className="dl-row"><span className="dl-k">LP exit fee</span><span className="dl-v num">{ (market?.poolExitFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
           <div className="dl-row"><span className="dl-k">LP revenue</span><span className="dl-v num" style={{ color: 'var(--lime)' }}>{ lpApy.toFixed(2) }% APY</span></div>
         </div>
-        <div className="tiny dim" style={{ marginTop: 12 }}>Policy account <Link className="router-link mono" style={{ fontSize: 12 }} to={ '/portfolio/' + (market?.account || '') + '?view=wallet-total-assets' }>{ UiUtil.toAddress(market?.account || 'NULL', 6) }</Link></div>
+        <div className="tiny dim" style={{ marginTop: 12 }}>Policy account <Link className="router-link mono" style={{ fontSize: 12 }} to={ '/portfolio/' + (market?.account || '') + '?view=wallet' }>{ UiUtil.toAddress(market?.account || 'NULL', 6) }</Link></div>
       </div>
       <p className="tiny dim" style={{ marginTop: 14, textAlign: 'center' }}>The book lives on-chain · this view is served by the DEX indexer</p>
     </>
@@ -584,7 +589,7 @@ export default function OrderbookPage() {
             <div className="card-title">Market{
               whitelisted === true ? <Tooltip content="Verified pair against the token whitelist"><Icon className="verified" path={mdiCheckDecagram} size={0.55}></Icon></Tooltip> : (whitelisted === false ? <Tooltip content="Unverified pair — trade carefully"><Icon path={mdiAlert} color="var(--warn)" size={0.55}></Icon></Tooltip> : null)
             }</div>
-            <Link className="router-link mono" style={{ fontSize: 12 }} to={ '/portfolio/' + (market?.account || '') + '?view=wallet-total-assets' }>{ UiUtil.toAddress(market?.account || 'NULL', 6) }</Link>
+            <Link className="router-link mono" style={{ fontSize: 12 }} to={ '/portfolio/' + (market?.account || '') + '?view=wallet' }>{ UiUtil.toAddress(market?.account || 'NULL', 6) }</Link>
           </div>
           <div className="stat-grid">
             <div><div className="k">Last price</div><div className="v">{ pair?.price.close?.gt(0) ? UiUtil.toMoney(orderbook!.secondaryAsset, pair.price.close) : 'No trades yet' }</div></div>
@@ -704,7 +709,7 @@ export default function OrderbookPage() {
                   <div className="tx-main">
                     <div className="tx-title"><span style={{ color }}>{action} { pool ? 'liquidity' : '' }</span></div>
                     <div className="tx-meta mono"><span className="tx-detail">{ UiUtil.toMoney(orderbook?.primaryAsset || null, item.quantity, pool) } { UiUtil.toMoney(orderbook?.secondaryAsset || null, item.price) ? 'at ' + UiUtil.toMoney(orderbook?.secondaryAsset || null, item.price) : '' }</span></div>
-                    <div className="tx-meta"><Link className="tx-hash mono" style={{ fontSize: 11.5 }} to={'/portfolio/' + item.account + '?view=wallet-total-assets'}>{ UiUtil.toAddress(item.account || 'NULL', 6) }</Link><span>·</span><span>{ UiUtil.toTimePassed(item.time) }</span></div>
+                    <div className="tx-meta"><Link className="tx-hash mono" style={{ fontSize: 11.5 }} to={'/portfolio/' + item.account + '?view=wallet'}>{ UiUtil.toAddress(item.account || 'NULL', 6) }</Link><span>·</span><span>{ UiUtil.toTimePassed(item.time) }</span></div>
                   </div>
                 </div>)
             })

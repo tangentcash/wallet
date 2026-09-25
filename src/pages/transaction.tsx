@@ -8,7 +8,7 @@ import { UiUtil } from "tangentsdk/ui";
 import { Chain } from "tangentsdk/algorithm";
 import { AppData } from "../core/app";
 import { mdiAlertCircleOutline, mdiArrowLeftBoldCircleOutline } from "@mdi/js";
-import { TransactionView } from "../components/transaction";
+import { TransactionView, toTransactionLabel } from "../components/transaction";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 
@@ -18,6 +18,10 @@ export default function TransactionPage() {
   const [targets, setTargets] = useState<any[] | null>(null);
   const [timeoutId, setTimeoutId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    const target = targets != null && targets.length > 0 ? targets[0] : null;
+    AppData.setTitle((target != null ? toTransactionLabel(target.transaction, UiUtil.toTransactionType(target.transaction.type ?? '')) : 'Transaction') + (params.id != null ? ' ' + UiUtil.toAddress(params.id, 12) : ''));
+  }, [targets, params.id]);
   const fetchTransaction = useCallback(async () => {
     try {
       if (!params.id)

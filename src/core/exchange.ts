@@ -37,6 +37,7 @@ export enum OrderPolicy {
 
 export type Balance = {
   asset: AssetId,
+  poly: boolean,
   unavailable: BigNumber,
   available: BigNumber,
   price: BigNumber | null
@@ -141,6 +142,7 @@ export type Market = {
   accountId: BigNumber;
   account: string;
   version?: string;
+  unifiedAssetProxyAccount?: string;
   deployerAccountId: BigNumber;
   deployerAccount: string;
   blockNumber: BigNumber;
@@ -293,7 +295,6 @@ export enum ExchangeField {
   OrderbookMaker = '__orderbook_maker:path__',
   OrderbookTab = '__orderbook_tab__',
   PortfolioView = '__portfolio_view__',
-  PortfolioWallet = '__portfolio_wallet__',
   PortfolioMarket = '__portfolio_market__',
   PortfolioRouter = '__portfolio_router__',
   PortfolioFilter = '__portfolio_filter__',
@@ -769,9 +770,10 @@ export class Exchange {
       quantity: item.quantity
     }));
   }
-  static async accountBalances(account: AccountQuery & { resync?: boolean }, preflightCache?: PreflightCallback): Promise<Balance[]> {
+  static async accountBalances(account: AccountQuery & { resync?: boolean }, preflightCache?: PreflightCallback): Promise<Balance[] | null> {
     const process = (result: any) => (result || []).map((v: any) => ({
       asset: new AssetId(v.asset.id),
+      poly: v.poly,
       unavailable: v.unavailable,
       available: v.available,
       price: v.price
@@ -781,7 +783,7 @@ export class Exchange {
       account: account.address,
       resync: account.resync
     }, preflightCache ? (cache) => preflightCache(process(cache)) : undefined);
-    return process(result);
+    return result != null ? process(result) : null;
   }
   static async accountOrders(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber, active?: boolean } & AccountQuery & PageQuery): Promise<Order[]> {
     const result = await this.fetch('no-cache', 'GET', `account/orders`, {

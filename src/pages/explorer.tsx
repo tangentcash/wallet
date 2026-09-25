@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData, ASSET_INFORMATION, ExtendedField } from "../core/app";
 import { AssetId, Chain, Signing, Uint256 } from "tangentsdk/algorithm";
+import { Assetlist } from "tangentsdk/assetlist";
 import { EventResolver, RPC, SummaryState } from "tangentsdk/rpc";
 import { UiUtil } from "tangentsdk/ui";
 import { Whitelist } from "tangentsdk/whitelist";
@@ -36,6 +37,12 @@ export default function ExplorerPage() {
   const [moreVaults, setMoreVaults] = useState(true);
   const searchInput = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
+  useEffect(() => {
+    if (tab == 'vaults')
+      AppData.setTitle(asset != null ? Assetlist.toName(asset) + ' vaults' : 'Vaults');
+    else
+      AppData.setTitle(tab == 'transactions' ? 'Transactions' : 'Blocks');
+  }, [tab, asset]);
   const blockNumber = useMemo((): BigNumber | null => {
     return AppData.tip;
   }, [counter]);
@@ -301,7 +308,7 @@ export default function ExplorerPage() {
         tab == 'vaults' &&
         <>
           <Box mb="4">
-            <Select.Root size="3" value={asset ? asset.id : '!'} onValueChange={(e) => setAsset(e.length > 0 && e != '!' ? new AssetId(e) : null)}>
+            <Select.Root size="3" value={asset ? asset.id : '!'} onValueChange={(e) => { const next = e.length > 0 && e != '!' ? new AssetId(e) : null; setAsset(next); setSearch(next != null ? { view: 'vaults', asset: next.id } : { view: 'vaults' }); }}>
               <Select.Trigger style={{ width: '100%' }} placeholder="Select network" />
               <Select.Content>
                 <Select.Item value="!">Select network</Select.Item>

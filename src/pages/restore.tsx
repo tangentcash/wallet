@@ -34,6 +34,9 @@ export default function RestorePage() {
   useEffect(() => {
     setStatus(AppData.isWalletExists() && !params.has('add') ? 'restore' : 'reset');
   }, [params]);
+  useEffect(() => {
+    AppData.setTitle('Restore wallet');
+  }, []);
   const navigate = useNavigate();
   const reportError = useCallback(() => {
     setError(true);

@@ -496,7 +496,7 @@ export class AppData {
       instruction: message.data.slice(message.seek)
     }
   }
-  static async buildWalletTransaction(props: TransactionInput): Promise<TransactionOutput> {
+  static async buildWalletTransaction(props: TransactionInput, options?: { nonceFresh?: boolean }): Promise<TransactionOutput> {
     const address = this.getWalletAddress();
     if (!address)
       throw new Error('Account address is not available');
@@ -506,18 +506,28 @@ export class AppData {
       throw new Error('Account private key is not available');
     }
 
-    const nonce = await RPC.getNextAccountNonce(address);
-    const nextNonce = typeof nonce == 'string' ? new BigNumber(nonce, 16) : (nonce != null ? nonce : new BigNumber(0));
-    try {
-      if (!props.nonce)
-        throw false;
-
-      props.nonce = new BigNumber(props.nonce).integerValue(BigNumber.ROUND_DOWN);
-      if (!props.nonce.gte(nextNonce))
-        throw false;
-    } catch {
-      props.nonce = nextNonce;
+    let resolvedNonce: BigNumber | null = null;
+    if (options?.nonceFresh && props.nonce) {
+      try {
+        const provided = new BigNumber(props.nonce).integerValue(BigNumber.ROUND_DOWN);
+        if (provided.gte(0))
+          resolvedNonce = provided;
+      } catch { }
     }
+    if (resolvedNonce == null) {
+      const nonce = await RPC.getNextAccountNonce(address);
+      const nextNonce = typeof nonce == 'string' ? new BigNumber(nonce, 16) : (nonce != null ? nonce : new BigNumber(0));
+      resolvedNonce = nextNonce;
+      try {
+        if (!props.nonce)
+          throw false;
+
+        const provided = new BigNumber(props.nonce).integerValue(BigNumber.ROUND_DOWN);
+        if (provided.gte(nextNonce))
+          resolvedNonce = provided;
+      } catch { }
+    }
+    props.nonce = resolvedNonce;
     
     try {
       if (!props.gasPrice)
@@ -584,7 +594,7 @@ export class AppData {
     
     props.nonce = intermediate.body.nonce.toString();
     props.gasLimit = intermediate.body.gasLimit.toString();
-    const result = await this.buildWalletTransaction(props);
+    const result = await this.buildWalletTransaction(props, { nonceFresh: true });
     if (result != null)
       result.receipt = receipt;
     return result;
@@ -729,6 +739,9 @@ export class AppData {
     this.props.appearance = value;
     this.save();
     this.setState();
+  }
+  static setTitle(...parts: (string | null | undefined)[]): void {
+    document.title = parts.filter((v): v is string => v != null && v.length > 0).concat('Tangent Cash App').join(' · ');
   }
   static setState(): void {
     if (this.state.setState != null)

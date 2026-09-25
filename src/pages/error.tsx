@@ -1,8 +1,13 @@
 import { mdiListStatus } from "@mdi/js";
 import { Box, Callout, Flex, Heading, Text } from "@radix-ui/themes";
 import Icon from "@mdi/react";
+import { useEffect } from "react";
+import { AppData } from "../core/app";
 
 export default function HypePage() {
+  useEffect(() => {
+    AppData.setTitle('Page not found');
+  }, []);
   return (
     <Box px="4" pt="6" maxWidth="800px" mx="auto">
       <Flex align="center" justify="center" mb="3" gap="2">
