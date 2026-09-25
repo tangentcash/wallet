@@ -375,7 +375,7 @@ export default function RestorePage() {
                     <Select.Item value="auto"><Icon path={mdiFileDocumentOutline} size={0.85}></Icon>Wallet file</Select.Item>
                     <Select.Item value="mnemonic"><Icon path={mdiDownload} size={0.85}></Icon>Recovery phrase<span className="tiny dim" style={{ marginLeft: 'auto' }}>24 words</span></Select.Item>
                     <Select.Item value="secretkey"><Icon path={mdiKeyOutline} size={0.85}></Icon>Private key</Select.Item>
-                    <Select.Item value="publickey"><Icon path={mdiKeyOutline} size={0.85}></Icon>Public key</Select.Item>
+                    <Select.Item value="publickey"><Icon path={mdiKeyOutline} size={0.85}></Icon>Watch-only public key</Select.Item>
                     <Select.Item value="address"><Icon path={mdiEyeOutline} size={0.85}></Icon>Watch-only address</Select.Item>
                   </Select.Group>
                 </Select.Content>
