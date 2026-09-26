@@ -1,47 +1,59 @@
 # Setup Page
 
-The Setup page of our application is designed to handle wallet generation, import, and reset functionalities. It provides users with the flexibility to select their preferred blockchain network: Regtest, Testnet, or Mainnet. This documentation will guide you through the various features and processes available on the Setup page.
+The Setup page handles wallet creation, import and reset. It is the first screen you see on a fresh install and is reachable later through the wallet switcher. From here you also pick the blockchain network the wallet will operate on.
 
 ## Network Selection
 
-Upon opening the Setup page, users are prompted to choose the blockchain network they wish to use:
+The network pill at the top of the card switches the target network before keys are created:
 
-- **Regtest**: A private blockchain network used for testing purposes.
-- **Testnet**: A public test blockchain network that mimics the properties of Mainnet but with test tokens.
-- **Mainnet**: The main production blockchain network where real transactions occur.
+- **Reglocal** — a private local node used for development and testing.
+- **Testnet** — a public test network with the same rules as Mainnet, but with valueless coins.
+- **Mainnet** — the live production network (marked *LIVE*).
 
-![alt](./../assets/03-setup/1.png)
+Address prefixes follow the network: Mainnet addresses start with `tc`, test networks use their own prefixes, and the import forms validate against the selected network.
+
+![Setup page](./../assets/03-setup/1.png)
+
+The dropdown lists the three networks with short descriptions:
+
+![Network selection](./../assets/03-setup/2.png)
 
 ## Wallet Generation
 
-1. **Password Entry**: By default, the Setup page prompts users to enter a password to generate a new wallet.
-2. **Mnemonic Phrase**: After entering the password, users are presented with a 24-word recovery phrase, also known as a mnemonic. It is crucial that users remember these words in their exact order and/or save them securely.
-3. **Proceed to Main Page**: Once the mnemonic is noted or saved, users must click on the glowing button to proceed to the main page of the application.
+1. **Password Entry** — the page defaults to creating a new wallet. Choose a password that encrypts the wallet keys on this device.
+2. **Recovery Phrase** — a 24-word mnemonic is generated and shown for confirmation. Save the words in the exact order: they are the only way to recover funds if the device is lost. The password itself cannot be recovered.
+3. **Finish Setup** — confirm the phrase to activate the wallet.
 
-![alt](./../assets/03-setup/2.png)
-
-### Read-Only Mode
-
-When users reopen the app, it defaults to read-only mode. This is because the credentials are password-protected and stored in-memory. Upon closing the wallet, all data is wiped. To access read-write features, users must enter their password. However, viewing wallet data in read-only mode does not require a password, as the account's address is saved in plain text form.
+![Recovery phrase confirmation](./../assets/03-setup/7.png)
 
 ## Wallet Import
 
-Users can import an existing wallet by clicking on the 'Import wallet' button, which is a small text-like button. The import process supports various credential types:
+Press *Already have a wallet? Import wallet* to bring existing credentials on board. The **Import source** dropdown selects what you are importing:
 
-- **Wallet File**: Allows users to import a wallet file. This can be either read-only or read-write, depending on the file type.
-- **Recovery Phrase**: Users can import a wallet using a recovery phrase, which provides read-write access.
-- **Private Key**: Importing using a private key also grants read-write access.
-- **Public Key**: Allows import in read-only mode.
-- **Address**: Can be imported in read-only mode.
+- **Wallet file** — a `.json` wallet file exported from this app.
+- **Recovery phrase** — a 24-word mnemonic (full read-write control).
+- **Private key** — a single account secret key (full read-write control).
+- **Watch-only public key** — monitor and compose, no signing.
+- **Watch-only address** — read-only mode: balances and history only.
+
+![Import source selection](./../assets/03-setup/4.png)
+
+For a recovery phrase the app asks for the words one by one:
+
+![Recovery phrase entry](./../assets/03-setup/3.png)
+
+Watch-only imports take an address (or public key) and state clearly what the mode allows:
+
+![Watch-only import](./../assets/03-setup/5.png)
 
 ### Import Process
 
-1. **Select Import Type**: Users choose the preferred import type from the options listed above.
-2. **Enter Credentials or Choose File**: Depending on the selected import type, users either enter the necessary credentials (recovery phrase, private key, public key, address) or choose a wallet file.
-3. **Secure with Password**: Users are prompted to enter a password that will secure the imported credentials.
+1. **Select Import Type** — choose one of the sources above.
+2. **Enter Credentials or Choose File** — paste the phrase, key or address, or pick a wallet file.
+3. **Secure with Password** — set the device password that encrypts the imported credentials, then press **Open wallet**.
 
-![alt](./../assets/03-setup/3.png)
+![Password step](./../assets/03-setup/6.png)
 
-## Additional Features
+## Wallet Reset
 
-- **Wallet Reset**: Users can reset their wallet by following a similar process to wallet generation, ensuring a fresh start with new credentials.
+Resetting follows the same flow as generation: destroy the current wallet (App → *Destroy wallet*) and create or import a new one from this page. On-chain funds are untouched as long as you still hold the recovery phrase.

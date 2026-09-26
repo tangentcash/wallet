@@ -1,41 +1,39 @@
 # Order Window
-The Order Window in Tangent Swap provides users with a detailed view of their active and inactive orders. This window is designed to offer comprehensive information about each order, allowing users to monitor and manage their trading activities effectively.
+
+Orders live in the Wallet tab of the Dex page: the **Open orders** section lists live orders, and the `History` toggle switches to settled and cancelled ones. Each order is a collapsed card showing the pair, side, price and fill progress; expanding it opens the full Order Window. Some fields only appear for order types that use them.
+
+![Open orders section](./../../assets/exchange/03-order/1.png)
 
 ## Order Window Fields
-The Order Window contains various fields that provide detailed information about each order. Some fields are specific to certain order types and may not be visible for all orders.
 
 ### General Order Information
-- **Market Account**: The smart contract address of the order book where this order was placed.
-- **Primary Asset**: The first asset in the trading pair (e.g., BTC in BTC/USDT).
-- **Secondary Asset**: The second asset in the trading pair (e.g., USDT in BTC/USDT).
-- **Reference**: An internal order ID assigned by the smart contract, displayed in hexadecimal format.
-- **Status**: The current fill status of the order, indicating whether it is fully filled, partially filled, or pending.
-- **Side**: The direction of the order, specifying whether it is a buy or sell order.
+- **Market account** — the address of the order book contract where the order was placed (click to open that market's portfolio view).
+- **Primary asset** — the first asset of the pair (BTC in BTC/USDC).
+- **Secondary asset** — the second asset of the pair.
+- **Reference** — the internal order ID assigned by the contract, shown in hex; copyable.
+- **Status** — the fill status: pending, partially filled, filled, or inactive once settled/cancelled.
+- **Side** — buy or sell.
 
 ### Order Trigger and Condition
-- **Trigger**: The type of trigger that initiates the order execution (e.g., market price, limit price, trailing stop price).
-- **Condition**: The execution condition of the order, such as Good Till Cancelled (GTC), along with the time in force specification (immediate or deferred).
+- **Trigger** — what starts execution: market price, limit price or stop price.
+- **Condition** — the time-in-force policy, such as Good-Till-Cancelled, immediate or deferred.
 
 ### Price and Stop Details
-- **Price**: The worst acceptable price at which the order can be executed.
-- **Stop Price**: The worst acceptable price at which the order can be triggered.
-- **Trailing Step**: The price step before triggering a change in the stop price.
-- **Trailing Distance**: The relative or absolute distance to maintain from the market price for trailing orders.
+- **Price** — the worst acceptable execution price; a **Base price** row appears when the effective price differs.
+- **Stop price** — the price at which a stop order triggers.
+- **Trailing step** — the market move required to shift the stop price.
+- **Trailing distance** — the absolute or relative gap kept from the market price for trailing orders.
+- **Price slippage** — the maximum tolerated price slippage (shown as a percentage or absolute price for market orders).
 
-### Slippage and Quantity
-- **Price Slippage**: The maximum allowable price slippage for the order.
-- **Quantity**: The amount of tokens involved in the order, specified in terms of the primary asset. For certain order types, this may also include the quantity in terms of the secondary asset.
+### Quantity and Leftover
+- **Quantity** — the ordered amount, quoted in the primary asset and, when applicable, its secondary-asset value.
+- **Leftover** — what remains to be filled, in token terms and as a percentage of the order.
 
-### Leftover Information
-- **Leftover**: The remaining amount of tokens to be filled, specified in terms of the primary asset. For certain order types, this may also include the leftover quantity in terms of the secondary asset.
+## Using the Order Window
 
-## Navigating the Order Window
-To effectively use the Order Window:
+1. Identify the order by market account and asset pair.
+2. Watch **Status** and **Leftover** to track fills.
+3. Verify **Trigger** and **Condition** to know when and how the order executes.
+4. Keep stop, trailing and slippage settings aligned with your strategy.
 
-1. **Identify the Order**: Use the Market Account, Primary Asset, and Secondary Asset fields to identify the specific trading pair and order book.
-2. **Check Order Status**: Review the Status field to understand whether the order is active, partially filled, or complete.
-3. **Understand Order Details**: Examine the Trigger and Condition fields to comprehend how and when the order will be executed.
-4. **Monitor Price and Stop Settings**: Pay attention to the Price, Stop Price, Trailing Step, and Trailing Distance fields to ensure your order is set up according to your strategy.
-5. **Review Quantity and Leftover**: Check the Quantity and Leftover fields to track how much of your order has been filled and how much remains.
-
-![alt](./../../assets/exchange/03-order/1.png)
+Orders are created on the terminal's Order tab and cancel from the expanded card while they remain active.

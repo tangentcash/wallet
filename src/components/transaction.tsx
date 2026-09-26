@@ -861,7 +861,7 @@ export function TransactionView(props: { variant?: 'row' | 'full', ownerAddress:
           {
             props.explorerMode && flow.deltas.length > 0 &&
             <div className="tx-flow">
-              { flow.deltas.slice(0, 2).map((delta, index) => <span key={index} className={index > 0 ? 'fa' : undefined}>{ UiUtil.toMoney(delta.asset, delta.value.abs()).replace('-', '') }</span>) }
+              { flow.deltas.slice(0, 2).map((delta, index) => <span key={index} className={index > 0 ? 'fa' : undefined}><AssetImage asset={delta.asset} size="1" iconSize="13px" style={{ marginRight: 4, verticalAlign: '-2px' }}></AssetImage>{ UiUtil.toMoney(delta.asset, delta.value.abs()).replace('-', '') }</span>) }
               { flow.deltas.length > 2 && <span className="more">+ { flow.deltas.length - 2 } more asset{ flow.deltas.length - 2 > 1 ? 's' : '' }</span> }
             </div>
           }

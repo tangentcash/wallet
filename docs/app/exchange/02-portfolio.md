@@ -1,61 +1,42 @@
 # Portfolio Page
-The Portfolio page in Tangent Swap provides users with a comprehensive view of their trading activities, balances, and positions. This page is designed to offer a detailed overview of your assets and performance, enabling you to make informed decisions.
 
-## Total Account Balance Window
-The portfolio page features a prominent total account balance window that displays:
+The Dex page doubles as the portfolio: four tabs — **Trade**, **Swap**, **Earn** and **Wallet** — cover market discovery, exchanges, liquidity provision and your own positions. Your account chip in the header opens the account selector, and the page can also display any other account's portfolio (paste an address in the account search).
 
-- **Total Balance**: A real-time update of your overall account balance.
-- **P&L Button**: This button allows you to toggle between viewing Profit and Loss (P&L) for the current day or for all time. Selecting "Today" will show your P&L since midnight, while selecting "All Time" will display your cumulative P&L from the moment you started trading on Tangent Swap.
+## Trade Tab
 
+The Trade tab is the market list: every trading pair with its latest price and 24h change, sorted by activity. The search box (`Search pairs: BTC / USDC`) filters by symbol; typing a pair that doesn't exist yet lets you create it from the base and quote assets. Opening a pair goes straight to the trading terminal.
 
-## Tabs Overview
-The Portfolio page is organized into three main tabs: Balances, Orders, and Pools. Each tab provides specific information to help you manage your assets effectively.
+![Trading pairs](./../../assets/exchange/02-portfolio/4.png)
 
-### Assets Tab
-The Balances tab offers a detailed breakdown of your asset holdings:
+## Swap Tab
 
-#### Asset List
-A comprehensive list of all assets in your portfolio, including:
+The Swap tab exchanges one token for another along the best route. Enter the amount on either side (in or out), pick the tokens, and the router quotes the path — through liquidity pools or across the order book — before submitting. The slippage tolerance control caps how much price impact you accept.
 
-  - **Asset Name**: The name of the asset.
-  - **Amount**: The quantity of each asset you hold.
-  - **Asset Worth**: The current market value of your holdings.
-  - **P&L**: Profit and Loss for each individual asset.
+![Swap tab](./../../assets/exchange/02-portfolio/2.png)
 
-  ![alt](./../../assets/exchange/02-portfolio/1.png)
+## Earn Tab
 
-#### Redeemable Assets
-For assets minted by smart contracts, a clickable P&L button is available. Clicking this button allows you to:
+The Earn tab lists **delegated liquidity** pools: vault-operated concentrated positions anyone can fund. Each pool shows current value, APR/APY, 24h volume and the operator's fee; funding a pool delegates your assets into the operator-managed range, and the position shows up in your Wallet tab.
 
-  - Redeem synthetic assets for real assets of your choice.
-  - Enter the amount of tokens you wish to redeem.
-  - Select the token you want to receive in exchange.
-  - Choose the smart contract that minted the tokens (usually selected automatically).
+![Earn tab](./../../assets/exchange/02-portfolio/3.png)
 
-  ![alt](./../../assets/exchange/02-portfolio/2.png)
+## Wallet Tab
 
-### Orders Tab
+The Wallet tab is the account dashboard:
 
-A list of collapsed order book orders, showing both historical and currently active orders. Each entry includes:
+- **Total balance window** — overall portfolio value in fiat with a P&L toggle (today vs. all time) and a `Total / Available` switch that includes or excludes balance locked by orders and positions.
+- **Asset list** — every holding with amount, market value and P&L. Multi-variant tokens (for example the same stablecoin on different chains) appear as **unified assets** with a `Wrap` action: wrap 1:1 into the unified form to trade them as one, unwrap back at any time without fees.
+- **Delegated liquidity** — your funded operator pools, with a `History` toggle for withdrawn positions.
+- **Liquidity pools** — your own LP positions, active and closed.
+- **Open orders** — live orders placed from the terminal, with a `History` toggle for settled and cancelled ones.
 
-  - Order details such as type (buy/sell), price, amount, and status.
-  - The ability to expand each order for more detailed information.
+![Wallet tab](./../../assets/exchange/02-portfolio/1.png)
 
-  ![alt](./../../assets/exchange/02-portfolio/3.png)
+Everything on this tab is on-chain truth; USD values and estimates come from the DEX indexer.
 
-### Pools Tab
+## Navigating
 
-A list of collapsed liquidity pools that you have created or are currently participating in. Each entry includes:
-
-  - Pool details such as pair, total value locked (TVL), and status (active/inactive).
-  - The ability to expand each pool for more detailed information, including your share of the pool and potential rewards.
-
-  ![alt](./../../assets/exchange/02-portfolio/4.png)
-
-## Navigating the Portfolio Page
-To effectively use the Portfolio page:
-
-1. **Total Balance Window**: Regularly check your total balance and toggle the P&L button to understand your performance over different time frames.
-2. **Assets Tab**: Monitor your asset holdings, their values, and P&L. Use the redeem feature for synthetic assets as needed.
-3. **Orders Tab**: Keep track of your trading activity by reviewing both active and historical orders.
-4. **Pools Tab**: Stay informed about your liquidity positions and their performance.
+1. Check the **Wallet** tab for total value and locked balance.
+2. Use **Trade** to find markets and **Swap** for instant routes.
+3. Provide liquidity from **Earn** (delegated) or the terminal's LP maker (self-managed).
+4. Track orders in the Wallet tab's open orders section.

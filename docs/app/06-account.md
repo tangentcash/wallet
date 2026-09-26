@@ -1,60 +1,65 @@
 # Account Page
 
-Welcome to the documentation for the home page of our wallet app! This page provides a comprehensive overview of the features and functionalities available on the main dashboard, helping users navigate and utilize the app effectively.
+The Hub is the wallet home screen. It shows the selected account's balance, its addresses, on-chain participation records and a live transaction feed.
 
 ## Header
 
-At the top of the home page, you'll find a badge displaying the last 6 symbols of your account's address. This badge serves as a quick reference for your current account.
+The chip in the top-left carries the account avatar, the shortened address and — when the signing key is not loaded — a `LOCKED` badge. Clicking it opens the **Your accounts** sheet:
 
-- **Clickable Badge:** If the displayed account is the one currently loaded in your wallet, clicking this badge will open a setup page.
-- **Wallet Unlock:** If your wallet is locked, clicking the badge will prompt you to unlock it.
-- **Find button:** You can find another account, transaction or block by utilizing the finder, you may also click on 'Last block' button to reveal latest block
+- A list of all accounts on this device; switching happens instantly (`full control` for keys you hold, `watch control` for watch-only entries).
+- The active **network badge** (Reglocal / Testnet / Mainnet).
+- **Unlock / Lock wallet account** — load the key for signing, or drop it from memory.
+- **Show verified assets** — hide or show assets outside the verified list.
+- **Copy my address**.
 
-![alt](./../assets/06-account/1.png)
+![Your accounts sheet](./../assets/06-account/2.png)
 
-## Main Window
+The magnifier on the right opens the global finder: look up any account, transaction or block. Below the header sits the account summary — total value in fiat, asset count, the latest block height and the current fee reference.
 
-The main window of the home page is divided into three tabs: Fund, Balance, and Node. Each tab provides specific information and functionalities related to an account.
+## Main Tabs
 
-### 1. Fund Tab
+### Fund
 
-The Fund tab displays a list of addresses linked to your shown account. By default, the Tangent account address is displayed if no other addresses are present.
+The Fund tab lists the addresses that identify you on each chain:
 
-- **Routing Addresses:** These addresses are marked with a green circle icon and are owned by your account. They include Tangent account addresses or off-chain addresses used for withdrawals.
-- **Bridge Addresses:** These addresses are marked with a blue bridge icon and are owned by bridges. They are off-chain addresses used for deposits.
-- **Address Details:** Clicking on any address will present you with a QR code and a description of the address's purpose, along with the address itself. Some bridge addresses also include memo/destination-tags, such as those for XRP and XLM.
+- **Network address** — your Tangent account address.
+- **Routing address** (green) — additional addresses owned by your account, used to route or withdraw assets.
+- **Vault funding address** (blue `VAULT` badge) — deposit addresses owned by bridge vaults; sending here credits your Tangent account after confirmations. Chains that require a memo/destination tag (XRP, XLM…) show it alongside.
 
-![alt](./../assets/06-account/2.png)
+Clicking a row opens the address with its QR code, purpose and a copy button; the dialog also lets you jump between your addresses:
 
-### 2. Balance Tab
+![Address QR dialog](./../assets/06-account/3.png)
 
-The Balance tab provides an overview of your asset balances, including detailed information about each asset.
+Assets that bridge through a vault show a `VAULTS` button that opens the Vaults view for that blockchain.
 
-- **Asset Details:** Each balance entry displays the asset name, icon, total balance, and available balance badge shown as a percentage.
-- **Detailed Information:** Hovering over the available balance badge reveals detailed balance and reserve values for that specific balance entry.
+![Fund tab](./../assets/06-account/1.png)
 
-![alt](./../assets/06-account/3.png)
+### Balance
 
-### 3. Node Tab
+The Balance tab lists every asset with a balance: icon, name, amount, fiat value and provenance badges (`verified`, `bridged`). The percentage under the amount is the **unlocked share** — the part of your total holding not locked by orders, pools or stakes; hovering the row reveals the locked and reserve values.
 
-The Node tab offers governance-related statuses and information about your account's participation in the network.
+The filter button switches the list between all assets and a per-network view:
 
-- **Block Production:** This item shows the last block produced by or penalized against your account, along with the stacking amount.
-- **Bridge Participation:** This item displays the block in which bridge participation was activated and the associated stacking amount.
-- **Bridge Attestation:** A list of bridge attestation items, each containing the attestation blockchain, activation block number, and stacking amount.
+![Balance tab](./../assets/06-account/4.png)
 
-![alt](./../assets/06-account/4.png)
+![Asset filter](./../assets/06-account/5.png)
 
-There are also two buttons:
+The full list keeps the same layout for every holding:
 
-- **Bridge button:** provides quick access to bridges page for specific asset.
-- **Trade button:** opens up a DEX portfolio page to trade assets of your account.
+![Balance list](./../assets/06-account/6.png)
+
+### Data
+
+The Data tab reports the account's on-chain roles:
+
+- **Block production** — production status, the block it was set in, the staked amount and accumulated rewards.
+- **Vault participation** — committee membership: `ACTIVE`/`OFFLINE`, the activation block and the participation stake.
+- **Vault attestation** — one card per attested blockchain with its status, block and stake.
+
+An account without contracts, production or vault records shows a clean *No on-chain data* state.
+
+![Data tab](./../assets/06-account/7.png)
 
 ## Transaction List
 
-Below the main window, you'll find a list of transactions related to your account. This section includes all transactions that have affected your account, regardless of whether they were initiated by you or not.
-
-- **Pending Transactions:** If there are any pending transactions, they will be displayed in a dedicated section.
-- **Collapsed View:** Each transaction is initially collapsed, showing only the changes made to your account. Clicking on a transaction will expand it to reveal more details.
-
-![alt](./../assets/06-account/5.png)
+Below the tabs is the account's transaction feed — everything that affected the account, whether you sent it or not. Pending (mempool) transactions appear first, before finalized ones. Each entry is collapsed to the net balance changes of your account; clicking it expands the full transaction element with status, block, confirmations, gas and calldata (see the [Transaction page](07-transaction.md)).

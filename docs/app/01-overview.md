@@ -1,47 +1,39 @@
 # Overview
 
-Tangent Wallet is an app designed to provide users with seamless access to the Tangent blockchain. This documentation outlines the key features and functionalities of the Tangent Wallet, highlighting its security measures, connectivity options, and user-friendly interface.
+Tangent Wallet is a non-custodial application for the Tangent blockchain. It keeps your keys on your device, talks to the network through public RPC servers you can replace at any time, and bundles a block explorer, a bridge (vault) interface, a decentralized exchange front-end and a payment composer in a single app. The same interface runs as a Web app at [tangent.cash](https://tangent.cash) and as a desktop application.
 
-## Security Measures
+## Security First
 
-Tangent Wallet prioritizes user security by storing wallet credentials locally within secure storage protected by a password. Unlike many other applications, it does not utilize cookies or share user data with any third parties. This ensures that sensitive information remains confidential and under the control of the user.
+Wallet credentials are stored encrypted on the device, protected by a password. Nothing is uploaded: there are no accounts, no e-mail, no cookies and no analytics. Signing always happens locally — even when you browse the explorer or the DEX, your key is never sent anywhere. A watch-only import lets you monitor balances and history without ever touching a private key.
 
-## Connectivity and Blockchain Interaction
+## The Hub
 
-The application connects to the Tangent blockchain through its main RPC server, facilitating direct interaction with the network. Users can also customize their connection settings by changing the RPC server to an alternative or self-hosted option. This flexibility allows for optimized performance based on individual preferences and network conditions.
+The Hub is the wallet home screen: your address, total balance in fiat, asset count and the latest block height. Below it you can switch between the Fund, Balance and Data tabs, and scroll a live list of transactions affecting the account.
 
-![alt](./../assets/01-overview/1.png)
+![Account page](./../assets/01-overview/1.png)
 
-Tangent Wallet includes a powerful blockchain explorer that enables users to monitor accounts, transactions, blocks, and bridges. This feature is invaluable for those who need to track on-chain activities and gain insights into the network's operations.
+## Explorer
 
-![alt](./../assets/01-overview/2.png)
+A global finder (top-right search) locates accounts, transactions and blocks by hash or address. Every block page exposes full internals — roots, proofs, slot statistics — and every transaction page breaks down gas use, calldata and emitted events. The explorer also renders vault (bridge) state per blockchain.
 
-## Transaction Management
+## Payments
 
-One of the core functionalities of Tangent Wallet is its transaction sending capability. Users can perform various actions on the blockchain directly from the app, making it a comprehensive tool for managing digital assets and interacting with smart contracts.
+The Pay screen composes every on-chain action: token transfers, approvals of pre-built transaction files, vault claims and account setup (block production, vault participation and attestations). Fees are estimated automatically, with an advanced mode for custom nonce, gas price and gas limit.
 
-![alt](./../assets/01-overview/3.png)
+![Payment page](./../assets/01-overview/3.png)
 
-## Wallet Import and Mode Selection
+## Decentralized Exchange
 
-Tangent Wallet offers flexibility in wallet management by allowing users to import wallets in either read-write mode or read-only mode. Read-write mode requires secret credentials, providing full access to the wallet's functionalities. In contrast, read-only mode does not require secret credentials, offering a secure way to view wallet information without the risk of unauthorized transactions.
+The Dex tab is a full trading terminal on top of an on-chain order book and concentrated liquidity pools: price chart, depth chart, order maker, liquidity pools and an account wallet view with open orders and positions.
 
-## Network Monitoring and Data Caching
+![Trading terminal](./../assets/01-overview/2.png)
 
-The application enables users to monitor the network usage of an RPC node, providing valuable insights into the performance and efficiency of their connection. Additionally, Tangent Wallet stores blockchain data cache locally, allowing users to view the state of their or others' accounts, transactions, and blocks even when offline. This feature ensures uninterrupted access to critical information.
+## Vaults (Bridges)
 
-## Customization Options
+Assets from external blockchains (Bitcoin, Ethereum, Tron, Ripple and others) move in and out through vaults run by on-chain participant committees. The wallet shows funding addresses for deposits, vault capacity and queues, and guides withdrawals back to the destination chain.
 
-Tangent Wallet offers several customization options to enhance user experience. Users can specify a discovery server that automatically finds the best RPC servers to pull data from, ensuring optimal performance and reliability. Furthermore, the app allows users to generate new wallets directly within the application, streamlining the onboarding process for new users.
+![Vaults](./../assets/01-overview/5.png)
 
-## User Interface and Experience
+## Networks
 
-Designed with simplicity in mind, Tangent Wallet hides verbose details until the user explicitly searches for them. This approach creates an intuitive and uncluttered interface, making it accessible for both novice and experienced users. The app also includes a query feature that allows users to find specific blockchain data efficiently.
-
-![alt](./../assets/01-overview/4.png)
-
-## Decentralized Exchange (DEX)
-
-Tangent Wallet integrates a DEX, enabling users to trade assets directly from their account without leaving the application. This seamless integration provides a convenient and secure way to manage and exchange digital assets, enhancing the overall user experience.
-
-![alt](./../assets/01-overview/5.png)
+Three networks are selectable at wallet setup: **Reglocal** (a local development node), **Testnet** (public peers with test coins) and **Mainnet** (live production network). The active network is always visible in the interface.

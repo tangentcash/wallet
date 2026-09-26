@@ -1,60 +1,62 @@
 # Transaction Page
 
-The transaction element within the wallet app serves as a comprehensive overview and detailed view of individual transactions. This documentation provides an in-depth look at its structure, functionality, and the information it presents.
+The transaction element gives a complete view of a single transaction: header badges when collapsed, a full breakdown when expanded. It is used both in the account feed and as a standalone page (`/transaction/<hash>`), reachable from any hash link in the explorer.
 
-## Overview
+## Collapsed View
 
-The transaction element is designed to be user-friendly yet informative. By default, it appears in a collapsed state, displaying only essential details through a series of badges that represent state changes for a specific account or across various contexts. To access more detailed information, users can expand the transaction element by clicking on it.
+Collapsed, the element shows a compact summary: the transaction hash, a status pill and the net changes it made to the account in question. Clicking the row expands it.
 
 ## Expanded View
 
-When expanded, the transaction element reveals several detailed fields that provide a thorough breakdown of the transaction's attributes and status.
+Expanded, the element reveals the full set of fields describing the transaction's attributes and execution:
 
-![alt](./../assets/06-account/6.png)
+![Transaction page](./../assets/07-transaction/1.png)
 
 ### Transaction Hash
-A unique identifier for each transaction, serving as a digital fingerprint. This hash can be used to locate and reference the specific transaction within the blockchain network.
-
-### Signature
-The digital signature associated with the transaction, which verifies its authenticity and ensures that it was indeed authorized by the paying account holder.
+A unique identifier for the transaction — its digital fingerprint, used to locate and reference it anywhere in the network.
 
 ### Status
-Indicates the execution status of the transaction. A green status signifies a successful transaction, while a red status denotes failure. Additionally, a brief reason for the failure is provided to assist users in understanding what went wrong.
+The execution result: a green `SUCCESS` pill for executed transactions, a red `REVERTED` one for failures, with the failure reason included when available.
 
 ### Block
-Displays the block number in which the transaction was included. This helps users understand where and when the transaction occurred within the blockchain's structure.
+The number of the block that included the transaction; the block number is a link to its [Block page](08-block.md).
 
-### Confidence
-Represents the number of confirmations for the transaction, indicating how many blocks have been created after the block that included this transaction. More confirmations generally imply a higher level of security and finality for the transaction.
+### Confirmations
+How many blocks have been produced after the including block. More confirmations mean more finality.
 
 ### Timestamp
-The exact time at which the transaction was executed, providing users with a temporal context for their transactions.
+The exact time the transaction was executed.
 
 ### Paying Account
-Identifies the account that authorized and signed the transaction. This information is recovered from the digital signature attached to the transaction.
+The account that authorized and signed the transaction — recovered from the signature itself, so it cannot be forged.
 
 ### Nonce
-A always growing number representing unique transaction id within paying account. This prevents replay attacks where a transaction sending eg. 20 coins from A to B can be replayed by B over and over to continually drain A's balance.
+A strictly increasing per-account counter that makes each transaction unique. It prevents replay attacks where the same payment would otherwise be valid over and over.
 
 ### Gas Network
-An indication of which network (blockchain) you will use to pay transaction fees.
+Which network's token is used to pay the transaction fee — for bridged assets this can be a chain other than Tangent.
 
 ### Gas Price
-Specifies the price per unit of gas based on the asset used in the transaction. Gas prices can fluctuate and are often a reflection of network congestion and demand.
+The price per unit of gas, in the gas asset. Gas prices move with network demand and congestion.
 
 ### Gas Limit
-The maximum amount of gas that the transaction is allowed to consume. This limit is set by the user or the application initiating the transaction to prevent excessive resource usage.
+The maximum amount of gas the transaction may consume — a user- or app-set ceiling against runaway costs.
 
 ### Gas Use
-Indicates the actual amount of gas consumed by the transaction during its execution, which may be less than or equal to the gas limit specified.
+The gas actually consumed during execution; never more than the limit.
 
 ### Fee Paid
-Calculates the total fee paid for the transaction, derived from multiplying the 'Gas Price' by the 'Gas Use'. This value represents the cost incurred for processing the transaction on the blockchain network.
+What was actually charged: gas price × gas use.
+
+### Signature
+The cryptographic signature authorizing the transaction.
 
 ## Calldata Section
 
-The calldata section is tailored to provide fields specific to the current transaction. These fields can vary depending on the type of transaction and the smart contract interactions involved, offering detailed insights into the data being processed or transferred.
+The calldata section shows the raw payload of the transaction — the encoded call and its arguments. Its meaning depends on the transaction type (transfer, setup, vault operation, contract call), and the hex can be copied for external inspection.
 
 ## Event Log Section
 
-Finally, the event log section records all events triggered by the transaction. Events are a way for smart contracts to communicate changes in state or important occurrences that other contracts or users might be interested in. This section provides a chronological list of these events, enhancing transparency and traceability within the blockchain ecosystem.
+The event log lists every event the transaction emitted, in order: state changes and notices other contracts and users react to — transfers, order fills, vault movements. Together with the calldata this makes a transaction fully auditable.
+
+![Full transaction with calldata and event log](./../assets/07-transaction/2.png)

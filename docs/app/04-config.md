@@ -1,68 +1,67 @@
 # Config Page
 
-The Configuration page provides users with the ability to view and modify various settings, allowing for a tailored experience and enhanced control over the application's behavior.
+The App page (bottom-right of the navigation bar) collects everything about the client itself: wallet management, backups, appearance and RPC server settings.
 
-## Client Options
+![App settings](./../assets/04-config/1.png)
 
-### App Appearance
-Users can toggle between **dark mode** and **light mode**, ensuring that the app's interface suits their preferences and environmental conditions. This setting enhances readability and visual comfort.
+## Wallet Section
 
-![alt](./../assets/04-config/1.png)
+### Switch Wallet
 
-### Cache Management
-The option to **erase app cache** allows users to clear temporary files stored by the application, which can help resolve performance issues or free up storage space.
+The first row shows the active account. The dropdown lists every account stored on this device — pick one to switch to it, or use **Add wallet** to create or import an additional wallet next to the current one.
 
-![alt](./../assets/04-config/2.png)
+### Backup Wallet
 
-### App Reload
-Users have the ability to **reload the app**, refreshing its state without requiring a full restart. This is particularly useful for applying changes immediately or resolving minor glitches.
+*Backup wallet* opens the export menu. Everything here requires the wallet password, and every item is meant to be stored offline:
 
-![alt](./../assets/04-config/3.png)
+- **Download wallet file (.json)** — the encrypted wallet file.
+- **Reveal recovery phrase** — shows the 24-word mnemonic on screen.
+- **Copy private key** — the account secret key to the clipboard.
+- **Copy public key** — the public key (safe to share).
+- **Copy public address** — the receiving address.
 
-### Debugger Access
-For advanced users, there's an option to **open the debugger**. This provides access to detailed technical information and tools, aiding in troubleshooting and development tasks.
+![Backup menu](./../assets/04-config/2.png)
 
-![alt](./../assets/04-config/4.png)
+### Lock Wallet
 
-### Project Page
-Project Landing Page
+*Lock wallet* removes the signing key from memory. Balances and history stay visible; signing requires the password again. Watch-only wallets are permanently locked by design and show a `LOCKED` badge across the app.
 
-![alt](./../assets/04-config/5.png)
+### Destroy Wallet
 
-## Wallet Options
+*Destroy wallet* erases the encrypted keys from this device. A confirmation dialog explains that on-chain funds at your address are untouched and can be recovered anywhere with the phrase. When several wallets are stored, the dialog distinguishes **Wipe wallet** (active wallet only) from **Wipe all**.
 
-### Wallet Status
-Users can check their wallet's current status, which is displayed as either **read-only** or **read-write**. This read-only view ensures that users are aware of their wallet's permissions at any given time.
+![Destroy confirmation](./../assets/04-config/4.png)
 
-![alt](./../assets/04-config/6.png)
+## Client Section
 
-### Wallet Closure
-The **close wallet** option allows users to securely close their wallet by erasing secret credentials from memory. This action transitions the wallet to a read-only mode, enhancing security when the wallet is not in use.
+### Manage Client App
 
-![alt](./../assets/04-config/7.png)
+- **Debug app** — opens the developer tools (Desktop version only).
+- **Restart client** — reloads the application.
+- **Reset network** — re-acquires the RPC connection and refreshes network settings.
+- **Clear cache** — erases the locally cached RPC data.
 
-### Wallet Export
-Users can export their wallet file, providing a backup or facilitating wallet transfer between devices. This feature ensures that users have control over their wallet data and can recover it if needed.
+![Client menu](./../assets/04-config/3.png)
 
-![alt](./../assets/04-config/8.png)
+### Lights
 
-## Server Options
+A switch toggles between the dark theme (inverted surfaces, the default) and the light theme for bright rooms.
 
-### Discovery Server
-Users can set a **discovery server** to specify which server the application should use for discovering network resources. This setting is crucial for ensuring connectivity and optimizing performance within specific networks.
+![Light theme](./../assets/04-config/5.png)
 
-![alt](./../assets/04-config/9.png)
+### Version
 
-### RPC Server
-The option to set an **RPC (Remote Procedure Call) server** allows users to define the server that handles remote procedure calls. This is essential for configuring how the application communicates with external services and systems.
+Shows the build license — MIT, open source — linking to the full license and terms on the Legal page.
 
-![alt](./../assets/04-config/10.png)
+## Network Section
 
-## Network Statistics
+### RPC Servers
 
-### Connection Monitoring
-Users can monitor their current network connections, including metrics such as success rate, bandwidth usage, requests/responses count, and usage time. This information provides insights into network performance and helps identify any potential issues or bottlenecks.
+- **Validator RPC** (`hostname:port`) — the node serving blocks, accounts and the mempool. Leave empty for the built-in default or point the app at your own node.
+- **Exchange RPC** (`http://…`) — the read-only DEX indexer used by the Dex tab.
 
-By offering these comprehensive configuration options, the Configuration page empowers users to tailor their experience, ensure security, and optimize performance according to their specific needs.
+Press **Save RPC settings** to apply. Custom endpoints are persisted per device.
 
-![alt](./../assets/04-config/11.png)
+### Connection Status
+
+Below the fields the app reports the live connection state — an `ONLINE`/`OFFLINE` badge and accumulated traffic (`↓↑` bytes) — with a **Reset** chip to re-handshake without touching the saved addresses.

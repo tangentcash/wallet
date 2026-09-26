@@ -1,46 +1,38 @@
 # Block Page
 
-The Block page within the wallet app provides a detailed view of the internal structure and metadata of a specific block in the blockchain. This documentation outlines each component and field present on the Block page, offering insights into the technical aspects of blockchain operations.
+The Block page (`/block/<number>`) shows the full internals of one block: identifiers, proofs, roots and consensus metrics. The header carries the block number, a `CONFIRMATIONS` badge and arrows to walk to the previous/next block.
 
-## Core Section
+![Block page](./../assets/08-block/1.png)
 
-The Block element contains comprehensive information about the internals of a block, including its unique identifiers, proof of work, roots, proofs, and various metrics.
+## Brief Section
 
-- **Block Number**: A unique identifier for each block, also referred to as block height. This field indicates the position of the block in the blockchain and includes an approximate fork possibility.
-- **Block Hash**: A unique ID that identifies a block, ensuring its uniqueness within the blockchain.
-- **Parent Hash**: The unique ID of the previous or parent block, establishing the chain of blocks.
-- **Proof of Work (VDF Solution Proof)**: Evidence that the block producer has performed sufficient computational work to generate the block.
-- **Transaction Root**: A Merkle root of all transaction hashes included in a block and its parent block's transaction root, ensuring data integrity.
-- **Receipt Root**: A Merkle root of all transaction receipts hashes included in a block and its parent block's receipt root, verifying the completion of transactions.
-- **State Root**: A Merkle root of all state hashes included in a block and its parent block's state root, confirming the current state of the blockchain.
-- **Producer Proof**: A signature that authenticates the block, ensuring it was created by an authorized producer.
-- **Producer Account**: The account that created the block, recovered from the signature, identifying the block creator.
-- **Leader Priority**: The producer account's position in the committee. When the leader number is 1, the block is considered unforkable, achieving instant finality.
-- **Status**: Contains chain extension time, indicating how long it took to extend the chain with this block.
-- **Timestamp**: The date and time when the block was evaluated, providing a temporal reference for the block's creation.
-- **Confidence**: The number of blocks created after this block (confirmations), indicating the level of trust in the block's permanence.
-- **Transactions**: The total number of transactions included in the block.
-- **Transitions**: The number of state transitions that occurred within the block.
-- **Coinbase**: The amount of TAN token minted for the block producer as a reward.
-- **Difficulty**: An abstract value indicating how hard it is to mine the block. It may also include a penalty badge if the block was created by a leader other than 1, signifying increased difficulty.
-- **Absolute Work**: An abstract value representing the total work done by the entire chain, including this block. This value is crucial for fork resolution.
-- **Gas Limit**: The total gas limit for the block, calculated as the sum of the 'Gas limit' fields of all transactions within it.
-- **Gas Use**: The amount of gas used by this block, indicating the computational resources consumed.
+- **Block hash** — the unique ID identifying this block.
+- **Parent hash** — the ID of the previous block, binding the chain together.
+- **Tx root** — Merkle root of all transaction hashes included up to this block.
+- **State root** — Merkle root of the complete blockchain state after this block.
+- **Producer** — the account that created the block, recovered from the block signature.
+- **Leader priority** — the producer's position in the committee for this slot. A block produced at priority `Unforkable #1` has instant finality; anything else is marked `Normal` and can theoretically be forked.
+- **Timestamp** — when the block was evaluated.
+- **Fork possibility** — the estimated chance this block gets orphaned, falling rapidly with each confirmation.
+- **Coinbase** — the TAN minted to the producer as the block reward.
+- **Difficulty** — how hard the block was to produce; blocks not produced by leader #1 carry a difficulty penalty.
+- **Gas use** — gas used by this block versus the block gas limit, with a utilization bar.
 
-![alt](./../assets/06-account/7.png)
+The line under the section summarizes throughput: the number of transactions, the number of state transitions and the time it took to extend the chain after the previous block.
 
-## Slot Section
+## Technical Section
 
-The Slot section provides insights into the timing and performance of block creation.
-
-- **Slot Activity**: The time taken to create a specified number of previous blocks, offering a measure of blockchain activity.
-- **Slot Status**: Specifies next block's minimal transaction fees based on slot congestion that is based on slot gas use/limit ratio. Usually, network becomes congested when this ratio rises to about 25%. When this happens, next block will only include paid transaction as an anti-spam measure and nodes will reject costless transactions until network becomes under-utilized again.
-- **Slot Block Time**: The average block time based on the slot activity field, providing a benchmark for expected block creation times.
-- **Slot Gas Limit**: Max block gas limit multiplied by max slot length.
-- **Slot Gas Use**: The total gas use for a slot, calculated as the sum of the 'Gas use' fields of all blocks within it.
-
-![alt](./../assets/06-account/8.png)
+- **Proof of work** — the VDF solution proof demonstrating the work behind the block.
+- **Receipt root** — Merkle root of all transaction receipts, proving execution completed.
+- **Producer proof** — the signature authenticating the block.
+- **Absolute work** — total accumulated work of the chain through this block; the value that decides fork resolution.
+- **Supply** — circulating TAN supply at this block.
+- **Slot block time** — average block time measured across the current slot.
+- **Slot congestion** — the minimum gas price the next block will accept. When the slot gas-use/limit ratio climbs to roughly 25%, the network becomes congested: nodes reject costless transactions and only fee-paying ones are included until utilization drops.
+- **Slot gas use** — total gas used across the slot versus the slot gas limit (max block gas limit × slot length).
 
 ## Transaction Section
 
-The Block page also includes a list of transaction hashes contained within the block. Each transaction hash is indexed within the block, allowing users to access specific transactions easily.
+Blocks containing transactions end with a `TRANSACTIONS` list — every included transaction, indexed within the block and linked to its own page:
+
+![Block with transaction list](./../assets/08-block/2.png)

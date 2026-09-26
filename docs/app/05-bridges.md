@@ -1,64 +1,44 @@
 # Bridges Page
 
-The Bridges page is designed to provide users with comprehensive information about supported blockchains and the available bridging options. This page serves as a hub for managing cross-chain transactions and understanding the details of each blockchain network.
+Assets from external blockchains enter and leave Tangent through **vaults** — on-chain bridge committees that hold the custody and pay out withdrawals. The Vaults view is part of the Explorer and is opened from the Fund tab of any bridged asset (the *VAULTS* button).
 
 ## Supported Blockchains
 
-By default, the Bridges page displays a list of supported blockchains along with essential information for each:
+Pick the blockchain in the selector at the top — Bitcoin, Ethereum, Tron, Ripple, Litecoin, Cardano and the rest of the supported networks. The page then lists every active vault for that chain as a card:
 
-- **Blockchain Name and Cryptocurrency Symbol**: Each entry starts with the name of the blockchain and its associated cryptocurrency symbol.
-- **ETA (Estimated Time of Arrival)**: This field provides an estimate of the time it will take for deposits or withdrawals to be processed, based on the blockchain's block time and the number of required confirmations.
-- **Tokens**: Optionally, this section may include information about token support for the blockchain, such as 'ERC20 tokens' for the Ethereum network.
+![Vault list](./../assets/05-bridges/1.png)
 
-![alt](./../assets/05-bridges/1.png)
+Each vault card shows:
 
-## Selecting a Blockchain
+- **Vault hash** — the unique on-chain identifier of the bridge, the vault's "name".
+- **Vault address** — the address on the *external* blockchain where deposits are made and from which withdrawals are paid.
+- **Public params** — committee size (`N signers`), operational parameters and the withdrawal fee in the native asset of the bridge chain.
+- **In queue** — the number of withdrawal requests currently waiting for payout.
+- **Total Value Locked (TVL)** — the assets the vault manages on the external chain, broken down per token.
 
-When you select a specific blockchain from the list, a detailed subpage opens, offering in-depth information and options:
+## Depositing (Registering a Claim Address)
 
-### Registrations
+Pressing the funding action on a vault opens the **Pay** screen in register mode. To receive your bridged assets you provide an address you own on the destination chain:
 
-This section contains critical information about your addresses and transaction instructions:
+- **From** — the Tangent asset (and gas asset) you are operating with.
+- **Destination chain sender address** — the external-chain address (for example your `ETH sender address`) that will claim the funds. Registering it up front lets you re-claim to your own address and enables direct sends through the vault.
 
-- **Deposit Addresses**: A list of deposit addresses assigned to your account. You can use any of these addresses to deposit off-chain assets onto the chosen blockchain. Detailed instructions on how to make a deposit are also provided. To view more addresses or instructions, click the 'Bindings' button. If this button is not present, it indicates that no applicable addresses are available.
+Claims are free to submit on-chain, but the payout itself takes the vault's confirmation time (chain block time × required confirmations, shown as the vault ETA).
 
-![alt](./../assets/05-bridges/2.png)
+![Claim address registration](./../assets/05-bridges/2.png)
 
-### Bridges
+## Withdrawing
 
-This section allows you and provides sorting options for bridges based on preference:
+Withdrawals are composed on the **Withdraw** screen, reached from the asset's row:
 
-#### Sorting Options
+- **Destination address** — your address on the external blockchain (memo/destination tag fields appear for chains that need them, such as XRP or XLM).
+- **Amount** — how much to withdraw, with a `MAX` shortcut.
+- **Vault fee** — the fee deducted by the vault signers, paid in the native token of the destination blockchain (shown on the form before you confirm).
 
-You can sort the list of bridges by either the bridge's security level or the Total Value Locked (TVL) in the bridge.
+Review the transaction, sign with your password, and the request enters the vault queue; the committee pays out to your external address, and the exit appears in your transaction history.
 
-#### Bridge Details
-Each bridge entry contains the following fields:
+![Withdraw form](./../assets/05-bridges/3.png)
 
-  - **Bridge Badge**: Displays the eight symbols of the bridge's hash
+## When a Withdrawal Stalls
 
-  ![alt](./../assets/05-bridges/3.png)
-
-  - **Mint/redeem**: A button that initiates either the deposit process or a withdrawal using the payment page.
-
-![alt](./../assets/05-bridges/4.png)
-
-  - **Deposit Address**: An optional global deposit address where you can send assets to receive them on-chain.
-
-![alt](./../assets/05-bridges/5.png)
-
-  - **Bridge Ref Hash**: The hash of the bridge essentially equals to a name.
-
-![alt](./../assets/05-bridges/6.png)
-
-  - **Total Value Locked (TVL)**: The total assets managed by this bridge.
-
-![alt](./../assets/05-bridges/7.png)
-
-  - **Public params**: A lower value suggests faster but less secure operations, while a higher value indicates slower but more secure transactions. This number reflects the number of participants involved in the bridge.
-
-![alt](./../assets/05-bridges/8.png)
-
-  - **Redeem fee**: The amount of native tokens deducted during the withdrawal process (specific to the bridge's blockchain, not other tokens like ERC20).
-
-![alt](./../assets/05-bridges/9.png)
+If the off-chain payout never arrives after the vault's time-lock, the Assert tab of the Pay screen lets you reclaim the funds: enter the hash of the vault's relay (broadcast) transaction and submit the assert transaction to get a full refund to your Tangent account.
