@@ -1,5 +1,5 @@
 import { Box, Button, Dialog, Flex, SegmentedControl, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { mdiArrowLeft, mdiArrowRight, mdiChartTimelineVariant, mdiChevronDown, mdiEyeOutline, mdiListBoxOutline, mdiLockOutline, mdiPlus, mdiRefresh, mdiSwapVertical, mdiWalletOutline } from "@mdi/js";
+import { mdiArrowLeft, mdiArrowRight, mdiBankOutline, mdiChartTimelineVariant, mdiChevronDown, mdiEyeOutline, mdiListBoxOutline, mdiLockOutline, mdiPlus, mdiRefresh, mdiSwapVertical, mdiWalletOutline } from "@mdi/js";
 import { AssetId, ByteUtil, Signing } from "tangentsdk/algorithm";
 import { UiUtil } from 'tangentsdk/ui';
 import { Whitelist } from 'tangentsdk/whitelist';
@@ -314,23 +314,28 @@ function WalletAssets(props: {
   const equityAssets = useMemo(toEquityAssets(props.assets, props.todayProfits, props.available), [props.assets, props.todayProfits, props.available]);
   return (
     <Box>
+      <div className="card-head" style={{ margin: `4px 2px 10px` }}>
+        <div className="card-title">{ props.available ? 'Available' : 'All' } assets</div>
+        <Tooltip content={ props.available ? 'Show all holdings, including balance locked by orders and positions' : 'Show only balance available to spend' }>
+          <button className="settled-toggle" onClick={() => props.onAvailableChange(!props.available)}>{ props.available ? 'Total' : 'Available' }</button>
+        </Tooltip>
+      </div>
       {
-        (equityAssets.length > 0 || props.assets.length == 0) &&
-        <>
-          <div className="card-head" style={{ margin: `4px 2px 10px` }}>
-            <div className="card-title">{ props.available ? 'Available' : 'All' } assets</div>
-            <Tooltip content={ props.available ? 'Show all holdings, including balance locked by orders and positions' : 'Show only balance available to spend' }>
-              <button className="settled-toggle" onClick={() => props.onAvailableChange(!props.available)}>{ props.available ? 'Total' : 'Available' }</button>
-            </Tooltip>
+        equityAssets.map((item) =>
+          <div className="asset-card" key={item.asset.id}>
+            { item.type == 'std' ? <StandardBalanceView item={item} available={props.available}></StandardBalanceView> : <RepayableBalanceView item={item} available={props.available}></RepayableBalanceView> }
           </div>
-          {
-            equityAssets.map((item) =>
-              <div className="asset-card" key={item.asset.id}>
-                { item.type == 'std' ? <StandardBalanceView item={item} available={props.available}></StandardBalanceView> : <RepayableBalanceView item={item} available={props.available}></RepayableBalanceView> }
-              </div>
-            )
-          }
-        </>
+        )
+      }
+      {
+        !equityAssets.length && 
+        <div className="card">
+          <div className="empty">
+            <div className="art"><Icon path={mdiBankOutline} size={1.4}></Icon></div>
+            <h4>{ props.available ? 'No available assets' : 'No non-zero assets' }</h4>
+            <p>{ props.available ? 'Assets available for spending will show up here.' : 'Any non-zero assets will show up here.' }</p>
+          </div>
+        </div>
       }
     </Box>
   )
@@ -1337,36 +1342,6 @@ export default function PortfolioPage() {
               historic == null &&
               <Box mt="6">
                 <div className="card-head" style={{ margin: '0 2px 10px' }}>
-                  <div className="card-title">{ settled ? 'Order history' : 'Open orders' }</div>
-                  { !settled && <button className="settled-toggle" onClick={() => setSearch({ view: 'wallet-historic-orders' })}>History<Icon path={mdiArrowRight} size={0.7}></Icon></button> }
-                </div>
-                {
-                  orders.length > 0 ?
-                  <div className="wallet-list">
-                    <InfiniteScroll dataLength={orders.length} hasMore={moreOrders} next={findOrders} loader={<div></div>}>
-                      {
-                        orders.map((item) =>
-                          <Box key={item.orderId.toString()} mb="3">
-                            <OrderView item={item} readOnly={readOnly}></OrderView>
-                          </Box>)
-                      }
-                    </InfiniteScroll>
-                  </div>
-                  : !moreOrders &&
-                  <div className="card">
-                    <div className="empty">
-                      <div className="art"><Icon path={mdiListBoxOutline} size={1.4}></Icon></div>
-                      <h4>{ settled ? 'No order history' : 'No open orders' }</h4>
-                      <p>{ settled ? 'Settled and cancelled orders will show up here.' : 'Place a limit order on the Trade tab or route a swap on the Swap tab - activity lands here.' }</p>
-                    </div>
-                  </div>
-                }
-              </Box>
-            }
-            {
-              historic == null &&
-              <Box mt="6">
-                <div className="card-head" style={{ margin: '0 2px 10px' }}>
                   <div className="card-title">{ settled ? 'Closed delegated liquidity' : 'Delegated liquidity' }</div>
                   { !settled && <button className="settled-toggle" onClick={() => setSearch({ view: 'wallet-historic-delegated-pools' })}>History<Icon path={mdiArrowRight} size={0.7}></Icon></button> }
                 </div>
@@ -1424,6 +1399,36 @@ export default function PortfolioPage() {
               </Box>
             }
             {
+              historic == null &&
+              <Box mt="6">
+                <div className="card-head" style={{ margin: '0 2px 10px' }}>
+                  <div className="card-title">{ settled ? 'Order history' : 'Open orders' }</div>
+                  { !settled && <button className="settled-toggle" onClick={() => setSearch({ view: 'wallet-historic-orders' })}>History<Icon path={mdiArrowRight} size={0.7}></Icon></button> }
+                </div>
+                {
+                  orders.length > 0 ?
+                  <div className="wallet-list">
+                    <InfiniteScroll dataLength={orders.length} hasMore={moreOrders} next={findOrders} loader={<div></div>}>
+                      {
+                        orders.map((item) =>
+                          <Box key={item.orderId.toString()} mb="3">
+                            <OrderView item={item} readOnly={readOnly}></OrderView>
+                          </Box>)
+                      }
+                    </InfiniteScroll>
+                  </div>
+                  : !moreOrders &&
+                  <div className="card">
+                    <div className="empty">
+                      <div className="art"><Icon path={mdiListBoxOutline} size={1.4}></Icon></div>
+                      <h4>{ settled ? 'No order history' : 'No open orders' }</h4>
+                      <p>{ settled ? 'Settled and cancelled orders will show up here.' : 'Place a limit order on the Trade tab or route a swap on the Swap tab - activity lands here.' }</p>
+                    </div>
+                  </div>
+                }
+              </Box>
+            }
+            {
               historic == null && (assets.length > 0 || orders.length > 0 || pools.length > 0 || delegatedPools.length > 0) &&
               <p className="tiny dim" style={{ marginTop: 16, textAlign: 'center' }}>Assets, orders and liquidity are on-chain. USD values and estimates come from the DEX indexer.</p>
             }
@@ -1435,19 +1440,19 @@ export default function PortfolioPage() {
                   <button className="settled-toggle" onClick={() => setSearch({ view: 'wallet' })}><Icon path={mdiArrowLeft} size={0.7}></Icon>Hide</button>
                 </div>
                 {
-                  historic == 'orders' &&
+                  historic == 'delegated' &&
                   <Box>
                     <div className="wallet-list">
-                      <InfiniteScroll dataLength={orders.length} hasMore={moreOrders} next={findOrders} loader={<div></div>}>
+                      <InfiniteScroll dataLength={delegatedPools.length} hasMore={moreDelegatedPools} next={findDelegatedPools} loader={<div></div>}>
                         {
-                          orders.map((item) =>
-                            <Box key={item.orderId.toString()} mb="3">
-                              <OrderView item={item} readOnly={readOnly}></OrderView>
+                          delegatedPools.map((item) =>
+                            <Box key={item.id.toString()} mb="3">
+                              <DelegatedPoolView item={item} assets={assets} readOnly={readOnly}></DelegatedPoolView>
                             </Box>)
                         }
                       </InfiniteScroll>
                     </div>
-                    { !loading && !orders.length && <div className="card"><div className="empty"><div className="art"><Icon path={mdiListBoxOutline} size={1.4}></Icon></div><h4>No historic orders</h4><p>Settled and cancelled orders will show up here.</p></div></div> }
+                    { !loading && !delegatedPools.length && <div className="card"><div className="empty"><div className="art"><Icon path={mdiChartTimelineVariant} size={1.4}></Icon></div><h4>No delegated liquidity history</h4><p>Withdrawn vault positions will show up here.</p></div></div> }
                   </Box>
                 }
                 {
@@ -1467,19 +1472,19 @@ export default function PortfolioPage() {
                   </Box>
                 }
                 {
-                  historic == 'delegated' &&
+                  historic == 'orders' &&
                   <Box>
                     <div className="wallet-list">
-                      <InfiniteScroll dataLength={delegatedPools.length} hasMore={moreDelegatedPools} next={findDelegatedPools} loader={<div></div>}>
+                      <InfiniteScroll dataLength={orders.length} hasMore={moreOrders} next={findOrders} loader={<div></div>}>
                         {
-                          delegatedPools.map((item) =>
-                            <Box key={item.id.toString()} mb="3">
-                              <DelegatedPoolView item={item} assets={assets} readOnly={readOnly}></DelegatedPoolView>
+                          orders.map((item) =>
+                            <Box key={item.orderId.toString()} mb="3">
+                              <OrderView item={item} readOnly={readOnly}></OrderView>
                             </Box>)
                         }
                       </InfiniteScroll>
                     </div>
-                    { !loading && !delegatedPools.length && <div className="card"><div className="empty"><div className="art"><Icon path={mdiChartTimelineVariant} size={1.4}></Icon></div><h4>No delegated liquidity history</h4><p>Withdrawn vault positions will show up here.</p></div></div> }
+                    { !loading && !orders.length && <div className="card"><div className="empty"><div className="art"><Icon path={mdiListBoxOutline} size={1.4}></Icon></div><h4>No historic orders</h4><p>Settled and cancelled orders will show up here.</p></div></div> }
                   </Box>
                 }
               </Box>
