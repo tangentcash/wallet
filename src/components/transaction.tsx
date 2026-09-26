@@ -729,14 +729,15 @@ function TransactionDetails(props: { transaction: any, receipt?: any, state?: Su
       <div className="card" style={{ marginTop: 14 }}>
         <div className="card-title">Brief</div>
         <div className="dl">
-          {
-            props.preview &&
-            <div className="dl-row"><span className="dl-k">Hash</span>
-              <span className="dl-v"><span className="copyable" onClick={() => {
-                navigator.clipboard.writeText(transaction.hash);
-                AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-              }}>{ UiUtil.toAddress(transaction.hash, 8) }</span></span></div>
-          }
+          <div className="dl-row"><span className="dl-k">Hash</span>
+            <span className="dl-v"><span className="copyable" onClick={() => {
+              navigator.clipboard.writeText(transaction.hash);
+              AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+            }}>{ UiUtil.toAddress(transaction.hash, 8) }</span>
+            {
+              typeof props.preview !== 'boolean' &&
+              <Link className="dl-open router-link" to={'/transaction/' + transaction.hash}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link>
+            }</span></div>
           <div className="dl-row"><span className="dl-k">Status</span>
             <span className="dl-v">{
               props.preview ? <span className="badge warn">PREVIEW</span> :
@@ -843,7 +844,7 @@ export function TransactionView(props: { variant?: 'row' | 'full', ownerAddress:
           <div className="tx-title">{ label }</div>
           {
             props.preview ? (
-              <div className="tx-meta">
+              <div className="tx-meta" style={{ alignItems: 'center' }}>
                 <span className="badge warn">PREVIEW</span>
                 <span>{ typeof props.preview == 'string' ? props.preview : 'not broadcast yet' }</span>
               </div>

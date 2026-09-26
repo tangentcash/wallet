@@ -22,6 +22,7 @@ import OrderView from "../../components/exchange/order";
 import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
 import AssetSelector from "../../components/exchange/selector";
+import AddressAvatar from "../../components/avatar";
 
 type SwapState = {
   amountIn: string,
@@ -1259,53 +1260,53 @@ export default function PortfolioPage() {
     <Box pt="2" minWidth="285px" maxWidth="680px" mx="auto" pb="2">
       <Box>
         <div className="page-head">
-        <Dialog.Root onOpenChange={(opened) => {
-          setSearching(opened)
-          setQuery('');
-        }} open={searching}>
-          <Dialog.Trigger>
-            <button className="acct-chip" style={{ border: 0 }}>
-              <span className={'avatar' + (readOnly || !AppData.hasWalletSecretKey() ? ' watch' : '')}>
-                { (!readOnly && AppData.hasWalletSecretKey()) ? 'T' : <Icon path={mdiEyeOutline} size={0.62}></Icon> }
-              </span>
-              <span className="mono">{ UiUtil.toAddress(baseAddress || undefined, 6) }</span>
-              <Icon path={mdiChevronDown} size={0.7} style={{ color: 'var(--text-2)' }}></Icon>
-            </button>
-          </Dialog.Trigger>
-          <Dialog.Content className="sheet-content" maxWidth="450px">
-            <form action="">
-              <Dialog.Title style={{ fontWeight: 750, fontSize: 16, margin: '0 0 12px', color: 'var(--text)' }}>Look up an account</Dialog.Title>
-              <div className="search" style={{ height: 44 }}>
-                <Icon path={mdiMagnify} size={0.85}></Icon>
-                <input placeholder="Account address" value={query} onChange={(e) => setQuery(e.target.value)} readOnly={loading} ref={searchInput} />
-              </div>
-              <Button className="btn-brand btn-block" style={{ marginTop: 14, height: 46, borderRadius: 'var(--r-md)', fontWeight: 700, fontSize: 15 }} type="submit" disabled={!query.trim().length || !Signing.verifyAddress(query.trim())} onClick={(e) => {
-                e.preventDefault();
-                navigate(`/portfolio/${query.trim()}?view=wallet`);
-                setAssetResync(new Date().getTime());
+          <Dialog.Root onOpenChange={(opened) => {
+            setSearching(opened)
+            setQuery('');
+          }} open={searching}>
+            <Dialog.Trigger>
+              <button className="acct-chip" style={{ border: 0 }}>
+                <span className={'avatar' + (readOnly || !AppData.hasWalletSecretKey() ? ' watch' : '')}>
+                  { (!readOnly && AppData.hasWalletSecretKey()) ? <AddressAvatar address={ownerAddress || ''} size="1" style={{ width: '100%', height: '100%' }}></AddressAvatar> : <Icon path={mdiEyeOutline} size={0.62}></Icon> }
+                </span>
+                <span className="mono">{ UiUtil.toAddress(baseAddress || undefined, 6) }</span>
+                <Icon path={mdiChevronDown} size={0.7} style={{ color: 'var(--text-2)' }}></Icon>
+              </button>
+            </Dialog.Trigger>
+            <Dialog.Content className="sheet-content" maxWidth="450px">
+              <form action="">
+                <Dialog.Title style={{ fontWeight: 750, fontSize: 16, margin: '0 0 12px', color: 'var(--text)' }}>Look up an account</Dialog.Title>
+                <div className="search" style={{ height: 44 }}>
+                  <Icon path={mdiMagnify} size={0.85}></Icon>
+                  <input placeholder="Account address" value={query} onChange={(e) => setQuery(e.target.value)} readOnly={loading} ref={searchInput} />
+                </div>
+                <Button className="btn-brand btn-block" style={{ marginTop: 14, height: 46, borderRadius: 'var(--r-md)', fontWeight: 700, fontSize: 15 }} type="submit" disabled={!query.trim().length || !Signing.verifyAddress(query.trim())} onClick={(e) => {
+                  e.preventDefault();
+                  navigate(`/portfolio/${query.trim()}?view=wallet`);
+                  setAssetResync(new Date().getTime());
+                  setSearching(false);
+                }}>Search</Button>
+              </form>
+            <div style={{ borderTop: '1px solid var(--line)', marginTop: 16, paddingTop: 14 }}>
+              <div className="menu-cap" style={{ padding: '0 0 8px' }}>Dex market</div>
+              <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => {
+                setMarket(Exchange.markets.find((v) => v.id.toString() == e) || null);
+              }} size="3">
+                <Select.Trigger style={{ width: '100%' }} placeholder="Unknown">{ market ? Exchange.marketPolicyOf(market) + ' ' + (market.version || market.account.substring(market.account.length - 4)) : 'Unknown' }</Select.Trigger>
+                <Select.Content position="popper" side="bottom">
+                  <Select.Group>
+                    <Select.Label>DEX version</Select.Label>
+                    { Exchange.markets.map((item) => <Select.Item key={item.id.toString()} value={item.id.toString()}>{ Exchange.marketPolicyOf(item) } { item.version || item.account.substring(item.account.length - 4) }</Select.Item>) }
+                  </Select.Group>
+                </Select.Content>
+              </Select.Root>
+              <Button className="btn-soft btn-block" style={{ marginTop: 10, height: 44, borderRadius: 'var(--r-md)', fontWeight: 700, fontSize: 14 }} onClick={() => {
+                setDexPull((prev) => prev + 1);
                 setSearching(false);
-              }}>Search</Button>
-            </form>
-          <div style={{ borderTop: '1px solid var(--line)', marginTop: 16, paddingTop: 14 }}>
-            <div className="menu-cap" style={{ padding: '0 0 8px' }}>Dex market</div>
-            <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => {
-              setMarket(Exchange.markets.find((v) => v.id.toString() == e) || null);
-            }} size="3">
-              <Select.Trigger style={{ width: '100%' }} placeholder="Unknown">{ market ? Exchange.marketPolicyOf(market) + ' ' + (market.version || market.account.substring(market.account.length - 4)) : 'Unknown' }</Select.Trigger>
-              <Select.Content position="popper" side="bottom">
-                <Select.Group>
-                  <Select.Label>DEX version</Select.Label>
-                  { Exchange.markets.map((item) => <Select.Item key={item.id.toString()} value={item.id.toString()}>{ Exchange.marketPolicyOf(item) } { item.version || item.account.substring(item.account.length - 4) }</Select.Item>) }
-                </Select.Group>
-              </Select.Content>
-            </Select.Root>
-            <Button className="btn-soft btn-block" style={{ marginTop: 10, height: 44, borderRadius: 'var(--r-md)', fontWeight: 700, fontSize: 14 }} onClick={() => {
-              setDexPull((prev) => prev + 1);
-              setSearching(false);
-            }}><Icon path={mdiRefresh} size={0.8}></Icon>Pull dex data</Button>
-          </div>
-          </Dialog.Content>
-        </Dialog.Root>
+              }}><Icon path={mdiRefresh} size={0.8}></Icon>Pull dex data</Button>
+            </div>
+            </Dialog.Content>
+          </Dialog.Root>
         </div>
       </Box>
       <Box>

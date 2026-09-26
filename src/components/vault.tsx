@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Dialog, Flex, IconButton, SegmentedControl, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Box, Button, Dialog, Flex, IconButton, SegmentedControl, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { AssetId, ByteUtil, Hashing, Signing } from "tangentsdk/algorithm";
@@ -12,11 +12,11 @@ import { AddressView, toTextAddress } from "../components/address";
 import { Link, useNavigate } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
 import { mdiAlertCircleOutline, mdiClose, mdiInformationOutline, mdiPlus } from "@mdi/js";
-import Icon from "@mdi/react";
-import BigNumber from "bignumber.js";
 import { WcAsset, WcContext } from "./wc/types";
 import { BigStorage } from "../core/storage";
 import { TextUtil } from "tangentsdk/text";
+import Icon from "@mdi/react";
+import BigNumber from "bignumber.js";
 
 type ExtendedBlockchainInfo = AssetId & {
   divisibility: BigNumber,
@@ -450,12 +450,7 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
       </Dialog.Root>
       <Dialog.Root open={!!(wc && wc.session && wc.modal)} onOpenChange={(e) => setWc(prev => prev ? ({ ...prev, modal: e }) : null)}>
         <Dialog.Content maxWidth="450px">
-          <Dialog.Title>
-            <Flex justify="between">
-              <Text>Account top-up</Text>
-              <Badge color="yellow" size="3">Beta</Badge>
-            </Flex>
-          </Dialog.Title>
+          <Dialog.Title>Account top-up</Dialog.Title>
           <Dialog.Description size="2" mb="4">Use a wallet app to add funds</Dialog.Description>
             <Select.Root size="3" value={wc?.custom ? '__$$$custom_token$$$__' : (wc?.token || '__$$$native_token$$$__')} onValueChange={(item) => setWc(prev => {
               const result: { custom: boolean, token: string | null, symbol: string | null } = { custom: false, token: null, symbol: null };
@@ -523,7 +518,7 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
                 <TextField.Root size="3" placeholder={`${wc?.symbol || (wc?.custom ? 'Custom token' : (blockchain?.chain || 'coin'))} amount`} type="number" value={wc?.amount} onChange={(e) => setWc(prev => prev ? ({ ...prev, amount: TextUtil.toValue(prev.amount, e.target.value) }) : null)} />
               </Tooltip>
             </Box>
-            <Flex gap="1" mt="4" justify="center">
+            <Flex gap="2" mt="4" justify="center" align="center">
               <Dialog.Close>
                 <Button loading={wc?.lazy} variant="surface" onClick={() => wcContext.current?.submit(wc?.session?.address || '')}>Add { wc?.symbol || (wc?.custom ? 'custom token' : (blockchain?.chain || 'coin')) } to account</Button>
               </Dialog.Close>
@@ -552,26 +547,16 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
               setWc(prev => {
                 if (prev?.modal)
                   acquire();
-                return prev ? ({ ...prev, lazy: false }) : null;
+                return prev;
               });
             }}
             onConnect={wcConnect}
             onStatusChange={(status) => {
               switch (status) {
-                case 'idle':
-                  AlertBox.open(AlertType.Info, 'Now ready to connect to a wallet');
-                  break;
-                case 'connecting':
-                  AlertBox.open(AlertType.Info, 'Attempting to connect a wallet');
-                  break;
                 case 'sending':
-                  AlertBox.open(AlertType.Info, 'Wallet connection now open');
-                  break;
                 case 'sent':
-                  AlertBox.open(AlertType.Info, 'Wallet transaction sent, connection closed!');
-                  break;
                 case 'error':
-                  AlertBox.open(AlertType.Warning, 'Wallet connection now closed');
+                  setWc(prev => prev ? ({ ...prev, lazy: false }) : null);
                   break;
               }
             }}

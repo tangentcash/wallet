@@ -157,7 +157,7 @@ export default function InteractionPage() {
   const [transactionData, setTransactionData] = useState<TransactionOutput | null>(null);
   const [program, setProgram] = useState<ProgramTransfer | ProgramSetup | ProgramRoute | ProgramWithdraw | ProgramAnticast | ApproveTransaction | null>(null);
   const [powProgress, setPowProgress] = useState<number | null>(null);
-  const [sent, setSent] = useState<{ hash: string } | null>();
+  const [sent, setSent] = useState<{ transaction: any, receipt: any, state: SummaryState } | null>();
   const navigate = useNavigate();
   const params = useMemo(() => ({
     type: query.get('type'),
@@ -730,20 +730,24 @@ export default function InteractionPage() {
     try {
       const hash = await RPC.submitTransaction(output.data);
       if (hash != null) {
-        setSent({ hash: hash });
         AppData.mayResetBuilder = true;
         if (AppData.approveTransaction) {
           AppData.approveTransaction({ hash: new Uint256(hash), message: ByteUtil.hexStringToUint8Array(output.data), signature: output.body.signature });
         }
 
         setNonce(null);
-        setSimulation(null);
+        setSimulation((prev) => {
+          setSent(prev ? {
+            transaction: { ...prev.transaction, hash: output.hash },
+            receipt: output.receipt || prev.receipt,
+            state: EventResolver.calculateSummaryState((output.receipt || prev.receipt)?.events)
+          } : null);
+          return null;
+        });
         setSimulationError('');
         setGasPrice('');
         setGasLimit('');
         setTransactionData(null);
-        if (params.back || AppData.approveTransaction)
-          navigate(params.back ? params.back : '/');
       } else {
         AlertBox.open(AlertType.Error, 'Failed to send transaction!');
       }  
@@ -888,30 +892,25 @@ export default function InteractionPage() {
   }
 
   if (sent != null) {
-    const sentSymbol = asset != -1 ? UiUtil.toAssetSymbol(assets[asset].asset) : 'TAN';
-    const sentTo = program instanceof ProgramTransfer ? (program.to[0]?.address || '') : program instanceof ProgramWithdraw ? program.address : '';
     return (
-      <Box pt="4" mx="auto" maxWidth="640px">
-        <div style={{ textAlign: 'center', padding: '26px 0 10px' }}>
-          <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--lime-solid)', color: 'var(--ink)', display: 'grid', placeItems: 'center', margin: '0 auto 18px' }}>
-            <Icon path={mdiCheckBold} size={2}></Icon>
-          </div>
+      <Box pt="4" mx="auto" maxWidth="640px">     
+        <Box mt="2" mb="6">
+          <Flex mb="4" gap="3" direction="column" justify="center" align="center">
+            <div style={{ width: 72, height: 72, borderRadius: '50%', background: 'var(--lime-solid)', color: 'var(--ink)', display: 'grid', placeItems: 'center' }}>
+              <Icon path={mdiCheckBold} size={2}></Icon>
+            </div>
+            <Heading size="6">Transaction sent!</Heading>
+          </Flex>
+          <TransactionView variant="row" ownerAddress={ownerAddress} transaction={sent.transaction} receipt={sent.receipt || undefined} state={sent.state || undefined} preview="transaction accepted"></TransactionView>
           {
-            sendingValue.gt(0) &&
-            <div className="hero-num" style={{ fontSize: 36 }}>{ sendingValue.toString() } <span style={{ fontSize: '0.5em', color: 'var(--text-2)' }}>{ sentSymbol }</span></div>
+            Array.isArray(sent.transaction.transactions) && sent.transaction.transactions.map((subtransaction: any, index: number) =>
+              <Box mt="4" key={subtransaction.action.hash + index.toString()}>
+                <TransactionView variant="row" ownerAddress={ownerAddress} transaction={subtransaction.action} preview={'Internal transaction #' + (index + 1).toString()}></TransactionView>
+              </Box>
+            )
           }
-          {
-            sentTo != '' &&
-            <div className="page-sub">sent to <span className="mono">{ UiUtil.toAddress(sentTo, 8) }</span></div>
-          }
-        </div>
-        <div className="card" style={{ marginTop: 18 }}>
-          <div className="dl">
-            <div className="dl-row"><span className="dl-k">Status</span><span className="dl-v"><span className="badge warn">IN MEMPOOL</span></span></div>
-            <div className="dl-row"><span className="dl-k">Hash</span><span className="dl-v mono">{ UiUtil.toAddress(sent.hash) }</span></div>
-          </div>
-        </div>
-        <Button className="btn-soft btn-block" size="3" mt="4" onClick={() => navigate('/transaction/' + sent.hash)}>View on explorer</Button>
+        </Box>
+        <Button className="btn-brand btn-block" size="4" onClick={() => navigate(params.back ? params.back : '/')}>Back to work</Button>
         <Flex justify="center" mt="2">
           <Button variant="ghost" color="gray" style={{ alignSelf: 'center' }} onClick={() => {
             setSent(null);
@@ -920,7 +919,7 @@ export default function InteractionPage() {
               copy.to = [{ address: '', value: '' }];
               setProgram(copy);
             }
-          }}>Send another one</Button>
+          }}>Approve another action</Button>
         </Flex>
       </Box>
     );
