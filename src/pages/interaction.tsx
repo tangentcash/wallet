@@ -163,6 +163,8 @@ export default function InteractionPage() {
     type: query.get('type'),
     asset: query.get('asset'),
     vault: query.get('vault'),
+    broadcast: query.get('broadcast'),
+    attestate: query.get('attestate'),
     address: query.get('address'),
     fee: query.get('fee'),
     transaction: query.get('transaction'),
@@ -412,7 +414,7 @@ export default function InteractionPage() {
         if (!broadcastHash.gt(0))
           throw false;
       } catch {
-        return 'Invalid broadcash hash';
+        return 'Fill out the "Relay vault transfer" tx hash';
       }
       
       if (program.attestateHash.length > 0) {    
@@ -421,7 +423,7 @@ export default function InteractionPage() {
           if (!attestateHash.gt(0))
             throw false;
         } catch {
-          return 'Invalid attestate hash';
+        return 'Fill out the "Vault transfer" tx hash';
         }
       }
 
@@ -833,7 +835,10 @@ export default function InteractionPage() {
         break;
       }
       case 'reconcile': {
-        setProgram(new ProgramAnticast());
+        const result = new ProgramAnticast();
+        result.broadcastHash = params.broadcast || '';
+        result.attestateHash = params.attestate || '';
+        setProgram(result);
         break;
       }
     }
@@ -884,7 +889,7 @@ export default function InteractionPage() {
     }
   }, []);
   useEffect(() => {
-    AppData.setTitle((params.type == 'configure' ? 'Setup' : params.type == 'approve' ? 'Approve' : params.type == 'reconcile' ? 'Assert' : params.type == 'route' ? 'Claim address' : params.type == 'withdraw' ? 'Withdraw' : 'Pay') + (asset != -1 && assets[asset] != null ? ' ' + UiUtil.toAssetSymbol(assets[asset].asset) : ''));
+    AppData.setTitle((params.type == 'configure' ? 'Setup' : params.type == 'approve' ? 'Approve' : params.type == 'reconcile' ? 'Blame' : params.type == 'route' ? 'Claim address' : params.type == 'withdraw' ? 'Send via network' : 'Pay') + (asset != -1 && assets[asset] != null ? ' ' + UiUtil.toAssetSymbol(assets[asset].asset) : ''));
   }, [params.type, asset, assets]);
 
   if (!AppData.isWalletReady()) {
@@ -933,7 +938,7 @@ export default function InteractionPage() {
             <Icon path={mdiArrowLeft} size={1}></Icon>
           </button>
           <div style={{ minWidth: 0 }}>
-            <div className="page-title">{ params.type == 'configure' ? 'Setup' : params.type == 'approve' ? 'Approve' : params.type == 'reconcile' ? 'Assert' : params.type == 'route' ? 'Claim address' : params.type == 'withdraw' ? 'Withdraw' : 'Pay' }</div>
+            <div className="page-title">{ params.type == 'configure' ? 'Setup' : params.type == 'approve' ? 'Approve' : params.type == 'reconcile' ? 'Blame' : params.type == 'route' ? 'Claim address' : params.type == 'withdraw' ? 'Send via network' : 'Pay' }</div>
             <div className="page-sub mono" style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ UiUtil.toAddress(ownerAddress, 8) } · { (String(AppStorage.get(StorageField.Network) || AppData.defaultNetwork()) || '').replace(/^\w/, (c) => c.toUpperCase()) }</div>
           </div>
         </Flex>
@@ -949,7 +954,6 @@ export default function InteractionPage() {
       }}>
         <SegmentedControl.Item value="transfer">Transfer</SegmentedControl.Item>
         <SegmentedControl.Item value="approve">Approve</SegmentedControl.Item>
-        <SegmentedControl.Item value="reconcile">Assert</SegmentedControl.Item>
         <SegmentedControl.Item value="configure">Setup</SegmentedControl.Item>
       </SegmentedControl.Root>
       <Box className="rt-Card" style={{ padding: 20, borderRadius: 'var(--r-lg)' }}>
@@ -1335,7 +1339,7 @@ export default function InteractionPage() {
                       padding: '12px 16px'
                     }}>
                     <Box width="100%">
-                      <Tooltip content="Transaction hash of withdraw transaction that has cross-chain relay fault and was initiated by this validator">
+                      <Tooltip content='Transaction hash of "Build vault transfer" transaction that has cross-chain relay fault and was initiated by this validator'>
                         <TextField.Root mb="3" size="3" placeholder={'Failed transaction hash'} type="text" value={item.broadcastHash || ''} onChange={(e) => {
                           const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                           copy.migrations[index].broadcastHash = e.target.value;

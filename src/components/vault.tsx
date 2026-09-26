@@ -42,7 +42,7 @@ type WcSession = {
 
 const WcAdapter = lazy(() => import('./wc/adapter'));
 
-export default function Vault(props: { blockchains: any[], assets: any[], blockchain?: AssetId }) {
+export default function Vault(props: { blockchains: any[], assets: any[], blockchain?: AssetId, highlight?: boolean }) {
   const ownerAddress = AppData.getWalletAddress() || '';
   const navigate = useNavigate();
   const [blockchainIndex, setBlockchainIndex] = useState<number>(-1);
@@ -245,13 +245,13 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
             setWc(prev => prev ? { modal: false, lazy: false, custom: false, session: null, symbol: null, token: null, amount: '' } : null);
             setBlockchainIndex(parseInt(e));
           }}>
-            <Select.Trigger style={{ width: '100%', flexShrink: 'initial' }} placeholder="Network / token standard" />
+            <Select.Trigger className={ props.highlight ? 'soft-highlight' : undefined } style={{ width: '100%', flexShrink: 'initial' }} placeholder="Network / token standard" />
             <Select.Content color="gray">
               <Select.Group>
                 <Select.Label>
                   <Text size="3">Network / token standard</Text>
                 </Select.Label>
-                <Select.Item value="-1">Bridge in &amp; out</Select.Item>
+                <Select.Item value="-1">Top up &amp; send via networks</Select.Item>
                 {
                   blockchains.map((item, index) =>
                     <Select.Item value={index.toString()} key={item.id}>
@@ -269,8 +269,8 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
             blockchain != null &&
             <div style={{ marginTop: 12 }}>
             <SegmentedControl.Root value={mode} radius="full" size="3" onValueChange={(value) => setMode(value as 'in' | 'out')}>
-              <SegmentedControl.Item value="in">Bridge in</SegmentedControl.Item>
-              <SegmentedControl.Item value="out">Bridge out</SegmentedControl.Item>
+              <SegmentedControl.Item value="in">Top up</SegmentedControl.Item>
+              <SegmentedControl.Item value="out">Send</SegmentedControl.Item>
             </SegmentedControl.Root>
           </div>
           }
@@ -414,11 +414,11 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
                     <AssetImage asset={item.asset} iconSize="34px"></AssetImage>
                     <div className="asset-main">
                       <div className="asset-name"><AssetName asset={item.asset} badge={false} symbol={true} tokenOnly={true}></AssetName></div>
-                      <div className="asset-sub">{ item.asset.token ? 'Token' : 'Native' } · withdraw to { blockchain.chain }</div>
+                      <div className="asset-sub">{ item.asset.token ? 'Token' : 'Native' } · send to { blockchain.chain }</div>
                     </div>
                     <div style={{ textAlign: 'right', flex: 'none' }}>
                       <div style={{ fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{ UiUtil.toMoney(item.asset, item.balance) }</div>
-                      <div className="tiny dim">Withdraw →</div>
+                      <div className="tiny dim">Send →</div>
                     </div>
                   </button>
                 )

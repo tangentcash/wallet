@@ -753,6 +753,11 @@ button.btn-brand:disabled, button.btn-ghost:disabled { opacity: 0.4; cursor: not
 
 
 .asset-row { display: flex; align-items: center; gap: 12px; padding: 14px 2px; }
+.asset-row.balance-row { align-items: flex-start; }
+.asset-row.balance-row .asset-avatar { flex: none; }
+.balance-row .name-usd { display: flex; align-items: baseline; gap: 12px; }
+.balance-row .name-usd > .rt-Flex { flex: 1; min-width: 0; }
+.balance-row .name-usd > .rt-Flex > .rt-Text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .asset-row .mono.tiny.dim { flex-wrap: wrap; }
 .asset-card .asset-row .mono.tiny.dim { font-size: 13.5px; }
 .asset-card .asset-row .usd { font-size: 17px; }
@@ -1178,6 +1183,11 @@ button.asset-row:hover { background: var(--elev); }
   animation-delay: 0.2s;
   animation-iteration-count: infinite;
   opacity: 1.0;
+}
+
+.soft-highlight {
+  outline: 1px solid var(--accent-a5);
+  outline-offset: 2px;
 }
 
 .block-countdown {

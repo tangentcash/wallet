@@ -3,7 +3,7 @@ import { AssetId } from 'tangentsdk/algorithm';
 import { UiUtil } from 'tangentsdk/ui';
 import { SummaryState, EventType } from 'tangentsdk/rpc';
 import { AlertBox, AlertType } from "./alert";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { AppData } from "../core/app";
 import { useMemo, useState } from "react";
 import { mdiAccountCheckOutline, mdiAccountGroupOutline, mdiAccountKeyOutline, mdiAlertCircleOutline, mdiAlertOctagram, mdiArrowDownBold, mdiArrowLeftRight, mdiArrowUpBold, mdiBackupRestore, mdiBankTransfer, mdiBridge, mdiBroadcast, mdiCash, mdiChevronDown, mdiClockOutline, mdiCodeBraces, mdiCogOutline, mdiConsoleLine, mdiDatabaseOutline, mdiEyeOutline, mdiFingerprint, mdiKeyChange, mdiLayersTriple, mdiOpenInNew, mdiPackageVariant, mdiSafe, mdiSafeSquareOutline, mdiSync, mdiTimerOutline } from "@mdi/js";
@@ -714,12 +714,19 @@ export function TransactionOutputFields(props: { state: SummaryState }) {
 }
 function TransactionDetails(props: { transaction: any, receipt?: any, state?: SummaryState | null, preview?: string | boolean }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const transaction = props.transaction;
   const receipt = props.receipt || null;
   const state = props.state || null;
   const pending = receipt == null;
   const reverted = !pending && (!receipt.successful || !!transaction.error || (transaction.proof != null && !transaction.proof.success));
-  const isDeploy = UiUtil.toTransactionType(transaction.type ?? '') == 'deploy';
+  const type = UiUtil.toTransactionType(transaction.type ?? '');
+  const isDeploy = type == 'deploy';
+  const blameQuery = props.preview ? null : (
+    type == 'broadcast' ? 'broadcast=' + encodeURIComponent(transaction.hash) :
+    (type == 'attestate' && (state?.events || []).some((event) => event.type == EventType.BridgeTransfer && event.value != null && event.value.lt(0))) ? 'attestate=' + encodeURIComponent(transaction.hash) :
+    null
+  );
   const blockDelta = !pending && receipt.block_number != null && AppData.tip != null ? AppData.tip.minus(receipt.block_number) : null;
   const gasLimit = transaction.gas_limit != null ? new BigNumber(transaction.gas_limit) : null;
   const gasUse = !pending && receipt.relative_gas_use != null ? new BigNumber(receipt.relative_gas_use) : null;
@@ -804,6 +811,14 @@ function TransactionDetails(props: { transaction: any, receipt?: any, state?: Su
         {
           isDeploy && transaction.callable != null &&
           <Button className="btn-brand btn-block" style={{ marginTop: 14 }} onClick={() => navigate('/account/' + transaction.callable + '?view=data')}>Open program account</Button>
+        }
+        {
+          blameQuery != null &&
+          <Tooltip content={ type == 'broadcast' ? 'Report this relayed vault transfer to vault attesters for reconciliation and reserve refund' : 'Report the reserve locked by this vault transfer for reconciliation and refund' }>
+            <Button className="btn-soft btn-block" style={{ marginTop: 14 }} onClick={() => navigate('/interaction?type=reconcile&' + blameQuery + '&back=' + encodeURIComponent(location.pathname + location.search))}>
+              <Icon path={mdiBackupRestore} size={0.85}></Icon>Blame
+            </Button>
+          </Tooltip>
         }
       </div>
       {

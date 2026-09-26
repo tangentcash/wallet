@@ -45,17 +45,17 @@ export default function AccountPage() {
   const [participation, setParticipation] = useState<any>(null);
   const [production, setProduction] = useState<any>(null);
   const [selectedAddress, setSelectedAddress] = useState<number>(0);
-  const [control, setControl] = useState<'balance' | 'address' | 'storage'>(() => search.get('view') == 'fund' ? 'address' : search.get('view') == 'data' ? 'storage' : 'balance');
+  const [control, setControl] = useState<'balance' | 'address' | 'storage'>(() => search.get('view') == 'address' ? 'address' : search.get('view') == 'data' ? 'storage' : 'balance');
   const [finalizedTransactions, setFinalizedTransactions] = useState<{ transaction: any, receipt?: any, state?: SummaryState }[]>([]);
   const [mempoolTransactions, setMempoolTransactions] = useState<any[]>([]);
   const [moreTransactions, setMoreTransactions] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [rpcError, setRpcError] = useState<string | null>(null);
   useEffect(() => {
-    AppData.setTitle((control == 'address' ? 'Fund ' : control == 'storage' ? 'Data of ' : 'Balance of ') + UiUtil.toAddress(ownerAddress, 12));
+    AppData.setTitle((control == 'address' ? 'Address of ' : control == 'storage' ? 'Data of ' : 'Balance of ') + UiUtil.toAddress(ownerAddress, 12));
   }, [control, ownerAddress]);
   useEffect(() => {
-    setControl(search.get('view') == 'fund' ? 'address' : search.get('view') == 'data' ? 'storage' : 'balance');
+    setControl(search.get('view') == 'address' ? 'address' : search.get('view') == 'data' ? 'storage' : 'balance');
   }, [search]);
   const transactions = useMemo((): { transaction: any, receipt?: any, state?: SummaryState }[] => {
     return [...mempoolTransactions.map((x) => ({ transaction: x })), ...finalizedTransactions];
@@ -479,11 +479,11 @@ export default function AccountPage() {
             { tanFee != null && <> · fee { tanFee }</> }
           </div>
 
-          <SegmentedControl.Root value={control} radius="full" size="3" mt="4" mb="4" onValueChange={(value) => setSearch({ view: value == 'address' ? 'fund' : value == 'storage' ? 'data' : 'balance' })}>
+          <SegmentedControl.Root value={control} radius="full" size="3" mt="4" mb="4" onValueChange={(value) => setSearch({ view: value == 'address' ? 'address' : value == 'storage' ? 'data' : 'balance' })}>
             <SegmentedControl.Item value="address">
               <Flex gap="2" align="center">
                 { loading && control == 'address' && <Spinner /> }
-                <Text size="2">Fund</Text>
+                <Text size="2">Address</Text>
               </Flex>
             </SegmentedControl.Item>
             <SegmentedControl.Item value="balance">
@@ -577,7 +577,7 @@ export default function AccountPage() {
               {
                 self && (
                   <Box id="tg-bridge-panel" style={{ marginTop: 18 }}>
-                    <Vault blockchains={blockchains} blockchain={vaultBlockchain || undefined} assets={allAssets}></Vault>
+                    <Vault blockchains={blockchains} blockchain={vaultBlockchain || undefined} assets={allAssets} highlight={!assets.length && !loading}></Vault>
                   </Box>
                 )
               }

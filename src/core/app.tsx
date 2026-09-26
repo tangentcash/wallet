@@ -825,7 +825,7 @@ export function App() {
           <Navbar></Navbar>
         </BrowserRouter>
       </Box>
-      <Alert></Alert>
+      <Alert appearance={ AppData.props.appearance }></Alert>
     </Theme>
   )
 }

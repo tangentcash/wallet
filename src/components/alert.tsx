@@ -1,6 +1,7 @@
-import { Box, Callout, IconButton } from "@radix-ui/themes";
+import { Box, Callout, IconButton, Theme } from "@radix-ui/themes";
 import { mdiAlertCircleOutline, mdiClose, mdiInformationOutline } from '@mdi/js';
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { lerp } from "tangentsdk/ui";
 import Icon from '@mdi/react';
 import './alert.css';
@@ -137,11 +138,12 @@ export class AlertBox {
   }
 }
 
-export function Alert() {
+export function Alert(props: { appearance?: 'light' | 'dark' | 'inherit' }) {
   const [notify, setNotify] = useState(0);
   AlertBox.notify = () => setNotify(notify + 1);
   
-  return (
+  return createPortal(
+    <Theme appearance={ props.appearance || 'inherit' } accentColor="lime" radius="full">
     <Box position="fixed" bottom="12px" right="8px" style={{ zIndex: 10000 }} id={ 'alert-' + notify }>
       {
         AlertBox.alerts.map((alert) =>
@@ -159,5 +161,7 @@ export function Alert() {
         )
       }
     </Box>
+    </Theme>,
+    document.body
   );
 }

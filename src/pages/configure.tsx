@@ -1,6 +1,6 @@
 import { mdiChevronDown, mdiChevronRight, mdiDeleteOutline, mdiDownload, mdiInformationOutline, mdiLockOutline, mdiPlus, mdiRefresh, mdiWeatherNight, mdiWeatherSunny } from "@mdi/js";
 import { AlertDialog, Box, Button, DropdownMenu, Flex, Switch, TextField, Tooltip } from "@radix-ui/themes";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData, AppPermission, ConnectionState } from "../core/app";
 import { ByteUtil, Signing } from "tangentsdk/algorithm";
@@ -21,6 +21,9 @@ export default function ConfigurePage() {
   const [validatorAddress, setValidatorAddress] = useState(AppData.props.validator || '');
   const [exchangeAddress, setExchangeAddress] = useState(AppData.props.exchange || '');
   const [loadingProps, setLoadingProps] = useState(false);
+  const [secretExport, setSecretExport] = useState<'wallet' | 'mnemonic' | 'secretkey' | null>(null);
+  const shownSecretExport = useRef(secretExport);
+  if (secretExport != null) shownSecretExport.current = secretExport;
   useEffect(() => {
     AppData.setTitle('App settings');
   }, []);
@@ -253,9 +256,9 @@ export default function ConfigurePage() {
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Content>
-            <DropdownMenu.Item onClick={() => exportWallet('wallet')}><span style={{ display: 'contents', width: '100%' }}>Download wallet file<span className="tiny dim" style={{ marginLeft: 'auto' }}>.json</span></span></DropdownMenu.Item>
-            <DropdownMenu.Item onClick={() => exportWallet('mnemonic')}>Reveal recovery phrase</DropdownMenu.Item>
-            <DropdownMenu.Item onClick={() => exportWallet('secretkey')}>Copy private key</DropdownMenu.Item>
+            <DropdownMenu.Item onClick={() => setSecretExport('wallet')}><span style={{ display: 'contents', width: '100%' }}>Download wallet file<span className="tiny dim" style={{ marginLeft: 'auto' }}>.json</span></span></DropdownMenu.Item>
+            <DropdownMenu.Item onClick={() => setSecretExport('mnemonic')}>Reveal recovery phrase</DropdownMenu.Item>
+            <DropdownMenu.Item onClick={() => setSecretExport('secretkey')}>Copy private key</DropdownMenu.Item>
             <DropdownMenu.Item onClick={() => exportWallet('publickey')}>Copy public key</DropdownMenu.Item>
             <DropdownMenu.Separator></DropdownMenu.Separator>
             <DropdownMenu.Item onClick={() => exportWallet('address')}>Copy public address</DropdownMenu.Item>
@@ -269,6 +272,28 @@ export default function ConfigurePage() {
           <span className="t"><b>Lock wallet</b><span>Keep balances visible, require password to sign</span></span>
           <span className="go"><Icon path={mdiChevronRight} size={0.8}></Icon></span>
         </button>
+        <AlertDialog.Root open={secretExport != null} onOpenChange={(open) => { if (!open) { setSecretExport(null); } }}>
+          <AlertDialog.Content maxWidth="450px">
+            <AlertDialog.Title>{ shownSecretExport.current == 'wallet' ? 'Download wallet file?' : shownSecretExport.current == 'mnemonic' ? 'Reveal recovery phrase?' : 'Copy private key?' }</AlertDialog.Title>
+            <AlertDialog.Description size="2">
+              { shownSecretExport.current == 'wallet'
+                ? 'The downloaded file contains the recovery phrase and the private key — anyone who gets this file controls your funds. Store it somewhere safe and never share it.'
+                : shownSecretExport.current == 'mnemonic'
+                ? 'The recovery phrase gives full control over your funds to anyone who sees it, and other apps can read the clipboard. Copy it only where no one can watch or store it.'
+                : 'The private key can sign transfers from your account on its own, and other apps can read the clipboard. Copy it only if you know exactly why you need it.' }
+            </AlertDialog.Description>
+            <Flex gap="3" mt="4" justify="end">
+              <AlertDialog.Cancel>
+                <Button variant="soft" color="gray">Cancel</Button>
+              </AlertDialog.Cancel>
+              <AlertDialog.Action>
+                <Button variant="solid" color="red" onClick={() => secretExport != null && exportWallet(secretExport)}>
+                  { shownSecretExport.current == 'wallet' ? 'Download file' : shownSecretExport.current == 'mnemonic' ? 'Copy phrase' : 'Copy private key' }
+                </Button>
+              </AlertDialog.Action>
+            </Flex>
+          </AlertDialog.Content>
+        </AlertDialog.Root>
         <AlertDialog.Root>
           <AlertDialog.Trigger disabled={!AppData.isWalletExists()}>
             <button className="srow danger">

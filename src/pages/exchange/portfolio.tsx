@@ -119,19 +119,19 @@ function RepayableBalanceView(props: { item: Balance & { type: 'std' | 'wrapped'
   const max = BigNumber.min(item.available, asset?.liquidity || item.available);
   return (
     <>
-      <div className="asset-row">
+      <div className="asset-row balance-row">
         <AssetImage asset={item.asset} size="3" iconSize="42px"></AssetImage>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <AssetName asset={item.asset} size="3" style={{ lineHeight: '24px' }}></AssetName>
-          <div className="mono tiny dim" style={{ display: 'flex', alignItems: 'center', gap: 2, height: 28, lineHeight: '28px' }}>
-            { item.unavailable.gt(0) && <Tooltip content={ 'Currently locked: ' + UiUtil.toMoney(item.asset, item.unavailable) }><span className="lock"><Icon path={mdiLockOutline} size={0.55}></Icon></span></Tooltip> }
-            <span>{ UiUtil.toMoney(null, props.available ? item.available : item.available.plus(item.unavailable)) }</span>
-            <span style={{ color: previousEquity.gt(currentEquity) ? 'var(--down)' : (previousEquity.eq(currentEquity) ? 'var(--text-3)' : 'var(--lime)') }}>{ UiUtil.toPercentageDelta(previousEquity, currentEquity) }</span>
+          <div className="name-usd">
+            <AssetName asset={item.asset} size="3" style={{ lineHeight: '24px' }}></AssetName>
+            <div className={ 'usd' + (item.equity.current == null ? ' na' : '') } style={{ lineHeight: '24px', flex: 'none' }}>{ UiUtil.toMoney(Exchange.equityAsset, item.equity.current) }</div>
           </div>
-        </div>
-        <div style={{ flex: 'none', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-          <div className={ 'usd' + (item.equity.current == null ? ' na' : '') } style={{ lineHeight: '24px' }}>{ UiUtil.toMoney(Exchange.equityAsset, item.equity.current) }</div>
-          <div style={{ height: 28, display: 'flex', alignItems: 'center' }}>
+          <div className="amt-line mono tiny dim" style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 28 }}>
+            <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', columnGap: 2, rowGap: 0, lineHeight: '20px', flexWrap: 'wrap' }}>
+              { item.unavailable.gt(0) && <Tooltip content={ 'Currently locked: ' + UiUtil.toMoney(item.asset, item.unavailable) }><span className="lock"><Icon path={mdiLockOutline} size={0.55}></Icon></span></Tooltip> }
+              <span>{ UiUtil.toMoney(null, props.available ? item.available : item.available.plus(item.unavailable)) }</span>
+              <span style={{ color: previousEquity.gt(currentEquity) ? 'var(--down)' : (previousEquity.eq(currentEquity) ? 'var(--text-3)' : 'var(--lime)') }}>{ UiUtil.toPercentageDelta(previousEquity, currentEquity) }</span>
+            </div>
             <Tooltip content={ wrapping ? 'Wrap 1:1 into the unified ' + (item.asset.token || '') + ' asset to trade on the market' : 'Convert 1:1 into the native ' + (item.asset.token || '') }>
               <button className="settled-toggle" aria-label={ wrapping ? 'Wrap asset' : 'Unwrap asset' } onClick={() => setOpen(true)}>
                 { wrapping ? 'Wrap' : 'Unwrap' }
@@ -198,17 +198,19 @@ function StandardBalanceView(props: { item: Balance & { equity: { current: BigNu
   const previousEquity = item.equity.previous ? item.equity.previous : baseEquity;
   const currentEquity = item.equity.current ? item.equity.current : baseEquity;
   return (
-    <div className="asset-row">
+    <div className="asset-row balance-row">
       <AssetImage asset={item.asset} size="3" iconSize="42px"></AssetImage>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <AssetName asset={item.asset} size="3" style={{ lineHeight: '24px' }}></AssetName>
-        <div className="mono tiny dim" style={{ display: 'flex', alignItems: 'center', gap: 2, height: 28, lineHeight: '28px' }}>
+        <div className="name-usd">
+          <AssetName asset={item.asset} size="3" style={{ lineHeight: '24px' }}></AssetName>
+          <div className={ 'usd' + (item.equity.current == null ? ' na' : '') } style={{ lineHeight: '24px', flex: 'none' }}>{ UiUtil.toMoney(Exchange.equityAsset, item.equity.current) }</div>
+        </div>
+        <div className="amt-line mono tiny dim" style={{ display: 'flex', alignItems: 'center', columnGap: 2, rowGap: 0, minHeight: 28, lineHeight: '20px', flexWrap: 'wrap' }}>
           { item.unavailable.gt(0) && <Tooltip content={ 'Currently locked: ' + UiUtil.toMoney(item.asset, item.unavailable) }><span className="lock"><Icon path={mdiLockOutline} size={0.55}></Icon></span></Tooltip> }
           <span>{ UiUtil.toMoney(null, props.available ? item.available : item.available.plus(item.unavailable)) }</span>
           <span style={{ color: previousEquity.gt(currentEquity) ? 'var(--down)' : (previousEquity.eq(currentEquity) ? 'var(--text-3)' : 'var(--lime)') }}>{ UiUtil.toPercentageDelta(previousEquity, currentEquity) }</span>
         </div>
       </div>
-      <div className={ 'usd' + (item.equity.current == null ? ' na' : '') } style={{ alignSelf: 'flex-start', lineHeight: '24px' }}>{ UiUtil.toMoney(Exchange.equityAsset, item.equity.current) }</div>
     </div>
   )
 }
