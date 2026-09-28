@@ -194,7 +194,6 @@ export default function OrderbookPage() {
   const [loading, setLoading] = useState<boolean>(true);
   const [preset, setPreset] = useState<{ id: number, condition: OrderCondition, side: OrderSide, price: string } | null>(null);
   const [tab, setTab] = useState<'info' | 'maker' | 'book' | 'logs'>(mobile ? 'info' : 'maker');
-  const [walletView, setWalletView] = useState<'primary' | 'secondary'>('primary');
   const [orders, setOrders] = useState<Order[]>([]);
   const [pools, setPools] = useState<Pool[]>([]);
   const [levels, setLevels] = useState<{ ask: AggregatedGroupedLevel[], bid: AggregatedGroupedLevel[] }>({ ask: [], bid: [] })
@@ -268,6 +267,25 @@ export default function OrderbookPage() {
       secondary: { price: secondaryBalance.p.isNaN() ? null : secondaryBalance.p, value: secondaryBalance.v, total: secondaryBalance.t },
     };
   }, [polyBalances]);
+  const valuation = useMemo(() => {
+    const rate = pair ? Exchange.priceOf(pair.secondaryAsset)?.close : null;
+    const achorPrice = rate ? balances.primary.price?.dividedBy(rate) || null : null
+    const basePrice = seriesOptions.showPrimary ? achorPrice : (achorPrice ? new BigNumber(1).dividedBy(achorPrice) : null);
+    const currentPrice = rate ? (seriesOptions.showPrimary ? pair?.price.close : (pair?.price.close ? new BigNumber(1).dividedBy(pair.price.close) : null)) || null : null;
+    const quantity = seriesOptions.showPrimary ? balances.primary.total : balances.secondary.total;
+    const worth = currentPrice ? quantity.multipliedBy(currentPrice) : null;
+    const relativePL = currentPrice && basePrice ? currentPrice.minus(basePrice).dividedBy(basePrice) : new BigNumber(0);
+    return {
+      primary: (seriesOptions.showPrimary ? pair?.primaryAsset : pair?.secondaryAsset) || AssetId.fromHandle('?'),
+      secondary: (seriesOptions.showPrimary ? pair?.secondaryAsset : pair?.primaryAsset) || AssetId.fromHandle('?'),
+      basePrice: basePrice,
+      currentPrice: currentPrice,
+      quantity: quantity,
+      worth: worth,
+      absolutePL: worth?.multipliedBy(relativePL) || new BigNumber(0),
+      relativePL: relativePL
+    }
+  }, [seriesOptions.showPrimary, pair, balances]);
   const groupedLevels = useMemo(() => {
     const range = parseFloat(seriesOptions.priceLevel);
     if (range <= 0 || isNaN(range))
@@ -368,8 +386,8 @@ export default function OrderbookPage() {
           const accountBalances = await balancesResult;
           setPolyAssets((poly) => {
             setPolyBalances({
-              primary: accountBalances?.filter((v) => v.poly && (v.asset.id == result.primaryAsset.id || poly.primary.findIndex((i) => i.id == v.asset.id) != -1)) ?? [],
-              secondary: accountBalances?.filter((v) => v.poly && (v.asset.id == result.secondaryAsset.id || poly.secondary.findIndex((i) => i.id == v.asset.id) != -1)) ?? []
+              primary: accountBalances?.filter((v) => v.asset.id == result.primaryAsset.id || (v.poly && poly.primary.findIndex((i) => i.id == v.asset.id) != -1)) ?? [],
+              secondary: accountBalances?.filter((v) => v.asset.id == result.secondaryAsset.id || (v.poly && poly.secondary.findIndex((i) => i.id == v.asset.id) != -1)) ?? []
             });
             return poly;
           });
@@ -506,45 +524,33 @@ export default function OrderbookPage() {
   const nameP = orderbook?.primaryAsset ? Assetlist.toName(orderbook.primaryAsset).replace((orderbook.primaryAsset.chain || '') + ' ', '') : symP;
   const nameQ = orderbook?.secondaryAsset ? Assetlist.toName(orderbook.secondaryAsset).replace((orderbook.secondaryAsset.chain || '') + ' ', '') : symQ;
   const lpApy = market && pair?.price.poolVolume?.gt(0) && pair?.price.poolLiquidity?.gt(0) ? Exchange.toAPY(pair.poolFeeRate || market.maxPoolFeeRate, pair.price.poolLiquidity, pair.price.poolVolume) : new BigNumber(0);
-  const selPrimary = walletView == 'primary';
-  const selAsset = selPrimary ? orderbook!.primaryAsset : orderbook!.secondaryAsset;
-  const othAsset = selPrimary ? orderbook!.secondaryAsset : orderbook!.primaryAsset;
-  const selSym = selPrimary ? symP : symQ;
-  const othSym = selPrimary ? symQ : symP;
-  const selBal = selPrimary ? balances.primary.total : balances.secondary.total;
   const pxClose = pair?.price.close || new BigNumber(0);
   const pxRcv = balances.primary.price;
   const pxNow = Exchange.priceOf(orderbook!.primaryAsset!).close || pxClose;
   const hasPrice = pxRcv != null && !pxRcv.isNaN() && pxRcv.gt(0) && pxNow.gt(0);
-  const rateRcv = selPrimary ? pxRcv : ( hasPrice ? new BigNumber(1).dividedBy(pxRcv) : pxRcv );
-  const rateNow = selPrimary ? pxNow : ( pxNow.gt(0) ? new BigNumber(1).dividedBy(pxNow) : pxNow );
-  const worth = pxNow.gt(0) ? ( selPrimary ? selBal.multipliedBy(pxNow) : selBal.dividedBy(pxNow) ) : new BigNumber(0);
-  const worthRcv = hasPrice ? ( selPrimary ? selBal.multipliedBy(pxRcv) : selBal.dividedBy(pxRcv) ) : new BigNumber(0);
-  const wDelta = worth.minus(worthRcv);
-  const wPct = hasPrice ? ( selPrimary ? pxNow.minus(pxRcv).dividedBy(pxRcv) : pxRcv.minus(pxNow).dividedBy(pxNow) ).multipliedBy(100) : null;
   const walletCard = (
     <div className="card">
       <div className="card-head">
         <div className="card-title">Your wallet</div>
         <div className="wallet-toggle">
-          <button type="button" className={ walletView == 'primary' ? 'on' : '' } onClick={ () => setWalletView('primary') } aria-label={ symP + ' view' }><AssetImage asset={ orderbook!.primaryAsset ?? undefined } size="1" iconSize="20px"></AssetImage></button>
-          <button type="button" className={ walletView == 'secondary' ? 'on' : '' } onClick={ () => setWalletView('secondary') } aria-label={ symQ + ' view' }><AssetImage asset={ orderbook!.secondaryAsset ?? undefined } size="1" iconSize="20px"></AssetImage></button>
+          <button type="button" className={ seriesOptions.showPrimary ? 'on' : '' } onClick={ () => updateSeriesOptions(prev => ({ ...prev, showPrimary: true })) } aria-label={ symP + ' view' }><AssetImage asset={ orderbook!.primaryAsset ?? undefined } size="1" iconSize="20px"></AssetImage></button>
+          <button type="button" className={ !seriesOptions.showPrimary ? 'on' : '' } onClick={ () => updateSeriesOptions(prev => ({ ...prev, showPrimary: false })) } aria-label={ symQ + ' view' }><AssetImage asset={ orderbook!.secondaryAsset ?? undefined } size="1" iconSize="20px"></AssetImage></button>
         </div>
       </div>
       <div className="wallet-view" style={{ marginTop: 10 }}>
-        <div className="wv-k">{ selSym } balance</div>
-        <div className="wv-val">{ toFancyMoney(selAsset, selBal) }</div>
-        <div className="wv-sub num">{ hasPrice ? toFancyValue(null, rateRcv, false, true) + ' → ' + toFancyValue(null, rateNow, false, true) : '—' }</div>
+        <div className="wv-k">{ UiUtil.toAssetSymbol(valuation.primary) } balance</div>
+        <div className="wv-val">{ toFancyMoney(valuation.primary, valuation.quantity) }</div>
+        <div className="wv-sub num">{ hasPrice ? toFancyValue(null, valuation.basePrice, false, true) + ' → ' + toFancyValue(null, valuation.currentPrice, false, true) : '—' }</div>
       </div>
       <div className="wallet-view" style={{ marginTop: 14 }}>
-        <div className="wv-k">{ othSym } worth</div>
-        <div className="wv-val">{ toFancyMoney(othAsset, worth) }</div>
-        <div className={ 'wv-sub num' + (hasPrice ? wDelta.gt(0) ? ' up' : wDelta.lt(0) ? ' down' : '' : '') }>{ hasPrice ? ( wDelta.gt(0) ? '+' : wDelta.lt(0) ? '-' : '±' ) + toFancyValue(null, wDelta.abs(), false, true) + ' (' + ( wPct!.gt(0) ? '+' : wPct!.lt(0) ? '-' : '' ) + wPct!.abs().toFixed(2) + '%)' : '—' }</div>
+        <div className="wv-k">{ UiUtil.toAssetSymbol(valuation.secondary) } worth</div>
+        <div className="wv-val">{ toFancyMoney(valuation.secondary, valuation.worth) }</div>
+        <div className={ 'wv-sub num' + (hasPrice ? valuation.relativePL.gt(0) ? ' up' : valuation.relativePL.lt(0) ? ' down' : '' : '') }>{ hasPrice ? ( valuation.absolutePL.gt(0) ? '+' : valuation.absolutePL.lt(0) ? '-' : '±' ) + toFancyValue(null, valuation.absolutePL.abs(), false, true) + ' (' + ( valuation.relativePL!.gt(0) ? '+' : valuation.relativePL!.lt(0) ? '-' : '' ) + valuation.relativePL!.abs().multipliedBy(100).toFixed(2) + '%)' : '—' }</div>
       </div>
       {
         tiers != null &&
         <div className="dl dl-rule" style={{ marginTop: 12 }}>
-          <div className="dl-row"><span className="dl-k">Account volume · { selSym }</span><span className="dl-v num">{ toFancyMoney(selAsset, selPrimary ? tiers.primary.volume : tiers.secondary.volume) }</span></div>
+          <div className="dl-row"><span className="dl-k">Account volume · { UiUtil.toAssetSymbol(valuation.primary) }</span><span className="dl-v num">{ toFancyMoney(valuation.primary, seriesOptions.showPrimary ? tiers.primary.volume : tiers.secondary.volume) }</span></div>
         </div>
       }
     </div>
