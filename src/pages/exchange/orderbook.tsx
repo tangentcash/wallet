@@ -22,6 +22,7 @@ import OrderView from "../../components/exchange/order";
 import Icon from "@mdi/react";
 import Clock from "../../components/exchange/clock";
 import { Assetlist } from "tangentsdk/assetlist";
+import { toFancyMoney, toFancyValue } from "../../core/utils";
 
 type AggregatedGroupedLevel = {
   ids: number[],
@@ -168,10 +169,10 @@ function ObHeroTitle(props: {
         }
         <AssetName asset={props.orderbook?.primaryAsset || undefined} size="4" weight="bold" tokenOnly style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden' }}></AssetName>
       </div>
-      <div className="hero-num" style={{ fontSize: 34 }}>{ UiUtil.toMoney(props.orderbook?.secondaryAsset || null, close) }</div>
+      <div className="hero-num" style={{ fontSize: 34 }}>{ toFancyMoney(props.orderbook?.secondaryAsset || null, close) }</div>
       <div className="ob-delta-row">
         <span className={ 'abs' + (dir != 0 ? (dir > 0 ? ' up' : ' down') : '') }>
-          { (dir > 0 ? '+ ' : (dir < 0 ? '- ' : '')) + UiUtil.toMoney(props.orderbook?.secondaryAsset || null, delta ? delta.abs() : new BigNumber(0)) }
+          { (dir > 0 ? '+ ' : (dir < 0 ? '- ' : '')) + toFancyMoney(props.orderbook?.secondaryAsset || null, delta ? delta.abs() : new BigNumber(0)) }
         </span>
         <span className={ 'ob-delta-pill' + (dir > 0 ? ' up' : (dir == 0 ? ' flat' : '')) }>
           { dir != 0 && <Icon path={dir > 0 ? mdiArrowUpBold : mdiArrowDownBold} size={0.55}></Icon> }
@@ -239,7 +240,7 @@ export default function OrderbookPage() {
   }, [params]);
   useEffect(() => {
     const close = pair?.price.close || null;
-    const price = close != null && close.gt(0) ? (close.gte(100) ? close.toFixed(2) : close.gte(1) ? close.toFixed(4) : UiUtil.toValue(null, close, false, true)) + (orderbook?.secondaryAsset != null ? ' ' + UiUtil.toAssetSymbol(orderbook.secondaryAsset) : '') : null;
+    const price = close != null && close.gt(0) ? (close.gte(100) ? close.toFixed(2) : close.gte(1) ? close.toFixed(4) : toFancyValue(null, close, false, true)) + (orderbook?.secondaryAsset != null ? ' ' + UiUtil.toAssetSymbol(orderbook.secondaryAsset) : '') : null;
     AppData.setTitle(orderbook?.primaryAsset != null && orderbook.secondaryAsset != null ? UiUtil.toAssetSymbol(orderbook.primaryAsset) + '/' + UiUtil.toAssetSymbol(orderbook.secondaryAsset) + (price != null ? ' ' + price : '') : 'Orderbook');
   }, [orderbook, pair]);
   const makerPath = useMemo(() => {
@@ -500,7 +501,7 @@ export default function OrderbookPage() {
   const spread = spreads.ask && spreads.bid ? spreads.ask.minus(spreads.bid) : null;
   const deltaVal = pair && pair.price.close && pair.price.open ? pair.price.close.minus(pair.price.open) : null;
   const deltaDir = deltaVal && deltaVal.gt(0) ? 1 : (deltaVal && deltaVal.lt(0) ? -1 : 0);
-  const change24 = UiUtil.toPercentageDelta(pair?.price.open || new BigNumber(0), pair?.price.close || new BigNumber(0)) + (deltaVal && !deltaVal.isZero() ? ' · ' + (deltaDir > 0 ? '+' : '-') + UiUtil.toMoney(orderbook!.secondaryAsset, deltaVal.abs()) : '');
+  const change24 = UiUtil.toPercentageDelta(pair?.price.open || new BigNumber(0), pair?.price.close || new BigNumber(0)) + (deltaVal && !deltaVal.isZero() ? ' · ' + (deltaDir > 0 ? '+' : '-') + toFancyMoney(orderbook!.secondaryAsset, deltaVal.abs()) : '');
   const change24Style = deltaDir > 0 ? { color: 'var(--lime)' } : (deltaDir < 0 ? { color: 'var(--down)' } : undefined);
   const nameP = orderbook?.primaryAsset ? Assetlist.toName(orderbook.primaryAsset).replace((orderbook.primaryAsset.chain || '') + ' ', '') : symP;
   const nameQ = orderbook?.secondaryAsset ? Assetlist.toName(orderbook.secondaryAsset).replace((orderbook.secondaryAsset.chain || '') + ' ', '') : symQ;
@@ -532,18 +533,18 @@ export default function OrderbookPage() {
       </div>
       <div className="wallet-view" style={{ marginTop: 10 }}>
         <div className="wv-k">{ selSym } balance</div>
-        <div className="wv-val">{ UiUtil.toMoney(selAsset, selBal) }</div>
-        <div className="wv-sub num">{ hasPrice ? UiUtil.toValue(null, rateRcv, false, true) + ' → ' + UiUtil.toValue(null, rateNow, false, true) : '—' }</div>
+        <div className="wv-val">{ toFancyMoney(selAsset, selBal) }</div>
+        <div className="wv-sub num">{ hasPrice ? toFancyValue(null, rateRcv, false, true) + ' → ' + toFancyValue(null, rateNow, false, true) : '—' }</div>
       </div>
       <div className="wallet-view" style={{ marginTop: 14 }}>
         <div className="wv-k">{ othSym } worth</div>
-        <div className="wv-val">{ UiUtil.toMoney(othAsset, worth) }</div>
-        <div className={ 'wv-sub num' + (hasPrice ? wDelta.gt(0) ? ' up' : wDelta.lt(0) ? ' down' : '' : '') }>{ hasPrice ? ( wDelta.gt(0) ? '+' : wDelta.lt(0) ? '-' : '±' ) + UiUtil.toValue(null, wDelta.abs(), false, true) + ' (' + ( wPct!.gt(0) ? '+' : wPct!.lt(0) ? '-' : '' ) + wPct!.abs().toFixed(2) + '%)' : '—' }</div>
+        <div className="wv-val">{ toFancyMoney(othAsset, worth) }</div>
+        <div className={ 'wv-sub num' + (hasPrice ? wDelta.gt(0) ? ' up' : wDelta.lt(0) ? ' down' : '' : '') }>{ hasPrice ? ( wDelta.gt(0) ? '+' : wDelta.lt(0) ? '-' : '±' ) + toFancyValue(null, wDelta.abs(), false, true) + ' (' + ( wPct!.gt(0) ? '+' : wPct!.lt(0) ? '-' : '' ) + wPct!.abs().toFixed(2) + '%)' : '—' }</div>
       </div>
       {
         tiers != null &&
         <div className="dl dl-rule" style={{ marginTop: 12 }}>
-          <div className="dl-row"><span className="dl-k">Account volume · { selSym }</span><span className="dl-v num">{ UiUtil.toMoney(selAsset, selPrimary ? tiers.primary.volume : tiers.secondary.volume) }</span></div>
+          <div className="dl-row"><span className="dl-k">Account volume · { selSym }</span><span className="dl-v num">{ toFancyMoney(selAsset, selPrimary ? tiers.primary.volume : tiers.secondary.volume) }</span></div>
         </div>
       }
     </div>
@@ -559,14 +560,14 @@ export default function OrderbookPage() {
           }
         </p>
         <div className="dl" style={{ marginTop: 12 }}>
-          <div className="dl-row"><span className="dl-k">Last price</span><span className="dl-v num">{ pair?.price.close?.gt(0) ? UiUtil.toMoney(orderbook!.secondaryAsset, pair.price.close) : 'No trades yet' }</span></div>
-          <div className="dl-row"><span className="dl-k">Best bid</span><span className="dl-v num">{ spreads.bid && spreads.bid.gt(0) ? UiUtil.toValue(null, spreads.bid, false, true) : '—' }</span></div>
-          <div className="dl-row"><span className="dl-k">Best ask</span><span className="dl-v num">{ spreads.ask && spreads.ask.gt(0) ? UiUtil.toValue(null, spreads.ask, false, true) : '—' }</span></div>
-          <div className="dl-row"><span className="dl-k">Spread</span><span className="dl-v num">{ spread ? UiUtil.toValue(null, spread, false, true) + ' · ' + (spreads.bid && spreads.bid.gt(0) ? spread.dividedBy(spreads.bid).multipliedBy(100).toFixed(2) : '0.00') + '%' : '—' }</span></div>
+          <div className="dl-row"><span className="dl-k">Last price</span><span className="dl-v num">{ pair?.price.close?.gt(0) ? toFancyMoney(orderbook!.secondaryAsset, pair.price.close) : 'No trades yet' }</span></div>
+          <div className="dl-row"><span className="dl-k">Best bid</span><span className="dl-v num">{ spreads.bid && spreads.bid.gt(0) ? toFancyValue(null, spreads.bid, false, true) : '—' }</span></div>
+          <div className="dl-row"><span className="dl-k">Best ask</span><span className="dl-v num">{ spreads.ask && spreads.ask.gt(0) ? toFancyValue(null, spreads.ask, false, true) : '—' }</span></div>
+          <div className="dl-row"><span className="dl-k">Spread</span><span className="dl-v num">{ spread ? toFancyValue(null, spread, false, true) + ' · ' + (spreads.bid && spreads.bid.gt(0) ? spread.dividedBy(spreads.bid).multipliedBy(100).toFixed(2) : '0.00') + '%' : '—' }</span></div>
           <div className="dl-row"><span className="dl-k">24h change</span><span className="dl-v num" style={ change24Style }>{ change24 }</span></div>
-          <div className="dl-row"><span className="dl-k">24h range</span><span className="dl-v num">{ UiUtil.toValue(null, pair?.price.low || null, false, true) } – { UiUtil.toValue(null, pair?.price.high || null, false, true) }</span></div>
-          <div className="dl-row"><span className="dl-k">24h volume</span><span className="dl-v num">{ UiUtil.toMoney(orderbook!.secondaryAsset, pair?.price.totalVolume || new BigNumber(0)) }</span></div>
-          <div className="dl-row"><span className="dl-k">Book liquidity</span><span className="dl-v num">{ UiUtil.toMoney(orderbook!.secondaryAsset, pair?.price.totalLiquidity || new BigNumber(0)) }</span></div>
+          <div className="dl-row"><span className="dl-k">24h range</span><span className="dl-v num">{ toFancyValue(null, pair?.price.low || null, false, true) } – { toFancyValue(null, pair?.price.high || null, false, true) }</span></div>
+          <div className="dl-row"><span className="dl-k">24h volume</span><span className="dl-v num">{ toFancyMoney(orderbook!.secondaryAsset, pair?.price.totalVolume || new BigNumber(0)) }</span></div>
+          <div className="dl-row"><span className="dl-k">Book liquidity</span><span className="dl-v num">{ toFancyMoney(orderbook!.secondaryAsset, pair?.price.totalLiquidity || new BigNumber(0)) }</span></div>
         </div>
         <div className="dl dl-rule">
           <div className="dl-row"><span className="dl-k">Maker fee</span><span className="dl-v num">{ (market?.minMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.maxMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
@@ -592,14 +593,14 @@ export default function OrderbookPage() {
             <Link className="router-link mono" style={{ fontSize: 12 }} to={ '/portfolio/' + (market?.account || '') + '?view=wallet' }>{ UiUtil.toAddress(market?.account || 'NULL', 6) }</Link>
           </div>
           <div className="stat-grid">
-            <div><div className="k">Last price</div><div className="v">{ pair?.price.close?.gt(0) ? UiUtil.toMoney(orderbook!.secondaryAsset, pair.price.close) : 'No trades yet' }</div></div>
+            <div><div className="k">Last price</div><div className="v">{ pair?.price.close?.gt(0) ? toFancyMoney(orderbook!.secondaryAsset, pair.price.close) : 'No trades yet' }</div></div>
             <div><div className="k">24h change</div><div className="v" style={ change24Style }>{ change24 }</div></div>
-            <div><div className="k">Best bid</div><div className="v">{ spreads.bid && spreads.bid.gt(0) ? UiUtil.toValue(null, spreads.bid, false, true) : '—' }</div></div>
-            <div><div className="k">Best ask</div><div className="v">{ spreads.ask && spreads.ask.gt(0) ? UiUtil.toValue(null, spreads.ask, false, true) : '—' }</div></div>
-            <div><div className="k">Spread</div><div className="v">{ spread ? UiUtil.toValue(null, spread, false, true) + ' · ' + (spreads.bid && spreads.bid.gt(0) ? spread.dividedBy(spreads.bid).multipliedBy(100).toFixed(2) : '0.00') + '%' : '—' }</div></div>
-            <div><div className="k">24h range</div><div className="v">{ UiUtil.toValue(null, pair?.price.low || null, false, true) } – { UiUtil.toValue(null, pair?.price.high || null, false, true) }</div></div>
-            <div><div className="k">24h volume</div><div className="v">{ UiUtil.toMoney(orderbook!.secondaryAsset, pair?.price.totalVolume || new BigNumber(0)) }</div></div>
-            <div><div className="k">Book liquidity</div><div className="v">{ UiUtil.toMoney(orderbook!.secondaryAsset, pair?.price.totalLiquidity || new BigNumber(0)) }</div></div>
+            <div><div className="k">Best bid</div><div className="v">{ spreads.bid && spreads.bid.gt(0) ? toFancyValue(null, spreads.bid, false, true) : '—' }</div></div>
+            <div><div className="k">Best ask</div><div className="v">{ spreads.ask && spreads.ask.gt(0) ? toFancyValue(null, spreads.ask, false, true) : '—' }</div></div>
+            <div><div className="k">Spread</div><div className="v">{ spread ? toFancyValue(null, spread, false, true) + ' · ' + (spreads.bid && spreads.bid.gt(0) ? spread.dividedBy(spreads.bid).multipliedBy(100).toFixed(2) : '0.00') + '%' : '—' }</div></div>
+            <div><div className="k">24h range</div><div className="v">{ toFancyValue(null, pair?.price.low || null, false, true) } – { toFancyValue(null, pair?.price.high || null, false, true) }</div></div>
+            <div><div className="k">24h volume</div><div className="v">{ toFancyMoney(orderbook!.secondaryAsset, pair?.price.totalVolume || new BigNumber(0)) }</div></div>
+            <div><div className="k">Book liquidity</div><div className="v">{ toFancyMoney(orderbook!.secondaryAsset, pair?.price.totalLiquidity || new BigNumber(0)) }</div></div>
           </div>
           <div className="stat-grid dl-rule" style={{ marginTop: 14, paddingTop: 14 }}>
             <div><div className="k">Maker fee</div><div className="v">{ (market?.minMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.maxMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</div></div>
@@ -659,25 +660,25 @@ export default function OrderbookPage() {
           seriesOptions.priceScope != PriceScope.Ask &&
           [...groupedLevels.ask].slice(0, 12).reverse().map((item) =>
             <button className="book-row ask" key={'a' + item.price.toString()} onClick={() => updatePreset(OrderSide.Sell, item.price)}>
-              <span className="apx">{ UiUtil.toValue(null, item.price, false, true) }</span>
+              <span className="apx">{ toFancyValue(null, item.price, false, true) }</span>
               <span className="track"><i style={{ width: Math.min(100, item.quantity.dividedBy(liquidity.ask[0].gt(0) ? liquidity.ask[0] : new BigNumber(1)).multipliedBy(100).toNumber()) + '%' }}></i></span>
-              <span className="qty">{ UiUtil.toValue(null, item.quantity, false, true) }</span>
+              <span className="qty">{ toFancyValue(null, item.quantity, false, true) }</span>
             </button>)
         }
         {
           seriesOptions.priceScope == PriceScope.All &&
           <div className="book-mid">
-            <span className="num" style={{ fontWeight: 800, fontSize: 16 }}>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, pair?.price.close || null) }</span>
-            <span className="tiny dim mono">{ spread ? 'spread ' + UiUtil.toValue(null, spread, false, true) + ' · ' + (spreads.bid?.gt(0) ? spread.dividedBy(spreads.bid).multipliedBy(100).toFixed(2) : '0.00') + '%' : 'no book' }</span>
+            <span className="num" style={{ fontWeight: 800, fontSize: 16 }}>{ toFancyMoney(orderbook?.secondaryAsset || null, pair?.price.close || null) }</span>
+            <span className="tiny dim mono">{ spread ? 'spread ' + toFancyValue(null, spread, false, true) + ' · ' + (spreads.bid?.gt(0) ? spread.dividedBy(spreads.bid).multipliedBy(100).toFixed(2) : '0.00') + '%' : 'no book' }</span>
           </div>
         }
         {
           seriesOptions.priceScope != PriceScope.Bid &&
           groupedLevels.bid.slice(0, 12).map((item) =>
             <button className="book-row bid" key={'b' + item.price.toString()} onClick={() => updatePreset(OrderSide.Buy, item.price)}>
-              <span className="bpx">{ UiUtil.toValue(null, item.price, false, true) }</span>
+              <span className="bpx">{ toFancyValue(null, item.price, false, true) }</span>
               <span className="track"><i style={{ width: Math.min(100, item.quantity.dividedBy(liquidity.bid[0].gt(0) ? liquidity.bid[0] : new BigNumber(1)).multipliedBy(100).toNumber()) + '%' }}></i></span>
-              <span className="qty">{ UiUtil.toValue(null, item.quantity, false, true) }</span>
+              <span className="qty">{ toFancyValue(null, item.quantity, false, true) }</span>
             </button>)
         }
         {
@@ -708,7 +709,7 @@ export default function OrderbookPage() {
                   <span className={'tx-ico ' + (pool ? 'dex' : (buy ? 'in' : 'out'))}><Icon path={pool ? (item.quantity.gt(0) ? mdiLayersPlus : mdiLayersMinus) : (buy ? mdiArrowDownBold : mdiArrowUpBold)} size={0.9}></Icon></span>
                   <div className="tx-main">
                     <div className="tx-title"><span style={{ color }}>{action} { pool ? 'liquidity' : '' }</span></div>
-                    <div className="tx-meta mono"><span className="tx-detail">{ UiUtil.toMoney(orderbook?.primaryAsset || null, item.quantity, pool) } { UiUtil.toMoney(orderbook?.secondaryAsset || null, item.price) ? 'at ' + UiUtil.toMoney(orderbook?.secondaryAsset || null, item.price) : '' }</span></div>
+                    <div className="tx-meta mono"><span className="tx-detail">{ toFancyMoney(orderbook?.primaryAsset || null, item.quantity, pool) } { toFancyMoney(orderbook?.secondaryAsset || null, item.price) ? 'at ' + toFancyMoney(orderbook?.secondaryAsset || null, item.price) : '' }</span></div>
                     <div className="tx-meta"><Link className="tx-hash mono" style={{ fontSize: 11.5 }} to={'/portfolio/' + item.account + '?view=wallet'}>{ UiUtil.toAddress(item.account || 'NULL', 6) }</Link><span>·</span><span>{ UiUtil.toTimePassed(item.time) }</span></div>
                   </div>
                 </div>)

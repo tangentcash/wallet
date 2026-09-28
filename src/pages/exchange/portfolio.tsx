@@ -23,6 +23,7 @@ import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
 import AssetSelector from "../../components/exchange/selector";
 import AddressAvatar from "../../components/avatar";
+import { toFancyMoney } from "../../core/utils";
 
 type SwapState = {
   amountIn: string,
@@ -124,12 +125,12 @@ function RepayableBalanceView(props: { item: Balance & { type: 'std' | 'wrapped'
         <div style={{ flex: 1, minWidth: 0 }}>
           <div className="name-usd">
             <AssetName asset={item.asset} size="3" style={{ lineHeight: '24px' }}></AssetName>
-            <div className={ 'usd' + (item.equity.current == null ? ' na' : '') } style={{ lineHeight: '24px', flex: 'none' }}>{ UiUtil.toMoney(Exchange.equityAsset, item.equity.current) }</div>
+            <div className={ 'usd' + (item.equity.current == null ? ' na' : '') } style={{ lineHeight: '24px', flex: 'none' }}>{ toFancyMoney(Exchange.equityAsset, item.equity.current) }</div>
           </div>
           <div className="amt-line mono tiny dim" style={{ display: 'flex', alignItems: 'center', gap: 12, minHeight: 28 }}>
             <div style={{ flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', columnGap: 2, rowGap: 0, lineHeight: '20px', flexWrap: 'wrap' }}>
-              { item.unavailable.gt(0) && <Tooltip content={ 'Currently locked: ' + UiUtil.toMoney(item.asset, item.unavailable) }><span className="lock"><Icon path={mdiLockOutline} size={0.55}></Icon></span></Tooltip> }
-              <span>{ UiUtil.toMoney(null, props.available ? item.available : item.available.plus(item.unavailable)) }</span>
+              { item.unavailable.gt(0) && <Tooltip content={ 'Currently locked: ' + toFancyMoney(item.asset, item.unavailable) }><span className="lock"><Icon path={mdiLockOutline} size={0.55}></Icon></span></Tooltip> }
+              <span>{ toFancyMoney(null, props.available ? item.available : item.available.plus(item.unavailable)) }</span>
               <span style={{ color: previousEquity.gt(currentEquity) ? 'var(--down)' : (previousEquity.eq(currentEquity) ? 'var(--text-3)' : 'var(--lime)') }}>{ UiUtil.toPercentageDelta(previousEquity, currentEquity) }</span>
             </div>
             <Tooltip content={ wrapping ? 'Wrap 1:1 into the unified ' + (item.asset.token || '') + ' asset to trade on the market' : 'Convert 1:1 into the native ' + (item.asset.token || '') }>
@@ -170,9 +171,9 @@ function RepayableBalanceView(props: { item: Balance & { type: 'std' | 'wrapped'
                 </Select.Group>
               </Select.Content>
             </Select.Root>
-            <TextField.Root placeholder={ `≤ ${UiUtil.toMoney(item.asset, max)} or %` } size="3" value={amount} onChange={(e) => setAmount(TextUtil.toValue(amount, e.target.value))}></TextField.Root>
+            <TextField.Root placeholder={ `≤ ${toFancyMoney(item.asset, max)} or %` } size="3" value={amount} onChange={(e) => setAmount(TextUtil.toValue(amount, e.target.value))}></TextField.Root>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span className="tiny dim mono">Holding { UiUtil.toMoney(item.asset, holding) }{ asset ? ' · limit ' + UiUtil.toMoney(item.asset, max) : '' }</span>
+              <span className="tiny dim mono">Holding { toFancyMoney(item.asset, holding) }{ asset ? ' · limit ' + toFancyMoney(item.asset, max) : '' }</span>
               <span className="lime-link" onClick={() => setAmount(max.gt(0) ? max.toFixed() : '')}>Max</span>
             </div>
           </div>
@@ -203,11 +204,11 @@ function StandardBalanceView(props: { item: Balance & { equity: { current: BigNu
       <div style={{ flex: 1, minWidth: 0 }}>
         <div className="name-usd">
           <AssetName asset={item.asset} size="3" style={{ lineHeight: '24px' }}></AssetName>
-          <div className={ 'usd' + (item.equity.current == null ? ' na' : '') } style={{ lineHeight: '24px', flex: 'none' }}>{ UiUtil.toMoney(Exchange.equityAsset, item.equity.current) }</div>
+          <div className={ 'usd' + (item.equity.current == null ? ' na' : '') } style={{ lineHeight: '24px', flex: 'none' }}>{ toFancyMoney(Exchange.equityAsset, item.equity.current) }</div>
         </div>
         <div className="amt-line mono tiny dim" style={{ display: 'flex', alignItems: 'center', columnGap: 2, rowGap: 0, minHeight: 28, lineHeight: '20px', flexWrap: 'wrap' }}>
-          { item.unavailable.gt(0) && <Tooltip content={ 'Currently locked: ' + UiUtil.toMoney(item.asset, item.unavailable) }><span className="lock"><Icon path={mdiLockOutline} size={0.55}></Icon></span></Tooltip> }
-          <span>{ UiUtil.toMoney(null, props.available ? item.available : item.available.plus(item.unavailable)) }</span>
+          { item.unavailable.gt(0) && <Tooltip content={ 'Currently locked: ' + toFancyMoney(item.asset, item.unavailable) }><span className="lock"><Icon path={mdiLockOutline} size={0.55}></Icon></span></Tooltip> }
+          <span>{ toFancyMoney(null, props.available ? item.available : item.available.plus(item.unavailable)) }</span>
           <span style={{ color: previousEquity.gt(currentEquity) ? 'var(--down)' : (previousEquity.eq(currentEquity) ? 'var(--text-3)' : 'var(--lime)') }}>{ UiUtil.toPercentageDelta(previousEquity, currentEquity) }</span>
         </div>
       </div>
@@ -298,10 +299,10 @@ function WalletNavigator(props: {
       {
         loading && !assets.length ?
         <div><span className="skel" style={{ display: 'inline-block', width: 220, height: 42, marginTop: 4 }}></span></div> :
-        <div className="hero-num">{ UiUtil.toMoney(Exchange.equityAsset, equity.current) }</div>
+        <div className="hero-num">{ toFancyMoney(Exchange.equityAsset, equity.current) }</div>
       }
       <div className="hero-sub-row">
-        <button className="page-sub hero-sub-btn" onClick={() => props.onTodayProfitsChange(!props.todayProfits)}>{ UiUtil.toMoney(Exchange.equityAsset, equity.current.minus(equity.previous), true) } ({ UiUtil.toPercentageDelta(equity.previous, equity.current) }) { props.todayProfits ? 'today' : 'total' }</button>
+        <button className="page-sub hero-sub-btn" onClick={() => props.onTodayProfitsChange(!props.todayProfits)}>{ toFancyMoney(Exchange.equityAsset, equity.current.minus(equity.previous), true) } ({ UiUtil.toPercentageDelta(equity.previous, equity.current) }) { props.todayProfits ? 'today' : 'total' }</button>
       </div>
     </Box>
   )
@@ -510,7 +511,7 @@ function MarketRouter(props: {
   return (
     <Box>
       <div className="swap-box">
-        <div className="swap-lab"><span>Pay · any token</span><span>Balance { UiUtil.toMoney(props.pair.primary, swapInfo.balanceIn) }</span></div>
+        <div className="swap-lab"><span>Pay · any token</span><span>Balance { toFancyMoney(props.pair.primary, swapInfo.balanceIn) }</span></div>
         <div className="swap-amt">
           <TextField.Root placeholder="0.0" type="text" value={state.amountIn} onChange={(e) => setAmount('amount-in', e.target.value)} />
           <AssetSelector title="token" value={props.pair.primary} onChange={(value) => props.setPair({ primary: value || null, secondary: props.pair.secondary })}>
@@ -542,7 +543,7 @@ function MarketRouter(props: {
         }} aria-label="flip"><Icon path={mdiSwapVertical} size={0.9}></Icon></button>
       </div>
       <div className="swap-box">
-        <div className="swap-lab"><span>Receive · any token</span><span>{ UiUtil.toMoney(Exchange.equityAsset, swapInfo.valuationOut) }</span></div>
+        <div className="swap-lab"><span>Receive · any token</span><span>{ toFancyMoney(Exchange.equityAsset, swapInfo.valuationOut) }</span></div>
         <div className="swap-amt">
           <TextField.Root placeholder="0.0" type="text" value={state.amountOut} onChange={(e) => setAmount('amount-out', e.target.value)} />
           <AssetSelector title="token" value={props.pair.secondary} onChange={(value) => props.setPair({ primary: props.pair.primary, secondary: value || null })}>
@@ -559,7 +560,7 @@ function MarketRouter(props: {
         }
       </div>
       <div className="field-lite" style={{ marginTop: 14 }}>
-        <div className="lab"><span>Max slippage</span><span style={{ color: 'var(--text-3)' }}>walks the book to { state.slippage || '0%' }</span></div>
+        <div className="lab"><span>Max slippage</span><span style={{ color: 'var(--text-3)' }}>max value loss { state.slippage || '0%' }</span></div>
         <div className="val" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <span style={{ display: 'inline-flex', alignItems: 'center', gap: 2 }}>
             <TextField.Root className="slip-field" placeholder="0.50" value={state.slippage.replace('%', '')} onChange={(e) => {
@@ -600,7 +601,7 @@ function MarketRouter(props: {
                         <AssetImage asset={swap.side == OrderSide.Buy ? swap.pair.primaryAsset?.hash : swap.pair.secondaryAsset?.hash} iconSize="18px"></AssetImage>
                         { swap.side == OrderSide.Buy ? 'Buy' : 'Sell' }
                       </span>
-                      <span className="v">{ UiUtil.toMoney(swap.side == OrderSide.Buy ? swap.pair.primaryAsset?.hash || null : swap.pair.secondaryAsset?.hash || null, swap.output[type]) }</span>
+                      <span className="v">{ toFancyMoney(swap.side == OrderSide.Buy ? swap.pair.primaryAsset?.hash || null : swap.pair.secondaryAsset?.hash || null, swap.output[type]) }</span>
                     </div>)
                 }
                 <div className="q-row">
@@ -878,8 +879,8 @@ function MarketExplorer(props: {
                     <div className="asset-sub mono">{ toAssetSymbol(item.pair.primaryAsset) }x{ toAssetSymbol(item.pair.secondaryAsset) }</div>
                   </div>
                   <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontWeight: 750, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{ UiUtil.toMoney(item.pair.secondaryAsset, item.pair.price.close) }</div>
-                    <div className="tiny dim num">{ UiUtil.toMoney(item.pair.secondaryAsset, (item.pair.price.close || new BigNumber(0)).minus(item.pair.price.open || new BigNumber(0)), true) } | <span style={{ color: (item.pair.price.open || new BigNumber(0)).gt(item.pair.price.close || new BigNumber(0)) ? 'var(--down)' : ((item.pair.price.open || new BigNumber(0)).eq(item.pair.price.close || new BigNumber(0)) ? undefined : 'var(--lime)') }}>{ UiUtil.toPercentageDelta(item.pair.price.open || new BigNumber(0), item.pair.price.close || new BigNumber(0)) }</span></div>
+                    <div style={{ fontWeight: 750, fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{ toFancyMoney(item.pair.secondaryAsset, item.pair.price.close) }</div>
+                    <div className="tiny dim num">{ toFancyMoney(item.pair.secondaryAsset, (item.pair.price.close || new BigNumber(0)).minus(item.pair.price.open || new BigNumber(0)), true) } | <span style={{ color: (item.pair.price.open || new BigNumber(0)).gt(item.pair.price.close || new BigNumber(0)) ? 'var(--down)' : ((item.pair.price.open || new BigNumber(0)).eq(item.pair.price.close || new BigNumber(0)) ? undefined : 'var(--lime)') }}>{ UiUtil.toPercentageDelta(item.pair.price.open || new BigNumber(0), item.pair.price.close || new BigNumber(0)) }</span></div>
                   </div>
                 </button>)
             }

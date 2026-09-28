@@ -7,6 +7,7 @@ import { TextUtil } from "tangentsdk/text";
 import { AppStorage } from "../../core/storage";
 import { PerformerButton, Builder } from "./performer";
 import BigNumber from "bignumber.js";
+import { toFancyMoney, toFancyValue } from "../../core/utils";
 
 export type MakerState = {
   condition: OrderCondition,
@@ -84,13 +85,13 @@ export function Maker(props: {
   }, [state.condition]);
   const priceHint = useMemo((): string => {
     const opposite = state.side == OrderSide.Buy ? props.prices?.ask : props.prices?.bid;
-    return opposite != null && opposite.gt(0) ? UiUtil.toValue(null, opposite, false, true) : '0.0';
+    return opposite != null && opposite.gt(0) ? toFancyValue(null, opposite, false, true) : '0.0';
   }, [props.prices, state.side]);
   const poolPriceHint = useMemo((): string => {
     const ask = props.prices?.ask;
     const bid = props.prices?.bid;
     const mid = ask != null && bid != null && ask.gt(0) && bid.gt(0) ? ask.plus(bid).dividedBy(2) : ask != null && ask.gt(0) ? ask : bid != null && bid.gt(0) ? bid : null;
-    return mid != null ? UiUtil.toValue(null, mid, false, true) : '0.0';
+    return mid != null ? toFancyValue(null, mid, false, true) : '0.0';
   }, [props.prices]);
   const isTrailing = useMemo((): boolean => {
     return state.condition == OrderCondition.TrailingStop || state.condition == OrderCondition.TrailingStopLimit;
@@ -506,7 +507,7 @@ export function Maker(props: {
       {
         hasSlippage &&
         <div className="field-lite">
-          <div className="lab"><span>Max slippage</span><span style={{ color: 'var(--text-3)' }}>walks the book to this deviation</span></div>
+          <div className="lab"><span>Max slippage</span><span style={{ color: 'var(--text-3)' }}>max value loss</span></div>
           <div className="val" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ flex: 1 }}><TextField.Root placeholder="0.5%" type="text" value={state.slippage} onChange={(e) => updateState(prev => ({ ...prev, slippage: TextUtil.toValueOrPercent(prev.slippage, e.target.value) }))} /></div>
             <div style={{ display: 'flex', gap: 6 }}>
@@ -520,7 +521,7 @@ export function Maker(props: {
       <div className="field-lite">
         <div className="lab">
           <span>Amount · { UiUtil.toAssetSymbol(valueAsset) }</span>
-          { valueBalance != null && <span style={{ color: 'var(--text-3)', fontWeight: 500 }}>≤ { UiUtil.toMoney(valueAsset, valueBalance) }</span> }
+          { valueBalance != null && <span style={{ color: 'var(--text-3)', fontWeight: 500 }}>≤ { toFancyMoney(valueAsset, valueBalance) }</span> }
         </div>
         <div className="val">
           <TextField.Root placeholder="0.0" type="text" value={state.value} onChange={(e) => updateState(prev => ({ ...prev, value: TextUtil.toValueOrPercent(prev.value, e.target.value) }))} />
@@ -540,7 +541,7 @@ export function Maker(props: {
       }}></PerformerButton>
       {
         props.tiers != null &&
-        <p className="dim" style={{ textAlign: 'center', fontSize: 13, margin: '10px 0 0' }}>Receive ~{ state.side == OrderSide.Buy ? UiUtil.toMoney(props.primaryAsset, (bestPrice.gt(0) ? payingValue.dividedBy(bestPrice) : new BigNumber(0)).multipliedBy(new BigNumber(1).minus(fee.max))) : UiUtil.toMoney(props.secondaryAsset, bestPrice.multipliedBy(payingValue)) } · { fee.min.isEqualTo(fee.max) ? fee.min.multipliedBy(100).toFixed(2) : fee.min.multipliedBy(100).toFixed(2) + '-' + fee.max.multipliedBy(100).toFixed(2) }% fee</p>
+        <p className="dim" style={{ textAlign: 'center', fontSize: 13, margin: '10px 0 0' }}>Receive ~{ state.side == OrderSide.Buy ? toFancyMoney(props.primaryAsset, (bestPrice.gt(0) ? payingValue.dividedBy(bestPrice) : new BigNumber(0)).multipliedBy(new BigNumber(1).minus(fee.max))) : toFancyMoney(props.secondaryAsset, bestPrice.multipliedBy(payingValue)) } · { fee.min.isEqualTo(fee.max) ? fee.min.multipliedBy(100).toFixed(2) : fee.min.multipliedBy(100).toFixed(2) + '-' + fee.max.multipliedBy(100).toFixed(2) }% fee</p>
       }
     </Box>
   );
@@ -566,7 +567,7 @@ export function Maker(props: {
         }
         {
           concentratedRange &&
-          <div className="tiny dim num" style={{ marginTop: 7, textAlign: 'center' }}>{ UiUtil.toValue(null, concentratedRange.min, false, true) } – { UiUtil.toValue(null, concentratedRange.max, false, true) }</div>
+          <div className="tiny dim num" style={{ marginTop: 7, textAlign: 'center' }}>{ toFancyValue(null, concentratedRange.min, false, true) } – { toFancyValue(null, concentratedRange.max, false, true) }</div>
         }
       </div>
       <div className="field-lite">
@@ -576,13 +577,13 @@ export function Maker(props: {
         </div>
       </div>
       <div className="field-lite">
-        <div className="lab"><span className="nowrap">Reserve · { UiUtil.toAssetSymbol(props.primaryAsset) }</span>{ balances != null && <span className="nowrap" style={{ color: 'var(--text-3)', fontWeight: 500 }}>≤ { UiUtil.toMoney(props.primaryAsset, balances.primary.value) }</span> }</div>
+        <div className="lab"><span className="nowrap">Reserve · { UiUtil.toAssetSymbol(props.primaryAsset) }</span>{ balances != null && <span className="nowrap" style={{ color: 'var(--text-3)', fontWeight: 500 }}>≤ { toFancyMoney(props.primaryAsset, balances.primary.value) }</span> }</div>
         <div className="val">
           <TextField.Root placeholder="0.0" type="text" value={state.primaryValue} onChange={(e) => setPrimaryValue(e.target.value)} />
         </div>
       </div>
       <div className="field-lite">
-        <div className="lab"><span className="nowrap">Reserve · { UiUtil.toAssetSymbol(props.secondaryAsset) }</span>{ balances != null && <span className="nowrap" style={{ color: 'var(--text-3)', fontWeight: 500 }}>≤ { UiUtil.toMoney(props.secondaryAsset, balances.secondary.value) }</span> }</div>
+        <div className="lab"><span className="nowrap">Reserve · { UiUtil.toAssetSymbol(props.secondaryAsset) }</span>{ balances != null && <span className="nowrap" style={{ color: 'var(--text-3)', fontWeight: 500 }}>≤ { toFancyMoney(props.secondaryAsset, balances.secondary.value) }</span> }</div>
         <div className="val">
           <TextField.Root placeholder="0.0" type="text" value={state.secondaryValue} onChange={(e) => setSecondaryValue(e.target.value)} />
         </div>

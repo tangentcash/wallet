@@ -7,7 +7,9 @@
     "dev": "vite",
     "make": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev --features devtools",
+    "icon": "node src-tauri/scripts/gen-icons.mjs"
   },
   "dependencies": {
     "@dicebear/core": "10.3.0",
@@ -72,6 +74,7 @@
     "@types/react": "19.1.1",
     "@types/react-dom": "19.1.1",
     "@vitejs/plugin-react": "4.2.1",
+    "sharp": "0.35.4",
     "typescript": "5.3.3",
     "vite": "5.3.1"
   }

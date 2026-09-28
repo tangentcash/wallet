@@ -10,6 +10,7 @@ import { mdiOpenInNew } from "@mdi/js";
 import Icon from "@mdi/react";
 import { PerformerButton, Builder } from "./performer";
 import * as Collapsible from "@radix-ui/react-collapsible";
+import { toFancyMoney } from "../../core/utils";
 
 export default function OrderView(props: { item: Order, open?: boolean, flash?: boolean, readOnly?: boolean }) {
   const item = props.item;
@@ -93,12 +94,12 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
           <span className="badge flat mono" style={{ flex: 'none' }}>{ symP }x{ symQ }</span>
         </div>
         <div className="mono tiny dim" style={{ marginTop: 6, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          { quantity ? UiUtil.toMoney(null, quantity) : '(N/A)' } × { price ? UiUtil.toMoney(item.secondaryAsset, price) : 'market price' }
+          { quantity ? toFancyMoney(null, quantity) : '(N/A)' } × { price ? toFancyMoney(item.secondaryAsset, price) : 'market price' }
         </div>
         <div className="progress"><i style={{ width: Math.min(100, Math.max(0, progress)) + '%', background: progress > 0 ? undefined : 'var(--elev)' }}></i></div>
         <div className="pct-label">
           <span>{ progress.toFixed(1) }% filled</span>
-          <span style={{ textAlign: 'right' }}>{ item.active ? (progress > 0 ? UiUtil.toMoney(item.primaryAsset, leftoverQuantity) + ' open' : 'waiting for match') : status.toLowerCase() }</span>
+          <span style={{ textAlign: 'right' }}>{ item.active ? (progress > 0 ? toFancyMoney(item.primaryAsset, leftoverQuantity) + ' open' : 'waiting for match') : status.toLowerCase() }</span>
         </div>
       </div>
         {
@@ -128,29 +129,29 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
           <div className="dl-row"><span className="dl-k">Side</span><span className="dl-v"><Badge color={item.side == OrderSide.Buy ? undefined : 'red'}>{ side } order</Badge></span></div>
           <div className="dl-row"><span className="dl-k">Trigger</span><span className="dl-v"><Badge color="yellow">{ condition } price</Badge></span></div>
           <div className="dl-row"><span className="dl-k">Condition</span><span className="dl-v"><Badge color="blue">{ policy }</Badge></span></div>
-          <div className="dl-row"><span className="dl-k">Price</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, price) }</span></div>
+          <div className="dl-row"><span className="dl-k">Price</span><span className="dl-v">{ toFancyMoney(item.secondaryAsset, price) }</span></div>
           {
             item.price && (!price || !item.price.eq(price)) &&
-            <div className="dl-row"><span className="dl-k">Base price</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.price) }</span></div>
+            <div className="dl-row"><span className="dl-k">Base price</span><span className="dl-v">{ toFancyMoney(item.secondaryAsset, item.price) }</span></div>
           }
           {
             item.stopPrice &&
-            <div className="dl-row"><span className="dl-k">Stop price</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.stopPrice) }</span></div>
+            <div className="dl-row"><span className="dl-k">Stop price</span><span className="dl-v">{ toFancyMoney(item.secondaryAsset, item.stopPrice) }</span></div>
           }
           {
             item.trailingStep &&
-            <div className="dl-row"><span className="dl-k">Trailing step</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.trailingStep) }</span></div>
+            <div className="dl-row"><span className="dl-k">Trailing step</span><span className="dl-v">{ toFancyMoney(item.secondaryAsset, item.trailingStep) }</span></div>
           }
           {
             item.trailingDistance &&
-            <div className="dl-row"><span className="dl-k">Trailing distance</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.trailingDistance) }</span></div>
+            <div className="dl-row"><span className="dl-k">Trailing distance</span><span className="dl-v">{ toFancyMoney(item.secondaryAsset, item.trailingDistance) }</span></div>
           }
           {
             item.slippage &&
-            <div className="dl-row"><span className="dl-k">{ item.condition == OrderCondition.Market ? 'Slippage price' : 'Price slippage' }</span><span className="dl-v">{ item.slippage.lt(0) ? item.slippage.negated().multipliedBy(100).toFixed(2) + '%' : UiUtil.toMoney(item.secondaryAsset, item.slippage) }</span></div>
+            <div className="dl-row"><span className="dl-k">{ item.condition == OrderCondition.Market ? 'Slippage price' : 'Price slippage' }</span><span className="dl-v">{ item.slippage.lt(0) ? item.slippage.negated().multipliedBy(100).toFixed(2) + '%' : toFancyMoney(item.secondaryAsset, item.slippage) }</span></div>
           }
-          <div className="dl-row"><span className="dl-k">Quantity</span><span className="dl-v">{ UiUtil.toMoney(item.primaryAsset, quantity) }{ quantity && quantity.isFinite() && price && price.isFinite() ? ` / ${UiUtil.toMoney(item.secondaryAsset, quantity.multipliedBy(price))}` : '' }</span></div>
-          <div className="dl-row"><span className="dl-k">Leftover</span><span className="dl-v">{ UiUtil.toMoney(paidAsset, item.value) } / { (100 - progress).toFixed(2) }%</span></div>
+          <div className="dl-row"><span className="dl-k">Quantity</span><span className="dl-v">{ toFancyMoney(item.primaryAsset, quantity) }{ quantity && quantity.isFinite() && price && price.isFinite() ? ` / ${toFancyMoney(item.secondaryAsset, quantity.multipliedBy(price))}` : '' }</span></div>
+          <div className="dl-row"><span className="dl-k">Leftover</span><span className="dl-v">{ toFancyMoney(paidAsset, item.value) } / { (100 - progress).toFixed(2) }%</span></div>
         </div>
       </Collapsible.Content>
     </Collapsible.Root>
@@ -168,14 +169,14 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
                     item.stopPrice &&
                     <Flex justify="between" wrap="wrap" gap="1">
                       <Text size="2" color="gray">Trigger at</Text>
-                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ item.side == OrderSide.Buy ? '≥' : '≤'  } { UiUtil.toMoney(item.secondaryAsset, item.stopPrice) }</Text>
+                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ item.side == OrderSide.Buy ? '≥' : '≤'  } { toFancyMoney(item.secondaryAsset, item.stopPrice) }</Text>
                     </Flex>
                   }
                   <Flex justify="between" wrap="wrap" gap="1">
                     <Text size="2" color="gray">{ item.stopPrice ? 'Then at' : 'At' }</Text>
                     {
                       possiblePrice != null &&
-                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ item.side == OrderSide.Buy ? '≤' : '≥' } { UiUtil.toMoney(item.secondaryAsset, possiblePrice) }</Text>
+                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ item.side == OrderSide.Buy ? '≤' : '≥' } { toFancyMoney(item.secondaryAsset, possiblePrice) }</Text>
                     }
                     {
                       !possiblePrice &&
@@ -184,13 +185,13 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
                   </Flex>
                   <Flex justify="between" wrap="wrap" gap="1">
                     <Text size="2" color={ item.side == OrderSide.Buy ? undefined : 'red' }>{ item.side == OrderSide.Buy ? 'Buy' : 'Sell' }</Text>
-                    <Text size="2" color={ item.side == OrderSide.Buy ? undefined : 'red' }>{ UiUtil.toMoney(item.primaryAsset, leftoverQuantity) }</Text>
+                    <Text size="2" color={ item.side == OrderSide.Buy ? undefined : 'red' }>{ toFancyMoney(item.primaryAsset, leftoverQuantity) }</Text>
                   </Flex>
                   {
                     leftoverQuantity && leftoverQuantity.isFinite() && possiblePrice && possiblePrice.isFinite() &&
                     <Flex justify="between" wrap="wrap" gap="1">
                       <Text size="2" color="gray">For</Text>
-                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toMoney(item.secondaryAsset, leftoverQuantity.multipliedBy(possiblePrice)) }</Text>
+                      <Text size="2" style={{ color: 'var(--gray-12)' }}>{ toFancyMoney(item.secondaryAsset, leftoverQuantity.multipliedBy(possiblePrice)) }</Text>
                     </Flex>
                   }
                 </Flex>

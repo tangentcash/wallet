@@ -28,12 +28,43 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "publisher": "Tangent Cash",
+    "homepage": "https://tangent.cash",
+    "license": "MIT",
+    "copyright": "© 2026 Tangent Cash",
+    "category": "Finance",
+    "shortDescription": "Privacy-focused, non-custodial cryptocurrency wallet and on-chain DEX.",
+    "longDescription": "Tangent Cash is a privacy-focused, non-custodial cryptocurrency wallet and exchange built on its own blockchain. Manage accounts, send and receive funds, trade on-chain across chains, and monitor the network — without KYC or registration. Connect to a public node or verify everything through your own self-hosted node.",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "windows": {
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      },
+      "nsis": {
+        "languages": [
+          "English"
+        ],
+        "displayLanguageSelector": false
+      },
+      "wix": {
+        "language": "en-US"
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "entitlements": "./entitlements.plist"
+    },
+    "iOS": {
+      "minimumSystemVersion": "15.0"
+    },
+    "android": {
+      "minSdkVersion": 24
+    }
   }
 }

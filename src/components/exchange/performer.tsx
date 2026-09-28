@@ -13,6 +13,7 @@ import { SchemaUtil, Stream } from "tangentsdk/serialization";
 import { Transactions } from "tangentsdk/schema";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
+import { toFancyMoney } from "../../core/utils";
 
 export type BuilderResult = {
   icon: string,
@@ -69,7 +70,7 @@ export class Builder {
             const secondaryAsset = (swap.side == OrderSide.Buy ? tokenIn : tokenOut);
             return {
                 icon: mdiSwapHorizontalVariant,
-                text: `Pay ${UiUtil.toMoney(tokenIn, swap.input.max)} → receive at least ${UiUtil.toMoney(tokenOut, swap.output.min)}`,
+                text: `Pay ${toFancyMoney(tokenIn, swap.input.max)} → receive at least ${toFancyMoney(tokenOut, swap.output.min)}`,
                 body: {
                     callable: marketAccount,
                     pays: swapIndex == 0 ? payment.pays : [{ asset: tokenIn, value: swap.input.max }],
@@ -148,24 +149,24 @@ export class Builder {
         const targetPrice = price || stopPrice || levelPrice;
         const targetValue = payment.value;
         const toText = (order: { primaryAsset: AssetId, secondaryAsset: AssetId, condition: OrderCondition, side: OrderSide, slippage?: BigNumber, stopPrice?: BigNumber, trailingStep?: BigNumber, trailingDistance?: BigNumber, price?: BigNumber, value: BigNumber }, targetPrice?: BigNumber | null) => {
-            const toPercentile = (asset: AssetId, value?: BigNumber | null) => value ? (value.gte(0) ? UiUtil.toMoney(asset, value) : value.negated().multipliedBy(100).toFixed(2) + '%') : 'N/A';
+            const toPercentile = (asset: AssetId, value?: BigNumber | null) => value ? (value.gte(0) ? toFancyMoney(asset, value) : value.negated().multipliedBy(100).toFixed(2) + '%') : 'N/A';
             const buying = order.side == OrderSide.Buy;
             const primaryValue = buying ? (targetPrice ? order.value.dividedBy(targetPrice) : null) : order.value;
             const secondaryValue = buying ? order.value : (targetPrice ? order.value.multipliedBy(targetPrice) : null);
-            const orderDescription = `${buying ? 'Buy' : 'Sell'} ${UiUtil.toMoney(order.primaryAsset, primaryValue)} for ${UiUtil.toMoney(order.secondaryAsset, secondaryValue)} at price no ${buying ? 'higher' : 'lower'} than`;
+            const orderDescription = `${buying ? 'Buy' : 'Sell'} ${toFancyMoney(order.primaryAsset, primaryValue)} for ${toFancyMoney(order.secondaryAsset, secondaryValue)} at price no ${buying ? 'higher' : 'lower'} than`;
             const marketOrderDescription = `${orderDescription} market price + ${toPercentile(order.secondaryAsset, order.slippage)}`;
-            const limitOrderDescription = `${orderDescription} ${UiUtil.toMoney(order.secondaryAsset, order.price || null)}`;
+            const limitOrderDescription = `${orderDescription} ${toFancyMoney(order.secondaryAsset, order.price || null)}`;
             const triggerDescription = `if market price ${buying ? 'falls below' : 'rises above'}`;
-            const trailingDescription = `dynamic stop price (step: ${toPercentile(order.secondaryAsset, order.trailingStep)}, distance: ${toPercentile(order.secondaryAsset, order.trailingDistance)})${order.stopPrice != null ? ' initially set to ' + UiUtil.toMoney(order.secondaryAsset, order.stopPrice) : ''}`
+            const trailingDescription = `dynamic stop price (step: ${toPercentile(order.secondaryAsset, order.trailingStep)}, distance: ${toPercentile(order.secondaryAsset, order.trailingDistance)})${order.stopPrice != null ? ' initially set to ' + toFancyMoney(order.secondaryAsset, order.stopPrice) : ''}`
             switch (order.condition) {
                 case OrderCondition.Market:
                     return marketOrderDescription;
                 case OrderCondition.Limit:
                     return limitOrderDescription;
                 case OrderCondition.Stop:
-                    return `${marketOrderDescription} ${triggerDescription} ${UiUtil.toMoney(order.secondaryAsset, order.stopPrice || null)}`;
+                    return `${marketOrderDescription} ${triggerDescription} ${toFancyMoney(order.secondaryAsset, order.stopPrice || null)}`;
                 case OrderCondition.StopLimit:
-                    return `${limitOrderDescription} ${triggerDescription} ${UiUtil.toMoney(order.secondaryAsset, order.stopPrice || null)}`;
+                    return `${limitOrderDescription} ${triggerDescription} ${toFancyMoney(order.secondaryAsset, order.stopPrice || null)}`;
                 case OrderCondition.TrailingStop:
                     return `${marketOrderDescription} ${triggerDescription} ${trailingDescription}`;
                 case OrderCondition.TrailingStopLimit:
@@ -421,7 +422,7 @@ export class Builder {
         const targetSecondaryValue = secondaryPayment.value;
         return {
             icon: mdiWater,
-            text: `Open pool ${UiUtil.toAssetSymbol(primaryAsset)}/${UiUtil.toAssetSymbol(secondaryAsset)} · reserves ${UiUtil.toMoney(primaryAsset, targetPrimaryValue)} + ${UiUtil.toMoney(secondaryAsset, targetSecondaryValue)} · price ${UiUtil.toMoney(secondaryAsset, price)} · fee ${feeRate.multipliedBy(100).toFixed(2)}%${concentrated ? ` · concentrated range ${UiUtil.toMoney(null, minPrice)} – ${UiUtil.toMoney(null, maxPrice)}` : ''}`,
+            text: `Open pool ${UiUtil.toAssetSymbol(primaryAsset)}/${UiUtil.toAssetSymbol(secondaryAsset)} · reserves ${toFancyMoney(primaryAsset, targetPrimaryValue)} + ${toFancyMoney(secondaryAsset, targetSecondaryValue)} · price ${toFancyMoney(secondaryAsset, price)} · fee ${feeRate.multipliedBy(100).toFixed(2)}%${concentrated ? ` · concentrated range ${toFancyMoney(null, minPrice)} – ${toFancyMoney(null, maxPrice)}` : ''}`,
             body: {
               callable: marketAccount,
               pays: [...primaryPayment.pays, ...secondaryPayment.pays],
@@ -494,7 +495,7 @@ export class Builder {
         
         return {
             icon: mdiCashPlus,
-            text: `Pay ${payment.pays.map((v) => UiUtil.toMoney(v.asset, v.value)).join(' + ')} as unified ${UiUtil.toMoney(AssetId.fromHandle(Chain.policy.TOKEN_NAME, payment.pays[0].asset.token || undefined, market.account), payment.value)}`,
+            text: `Pay ${payment.pays.map((v) => toFancyMoney(v.asset, v.value)).join(' + ')} as unified ${toFancyMoney(AssetId.fromHandle(Chain.policy.TOKEN_NAME, payment.pays[0].asset.token || undefined, market.account), payment.value)}`,
             body: {
               callable: unifiedAssetProxyAccount,
               pays: payment.pays,
@@ -530,7 +531,7 @@ export class Builder {
 
         return {
             icon: mdiCashRefund,
-            text: `Repay ${UiUtil.toMoney(repaymentAsset, value)} from unified ${Assetlist.toName(paymentAsset)}`,
+            text: `Repay ${toFancyMoney(repaymentAsset, value)} from unified ${Assetlist.toName(paymentAsset)}`,
             body: {
               callable: marketAccount,
               pays: [{ asset: paymentAsset, value: value }],
@@ -572,8 +573,8 @@ export class Builder {
             throw new Error('Delegator ' + delegatorId.toString() + ' account cannot be found');
 
         let liquidityText = '';
-        if (primaryValue.gt(0)) liquidityText += UiUtil.toMoney(primaryAsset, primaryValue);
-        if (secondaryValue.gt(0)) liquidityText += (liquidityText.length > 0 ? ' + ' : '') + UiUtil.toMoney(secondaryAsset, secondaryValue);
+        if (primaryValue.gt(0)) liquidityText += toFancyMoney(primaryAsset, primaryValue);
+        if (secondaryValue.gt(0)) liquidityText += (liquidityText.length > 0 ? ' + ' : '') + toFancyMoney(secondaryAsset, secondaryValue);
         return {
             icon: mdiWater,
             text: `Deposit ${liquidityText} · delegated ${UiUtil.toAssetSymbol(primaryAsset)}/${UiUtil.toAssetSymbol(secondaryAsset)} LP`,
@@ -621,12 +622,12 @@ export class Builder {
 
         let liquidityText = '';
         if (primaryValue?.gte(0)) {
-          liquidityText += UiUtil.toMoney(primaryAsset, primaryValue);
+          liquidityText += toFancyMoney(primaryAsset, primaryValue);
         } else if (primaryValueFull) {
           liquidityText += '100% ' + UiUtil.toAssetSymbol(primaryAsset);
         }
         if (secondaryValue?.gte(0)) {
-          liquidityText += (liquidityText.length > 0 ? ' + ' : '') + UiUtil.toMoney(secondaryAsset, secondaryValue);
+          liquidityText += (liquidityText.length > 0 ? ' + ' : '') + toFancyMoney(secondaryAsset, secondaryValue);
         } else {
           liquidityText += (liquidityText.length > 0 ? ' + ' : '') + '100% ' + UiUtil.toAssetSymbol(secondaryAsset);
         }

@@ -344,7 +344,7 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
                       wcContext.current?.acquire();
                   }}>Connect wallet &amp; add funds</Button>
                   <div style={{ marginTop: 12, textAlign: 'center' }}>
-                    <Link to="#" className="router-link" style={{ color: 'var(--info)', fontWeight: 650, fontSize: 12.5 }} onClick={() => setWcFallback(true)}>Not using WalletConnect? Register a sender address →</Link>
+                    <Link to="#" className="router-link" style={{ color: 'var(--info)', fontWeight: 650, fontSize: 12.5 }} onClick={() => setWcFallback(true)}>No WalletConnect? Add a sender address →</Link>
                   </div>
                 </>
               }

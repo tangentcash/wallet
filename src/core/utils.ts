@@ -1,3 +1,7 @@
+import { AssetId } from "tangentsdk/algorithm";
+import { UiUtil } from "tangentsdk/ui";
+import BigNumber from "bignumber.js";
+
 export function secondsToDuration(baseSeconds: number, short?: boolean): string {
   if (!baseSeconds)
     return "0 seconds";
@@ -23,4 +27,23 @@ export function secondsToDuration(baseSeconds: number, short?: boolean): string 
   else if (seconds >= SEC_PER_MIN)
     return toDuration(seconds / SEC_PER_MIN, short ? "m" : "minute");
   return toDuration(seconds, short ? "s" : "second");
+}
+export function toFancyPrecision(value: string | number | BigNumber | null): BigNumber | null {
+  let numeric: BigNumber | null = value ? new BigNumber(BigNumber.isBigNumber(value) ? value.toPrecision(12) : value) : null;
+  if (numeric) {
+    const test = numeric.abs();
+    if (test.gte(100))
+      numeric = numeric.decimalPlaces(2);
+    else if (test.gte(10))
+      numeric = numeric.decimalPlaces(3);
+    else if (test.gte(1))
+      numeric = numeric.decimalPlaces(4);
+  }
+  return numeric;
+}
+export function toFancyValue(asset: AssetId | null, value: string | number | BigNumber | null, delta: boolean, trailing: boolean) {
+  return UiUtil.toValue(asset, toFancyPrecision(value), delta, trailing);
+}
+export function toFancyMoney(asset: AssetId | null, value: string | number | BigNumber | null, delta?: boolean) {
+  return UiUtil.toMoney(asset, toFancyPrecision(value), delta);
 }

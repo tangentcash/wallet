@@ -333,18 +333,21 @@ export default function ConfigurePage() {
         </AlertDialog.Root>
       </div>
       <div className="card" style={{ padding: '6px 18px' }}>
+        <div className="srow" style={{ cursor: 'default' }}>
+          <span className="ic"><Icon path={AppData.props.appearance == 'light' ? mdiWeatherSunny : mdiWeatherNight} size={0.95}></Icon></span>
+          <span className="t"><b>Color scheme</b><span>{ AppData.props.appearance == 'light' ? 'Light theme for bright rooms' : 'Dark theme for unlit rooms' }</span></span>
+          <Switch size="2" checked={ AppData.props.appearance == 'light' } onCheckedChange={(v) => AppData.setAppearance(v ? 'light' : 'dark')} aria-label={AppData.props.appearance == 'light' ? 'Light theme' : 'Dark theme'} />
+        </div>
         <DropdownMenu.Root>
           <DropdownMenu.Trigger>
             <button className="srow">
               <span className="ic"><Icon path={mdiRefresh} size={0.95}></Icon></span>
-              <span className="t"><b>Manage client app</b><span>Updates · restart · reset settings</span></span>
+              <span className="t"><b>Other options</b><span>Updates · restart · reset settings</span></span>
               <span className="go"><Icon path={mdiChevronRight} size={0.8}></Icon></span>
             </button>
           </DropdownMenu.Trigger>
           <DropdownMenu.Content>
-            <DropdownMenu.Item onClick={() => AppData.openDevTools()} disabled={!AppData.isApp()}>Debug app</DropdownMenu.Item>
             <DropdownMenu.Item onClick={() => location.reload()}>Restart client</DropdownMenu.Item>
-            <DropdownMenu.Separator></DropdownMenu.Separator>
             <DropdownMenu.Item onClick={() => resetNetwork()}>Reset network</DropdownMenu.Item>
             <DropdownMenu.Item onClick={() => {
               RPC.clearCache();
@@ -352,11 +355,6 @@ export default function ConfigurePage() {
             }}>Clear cache</DropdownMenu.Item>
           </DropdownMenu.Content>
         </DropdownMenu.Root>
-        <div className="srow" style={{ cursor: 'default' }}>
-          <span className="ic"><Icon path={AppData.props.appearance == 'light' ? mdiWeatherSunny : mdiWeatherNight} size={0.95}></Icon></span>
-          <span className="t"><b>Lights</b><span>{ AppData.props.appearance == 'light' ? 'On for bright rooms' : 'Inverted surfaces for bright rooms' }</span></span>
-          <Switch size="2" checked={ AppData.props.appearance == 'light' } onCheckedChange={(v) => AppData.setAppearance(v ? 'light' : 'dark')} aria-label={AppData.props.appearance == 'light' ? 'Lights on' : 'Lights off'} />
-        </div>
         <div className="srow" style={{ cursor: 'default' }}>
           <span className="ic"><Icon path={mdiInformationOutline} size={0.95}></Icon></span>
           <span className="t"><b>Version</b><span>MIT licensed · open source</span></span>

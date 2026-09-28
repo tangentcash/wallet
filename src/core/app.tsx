@@ -214,8 +214,7 @@ export type AppState = {
 }
 
 export type AppDefs = {
-  cachePrefix: string | null,
-  authorizer: boolean,
+  cachePrefix: string | null
 };
 
 export type AppProps = {
@@ -232,6 +231,12 @@ export enum AppPermission {
   Reset
 }
 
+declare global {
+  interface Window {
+    // Installed by MainActivity.onWebViewCreate on Android; absent elsewhere.
+    TangentNative?: { setSystemBars(dark: boolean): void };
+  }
+}
 export class AppData {
   static root: Root | null = null;
   static server: ConnectionState | null = null;
@@ -241,8 +246,7 @@ export class AppData {
     setNavigation: null
   };
   static defs: AppDefs = {
-    cachePrefix: null,
-    authorizer: false,
+    cachePrefix: null
   };
   static props: AppProps = {
     validator: null,
@@ -346,6 +350,18 @@ export class AppData {
       this.tauriRef = core;
     }
     return this.tauriRef;
+  }
+  private static syncSystemBars(): void {
+    // Android: native bridge installed by MainActivity.onWebViewCreate.
+    // Tints status/navigation bar icons so they stay visible in dark theme.
+    const native = window.TangentNative;
+    if (native != null && typeof native.setSystemBars == 'function') {
+      try {
+        native.setSystemBars(this.props.appearance === 'dark');
+      } catch {
+        // best-effort cosmetic adjustment
+      }
+    }
   }
   static async restoreWallet(passphrase: string, network?: NetworkType): Promise<boolean> {
     const status = await SafeStorage.restore(passphrase);
@@ -614,7 +630,11 @@ export class AppData {
   static async main(): Promise<void> {
     const props: AppProps | null = AppStorage.get(StorageField.App);
     if (this.isApp())
-      this.tauri().then((tauri) => tauri.invoke('platform_type').then((value: string) => this.platform = value as 'desktop' | 'mobile' | 'unknown'));
+      this.tauri().then((tauri) => tauri.invoke('platform_type').then((value: string) => {
+        this.platform = value as 'desktop' | 'mobile' | 'unknown';
+        if (this.platform == 'mobile')
+          document.documentElement.classList.add('tauri-mobile');
+      }));
     if (!props) {
       const systemThemeDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       this.props.appearance = systemThemeDark ? 'dark' : 'light';
@@ -622,6 +642,7 @@ export class AppData {
     } else {
       this.props = props;
     }
+    this.syncSystemBars();
 
     RPC.applyImplementation({
       onNodeMessage: this.nodeMessage,
@@ -643,7 +664,7 @@ export class AppData {
       AppStorage.set(StorageField.Network, network);
     } 
       
-    const config: { validatorUrl: string | null, exchangeUrl: string | null, cachePrefix: string | null, authorizer: boolean } = (() => {
+    const config: { validatorUrl: string | null, exchangeUrl: string | null, cachePrefix: string | null } = (() => {
       if (network != NetworkType.Regtest && network != NetworkType.Testnet && network != NetworkType.Mainnet)
         network = this.defaultNetwork();
       switch (network) {
@@ -659,7 +680,6 @@ export class AppData {
     })();
     const mustReset = resetNetwork || !AppStorage.get(StorageField.App);
     this.defs.cachePrefix = config.cachePrefix;
-    this.defs.authorizer = config.authorizer;
     if (mustReset || !this.props.validator)
       this.props.validator = config.validatorUrl;
     if (mustReset || !this.props.exchange)
@@ -669,12 +689,6 @@ export class AppData {
       RPC.disconnectSocket();
     }
     RPC.applyValidator(this.props.validator);
-  }
-  static async openDevTools(): Promise<void> {
-    if (this.isApp()) {
-      const tauri = await this.tauri();
-      tauri.invoke('open_devtools');
-    }
   }
   static openFile(type: string): Promise<Uint8Array | null> {
     return new Promise((resolve) => {
@@ -739,6 +753,7 @@ export class AppData {
     this.props.appearance = value;
     this.save();
     this.setState();
+    this.syncSystemBars();
   }
   static setTitle(...parts: (string | null | undefined)[]): void {
     document.title = parts.filter((v): v is string => v != null && v.length > 0).concat('Tangent Cash App').join(' · ');

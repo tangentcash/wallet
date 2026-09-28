@@ -17,6 +17,7 @@ import { pathOfMaker } from "../../pages/exchange/orderbook";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
+import { toFancyMoney } from "../../core/utils";
 
 const DLP_DEFAULT_FEE_RATE_MAYBE = 0.0005;
 
@@ -144,7 +145,7 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
               <span className={ 'badge ' + (item.active ? 'warn' : 'flat') }>MANUAL</span><span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>Self-managed</span>
             </div>
           </div>
-          <span className="usd" style={{ flex: 'none' }}>{ UiUtil.toMoney(Exchange.equityAsset, state.liquidity) }<span className="usd-sub">+{ (100 * (state.staleness?.dev || 0)).toFixed(1) }% dev</span></span>
+          <span className="usd" style={{ flex: 'none' }}>{ toFancyMoney(Exchange.equityAsset, state.liquidity) }<span className="usd-sub">+{ (100 * (state.staleness?.dev || 0)).toFixed(1) }% dev</span></span>
         </div>
         { (() => {
           const primaryPrice = Exchange.priceOf(item.primaryAsset).close || new BigNumber(0);
@@ -191,27 +192,27 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
           }}>0x{ item.poolId.toString(16).length > 8 ? UiUtil.toHash(item.poolId.toString(16), 6) : item.poolId.toString(16) }</span></span></div>
           <div className="dl-row"><span className="dl-k">Status</span><span className="dl-v"><Badge color={item.active ? (inLowerRange && inUpperRange ? undefined : 'yellow') : 'gray'}>{ item.active ? (inLowerRange && inUpperRange ? (concentrated ? 'Active (fully in range)' : 'Active') : 'Partially active (out of range)') : 'Inactive' }</Badge></span></div>
           <div className="dl-row"><span className="dl-k">Spread</span><span className="dl-v"><Flex wrap="wrap" gap="2" justify="end">
-            { inLowerRange && <Badge>BID { UiUtil.toMoney(item.secondaryAsset, bidPrice) }</Badge> }
-            { inUpperRange && <Badge color="red">ASK { UiUtil.toMoney(item.secondaryAsset, askPrice) }</Badge> }
+            { inLowerRange && <Badge>BID { toFancyMoney(item.secondaryAsset, bidPrice) }</Badge> }
+            { inUpperRange && <Badge color="red">ASK { toFancyMoney(item.secondaryAsset, askPrice) }</Badge> }
           </Flex></span></div>
           {
             (item.primaryRevenue.gt(0) || item.secondaryRevenue.gt(0)) &&
             <div className="dl-row"><span className="dl-k">Fees</span><span className="dl-v"><Flex wrap="wrap" gap="2" justify="end">
-              { item.primaryRevenue.gt(0) && <Badge>{ UiUtil.toMoney(item.primaryAsset, item.primaryRevenue) }</Badge> }
-              { item.secondaryRevenue.gt(0) && <Badge>{ UiUtil.toMoney(item.secondaryAsset, item.secondaryRevenue) }</Badge> }
+              { item.primaryRevenue.gt(0) && <Badge>{ toFancyMoney(item.primaryAsset, item.primaryRevenue) }</Badge> }
+              { item.secondaryRevenue.gt(0) && <Badge>{ toFancyMoney(item.secondaryAsset, item.secondaryRevenue) }</Badge> }
             </Flex></span></div>
           }
           <div className="dl-row"><span className="dl-k">Revenue</span><span className="dl-v"><Flex wrap="wrap" gap="2" justify="end">
-            <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ UiUtil.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</Badge>
+            <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ toFancyMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</Badge>
             <Badge variant="soft" color={item.active ? 'purple' : 'gray'} size="2">{ state.relativeRevenue.gt(0) ? '+' : '' }{ state.relativeRevenue.multipliedBy(100).toFixed(2) }%</Badge>
           </Flex></span></div>
-          <div className="dl-row"><span className="dl-k">Price</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.price) }</span></div>
+          <div className="dl-row"><span className="dl-k">Price</span><span className="dl-v">{ toFancyMoney(item.secondaryAsset, item.price) }</span></div>
           {
             concentrated &&
-            <div className="dl-row"><span className="dl-k">Price range</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.minPrice || null) } — { UiUtil.toMoney(item.secondaryAsset, item.maxPrice || null) }</span></div>
+            <div className="dl-row"><span className="dl-k">Price range</span><span className="dl-v">{ toFancyMoney(item.secondaryAsset, item.minPrice || null) } — { toFancyMoney(item.secondaryAsset, item.maxPrice || null) }</span></div>
           }
-          <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.primaryAsset) } reserve</span><span className="dl-v">{ UiUtil.toMoney(item.primaryAsset, item.primaryValue) }</span></div>
-          <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.secondaryAsset) } reserve</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.secondaryValue) }</span></div>
+          <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.primaryAsset) } reserve</span><span className="dl-v">{ toFancyMoney(item.primaryAsset, item.primaryValue) }</span></div>
+          <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.secondaryAsset) } reserve</span><span className="dl-v">{ toFancyMoney(item.secondaryAsset, item.secondaryValue) }</span></div>
           <div className="dl-row"><span className="dl-k">Fee rate</span><span className="dl-v">{ item.feeRate.multipliedBy(100).toFixed(2) }%</span></div>
           <div className="dl-row"><span className="dl-k">Exit fee</span><span className="dl-v">{ item.exitFee.multipliedBy(100).toFixed(2) }%</span></div>
         </div>
@@ -249,15 +250,15 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
                 <Flex direction="column" gap="2">
                   <Flex justify="between" wrap="wrap" gap="1" style={{ textDecoration: inLowerRange ? undefined : 'line-through', color: 'var(--gray-11)' }}>
                     <Text size="2" style={{ color: 'var(--accent-11)' }}>Buy at</Text>
-                    <Text size="2" style={{ color: 'var(--accent-11)' }}>≤ { UiUtil.toMoney(item.secondaryAsset, bidPrice) }</Text>
+                    <Text size="2" style={{ color: 'var(--accent-11)' }}>≤ { toFancyMoney(item.secondaryAsset, bidPrice) }</Text>
                   </Flex>
                   <Flex justify="between" wrap="wrap" gap="1" style={{ textDecoration: inUpperRange ? undefined : 'line-through', color: 'var(--gray-11)' }}>
                     <Text size="2" color="red">Sell at</Text>
-                    <Text size="2" color="red">≥ { UiUtil.toMoney(item.secondaryAsset, askPrice) }</Text>
+                    <Text size="2" color="red">≥ { toFancyMoney(item.secondaryAsset, askPrice) }</Text>
                   </Flex>
                   <Flex justify="between" wrap="wrap" gap="1">
                     <Text size="2" color="gray">With</Text>
-                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ UiUtil.toMoney(Exchange.equityAsset, state.liquidity) }</Text>
+                    <Text size="2" style={{ color: 'var(--gray-12)' }}>{ toFancyMoney(Exchange.equityAsset, state.liquidity) }</Text>
                   </Flex>
                 </Flex>
               </Button>
@@ -353,14 +354,14 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
               </div>
               <div className="tiny dim" style={{ marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Delegated to { UiUtil.toAddress(item.delegatorAccount || 'NULL', 6) }</div>
             </div>
-            <span className="usd" style={{ flex: 'none' }}>{ UiUtil.toMoney(Exchange.equityAsset, state.currentLiquidity) }<span className="usd-sub">{ revenue.toFixed(2) }% APY · { UiUtil.toMoney(Exchange.equityAsset, state.currentLiquidity.multipliedBy(revenue.dividedBy(100 * 365))) }/day</span></span>
+            <span className="usd" style={{ flex: 'none' }}>{ toFancyMoney(Exchange.equityAsset, state.currentLiquidity) }<span className="usd-sub">{ revenue.toFixed(2) }% APY · { toFancyMoney(Exchange.equityAsset, state.currentLiquidity.multipliedBy(revenue.dividedBy(100 * 365))) }/day</span></span>
           </div>
         </button>
         <Collapsible.Content>
           <div className="dl dl-rule" style={{ marginTop: 14 }}>
             <div className="dl-row"><span className="dl-k">Your share</span><span className="dl-v">{ item.share.multipliedBy(100).toFixed(2) }%</span></div>
-            <div className="dl-row"><span className="dl-k">Fees earned (est.)</span><span className="dl-v">{ UiUtil.toMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</span></div>
-            <div className="dl-row"><span className="dl-k">TAN subsidy</span><span className="dl-v">{ UiUtil.toMoney(new AssetId(), item.rewardValue) }</span></div>
+            <div className="dl-row"><span className="dl-k">Fees earned (est.)</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</span></div>
+            <div className="dl-row"><span className="dl-k">TAN subsidy</span><span className="dl-v">{ toFancyMoney(new AssetId(), item.rewardValue) }</span></div>
           </div>
           <div className="dl dl-rule">
             <div className="dl-row"><span className="dl-k">Delegator account</span><span className="dl-v"><span className="copyable" onClick={() => {
@@ -376,8 +377,8 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
             <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
             <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
             <div className="dl-row"><span className="dl-k">Status</span><span className="dl-v"><span className={ 'badge ' + (item.active ? 'ok' : 'flat') }>{ item.active ? 'Active' : 'Inactive' }</span></span></div>
-            <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.primaryAsset) } reserve (est.)</span><span className="dl-v">{ UiUtil.toMoney(item.primaryAsset, item.primaryValue) }</span></div>
-            <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.secondaryAsset) } reserve (est.)</span><span className="dl-v">{ UiUtil.toMoney(item.secondaryAsset, item.secondaryValue) }</span></div>
+            <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.primaryAsset) } reserve (est.)</span><span className="dl-v">{ toFancyMoney(item.primaryAsset, item.primaryValue) }</span></div>
+            <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.secondaryAsset) } reserve (est.)</span><span className="dl-v">{ toFancyMoney(item.secondaryAsset, item.secondaryValue) }</span></div>
           </div>
           {
             item.active &&
@@ -483,16 +484,16 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
               </div>
               <div className="tiny dim" style={{ marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Delegated to { item.delegatorAccount.substring(item.delegatorAccount.length - 6) }</div>
             </div>
-            <span className="usd" style={{ flex: 'none' }}>{ UiUtil.toMoney(Exchange.equityAsset, item.currentValue) }<span className="usd-sub">{ revenue.toFixed(2) }% APY · { UiUtil.toMoney(Exchange.equityAsset, item.currentValue.multipliedBy(revenue.dividedBy(100 * 365))) }/day</span></span>
+            <span className="usd" style={{ flex: 'none' }}>{ toFancyMoney(Exchange.equityAsset, item.currentValue) }<span className="usd-sub">{ revenue.toFixed(2) }% APY · { toFancyMoney(Exchange.equityAsset, item.currentValue.multipliedBy(revenue.dividedBy(100 * 365))) }/day</span></span>
           </div>
         </button>
         <Collapsible.Content>
           <div className="dl dl-rule" style={{ marginTop: 14 }}>
-            <div className="dl-row"><span className="dl-k">Liquidity</span><span className="dl-v">{ UiUtil.toMoney(Exchange.equityAsset, item.currentValue) }</span></div>
-            <div className="dl-row"><span className="dl-k">Revenue</span><span className="dl-v">{ UiUtil.toMoney(Exchange.equityAsset, item.currentValue.minus(item.initialValue), true) }</span></div>
+            <div className="dl-row"><span className="dl-k">Liquidity</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, item.currentValue) }</span></div>
+            <div className="dl-row"><span className="dl-k">Revenue</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, item.currentValue.minus(item.initialValue), true) }</span></div>
             {
               extra.delegator &&
-              <div className="dl-row"><span className="dl-k">TAN subsidy</span><span className="dl-v">{ UiUtil.toMoney(new AssetId(), extra.delegator.rewardEmission.dividedBy(extra.delegator.permissions.length).multipliedBy(86400000 / Chain.policy.BLOCK_TIME)) } per day</span></div>
+              <div className="dl-row"><span className="dl-k">TAN subsidy</span><span className="dl-v">{ toFancyMoney(new AssetId(), extra.delegator.rewardEmission.dividedBy(extra.delegator.permissions.length).multipliedBy(86400000 / Chain.policy.BLOCK_TIME)) } per day</span></div>
             }
           </div>
           <div className="dl dl-rule">

@@ -316,19 +316,14 @@ export default function AccountPage() {
     };
   }, [ownerAddress, ownerBaseAddress]);
 
-  const nativeAsset = useMemo(() => new AssetId(), []);
-  const tanMoney = useMemo((): [string, string] => {
-    const target = assets.find((x) => x.asset.id == nativeAsset.id);
-    const money = UiUtil.toMoney(nativeAsset, target ? target.supply : new BigNumber(0));
+  const significantMoney = useMemo((): [string, string] => {
+    const target = assets.find((x) => x.asset.id == new AssetId().id);
+    const money = UiUtil.toMoney(target ? target.asset : new AssetId(), target ? target.supply : new BigNumber(0));
     const index = money.lastIndexOf(' ');
     return index > 0 ? [money.substring(0, index), money.substring(index + 1)] : [money, 'TAN'];
-  }, [assets, nativeAsset]);
-  const tanFee = useMemo((): string | null => {
-    const chain = blockchains.find((x) => x.chain == nativeAsset.chain);
-    return chain?.gas_price != null ? UiUtil.toMoney(nativeAsset, chain.gas_price) : null;
-  }, [blockchains, nativeAsset]);
+  }, [assets]);
   const assetContext = (item: BalanceRecord): string => {
-    if (item.asset.id == nativeAsset.id)
+    if (item.asset.id == new AssetId().id)
       return 'Network token';
     if (item.asset.chain == 'TAN')
       return 'Token · ' + (item.contractAddress != null && !Whitelist.fake(item.asset, item.contractAddress) ? 'verified' : 'unverified');
@@ -471,12 +466,12 @@ export default function AccountPage() {
             </>
           }
           <div className="hero-num num" style={{ marginTop: rpcError != null ? 18 : 0 }}>
-            { tanMoney[0] } <span style={{ fontSize: '0.5em', fontWeight: 700, color: 'var(--text-2)' }}>{ tanMoney[1] }</span>
+            { significantMoney[0] } <span style={{ fontSize: '0.5em', fontWeight: 700, color: 'var(--text-2)' }}>{ significantMoney[1] }</span>
           </div>
           <div className="page-sub" style={{ marginTop: 6 }}>
             { assets.length ? UiUtil.toCount('asset', assets.length) : 'No assets yet' }
-            { AppData.tip != null && <> · block <span className="mono num">#{ AppData.tip.toString() }</span></> }
-            { tanFee != null && <> · fee { tanFee }</> }
+            <> · </>
+            { transactions.length ? UiUtil.toCount('transaction', transactions.length) + ' shown' : 'No transactions yet' }
           </div>
 
           <SegmentedControl.Root value={control} radius="full" size="3" mt="4" mb="4" onValueChange={(value) => setSearch({ view: value == 'address' ? 'address' : value == 'storage' ? 'data' : 'balance' })}>

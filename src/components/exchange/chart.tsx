@@ -14,6 +14,7 @@ import Color from 'colorjs.io';
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 import Clock from "./clock";
+import { toFancyMoney, toFancyValue } from "../../core/utils";
 
 export enum PriceScope {
   Bid,
@@ -284,9 +285,9 @@ export function ChartTitle({
         <div className="mono dim" style={{ marginTop: 2, whiteSpace: 'nowrap', fontSize: 12.5 }}>{ (orderbook?.primaryAsset ? UiUtil.toAssetSymbol(orderbook.primaryAsset) : '?') + ' × ' + (orderbook?.secondaryAsset ? UiUtil.toAssetSymbol(orderbook.secondaryAsset) : '?') }</div>
       </div>
       <div style={{ marginLeft: 'auto', textAlign: 'right', minWidth: 0 }}>
-        <div className="num" style={{ fontWeight: 800, fontSize: 21, color: dir > 0 ? 'var(--lime)' : (dir < 0 ? 'var(--down)' : 'var(--text)'), whiteSpace: 'nowrap' }}>{ UiUtil.toValue(null, close, false, true) }</div>
+        <div className="num" style={{ fontWeight: 800, fontSize: 21, color: dir > 0 ? 'var(--lime)' : (dir < 0 ? 'var(--down)' : 'var(--text)'), whiteSpace: 'nowrap' }}>{ toFancyValue(null, close, false, true) }</div>
         <div className="ob-delta-row" style={{ justifyContent: 'flex-end', marginTop: 3 }}>
-          <span className={ 'abs' + (dir != 0 ? (dir > 0 ? ' up' : ' down') : '') }>{ (dir > 0 ? '+' : (dir < 0 ? '-' : '')) + UiUtil.toValue(null, delta ? delta.abs() : new BigNumber(0), false, true) }</span>
+          <span className={ 'abs' + (dir != 0 ? (dir > 0 ? ' up' : ' down') : '') }>{ (dir > 0 ? '+' : (dir < 0 ? '-' : '')) + toFancyValue(null, delta ? delta.abs() : new BigNumber(0), false, true) }</span>
           <span className={ 'ob-delta-pill' + (dir > 0 ? ' up' : (dir == 0 ? ' flat' : '')) }>
             { dir != 0 && <Icon path={dir > 0 ? mdiArrowUpBold : mdiArrowDownBold} size={0.55}></Icon> }
             { UiUtil.toPercentageDelta(pair?.price.open || new BigNumber(0), close || new BigNumber(0)) }
@@ -362,7 +363,7 @@ export function ChartWidget({
         secondsVisible: true
       },
       localization: {
-          priceFormatter: (price: BarPrice): string => UiUtil.toValue(null, price, false, true)
+          priceFormatter: (price: BarPrice): string => toFancyValue(null, price, false, true)
       }
     };
   }, [pair?.id, options.crosshair, options.view, options.inverted, options.price, mobile]);
@@ -586,15 +587,15 @@ export function ChartWidget({
             {
               !mobile && (options.view == ChartViewType.Bars || options.view == ChartViewType.Candles ?
               <Flex direction="column">
-                <Text size="1"><Text color="gray" mr="1">O</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.open || null) }</Text>
-                <Text size="1"><Text color="gray" mr="1">H</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.high || null) }</Text>
-                <Text size="1"><Text color="gray" mr="1">L</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.low || null) }</Text>
-                <Text size="1"><Text color="gray" mr="1">C</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.close || null) }</Text>
-                { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ UiUtil.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
+                <Text size="1"><Text color="gray" mr="1">O</Text>{ toFancyMoney(orderbook?.secondaryAsset || null, legendBar.price?.open || null) }</Text>
+                <Text size="1"><Text color="gray" mr="1">H</Text>{ toFancyMoney(orderbook?.secondaryAsset || null, legendBar.price?.high || null) }</Text>
+                <Text size="1"><Text color="gray" mr="1">L</Text>{ toFancyMoney(orderbook?.secondaryAsset || null, legendBar.price?.low || null) }</Text>
+                <Text size="1"><Text color="gray" mr="1">C</Text>{ toFancyMoney(orderbook?.secondaryAsset || null, legendBar.price?.close || null) }</Text>
+                { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ toFancyMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
               </Flex> :
               <Flex direction="column">
-                <Text size="1"><Text color="gray" mr="1">C</Text>{ UiUtil.toMoney(orderbook?.secondaryAsset || null, legendBar.price?.value || null) }</Text>
-                { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ UiUtil.toMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
+                <Text size="1"><Text color="gray" mr="1">C</Text>{ toFancyMoney(orderbook?.secondaryAsset || null, legendBar.price?.value || null) }</Text>
+                { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ toFancyMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
               </Flex>)
             }
           </Box> }

@@ -1,0 +1,13 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Base application theme.
+         Launch screen: solid bg color (matches the bg variable in main.css; the referenced
+         color resolves to its -night variant in dark mode), no logo.
+         NOTE: -night qualifier outranks -v31, so this full definition (including the
+         API-31 splash items) is duplicated in values-night/themes.xml. -->
+    <style name="Theme.tangentwallet" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/splash_background</item>
+        <!-- Android 12+ system splash: plain bg, no logo. Ignored below API 31. -->
+        <item name="android:windowSplashScreenBackground" tools:targetApi="s">@color/splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="s">@android:color/transparent</item>
+    </style>
+</resources>

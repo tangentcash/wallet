@@ -1,6 +1,5 @@
 {
   "validatorUrl": "localhost:18419",
   "exchangeUrl": "http://localhost:19420",
-  "cachePrefix": "R00",
-  "authorizer": true
+  "cachePrefix": "R00"
 }

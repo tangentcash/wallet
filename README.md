@@ -35,8 +35,19 @@ yarn
 Build executable
 ```bash
 yarn make        # Website files
-yarn tauri build # Standalone executable
+yarn tauri build  # Desktop bundles for the current platform (Windows/Linux/macOS)
 ```
+
+## Mobile builds
+Requires Android Studio/SDK + NDK (Android) or macOS with Xcode (iOS).
+```bash
+yarn tauri android init      # one-time: generate Android project
+yarn tauri ios init          # one-time: generate iOS project (run on macOS)
+yarn tauri android build     # APK/AAB (add --aap for Play Store AAB)
+yarn tauri ios build         # iOS app (run on macOS)
+```
+
+Desktop development with devtools enabled: `yarn tauri:dev`. Release builds never ship devtools.
 
 ## License
 This project is licensed under the MIT license

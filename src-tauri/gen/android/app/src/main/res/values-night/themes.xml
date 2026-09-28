@@ -1,0 +1,12 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Night variant of Theme.tangentwallet. Must duplicate the full style (including
+         the API-31 splash items): -night outranks -v31 in resource resolution, so the
+         system splash in dark mode would otherwise fall back to this theme with none
+         of the values/themes.xml items. @color/splash_background resolves here to the
+         -night color (#0B0D0C = dark bg in main.css). -->
+    <style name="Theme.tangentwallet" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+        <item name="android:windowBackground">@color/splash_background</item>
+        <item name="android:windowSplashScreenBackground" tools:targetApi="s">@color/splash_background</item>
+        <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="s">@android:color/transparent</item>
+    </style>
+</resources>
