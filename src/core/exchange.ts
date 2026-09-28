@@ -122,7 +122,6 @@ export type DelegatedPool = {
     primaryReserve: BigNumber;
     secondaryReserve: BigNumber;
     volume: BigNumber;
-    allocationPrice?: BigNumber;
     feeRate?: BigNumber;
     share: BigNumber;
     active: boolean;
@@ -310,6 +309,7 @@ export class Exchange {
   static equityAsset: AssetId = AssetId.fromHandle('USD');
   static orderbook:  string | null = null;
   static socket: WebSocket | null = null;
+  static ready: boolean = false;
   static channelId: string | null = null;
   static awaitables: (() => void)[] = [];
   static requests = {
@@ -408,7 +408,7 @@ export class Exchange {
   }
   static connectSocket(): Promise<void> {
     return new Promise<void>((resolve) => {
-      if (!this.socket) {
+      if (!this.socket || !this.ready) {
         this.awaitables.push(resolve);
         if (this.awaitables.length == 1)
           this.connectSocketInternal();
@@ -433,6 +433,7 @@ export class Exchange {
     } catch { }
 
     this.orderbook = AppStorage.get(ExchangeField.Orderbook);
+    this.ready = true;
     this.dispatchEvent('exchange:ready', { data: { } });
     if (this.awaitables != null) {
       for (let i = 0; i < this.awaitables.length; i++) {
@@ -912,7 +913,6 @@ export class Exchange {
       share: new BigNumber(value.share),
       volume: new BigNumber(value.volume),
       feeRate: value.feeRate ? new BigNumber(value.feeRate) : undefined,
-      allocationPrice: value.allocationPrice ? new BigNumber(value.allocationPrice) : undefined,
       active: value.active
     }
   }

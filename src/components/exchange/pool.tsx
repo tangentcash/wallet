@@ -312,7 +312,7 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
   }, [extra, mode, item, primaryReserve, secondaryReserve]);
   const state = useMemo(() => {
     const primaryPrice = Exchange.priceOf(item.primaryAsset), secondaryPrice = Exchange.priceOf(item.secondaryAsset);
-    const initialLiquidity = item.initialPrimaryValue.multipliedBy(item.allocationPrice ? item.allocationPrice.multipliedBy(secondaryPrice.close || new BigNumber(0)) : primaryPrice.close || new BigNumber(0)).plus(item.initialSecondaryValue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
+    const initialLiquidity = item.initialPrimaryValue.multipliedBy(primaryPrice.close || new BigNumber(0)).plus(item.initialSecondaryValue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
     const currentLiquidity = item.primaryValue.multipliedBy(primaryPrice.close || new BigNumber(0)).plus(item.secondaryValue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
     const revenueLiquidity = currentLiquidity.minus(initialLiquidity);
     return {
@@ -336,7 +336,7 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
       secondaryValue: mode == 'withdraw' && secondary.eq(extra.secondary) ? '' : secondary.toString()
     };
   }, [primaryReserve, secondaryReserve, extra, item, mode]);
-  const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, state.currentLiquidity, item.volume.multipliedBy(item.share)), [item.volume, item.share, state.currentLiquidity]);
+  const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, state.currentLiquidity, item.volume.dividedBy(30).multipliedBy(item.share)), [item.volume, item.share, state.currentLiquidity]);
   const symP = item.primaryAsset.token || item.primaryAsset.chain;
   const symQ = item.secondaryAsset.token || item.secondaryAsset.chain;
   return (
@@ -354,16 +354,11 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
               </div>
               <div className="tiny dim" style={{ marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Delegated to { UiUtil.toAddress(item.delegatorAccount || 'NULL', 6) }</div>
             </div>
-            <span className="usd" style={{ flex: 'none' }}>{ toFancyMoney(Exchange.equityAsset, state.currentLiquidity) }<span className="usd-sub">{ revenue.toFixed(2) }% APY · { toFancyMoney(Exchange.equityAsset, state.currentLiquidity.multipliedBy(revenue.dividedBy(100 * 365))) }/day</span></span>
+            <span className="usd" style={{ flex: 'none' }}>{ toFancyMoney(Exchange.equityAsset, state.currentLiquidity) }<span className={ "usd-sub" + (revenue.gt(0) ? " earn" : "") }>{ revenue.toFixed(2) }% APY · { toFancyMoney(Exchange.equityAsset, state.currentLiquidity.multipliedBy(revenue.dividedBy(100 * 365))) }/day</span></span>
           </div>
         </button>
         <Collapsible.Content>
           <div className="dl dl-rule" style={{ marginTop: 14 }}>
-            <div className="dl-row"><span className="dl-k">Your share</span><span className="dl-v">{ item.share.multipliedBy(100).toFixed(2) }%</span></div>
-            <div className="dl-row"><span className="dl-k">Fees earned (est.)</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</span></div>
-            <div className="dl-row"><span className="dl-k">TAN subsidy</span><span className="dl-v">{ toFancyMoney(new AssetId(), item.rewardValue) }</span></div>
-          </div>
-          <div className="dl dl-rule">
             <div className="dl-row"><span className="dl-k">Delegator account</span><span className="dl-v"><span className="copyable" onClick={() => {
               navigator.clipboard.writeText(item.delegatorAccount || 'NULL');
               AlertBox.open(AlertType.Info, 'Address copied!')
@@ -376,9 +371,14 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
             <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
             <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
             <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
-            <div className="dl-row"><span className="dl-k">Status</span><span className="dl-v"><span className={ 'badge ' + (item.active ? 'ok' : 'flat') }>{ item.active ? 'Active' : 'Inactive' }</span></span></div>
+            <div className="dl-row"><span className="dl-k">Your share</span><span className="dl-v">{ item.share.multipliedBy(100).toFixed(2) }%</span></div>
+            <div className="dl-row"><span className="dl-k">TAN subsidy</span><span className="dl-v">{ toFancyMoney(new AssetId(), item.rewardValue) }</span></div>
+          </div>
+          <div className="dl dl-rule">
+            <div className="dl-row"><span className="dl-k">Revenue + IL (est.)</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</span></div>
             <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.primaryAsset) } reserve (est.)</span><span className="dl-v">{ toFancyMoney(item.primaryAsset, item.primaryValue) }</span></div>
             <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.secondaryAsset) } reserve (est.)</span><span className="dl-v">{ toFancyMoney(item.secondaryAsset, item.secondaryValue) }</span></div>
+            <div className="dl-row"><span className="dl-k">Status</span><span className="dl-v"><span className={ 'badge ' + (item.active ? 'ok' : 'flat') }>{ item.active ? 'Active' : 'Inactive' }</span></span></div>
           </div>
           {
             item.active &&
@@ -453,7 +453,7 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
       relativeRevenue: relativeRevenue
     }
   }, [item, props.assets]);
-  const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, item.currentValue, item.volume), [item.currentValue, item.volume]);
+  const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, item.currentValue, item.volume.dividedBy(30)), [item.currentValue, item.volume]);
   const payload = useMemo(() => {
     const primary = new BigNumber(primaryReserve || '0');
     const secondary = new BigNumber(secondaryReserve || '0');
@@ -484,19 +484,11 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
               </div>
               <div className="tiny dim" style={{ marginTop: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>Delegated to { item.delegatorAccount.substring(item.delegatorAccount.length - 6) }</div>
             </div>
-            <span className="usd" style={{ flex: 'none' }}>{ toFancyMoney(Exchange.equityAsset, item.currentValue) }<span className="usd-sub">{ revenue.toFixed(2) }% APY · { toFancyMoney(Exchange.equityAsset, item.currentValue.multipliedBy(revenue.dividedBy(100 * 365))) }/day</span></span>
+            <span className="usd" style={{ flex: 'none' }}>{ toFancyMoney(Exchange.equityAsset, item.currentValue) }<span className={ "usd-sub" + (revenue.gt(0) ? " earn" : "") }>{ revenue.toFixed(2) }% APY · { toFancyMoney(Exchange.equityAsset, item.currentValue.multipliedBy(revenue.dividedBy(100 * 365))) }/day</span></span>
           </div>
         </button>
         <Collapsible.Content>
           <div className="dl dl-rule" style={{ marginTop: 14 }}>
-            <div className="dl-row"><span className="dl-k">Liquidity</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, item.currentValue) }</span></div>
-            <div className="dl-row"><span className="dl-k">Revenue</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, item.currentValue.minus(item.initialValue), true) }</span></div>
-            {
-              extra.delegator &&
-              <div className="dl-row"><span className="dl-k">TAN subsidy</span><span className="dl-v">{ toFancyMoney(new AssetId(), extra.delegator.rewardEmission.dividedBy(extra.delegator.permissions.length).multipliedBy(86400000 / Chain.policy.BLOCK_TIME)) } per day</span></div>
-            }
-          </div>
-          <div className="dl dl-rule">
             <div className="dl-row"><span className="dl-k">Delegator account</span><span className="dl-v"><span className="copyable" onClick={() => {
               navigator.clipboard.writeText(item.delegatorAccount || 'NULL');
               AlertBox.open(AlertType.Info, 'Address copied!')
@@ -509,6 +501,12 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
             <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
             <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
             <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
+            <div className="dl-row"><span className="dl-k">Revenue</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, item.currentValue.minus(item.initialValue), true) }</span></div>
+            <div className="dl-row"><span className="dl-k">Liquidity</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, item.currentValue) }</span></div>
+            {
+              extra.delegator &&
+              <div className="dl-row"><span className="dl-k">TAN subsidy</span><span className="dl-v">{ toFancyMoney(new AssetId(), extra.delegator.rewardEmission.dividedBy(extra.delegator.permissions.length).multipliedBy(86400000 / Chain.policy.BLOCK_TIME)) } per day</span></div>
+            }
           </div>
           <Box my="4" className="dl-rule"></Box>
           <Tooltip side="left" content={`Reserve value in ${UiUtil.toAssetSymbol(item.primaryAsset)} to deposit`}>

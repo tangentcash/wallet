@@ -1291,6 +1291,7 @@ button.btn-cta.rt-Button { height: 48px; font-weight: 800; font-size: 14px; bord
 .usd { display: inline-block; text-align: right; font-weight: 750; font-variant-numeric: tabular-nums; font-size: 15px; white-space: nowrap; }
 .usd.na { color: var(--text-3); font-weight: 600; }
 .usd-sub { display: block; font-size: 11.5px; color: var(--text-3); font-weight: 500; margin-top: 3px; font-variant-numeric: tabular-nums; }
+.usd-sub.earn { color: var(--lime); }
 .order-head { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
 .side { font-weight: 800; font-size: 15px; }
 .side.buy { color: var(--lime); }
