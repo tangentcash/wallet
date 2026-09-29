@@ -55,10 +55,12 @@ export function Maker(props: {
   prices?: { ask: BigNumber | null, bid: BigNumber | null }
   tiers?: AccountTier,
   preset?: ({ id: number } & Partial<typeof defaultMakerState>) | null,
+  reversed?: boolean,
   onStateChange?: (state: MakerState) => any
 }) {
   const [presetId, setPresetId] = useState<number>(0);
   const [state, setState] = useState<MakerState>(defaultMakerState);
+  const realSide = useMemo((): OrderSide => props.reversed ? (state.side == OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy) : state.side, [props.reversed, state.side]);
   const balances = useMemo((): {
     primary: {
       value: BigNumber,
@@ -137,6 +139,13 @@ export function Maker(props: {
       return state.fillOrKill ? OrderPolicy.DeferredAll : OrderPolicy.Deferred;
     }
   }, [state.fillOrKill, isImmediate]);
+  const submitPrice = useCallback((value: BigNumber): string => ByteUtil.bigNumberToString(props.reversed && value.gt(0) ? new BigNumber(1).dividedBy(value) : value), [props.reversed]);
+  const submitSlippage = useCallback((slip: { value: BigNumber, relative: BigNumber | null }, atPrice: BigNumber): string => {
+    if (slip.relative)
+      return ByteUtil.bigNumberToString(slip.relative.negated());
+    return ByteUtil.bigNumberToString(props.reversed && atPrice.gt(0) ? slip.value.dividedBy(atPrice.multipliedBy(atPrice)) : slip.value);
+  }, [props.reversed]);
+  const submitDelta = useCallback((value: BigNumber, atPrice: BigNumber): string => ByteUtil.bigNumberToString(props.reversed && atPrice.gt(0) ? value.dividedBy(atPrice.multipliedBy(atPrice)) : value), [props.reversed]);
   const concentratedRange = useMemo((): { min: BigNumber, max: BigNumber } | null => {
     const rangePrice = TextUtil.toNumericValue(state.rangePrice);
     const price = TextUtil.toNumericValue(state.basePrice);
@@ -146,15 +155,15 @@ export function Maker(props: {
     } : null;
   }, [state.basePrice, state.rangePrice]);
   const fee = useMemo(() => {
-    const min = (state.side == OrderSide.Buy ? props.tiers?.secondary?.makerFee : props.tiers?.primary?.makerFee) || new BigNumber(0);
+    const min = (realSide == OrderSide.Buy ? props.tiers?.secondary?.makerFee : props.tiers?.primary?.makerFee) || new BigNumber(0);
     const finalSlippage = hasSlippage ? TextUtil.toNumericValueOrPercent(state.slippage) : null;
     return {
       relativePrice: finalSlippage?.relative || new BigNumber(0),
       absolutePrice: finalSlippage?.absolute || new BigNumber(0),
       min: min,
-      max: (state.side == OrderSide.Buy ? props.tiers?.secondary?.takerFee : props.tiers?.primary?.takerFee) || new BigNumber(0),
+      max: (realSide == OrderSide.Buy ? props.tiers?.secondary?.takerFee : props.tiers?.primary?.takerFee) || new BigNumber(0),
     }
-  }, [props.tiers, state.side, state.slippage, hasSlippage]);
+  }, [props.tiers, realSide, state.slippage, hasSlippage]);
   const orderPayload = useMemo((): {
     pays: Record<string, string>,
     marketId: string,
@@ -181,6 +190,9 @@ export function Maker(props: {
       return null;
 
     const pays = Exchange.toPayment(new BigNumber(finalValue), state.side == OrderSide.Buy ? props.balances.secondary : props.balances.primary);
+    const submitAssets = props.reversed
+      ? { primaryAssetHash: props.secondaryAsset.id, secondaryAssetHash: props.primaryAsset.id }
+      : { primaryAssetHash: props.primaryAsset.id, secondaryAssetHash: props.secondaryAsset.id };
     switch (state.condition) {
       case OrderCondition.Market: {
         const finalSlippage = TextUtil.toNumericValueOrPercent(state.slippage);
@@ -189,12 +201,11 @@ export function Maker(props: {
 
         return {
           marketId: props.marketId.toString(),
-          primaryAssetHash: props.primaryAsset.id,
-          secondaryAssetHash: props.secondaryAsset.id,
+          ...submitAssets,
           condition: state.condition,
           policy: policy,
-          side: state.side,
-          slippage: ByteUtil.bigNumberToString(finalSlippage.relative ? finalSlippage.relative.negated() : finalSlippage.value),
+          side: realSide,
+          slippage: submitSlippage(finalSlippage, bestPrice),
           pays: pays
         };
       }
@@ -205,12 +216,11 @@ export function Maker(props: {
 
         return {
           marketId: props.marketId.toString(),
-          primaryAssetHash: props.primaryAsset.id,
-          secondaryAssetHash: props.secondaryAsset.id,
+          ...submitAssets,
           condition: state.condition,
           policy: policy,
-          side: state.side,
-          price: ByteUtil.bigNumberToString(finalPrice),
+          side: realSide,
+          price: submitPrice(finalPrice),
           pays: pays
         }
       }
@@ -225,13 +235,12 @@ export function Maker(props: {
 
         return {
           marketId: props.marketId.toString(),
-          primaryAssetHash: props.primaryAsset.id,
-          secondaryAssetHash: props.secondaryAsset.id,
+          ...submitAssets,
           condition: state.condition,
           policy: policy,
-          side: state.side,
-          stopPrice: ByteUtil.bigNumberToString(finalStopPrice),
-          slippage: ByteUtil.bigNumberToString(finalSlippage.relative ? finalSlippage.relative.negated() : finalSlippage.value),
+          side: realSide,
+          stopPrice: submitPrice(finalStopPrice),
+          slippage: submitSlippage(finalSlippage, finalStopPrice),
           pays: pays
         };
       }
@@ -246,13 +255,12 @@ export function Maker(props: {
 
         return {
           marketId: props.marketId.toString(),
-          primaryAssetHash: props.primaryAsset.id,
-          secondaryAssetHash: props.secondaryAsset.id,
+          ...submitAssets,
           condition: state.condition,
           policy: policy,
-          side: state.side,
-          stopPrice: ByteUtil.bigNumberToString(finalStopPrice),
-          price: ByteUtil.bigNumberToString(finalPrice),
+          side: realSide,
+          stopPrice: submitPrice(finalStopPrice),
+          price: submitPrice(finalPrice),
           pays: pays
         };
       }
@@ -275,15 +283,14 @@ export function Maker(props: {
 
         return {
           marketId: props.marketId.toString(),
-          primaryAssetHash: props.primaryAsset.id,
-          secondaryAssetHash: props.secondaryAsset.id,
+          ...submitAssets,
           condition: state.condition,
           policy: policy,
-          side: state.side,
-          stopPrice: ByteUtil.bigNumberToString(finalStopPrice),
-          slippage: ByteUtil.bigNumberToString(finalSlippage.relative ? finalSlippage.relative.negated() : finalSlippage.value),
-          trailingStep: ByteUtil.bigNumberToString(finalTrailingStep.value),
-          trailingDistance: ByteUtil.bigNumberToString(finalTrailingDistance.value),
+          side: realSide,
+          stopPrice: submitPrice(finalStopPrice),
+          slippage: submitSlippage(finalSlippage, finalStopPrice),
+          trailingStep: submitDelta(finalTrailingStep.value, finalStopPrice),
+          trailingDistance: submitDelta(finalTrailingDistance.value, finalStopPrice),
           pays: pays
         };
       }
@@ -306,22 +313,21 @@ export function Maker(props: {
 
         return {
           marketId: props.marketId.toString(),
-          primaryAssetHash: props.primaryAsset.id,
-          secondaryAssetHash: props.secondaryAsset.id,
+          ...submitAssets,
           condition: state.condition,
           policy: policy,
-          side: state.side,
-          stopPrice: ByteUtil.bigNumberToString(finalStopPrice),
-          price: ByteUtil.bigNumberToString(finalPrice),
-          trailingStep: ByteUtil.bigNumberToString(finalTrailingStep.value),
-          trailingDistance: ByteUtil.bigNumberToString(finalTrailingDistance.value),
+          side: realSide,
+          stopPrice: submitPrice(finalStopPrice),
+          price: submitPrice(finalPrice),
+          trailingStep: submitDelta(finalTrailingStep.value, finalPrice),
+          trailingDistance: submitDelta(finalTrailingDistance.value, finalPrice),
           pays: pays
         };
       }
       default:
         return null;
     }
-  }, [props.marketId, props.primaryAsset, props.secondaryAsset, state, policy, valueBalance]);
+  }, [props.marketId, props.primaryAsset, props.secondaryAsset, props.reversed, realSide, submitPrice, submitSlippage, submitDelta, state, policy, valueBalance]);
   const poolPayload = useMemo((): {
     marketId: string,
     swappingAssetHash?: string,
@@ -365,16 +371,16 @@ export function Maker(props: {
     const secondaryPays: Record<string, string> = Exchange.toPayment(new BigNumber(secondary.value), balances.secondary.assets);
     return {
       marketId: props.marketId.toString(),
-      primaryAssetHash: props.primaryAsset.id,
-      secondaryAssetHash: props.secondaryAsset.id,
-      primaryPays: primaryPays,
-      secondaryPays: secondaryPays,
-      price: ByteUtil.bigNumberToString(price),
-      minPrice: concentratedRange ? ByteUtil.bigNumberToString(concentratedRange.min) : undefined,
-      maxPrice: concentratedRange ? ByteUtil.bigNumberToString(concentratedRange.max) : undefined,
+      primaryAssetHash: props.reversed ? props.secondaryAsset.id : props.primaryAsset.id,
+      secondaryAssetHash: props.reversed ? props.primaryAsset.id : props.secondaryAsset.id,
+      primaryPays: props.reversed ? secondaryPays : primaryPays,
+      secondaryPays: props.reversed ? primaryPays : secondaryPays,
+      price: submitPrice(price),
+      minPrice: concentratedRange ? ByteUtil.bigNumberToString(props.reversed ? new BigNumber(1).dividedBy(concentratedRange.max) : concentratedRange.min) : undefined,
+      maxPrice: concentratedRange ? ByteUtil.bigNumberToString(props.reversed ? new BigNumber(1).dividedBy(concentratedRange.min) : concentratedRange.max) : undefined,
       feeRate: ByteUtil.bigNumberToString(feeRate.value)
     };
-  }, [props.marketId, props.primaryAsset, props.secondaryAsset, balances, state, concentratedRange]);
+  }, [props.marketId, props.primaryAsset, props.secondaryAsset, props.reversed, submitPrice, balances, state, concentratedRange]);
   const updateState = useCallback((change: (prev: MakerState) => MakerState) => {
     setState(prev => {
       const result = change(prev);

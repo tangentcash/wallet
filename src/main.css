@@ -1098,6 +1098,15 @@ button.asset-row:hover { background: var(--elev); }
 .empty p { font-size: 13px; color: var(--text-2); max-width: 260px; margin: 0 auto 18px; }
 .empty.tight { padding-bottom: 8px; }
 .empty.tight p { margin-bottom: 12px; }
+.pair-launch { border-top: 1px solid var(--line); margin: 0 -20px -20px; padding: 14px 20px 20px; }
+.pair-launch.no-btn { padding-bottom: 14px; }
+.pair-launch-cap { font: 700 10.5px var(--sans); letter-spacing: 0.06em; text-transform: uppercase; color: var(--text-3); text-align: center; margin-bottom: 10px; }
+.pair-launch-row { display: flex; align-items: center; justify-content: center; gap: 12px; margin-bottom: 12px; }
+.pair-launch.no-btn .pair-launch-row { margin-bottom: 0; }
+.pair-launch-row .dim { color: var(--text-3); font-weight: 700; font-size: 16px; }
+.pair-launch-row .token-select { height: 40px; font-size: 15.5px; gap: 8px; padding-right: 12px; }
+.pair-launch-row .token-select:not(.dot) { padding-left: 12px; }
+.pair-launch-row .token-select.dot { padding-left: 16px; }
 
 .callout {
   display: flex;

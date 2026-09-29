@@ -296,7 +296,7 @@ export enum ExchangeField {
   PortfolioView = '__portfolio_view__',
   PortfolioMarket = '__portfolio_market__',
   PortfolioRouter = '__portfolio_router__',
-  PortfolioFilter = '__portfolio_filter__',
+  PortfolioMockPairs = '__mock_pairs__',
   AssetsHistory = '__assets_history__'
 }
 
@@ -310,6 +310,7 @@ export class Exchange {
   static orderbook:  string | null = null;
   static socket: WebSocket | null = null;
   static ready: boolean = false;
+  static quiet: boolean = false;
   static channelId: string | null = null;
   static awaitables: (() => void)[] = [];
   static requests = {
@@ -486,7 +487,7 @@ export class Exchange {
           }
         });
         const result = this.fetchResult(hash, data instanceof Error ? { error: data.toString() } : data);
-        if (RPC.onNodeMessage)
+        if (RPC.onNodeMessage && !this.quiet)
           RPC.onNodeMessage(location, { args: args, result: result }, content.length + JSON.stringify(data).length);
         return result;
       } else {
@@ -504,12 +505,12 @@ export class Exchange {
         const text = await response.text();
         const data = JSON.parse(text);
         const result = this.fetchResult(hash, data);
-        if (RPC.onNodeMessage)
+        if (RPC.onNodeMessage && !this.quiet)
           RPC.onNodeMessage(location, { args: args, result: result }, text.length);
         return result;
       }
     } catch (exception) {
-      if (RPC.onNodeMessage)
+      if (RPC.onNodeMessage && !this.quiet)
         RPC.onNodeMessage(location, { args: [], error: exception }, 0);
       if (RPC.onCacheLoad != null) {
         let cache = RPC.onCacheLoad(hash);
@@ -710,7 +711,7 @@ export class Exchange {
     return process(result);
   }
   static async marketPair(marketId: number | string | BigNumber, primaryAsset: AssetId, secondaryAsset: AssetId, createIfNotExists: boolean): Promise<AggregatedPair> {
-    const result = await this.fetch('no-cache', 'GET', `market/pair`, { id: marketId.toString(), primaryAssetHash: primaryAsset.id.toString(), secondaryAssetHash: secondaryAsset.id.toString(), createIfNotExists: createIfNotExists });
+    const result = await this.fetch('no-cache', 'GET', `market/pair`, { id: marketId.toString(), primaryAssetHash: primaryAsset.id.toString(), secondaryAssetHash: secondaryAsset.id.toString(), createIfNotExists: createIfNotExists }, undefined);
     result.primaryAsset = new AssetId(result.primaryAsset);
     result.secondaryAsset = new AssetId(result.secondaryAsset);
     return result;

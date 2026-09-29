@@ -636,6 +636,76 @@ function MarketRouter(props: {
   )
 }
 
+type MockPairEntry = { marketId: string, pair: AggregatedPair };
+function loadMockPairs(): MockPairEntry[] {
+  const stored = AppStorage.get(ExchangeField.PortfolioMockPairs);
+  if (!Array.isArray(stored))
+    return [];
+
+  const number = (value: string | null) => value != null ? new BigNumber(value) : null;
+  const result: MockPairEntry[] = [];
+  const seen = new Set<string>();
+  for (const entry of stored) {
+    try {
+      const marketId = String(entry.marketId);
+      const primaryAsset = new AssetId(entry.pair.primaryAsset);
+      const secondaryAsset = new AssetId(entry.pair.secondaryAsset);
+      const key = marketId + ':' + primaryAsset.id + ':' + secondaryAsset.id;
+      if (seen.has(key))
+        continue;
+      seen.add(key);
+      result.push({
+        marketId: marketId,
+        pair: {
+          id: new BigNumber(entry.pair.id),
+          primaryAsset: primaryAsset,
+          secondaryAsset: secondaryAsset,
+          secondaryBase: entry.pair.secondaryBase || null,
+          launchTime: entry.pair.launchTime,
+          poolFeeRate: number(entry.pair.poolFeeRate),
+          price: {
+            orderLiquidity: number(entry.pair.price.orderLiquidity),
+            poolLiquidity: number(entry.pair.price.poolLiquidity),
+            totalLiquidity: number(entry.pair.price.totalLiquidity),
+            orderVolume: number(entry.pair.price.orderVolume),
+            poolVolume: number(entry.pair.price.poolVolume),
+            totalVolume: number(entry.pair.price.totalVolume),
+            open: number(entry.pair.price.open),
+            low: number(entry.pair.price.low),
+            high: number(entry.pair.price.high),
+            close: number(entry.pair.price.close)
+          }
+        }
+      });
+    } catch { }
+  }
+  return result;
+}
+function persistMockPairs(entries: MockPairEntry[]): void {
+  AppStorage.set(ExchangeField.PortfolioMockPairs, entries.map((entry) => ({
+    marketId: entry.marketId,
+    pair: {
+      id: entry.pair.id.toString(),
+      primaryAsset: entry.pair.primaryAsset.id,
+      secondaryAsset: entry.pair.secondaryAsset.id,
+      secondaryBase: entry.pair.secondaryBase,
+      launchTime: entry.pair.launchTime,
+      poolFeeRate: entry.pair.poolFeeRate?.toString() || null,
+      price: {
+        orderLiquidity: entry.pair.price.orderLiquidity?.toString() || null,
+        poolLiquidity: entry.pair.price.poolLiquidity?.toString() || null,
+        totalLiquidity: entry.pair.price.totalLiquidity?.toString() || null,
+        orderVolume: entry.pair.price.orderVolume?.toString() || null,
+        poolVolume: entry.pair.price.poolVolume?.toString() || null,
+        totalVolume: entry.pair.price.totalVolume?.toString() || null,
+        open: entry.pair.price.open?.toString() || null,
+        low: entry.pair.price.low?.toString() || null,
+        high: entry.pair.price.high?.toString() || null,
+        close: entry.pair.price.close?.toString() || null
+      }
+    }
+  })));
+}
 function MarketExplorer(props: {
   assets?: CachedBalance[],
   market: Market | null,
@@ -645,6 +715,7 @@ function MarketExplorer(props: {
 }) {
   const navigate = useNavigate();
   const [launchablePair, setLaunchablePair] = useState<AggregatedPair | null>(null);
+  const [mockPairs, setMockPairs] = useState<MockPairEntry[]>(() => { const loaded = loadMockPairs(); persistMockPairs(loaded); return loaded; });
   const [pairs, setPairs] = useState<{ pair: AggregatedPair, whitelisted: boolean, cached: boolean }[]>([]);
   const [searchPair, setSearchPair] = useState<{ primary: AssetId | null, secondary: AssetId | null }>({ primary: null, secondary: null });
   const [loading, setLoading] = useState(false);
@@ -673,39 +744,30 @@ function MarketExplorer(props: {
         : matches(item.pair.primaryAsset, left) && matches(item.pair.secondaryAsset, right);
     };
   }, [text]);
+  const mockView = useMemo((): { pair: AggregatedPair, whitelisted: boolean }[] => {
+    if (props.market == null)
+      return [];
+
+    const marketId = props.market.id.toString();
+    const orientations = new Set(pairs.map((item) => item.pair.primaryAsset.id + ':' + item.pair.secondaryAsset.id));
+    return mockPairs.filter((entry) => entry.marketId == marketId && !orientations.has(entry.pair.primaryAsset.id + ':' + entry.pair.secondaryAsset.id)).map((entry) => ({ pair: entry.pair, whitelisted: !!Whitelist.contractAddressOf(entry.pair.primaryAsset) && !!Whitelist.contractAddressOf(entry.pair.secondaryAsset) }));
+  }, [mockPairs, props.market, pairs]);
   const pairsFilter = useMemo((): { pair: AggregatedPair, whitelisted: boolean }[] => {
-    let result = [...pairs].filter((item) => {
-      let primaryMatches = !searchPair.primary, secondaryMatches = !searchPair.secondary;
-      if (searchPair.primary) {
-        if (!searchPair.primary.token && !searchPair.secondary) {
-          primaryMatches = item.pair.primaryAsset.chain == searchPair.primary.chain;
-        } else {
-          primaryMatches = item.pair.primaryAsset.id == searchPair.primary.id;
-        }
-      }
-      if (searchPair.secondary) {
-        if (!searchPair.secondary.token && !searchPair.primary) {
-          secondaryMatches = item.pair.secondaryAsset.chain == searchPair.secondary.chain;
-        } else {
-          secondaryMatches = item.pair.secondaryAsset.id == searchPair.secondary.id;
-        }
-      }
-      return primaryMatches && secondaryMatches && textFilter(item);
-    });
-    if (launchablePair != null) {
-      result = [{ pair: launchablePair, whitelisted: !!Whitelist.contractAddressOf(launchablePair.primaryAsset) && !!Whitelist.contractAddressOf(launchablePair.secondaryAsset), cached: false }, ...result];
+    const seen = new Set<string>();
+    let result = [...pairs, ...mockView].filter((item) => {
+      const key = item.pair.primaryAsset.id + ':' + item.pair.secondaryAsset.id;
+      if (seen.has(key))
+        return false;
+      seen.add(key);
+      return true;
+    }).filter(textFilter);
+    if (launchablePair != null && !seen.has(launchablePair.primaryAsset.id + ':' + launchablePair.secondaryAsset.id)) {
+      result = [{ pair: launchablePair, whitelisted: !!Whitelist.contractAddressOf(launchablePair.primaryAsset) && !!Whitelist.contractAddressOf(launchablePair.secondaryAsset) }, ...result];
     }
-    return result;
-  }, [pairs, searchPair, launchablePair, textFilter]);
+    return result.sort((a, b) => (b.pair.price.totalLiquidity || new BigNumber(0)).comparedTo(a.pair.price.totalLiquidity || new BigNumber(0)) || 0);
+  }, [pairs, mockView, launchablePair, textFilter]);
   const updateSearchPair = useCallback((change: (prev: { primary: AssetId | null, secondary: AssetId | null }) => { primary: AssetId | null, secondary: AssetId | null }) => {
-    setSearchPair(prev => {
-      const result = change(prev);
-      AppStorage.set(ExchangeField.PortfolioFilter, {
-        primary: result.secondary?.id || null,
-        secondary: result.primary?.id || null
-      })
-      return result;
-    });
+    setSearchPair(change);
   }, []);
   const launchPair = useCallback(async () => {
     if (loading)
@@ -716,18 +778,41 @@ function MarketExplorer(props: {
       if (!props.market || !searchPair.primary || !searchPair.secondary)
         throw false;
 
-      const result = await Exchange.marketPair(props.market.id, searchPair.primary, searchPair.secondary, true);
+      const primary = searchPair.primary, secondary = searchPair.secondary;
+      try {
+        const reverse = await Exchange.marketPair(props.market.id, secondary, primary, false);
+        if (reverse != null && reverse.price.totalLiquidity != null && reverse.price.totalLiquidity.gt(0)) {
+          const mock: AggregatedPair = {
+            ...reverse,
+            primaryAsset: reverse.secondaryAsset,
+            secondaryAsset: reverse.primaryAsset,
+            price: {
+              ...reverse.price,
+              open: reverse.price.open != null && reverse.price.open.gt(0) ? new BigNumber(1).dividedBy(reverse.price.open) : null,
+              close: reverse.price.close != null && reverse.price.close.gt(0) ? new BigNumber(1).dividedBy(reverse.price.close) : null
+            }
+          };
+          const marketId = props.market.id.toString();
+          const next = [{ marketId: marketId, pair: mock }, ...mockPairs.filter((entry) => entry.marketId != marketId || entry.pair.primaryAsset.id != primary.id || entry.pair.secondaryAsset.id != secondary.id)];
+          setMockPairs(next);
+          persistMockPairs(next);
+          setLoading(false);
+          return null;
+        }
+      } catch { }
+
+      const result = await Exchange.marketPair(props.market.id, primary, secondary, true);
       setLaunchablePair(result);
       setLoading(false);
       return result;
-    } catch (exception: any) {
+    } catch (exception: unknown) {
       if (exception instanceof Error)
         AlertBox.open(AlertType.Error, 'Failed to launch a market: ' + exception.message);
       setLaunchablePair(null);
       setLoading(false);
       return null;
     }
-  }, [props.market, searchPair, loading]); 
+  }, [props.market, searchPair, mockPairs, loading]);
   const findPools = useCallback(async (refresh?: boolean) => {
     setLoading(true);
     if (props.type == 'pools') {
@@ -811,28 +896,43 @@ function MarketExplorer(props: {
       await findPools(true);
     }
 
-    if (props.type != 'router') {
-      const prev = AppStorage.get(ExchangeField.PortfolioFilter);
-      updateSearchPair(() => ({
-        primary: prev?.primary ? new AssetId(prev.primary) : null,
-        secondary: prev?.secondary ? new AssetId(prev.secondary) : null,
-      }));
-    }
   }, [props.market, props.type]);
   useEffect(() => {
-    const updatePairs = () => setPairs(prev => {
-      const copy = [...prev];
-      for (let i = 0; i < copy.length; i++) {
-        const symbol = copy[i];
-        const target = Exchange.priceOf(symbol.pair.primaryAsset, symbol.pair.secondaryAsset);
-        symbol.pair.price.open = target.open || symbol.pair.price.open;
-        symbol.pair.price.close = target.close || symbol.pair.price.close;
-      }
-      return copy;
-    });
+    const updatePairs = () => {
+      setPairs(prev => {
+        const copy = [...prev];
+        for (let i = 0; i < copy.length; i++) {
+          const symbol = copy[i];
+          const target = Exchange.priceOf(symbol.pair.primaryAsset, symbol.pair.secondaryAsset);
+          symbol.pair.price.open = target.open || symbol.pair.price.open;
+          symbol.pair.price.close = target.close || symbol.pair.price.close;
+        }
+        return copy;
+      });
+      setMockPairs(prev => {
+        if (!prev.length)
+          return prev;
+
+        return prev.map((entry) => {
+          const target = Exchange.priceOf(entry.pair.primaryAsset, entry.pair.secondaryAsset);
+          return { ...entry, pair: { ...entry.pair, price: { ...entry.pair.price, open: target.open || entry.pair.price.open, close: target.close || entry.pair.price.close } } };
+        });
+      });
+    };
     window.addEventListener('update:trade', updatePairs);
     return () => window.removeEventListener('update:trade', updatePairs);
   }, []);
+  useEffect(() => {
+    if (!mockPairs.length)
+      return;
+
+    const orientations = new Set(pairs.map((item) => item.pair.primaryAsset.id + ':' + item.pair.secondaryAsset.id));
+    const pruned = mockPairs.filter((entry) => !orientations.has(entry.pair.primaryAsset.id + ':' + entry.pair.secondaryAsset.id));
+    if (pruned.length != mockPairs.length) {
+      setMockPairs(pruned);
+      persistMockPairs(pruned);
+    }
+  }, [pairs, mockPairs]);
 
   return (
     <Box>
@@ -850,33 +950,21 @@ function MarketExplorer(props: {
             <Icon path={mdiMagnify} size={0.85}></Icon>
             <input placeholder="Search pairs: BTC / USDC" value={text} onChange={(e) => setText(e.target.value)} />
           </div>
-          {
-            (searchPair.primary != null || searchPair.secondary != null) &&
-            <div style={{ display: 'flex', gap: 8, marginBottom: 14, alignItems: 'center' }}>
-              <AssetSelector title="token" value={searchPair.primary} onChange={(value) => updateSearchPair(prev => ({ primary: value || null, secondary: prev?.secondary || null }))}>
-                <button className={searchPair.primary ? 'token-select' : 'token-select dot'}>
-                  { searchPair.primary ? <>{ <AssetImage asset={searchPair.primary} size="2" iconSize="22px"></AssetImage> } { UiUtil.toAssetSymbol(searchPair.primary) }</> : 'ANY' } ▾
-                </button>
-              </AssetSelector>
-              <span className="dim">×</span>
-              <AssetSelector title="token" value={searchPair.secondary} onChange={(value) => updateSearchPair(prev => ({ primary: prev?.primary || null, secondary: value || null }))}>
-                <button className={searchPair.secondary ? 'token-select' : 'token-select dot'}>
-                  { searchPair.secondary ? <>{ <AssetImage asset={searchPair.secondary} size="2" iconSize="22px"></AssetImage> } { UiUtil.toAssetSymbol(searchPair.secondary) }</> : 'ANY' } ▾
-                </button>
-              </AssetSelector>
-            </div>
-          }
           <div className="pair-list">
             {
               pairsFilter.map((item) =>
-                <button className="pair-row" key={item.pair.id.toString()} onClick={() => navigate(`/orderbook/${Exchange.toOrderbookQuery(props.market?.id || new BigNumber(0), item.pair.primaryAsset, item.pair.secondaryAsset)}`)}>
+                <button className="pair-row" key={item.pair.id.toString() + ':' + item.pair.primaryAsset.id} onClick={() => navigate(`/orderbook/${Exchange.toOrderbookQuery(props.market?.id || new BigNumber(0), item.pair.primaryAsset, item.pair.secondaryAsset)}`)}>
                   <span style={{ position: 'relative', width: 45, height: 45, flex: 'none' }}>
                     <AssetImage asset={item.pair.primaryAsset} size="3" iconSize="36px"></AssetImage>
                     <AssetImage asset={item.pair.secondaryAsset} size="1" iconSize="22px" style={{ position: 'absolute', bottom: 0, right: 0, border: '2px solid var(--card)', borderRadius: '50%' }}></AssetImage>
                   </span>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div className="asset-name">
-                      { item.pair.secondaryBase == null ? (item.pair.primaryAsset.token || item.pair.primaryAsset.chain) + ' x ' + (item.pair.secondaryAsset.token || item.pair.secondaryAsset.chain) : <AssetName asset={item.pair.primaryAsset} size="3" weight="bold"></AssetName> }
+                    <div className="asset-name" style={{ display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
+                      {
+                        item.pair.secondaryAsset.chain != 'TAN' && item.pair.primaryAsset.chain == 'TAN' ?
+                        <>Inv.<AssetName asset={item.pair.secondaryAsset} size="3" weight="bold"></AssetName></> :
+                        <><AssetName asset={item.pair.primaryAsset} size="3" weight="bold"></AssetName>{ item.pair.secondaryBase == null && ' in ' + (item.pair.secondaryAsset.token || item.pair.secondaryAsset.chain) }</>
+                      }
                     </div>
                     <div className="asset-sub mono">{ toAssetSymbol(item.pair.primaryAsset) }x{ toAssetSymbol(item.pair.secondaryAsset) }</div>
                   </div>
@@ -901,18 +989,28 @@ function MarketExplorer(props: {
                   <h4>No pairs match</h4>
                   <p>Try another search term, or launch a new pair below.</p>
                 </div>
-                {
-                  searchPair.primary && searchPair.secondary ?
-                  <Button className="btn-soft btn-block" style={{ marginTop: 10, height: 40, borderRadius: 'var(--r-md)', fontWeight: 700 }} onClick={() => launchPair()}><Icon path={mdiPlus} size={0.8}></Icon> Add { searchPair.primary.token || searchPair.primary.chain }/{ searchPair.secondary.token || searchPair.secondary.chain } pair</Button> :
-                  <div style={{ display: 'flex', gap: 8, marginTop: 10, justifyContent: 'center' }}>
-                    <AssetSelector title="token" value={searchPair.primary} onChange={(value) => updateSearchPair(prev => ({ primary: value || null, secondary: prev?.secondary || null }))}>
-                      <button className="token-select dot">{ searchPair.primary ? UiUtil.toAssetSymbol(searchPair.primary) : 'Base ▾' }</button>
+                <div className={'pair-launch' + (searchPair.primary && searchPair.secondary ? '' : ' no-btn')}>
+                  <div className="pair-launch-cap">New pair</div>
+                  <div className="pair-launch-row">
+                    <AssetSelector title="base asset" value={searchPair.primary} onChange={(value) => updateSearchPair(prev => ({ primary: value || null, secondary: prev?.secondary || null }))}>
+                      <button className={searchPair.primary ? 'token-select' : 'token-select dot'}>
+                        { searchPair.primary ? <>{ <AssetImage asset={searchPair.primary} size="3" iconSize="24px"></AssetImage> } { UiUtil.toAssetSymbol(searchPair.primary) }</> : 'Base' } <Icon path={mdiChevronDown} size={0.85} style={{ opacity: 0.6 }}></Icon>
+                      </button>
                     </AssetSelector>
-                    <AssetSelector title="token" value={searchPair.secondary} onChange={(value) => updateSearchPair(prev => ({ primary: prev?.primary || null, secondary: value || null }))}>
-                      <button className="token-select dot">{ searchPair.secondary ? UiUtil.toAssetSymbol(searchPair.secondary) : 'Quote ▾' }</button>
+                    <span className="dim">×</span>
+                    <AssetSelector title="quote asset" value={searchPair.secondary} onChange={(value) => updateSearchPair(prev => ({ primary: prev?.primary || null, secondary: value || null }))}>
+                      <button className={searchPair.secondary ? 'token-select' : 'token-select dot'}>
+                        { searchPair.secondary ? <>{ <AssetImage asset={searchPair.secondary} size="3" iconSize="24px"></AssetImage> } { UiUtil.toAssetSymbol(searchPair.secondary) }</> : 'Quote' } <Icon path={mdiChevronDown} size={0.85} style={{ opacity: 0.6 }}></Icon>
+                      </button>
                     </AssetSelector>
                   </div>
-                }
+                  {
+                    searchPair.primary && searchPair.secondary &&
+                    <Button className="btn-brand btn-cta btn-block" color="jade" disabled={loading} onClick={() => launchPair()}>
+                      <Icon path={mdiPlus} size={0.8}></Icon> Add { searchPair.primary.token || searchPair.primary.chain }/{ searchPair.secondary.token || searchPair.secondary.chain } pair
+                    </Button>
+                  }
+                </div>
               </div>
             }
           </div>

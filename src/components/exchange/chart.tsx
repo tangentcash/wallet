@@ -6,7 +6,6 @@ import { useEffectAsync } from "../../core/react";
 import { AreaSeries, BarSeries, CandlestickSeries, Chart, HistogramSeries, LineSeries, TimeScale, TimeScaleFitContentTrigger, SeriesApiRef } from "lightweight-charts-react-components";
 import { LogicalRangeChangeEventHandler, MouseEventHandler, BarPrice, ChartOptions, CrosshairMode, DeepPartial, IChartApi, LogicalRange, MouseEventParams, PriceScaleMode, Time } from "lightweight-charts";
 import { mdiAlert, mdiArrowDownBold, mdiArrowUpBold, mdiCheckDecagram, mdiCog, mdiTimelapse } from "@mdi/js";
-import { AssetId } from "tangentsdk/algorithm";
 import { UiUtil } from "tangentsdk/ui";
 import { Assetlist } from "tangentsdk/assetlist";
 import { AssetImage } from "../../components/asset-image";
@@ -44,7 +43,6 @@ export type SeriesOptions = {
 };
 
 export type ChartProps = {
-  orderbook: { marketId: BigNumber | null, primaryAsset: AssetId | null, secondaryAsset: AssetId | null } | null,
   pair: AggregatedPair | null,
   whitelisted: boolean | null,
   options: SeriesOptions,
@@ -54,6 +52,7 @@ export type ChartProps = {
   onPairChange: (pair: AggregatedPair) => any,
   onScrub?: (price: BigNumber | null) => any,
   bare?: boolean,
+  reversed?: boolean,
 };
 
 export type GenericBar = {
@@ -256,11 +255,9 @@ export function ChartView(props: {
   );
 }
 export function ChartTitle({
-  orderbook,
   pair,
   whitelisted,
 }: {
-  orderbook: { marketId: BigNumber | null, primaryAsset: AssetId | null, secondaryAsset: AssetId | null } | null,
   pair: AggregatedPair | null,
   whitelisted: boolean | null
 }) {
@@ -270,19 +267,19 @@ export function ChartTitle({
   return (
     <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '4px 2px 12px', borderBottom: '1px solid var(--line)', marginBottom: 10 }}>
       <span style={{ position: 'relative', width: 50, height: 50, flex: 'none' }}>
-        <AssetImage asset={orderbook?.primaryAsset || undefined} size="3" iconSize="46px"></AssetImage>
-        <AssetImage asset={orderbook?.secondaryAsset || undefined} size="2" iconSize="30px" style={{ position: 'absolute', bottom: -6, right: -6, border: '2px solid var(--card)', borderRadius: '50%' }}></AssetImage>
+        <AssetImage asset={pair?.primaryAsset || undefined} size="3" iconSize="46px"></AssetImage>
+        <AssetImage asset={pair?.secondaryAsset || undefined} size="2" iconSize="30px" style={{ position: 'absolute', bottom: -6, right: -6, border: '2px solid var(--card)', borderRadius: '50%' }}></AssetImage>
       </span>
       <div style={{ minWidth: 0 }}>
         <Tooltip content={whitelisted === true ? 'Well-known trading pair — current price is possibly within reasonable market ranges' : (whitelisted === false ? 'One or both of assets in trading pair are unknown and are possibly malicious — current price is likely not representative of actual market conditions' : 'Loading...')}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0 }}>
-            <span style={{ fontWeight: 750, fontSize: 18, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ orderbook?.primaryAsset ? Assetlist.toName(orderbook.primaryAsset) : '?' }</span>
+            <span style={{ fontWeight: 750, fontSize: 18, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{ pair?.secondaryAsset != null && pair.secondaryAsset.chain != 'TAN' && pair.primaryAsset?.chain == 'TAN' ? 'Inv. ' + Assetlist.toName(pair.secondaryAsset) : (pair?.primaryAsset ? Assetlist.toName(pair.primaryAsset) : '?') + (pair != null && pair.secondaryBase == null && pair.secondaryAsset ? ' in ' + (pair.secondaryAsset.token || pair.secondaryAsset.chain) : '') }</span>
             { whitelisted === true && <Icon className="verified" path={mdiCheckDecagram} size={0.8}></Icon> }
             { whitelisted === false && <Icon path={mdiAlert} color="var(--warn)" size={0.8} style={{ flex: 'none' }}></Icon> }
             { whitelisted == null && <Icon path={mdiTimelapse} color="var(--text-3)" size={0.8} style={{ flex: 'none' }}></Icon> }
           </div>
         </Tooltip>
-        <div className="mono dim" style={{ marginTop: 2, whiteSpace: 'nowrap', fontSize: 12.5 }}>{ (orderbook?.primaryAsset ? UiUtil.toAssetSymbol(orderbook.primaryAsset) : '?') + ' × ' + (orderbook?.secondaryAsset ? UiUtil.toAssetSymbol(orderbook.secondaryAsset) : '?') }</div>
+        <div className="mono dim" style={{ marginTop: 2, whiteSpace: 'nowrap', fontSize: 12.5 }}>{ (pair?.primaryAsset ? UiUtil.toAssetSymbol(pair.primaryAsset) : '?') + ' × ' + (pair?.secondaryAsset ? UiUtil.toAssetSymbol(pair.secondaryAsset) : '?') }</div>
       </div>
       <div style={{ marginLeft: 'auto', textAlign: 'right', minWidth: 0 }}>
         <div className="num" style={{ fontWeight: 800, fontSize: 21, color: dir > 0 ? 'var(--lime)' : (dir < 0 ? 'var(--down)' : 'var(--text)'), whiteSpace: 'nowrap' }}>{ toFancyValue(null, close, false, true) }</div>
@@ -298,7 +295,6 @@ export function ChartTitle({
   )
 }
 export function ChartWidget({
-  orderbook,
   pair,
   whitelisted,
   options,
@@ -307,7 +303,8 @@ export function ChartWidget({
   onTradesChange,
   onPairChange,
   onScrub,
-  bare
+  bare,
+  reversed
 }: ChartProps) {
   const mobile = document.body.clientWidth <= 800;
   const frameRef = useRef<HTMLDivElement>(null);
@@ -392,12 +389,20 @@ export function ChartWidget({
     try {
       const result = await Exchange.marketPairPriceSeries(pair.id, options.interval, Math.floor(from / options.interval));
       const price: PriceBar[] = [], volume: VolumeBar[] = [];
+      const rec = (value: BigNumber): number => value.gt(0) ? new BigNumber(1).dividedBy(value).toNumber() : 0;
       let min = result.length > 0 ? Number.MAX_SAFE_INTEGER : Number.MIN_SAFE_INTEGER;
       let max = Number.MIN_SAFE_INTEGER;
       for (let i = 0; i < result.length; i++) {
         const bar = result[i];
         const time = Math.floor(bar.time / 1000) as Time;
-        price.push({
+        price.push(reversed ? {
+            time: time,
+            open: rec(bar.close),
+            low: rec(bar.high),
+            high: rec(bar.low),
+            close: rec(bar.open),
+            value: rec(bar.open)
+        } : {
             time: time,
             open: bar.open.toNumber(),
             low: bar.low.toNumber(),
@@ -407,7 +412,7 @@ export function ChartWidget({
         });
         volume.push({
           time: time,
-          value: bar.volume.toNumber(),
+          value: reversed && bar.close.gt(0) ? bar.volume.multipliedBy(bar.close).toNumber() : bar.volume.toNumber(),
           color: bar.open.lte(bar.close) ? UP_VCOLOR : DOWN_VCOLOR
         });
         min = Math.min(min, time as any);
@@ -430,7 +435,7 @@ export function ChartWidget({
     } catch {
       setState(prev => ({ ...prev, ready: true, loading: false, from: Number.MIN_SAFE_INTEGER }));
     }
-  }, [pair, state, options.bars, options.interval]);
+  }, [pair, reversed, state, options.bars, options.interval]);
   const fitChart = useCallback((api?: IChartApi) => {
     if (api != null) {
       seriesRef.current = api;
@@ -478,11 +483,16 @@ export function ChartWidget({
     let price = target.close, quantity = new BigNumber(0);
     for (let i = 0; i < tradeEvents.length; i++) {
       const data = tradeEvents[i].detail || null;
-      const merge = data?.primaryAsset?.id == pair?.primaryAsset.id && data?.secondaryAsset?.id == pair?.secondaryAsset.id;
+      const merge = reversed ? (data?.primaryAsset?.id == pair?.secondaryAsset.id && data?.secondaryAsset?.id == pair?.primaryAsset.id) : (data?.primaryAsset?.id == pair?.primaryAsset.id && data?.secondaryAsset?.id == pair?.secondaryAsset.id);
       const nextAccount = data?.account || null;
-      const nextSide = (data?.side || OrderSide.Buy) as OrderSide;
-      const nextPrice = merge && data?.price ? new BigNumber(data?.price || 0) : null;
-      const nextQuantity = merge ? new BigNumber(data?.quantity || 0) : new BigNumber(0);
+      const rawSide = data?.side ?? OrderSide.Buy;
+      const nextSide = reversed && (rawSide == OrderSide.Buy || rawSide == OrderSide.Sell) ? (rawSide == OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy) : rawSide;
+      let nextPrice = merge && data?.price ? new BigNumber(data?.price || 0) : null;
+      let nextQuantity = merge ? new BigNumber(data?.quantity || 0) : new BigNumber(0);
+      if (reversed && nextPrice != null && nextPrice.gt(0)) {
+        nextQuantity = nextPrice.multipliedBy(nextQuantity);
+        nextPrice = new BigNumber(1).dividedBy(nextPrice);
+      }
       if (merge && nextPrice != null) {
         price = nextPrice;
         quantity = quantity.plus(nextQuantity);
@@ -555,7 +565,7 @@ export function ChartWidget({
         volume: volumeSeries
       }
     });
-  }, [tradeEvents, pair, state.ready, options.interval, onTradesChange, onPairChange]);
+  }, [tradeEvents, pair, reversed, state.ready, options.interval, onTradesChange, onPairChange]);
   useEffect(() => {
     if (!frameRef.current)
       return;
@@ -566,7 +576,7 @@ export function ChartWidget({
 
   return (
     <Box width="100%" className={bare ? 'chart-bare' : 'card'} style={{ padding: bare ? 0 : '14px 14px 12px', marginBottom: mobile ? 14 : 12 }}>
-      { !mobile && <ChartTitle orderbook={orderbook} pair={pair} whitelisted={whitelisted}></ChartTitle> }
+      { !mobile && <ChartTitle pair={pair} whitelisted={whitelisted}></ChartTitle> }
       <div ref={frameRef} className={bare ? 'chart-bleed' : undefined} style={{ position: 'relative', height: mobile ? 'max(300px, 50vh)' : 660 }}>
         <div style={{ position: 'absolute', inset: 0 }}>
           <ChartView
@@ -581,21 +591,21 @@ export function ChartWidget({
             onVisibleLogicalRangeChange={fetchSeries}></ChartView>
           { !mobile && <Box position="absolute" top="0" left="0" pl="3" pt="2" style={bare ? { zIndex: 1, paddingInlineStart: 'var(--shell-pad)' } : { zIndex: 1 }}>
             {
-              orderbook?.primaryAsset && orderbook?.secondaryAsset &&
-              <Text>{ UiUtil.toAssetSymbol(orderbook.primaryAsset) }/{ UiUtil.toAssetSymbol(orderbook.secondaryAsset) } { interval }</Text>
+              pair?.primaryAsset && pair?.secondaryAsset &&
+              <Text>{ UiUtil.toAssetSymbol(pair.primaryAsset) }/{ UiUtil.toAssetSymbol(pair.secondaryAsset) } { interval }</Text>
             }
             {
               !mobile && (options.view == ChartViewType.Bars || options.view == ChartViewType.Candles ?
               <Flex direction="column">
-                <Text size="1"><Text color="gray" mr="1">O</Text>{ toFancyMoney(orderbook?.secondaryAsset || null, legendBar.price?.open || null) }</Text>
-                <Text size="1"><Text color="gray" mr="1">H</Text>{ toFancyMoney(orderbook?.secondaryAsset || null, legendBar.price?.high || null) }</Text>
-                <Text size="1"><Text color="gray" mr="1">L</Text>{ toFancyMoney(orderbook?.secondaryAsset || null, legendBar.price?.low || null) }</Text>
-                <Text size="1"><Text color="gray" mr="1">C</Text>{ toFancyMoney(orderbook?.secondaryAsset || null, legendBar.price?.close || null) }</Text>
-                { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ toFancyMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
+                <Text size="1"><Text color="gray" mr="1">O</Text>{ toFancyMoney(pair?.secondaryAsset || null, legendBar.price?.open || null) }</Text>
+                <Text size="1"><Text color="gray" mr="1">H</Text>{ toFancyMoney(pair?.secondaryAsset || null, legendBar.price?.high || null) }</Text>
+                <Text size="1"><Text color="gray" mr="1">L</Text>{ toFancyMoney(pair?.secondaryAsset || null, legendBar.price?.low || null) }</Text>
+                <Text size="1"><Text color="gray" mr="1">C</Text>{ toFancyMoney(pair?.secondaryAsset || null, legendBar.price?.close || null) }</Text>
+                { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ toFancyMoney(pair?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
               </Flex> :
               <Flex direction="column">
-                <Text size="1"><Text color="gray" mr="1">C</Text>{ toFancyMoney(orderbook?.secondaryAsset || null, legendBar.price?.value || null) }</Text>
-                { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ toFancyMoney(orderbook?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
+                <Text size="1"><Text color="gray" mr="1">C</Text>{ toFancyMoney(pair?.secondaryAsset || null, legendBar.price?.value || null) }</Text>
+                { options.volume && <Text size="1"><Text color="gray" mr="1">V</Text>{ toFancyMoney(pair?.primaryAsset || null, legendBar.volume?.value || null) }</Text> }
               </Flex>)
             }
           </Box> }

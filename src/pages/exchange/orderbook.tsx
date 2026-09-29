@@ -119,6 +119,62 @@ function policyOf(market: Market | null): string {
         return 'Unknown';
     }
 }
+function invertLevels(levels: AggregatedGroupedLevel[]): AggregatedGroupedLevel[] {
+  return levels.filter((level) => level.price.gt(0)).map((level) => ({
+    ids: [...level.ids],
+    price: new BigNumber(1).dividedBy(level.price),
+    quantity: level.price.multipliedBy(level.quantity)
+  }));
+}
+function invertPair(pair: AggregatedPair): AggregatedPair {
+  const rec = (value: BigNumber | null) => value != null && value.gt(0) ? new BigNumber(1).dividedBy(value) : null;
+  const close = pair.price.close;
+  const toViewQuote = (value: BigNumber | null) => value != null && value.gt(0) && close != null && close.gt(0) ? value.dividedBy(close) : value;
+  return {
+    ...pair,
+    primaryAsset: pair.secondaryAsset,
+    secondaryAsset: pair.primaryAsset,
+    price: {
+      orderLiquidity: toViewQuote(pair.price.orderLiquidity),
+      poolLiquidity: toViewQuote(pair.price.poolLiquidity),
+      totalLiquidity: toViewQuote(pair.price.totalLiquidity),
+      orderVolume: toViewQuote(pair.price.orderVolume),
+      poolVolume: toViewQuote(pair.price.poolVolume),
+      totalVolume: toViewQuote(pair.price.totalVolume),
+      open: rec(pair.price.open),
+      low: rec(pair.price.high),
+      high: rec(pair.price.low),
+      close: rec(close)
+    }
+  };
+}
+function invertLog(log: AggregatedLog): AggregatedLog {
+  return {
+    ...log,
+    side: log.side == 'lp' ? log.side : (log.side == OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy),
+    price: log.price.gt(0) ? new BigNumber(1).dividedBy(log.price) : log.price,
+    quantity: log.price.multipliedBy(log.quantity)
+  };
+}
+function invertOrder(item: Order): Order {
+  const basePrice = item.price || item.fillingPrice || item.stopPrice || null;
+  const rec = (value: BigNumber | undefined) => value != null && value.gt(0) ? new BigNumber(1).dividedBy(value) : value;
+  const recDelta = (value: BigNumber | undefined) => value != null && value.gt(0) && basePrice != null && basePrice.gt(0) ? value.dividedBy(basePrice.multipliedBy(basePrice)) : value;
+  return {
+    ...item,
+    primaryAsset: item.secondaryAsset,
+    primaryAssetId: item.secondaryAssetId,
+    secondaryAsset: item.primaryAsset,
+    secondaryAssetId: item.primaryAssetId,
+    side: item.side == OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy,
+    price: rec(item.price),
+    stopPrice: rec(item.stopPrice),
+    fillingPrice: rec(item.fillingPrice),
+    slippage: recDelta(item.slippage),
+    trailingStep: recDelta(item.trailingStep),
+    trailingDistance: recDelta(item.trailingDistance)
+  };
+}
 export function pathOfMaker(orderbook: string): string {
   return ExchangeField.OrderbookMaker.replace('path', orderbook);
 }
@@ -150,7 +206,6 @@ function createPriceScrubStore(): PriceScrubStore {
 }
 function ObHeroTitle(props: {
   store: PriceScrubStore,
-  orderbook: { primaryAsset: AssetId | null, secondaryAsset: AssetId | null } | null,
   pair: AggregatedPair | null
 }) {
   const scrub = useSyncExternalStore(props.store.subscribe, props.store.get);
@@ -161,18 +216,20 @@ function ObHeroTitle(props: {
     <>
       <div className="ob-hero-top">
         {
-          props.orderbook?.primaryAsset && props.orderbook.secondaryAsset &&
+          props.pair?.primaryAsset && props.pair.secondaryAsset &&
           <span style={{ position: 'relative', width: 30, height: 30, flex: 'none' }}>
-            <AssetImage asset={props.orderbook.primaryAsset} size="1" iconSize="24px"></AssetImage>
-            <AssetImage asset={props.orderbook.secondaryAsset} size="1" iconSize="15px" style={{ position: 'absolute', bottom: -2, right: -2, border: '2px solid var(--bg)', borderRadius: '50%' }}></AssetImage>
+            <AssetImage asset={props.pair.primaryAsset} size="1" iconSize="24px"></AssetImage>
+            <AssetImage asset={props.pair.secondaryAsset} size="1" iconSize="15px" style={{ position: 'absolute', bottom: -2, right: -2, border: '2px solid var(--bg)', borderRadius: '50%' }}></AssetImage>
           </span>
         }
-        <AssetName asset={props.orderbook?.primaryAsset || undefined} size="4" weight="bold" tokenOnly style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden' }}></AssetName>
+        { props.pair?.secondaryAsset != null && props.pair.secondaryAsset.chain != 'TAN' && props.pair.primaryAsset?.chain == 'TAN' ?
+          <div style={{ minWidth: 0, display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>Inv.<AssetName asset={props.pair.secondaryAsset} size="4" weight="bold" tokenOnly style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden' }}></AssetName></div> :
+          <div style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden' }}><AssetName asset={props.pair?.primaryAsset || undefined} size="4" weight="bold" tokenOnly style={{ minWidth: 0, whiteSpace: 'nowrap', overflow: 'hidden' }}></AssetName>{ props.pair != null && props.pair.secondaryBase == null && props.pair.secondaryAsset ? ' in ' + (props.pair.secondaryAsset.token || props.pair.secondaryAsset.chain) : '' }</div> }
       </div>
-      <div className="hero-num" style={{ fontSize: 34 }}>{ toFancyMoney(props.orderbook?.secondaryAsset || null, close) }</div>
+      <div className="hero-num" style={{ fontSize: 34 }}>{ toFancyMoney(props.pair?.secondaryAsset || null, close) }</div>
       <div className="ob-delta-row">
         <span className={ 'abs' + (dir != 0 ? (dir > 0 ? ' up' : ' down') : '') }>
-          { (dir > 0 ? '+ ' : (dir < 0 ? '- ' : '')) + toFancyMoney(props.orderbook?.secondaryAsset || null, delta ? delta.abs() : new BigNumber(0)) }
+          { (dir > 0 ? '+ ' : (dir < 0 ? '- ' : '')) + toFancyMoney(props.pair?.secondaryAsset || null, delta ? delta.abs() : new BigNumber(0)) }
         </span>
         <span className={ 'ob-delta-pill' + (dir > 0 ? ' up' : (dir == 0 ? ' flat' : '')) }>
           { dir != 0 && <Icon path={dir > 0 ? mdiArrowUpBold : mdiArrowDownBold} size={0.55}></Icon> }
@@ -200,6 +257,7 @@ export default function OrderbookPage() {
   const [polyBalances, setPolyBalances] = useState<{ primary: Balance[], secondary: Balance[] }>({ primary: [], secondary: [] });
   const [tiers, setTiers] = useState<AccountTier | null>(null);
   const [pair, setPair] = useState<AggregatedPair | null>(null);
+  const [reversed, setReversed] = useState<boolean>(false);
   const [market, setMarket] = useState<Market | null>(null);
   const [logs, setLogs] = useState<AggregatedLog[]>([]);
   const [moreLogs, setMoreLogs] = useState(true);
@@ -239,26 +297,29 @@ export default function OrderbookPage() {
   }, [params]);
   useEffect(() => {
     const close = pair?.price.close || null;
-    const price = close != null && close.gt(0) ? (close.gte(100) ? close.toFixed(2) : close.gte(1) ? close.toFixed(4) : toFancyValue(null, close, false, true)) + (orderbook?.secondaryAsset != null ? ' ' + UiUtil.toAssetSymbol(orderbook.secondaryAsset) : '') : null;
-    AppData.setTitle(orderbook?.primaryAsset != null && orderbook.secondaryAsset != null ? UiUtil.toAssetSymbol(orderbook.primaryAsset) + '/' + UiUtil.toAssetSymbol(orderbook.secondaryAsset) + (price != null ? ' ' + price : '') : 'Orderbook');
+    const price = close != null && close.gt(0) ? (close.gte(100) ? close.toFixed(2) : close.gte(1) ? close.toFixed(4) : toFancyValue(null, close, false, true)) + (pair?.secondaryAsset != null ? ' ' + UiUtil.toAssetSymbol(pair.secondaryAsset) : '') : null;
+    AppData.setTitle(pair?.primaryAsset != null && pair.secondaryAsset != null ? UiUtil.toAssetSymbol(pair.primaryAsset) + '/' + UiUtil.toAssetSymbol(pair.secondaryAsset) + (price != null ? ' ' + price : '') : 'Orderbook');
   }, [orderbook, pair]);
   const makerPath = useMemo(() => {
     return params.orderbook ? pathOfMaker(params.orderbook) : undefined;
   }, [params]);
+  const viewLevels = useMemo(() => reversed
+    ? { ask: invertLevels(levels.bid), bid: invertLevels(levels.ask) }
+    : levels, [reversed, levels]);
   const liquidity = useMemo(() => {
-    const ask = levels.ask.reduce((p: AggregatedGroupedLevel | null, c) => !p || c.quantity.gt(p.quantity) ? c : p, null);
-    const bid = levels.bid.reduce((p: AggregatedGroupedLevel | null, c) => !p || c.quantity.gt(p.quantity) ? c : p, null);
+    const ask = viewLevels.ask.reduce((p: AggregatedGroupedLevel | null, c) => !p || c.quantity.gt(p.quantity) ? c : p, null);
+    const bid = viewLevels.bid.reduce((p: AggregatedGroupedLevel | null, c) => !p || c.quantity.gt(p.quantity) ? c : p, null);
     return {
-      ask: ask ? [ask.quantity, ask.price.multipliedBy(ask.quantity), levels.ask.reduce((a, b) => a.plus(b.quantity), new BigNumber(0))] : [new BigNumber(0), new BigNumber(0), new BigNumber(0)],
-      bid: bid ? [bid.quantity, bid.price.multipliedBy(bid.quantity), levels.bid.reduce((a, b) => a.plus(b.quantity), new BigNumber(0))] : [new BigNumber(0), new BigNumber(0), new BigNumber(0)]
+      ask: ask ? [ask.quantity, ask.price.multipliedBy(ask.quantity), viewLevels.ask.reduce((a, b) => a.plus(b.quantity), new BigNumber(0))] : [new BigNumber(0), new BigNumber(0), new BigNumber(0)],
+      bid: bid ? [bid.quantity, bid.price.multipliedBy(bid.quantity), viewLevels.bid.reduce((a, b) => a.plus(b.quantity), new BigNumber(0))] : [new BigNumber(0), new BigNumber(0), new BigNumber(0)]
     };
-  }, [levels]);
+  }, [viewLevels]);
   const spreads = useMemo((): { ask: BigNumber | null, bid: BigNumber | null } => {
     return {
-      ask: levels.ask.length > 0 ? levels.ask[0].price : null,
-      bid: levels.bid.length > 0 ? levels.bid[0].price : null
+      ask: viewLevels.ask.length > 0 ? viewLevels.ask[0].price : null,
+      bid: viewLevels.bid.length > 0 ? viewLevels.bid[0].price : null
     }
-  }, [levels]);
+  }, [viewLevels]);
   const balances = useMemo((): { primary: { price: BigNumber | null, value: BigNumber, total: BigNumber }, secondary: { price: BigNumber | null, value: BigNumber, total: BigNumber } } => {
     const primaryBalance = polyBalances.primary.reduce((p, n) => ({ p: n.price ? (p.p.isNaN() ? n.price : p.p.plus(n.price).div(2)) : p.p, v: p.v.plus(n.available), t: p.t.plus(n.available).plus(n.unavailable) }), { p: new BigNumber(NaN), v: new BigNumber(0), t: new BigNumber(0) });
     const secondaryBalance = polyBalances.secondary.reduce((p, n) => ({ p: n.price ? (p.p.isNaN() ? n.price : p.p.plus(n.price).div(2)) : p.p, v: p.v.plus(n.available), t: p.t.plus(n.available).plus(n.unavailable) }), { p: new BigNumber(NaN), v: new BigNumber(0), t: new BigNumber(0) });
@@ -289,13 +350,13 @@ export default function OrderbookPage() {
   const groupedLevels = useMemo(() => {
     const range = parseFloat(seriesOptions.priceLevel);
     if (range <= 0 || isNaN(range))
-      return levels;
+      return viewLevels;
 
     return {
-      ask: reduceLevels(levels.ask, range).sort((a, b) => a.price.minus(b.price).toNumber()),
-      bid: reduceLevels(levels.bid, range).sort((a, b) => b.price.minus(a.price).toNumber())
+      ask: reduceLevels(viewLevels.ask, range).sort((a, b) => a.price.minus(b.price).toNumber()),
+      bid: reduceLevels(viewLevels.bid, range).sort((a, b) => b.price.minus(a.price).toNumber())
     }
-  }, [seriesOptions.priceLevel, levels]);
+  }, [seriesOptions.priceLevel, viewLevels]);
   const updateTab = useCallback((value: 'info' | 'maker' | 'book' | 'logs') => {
     AppStorage.set(ExchangeField.OrderbookTab, value);
     setTab(value);
@@ -323,7 +384,7 @@ export default function OrderbookPage() {
       setLogs(prev => ([...trades.sort((a, b) => a.time.getTime() - b.time.getTime()), ...prev]));
     }
   }, []);
-  const findLogs = useCallback(async (refresh?: boolean, marketId?: BigNumber, pairId?: BigNumber) => {
+  const findLogs = useCallback(async (refresh?: boolean, marketId?: BigNumber, pairId?: BigNumber, view?: boolean) => {
     if ((!orderbook?.marketId && !marketId) || (!pair?.id && !pairId))
       return false;
 
@@ -338,7 +399,8 @@ export default function OrderbookPage() {
         return false;
       }
 
-      setLogs(refresh ? data : prev => prev.concat(data));
+      const viewData = (view == null ? reversed : view) ? data.map(invertLog) : data;
+      setLogs(refresh ? viewData : prev => prev.concat(viewData));
       setMoreLogs(data.length >= cursor.count);
       return data.length > 0;
     } catch (exception) {
@@ -348,27 +410,44 @@ export default function OrderbookPage() {
       setMoreLogs(false);
       return false;
     }
-  }, [orderbook?.marketId, pair?.id, logs]);
+  }, [orderbook?.marketId, pair?.id, logs, reversed]);
   useEffectAsync(async () => {
     setLoading(true);
     try {
       if (!orderbook || !orderbook.marketId || !orderbook.primaryAsset || !orderbook.secondaryAsset)
         throw false;
       
-      const result = await Exchange.marketPair(orderbook.marketId, orderbook.primaryAsset, orderbook.secondaryAsset, false);
+      let result: AggregatedPair | null = null;
+      Exchange.quiet = true;
+      try {
+        result = await Exchange.marketPair(orderbook.marketId, orderbook.primaryAsset, orderbook.secondaryAsset, false);
+      } catch { }
+      Exchange.quiet = false;
+
+      let inverted = false;
+      if (!result) {
+        try {
+          result = await Exchange.marketPair(orderbook.marketId, orderbook.secondaryAsset, orderbook.primaryAsset, false);
+          inverted = result != null;
+        } catch { }
+      }
       if (!result)
         throw false;
 
-      setPair(result);
+      const realPair = result;
+      setReversed(inverted);
+      setPair(inverted ? invertPair(realPair) : realPair);
       const marketId = orderbook.marketId;
+      const viewPrimary = inverted ? realPair.secondaryAsset : realPair.primaryAsset;
+      const viewSecondary = inverted ? realPair.primaryAsset : realPair.secondaryAsset;
       const updateAccount = async () => {
         const account = AppData.getWalletAddress();
         if (!account)
           return;
 
-        const ordersResult = Exchange.accountOrders({ marketId: marketId, pairId: result.id, address: account, active: true });
-        const poolsResults = Exchange.accountPools({ marketId: marketId, pairId: result.id, address: account, active: true });
-        const tiersResult = Exchange.accountTiers({ marketId: marketId, pairId: result.id, address: account });
+        const ordersResult = Exchange.accountOrders({ marketId: marketId, pairId: realPair.id, address: account, active: true });
+        const poolsResults = Exchange.accountPools({ marketId: marketId, pairId: realPair.id, address: account, active: true });
+        const tiersResult = Exchange.accountTiers({ marketId: marketId, pairId: realPair.id, address: account });
         const balancesResult = Exchange.accountBalances({ address: account });
         try {
           setOrders(await ordersResult || []);
@@ -386,17 +465,17 @@ export default function OrderbookPage() {
           const accountBalances = await balancesResult;
           setPolyAssets((poly) => {
             setPolyBalances({
-              primary: accountBalances?.filter((v) => v.asset.id == result.primaryAsset.id || (v.poly && poly.primary.findIndex((i) => i.id == v.asset.id) != -1)) ?? [],
-              secondary: accountBalances?.filter((v) => v.asset.id == result.secondaryAsset.id || (v.poly && poly.secondary.findIndex((i) => i.id == v.asset.id) != -1)) ?? []
+              primary: accountBalances?.filter((v) => v.asset.id == viewPrimary.id || (v.poly && poly.primary.findIndex((i) => i.id == v.asset.id) != -1)) ?? [],
+              secondary: accountBalances?.filter((v) => v.asset.id == viewSecondary.id || (v.poly && poly.secondary.findIndex((i) => i.id == v.asset.id) != -1)) ?? []
             });
             return poly;
           });
         } catch { }
       };
       const marketResult = Exchange.market(orderbook.marketId);
-      const levelsResult = Exchange.marketPairPriceLevels(orderbook.marketId, result.id, 128);
-      const assetsResult = Exchange.marketPairAssets(orderbook.marketId, result.id);
-      const logsResult = findLogs(true, orderbook.marketId, result.id);
+      const levelsResult = Exchange.marketPairPriceLevels(orderbook.marketId, realPair.id, 128);
+      const assetsResult = Exchange.marketPairAssets(orderbook.marketId, realPair.id);
+      const logsResult = findLogs(true, orderbook.marketId, realPair.id, inverted);
       try {
         setMarket(await marketResult);
       } catch (exception: any) {
@@ -416,7 +495,7 @@ export default function OrderbookPage() {
       try {
         const assetsData = await assetsResult;
         if (assetsData != null)
-          setPolyAssets(assetsData);
+          setPolyAssets(inverted ? { primary: assetsData.secondary, secondary: assetsData.primary } : assetsData);
       } catch (exception: any) {
         AlertBox.open(AlertType.Error, 'Failed to fetch market poly assets: ' + (exception.message || 'unknown error'));
       }
@@ -448,10 +527,15 @@ export default function OrderbookPage() {
     setIncomingLevels([]);
     setLevels(prev => {
       const copy = { ask: [...prev.ask], bid: [...prev.bid] };
+      const realPrimary = reversed ? pair?.secondaryAsset : pair?.primaryAsset;
+      const realSecondary = reversed ? pair?.primaryAsset : pair?.secondaryAsset;
       for (let i = 0; i < incomingLevels.length; i++) {
         const data = incomingLevels[i].detail || null;
         const id = data && data.id != null ? parseInt(data.id) : NaN;
-        if (!isNaN(id) && data.side != null && data.price != null && data.quantity != null) {
+        const matchesPair = data == null || (data.pairId == null && data.primaryAsset == null && data.secondaryAsset == null)
+          || (data.pairId != null && pair != null && new BigNumber(data.pairId).eq(pair.id))
+          || (realPrimary != null && realSecondary != null && data.primaryAsset?.id == realPrimary.id && data.secondaryAsset?.id == realSecondary.id);
+        if (!isNaN(id) && matchesPair && data.side != null && data.price != null && data.quantity != null) {
           const target = data.side == OrderSide.Buy ? copy.bid : copy.ask;
           target.forEach(l => l.ids = l.ids.filter(v => v != id));
           target.push({
@@ -472,7 +556,7 @@ export default function OrderbookPage() {
       copy.bid = reduceLevels(unrollLevels(copy.bid.filter(l => l.ids.length > 0), OrderSide.Buy), 0).sort((a, b) => b.price.minus(a.price).toNumber());
       return copy;
     });
-  }, [incomingLevels]);
+  }, [incomingLevels, reversed, pair]);
   useEffect(() => {
     const memorizedSeriesOptions = AppStorage.get(ExchangeField.OrderbookData);
     if (memorizedSeriesOptions != null && typeof memorizedSeriesOptions == 'object') {
@@ -514,27 +598,27 @@ export default function OrderbookPage() {
   }, [mobile, orderbook?.marketId?.toString()]);
 
   const scrubStore = useMemo(() => createPriceScrubStore(), []);
-  const symP = orderbook?.primaryAsset ? UiUtil.toAssetSymbol(orderbook.primaryAsset) : '?';
-  const symQ = orderbook?.secondaryAsset ? UiUtil.toAssetSymbol(orderbook.secondaryAsset) : '?';
+  const symP = pair?.primaryAsset ? UiUtil.toAssetSymbol(pair.primaryAsset) : '?';
+  const symQ = pair?.secondaryAsset ? UiUtil.toAssetSymbol(pair.secondaryAsset) : '?';
   const spread = spreads.ask && spreads.bid ? spreads.ask.minus(spreads.bid) : null;
   const deltaVal = pair && pair.price.close && pair.price.open ? pair.price.close.minus(pair.price.open) : null;
   const deltaDir = deltaVal && deltaVal.gt(0) ? 1 : (deltaVal && deltaVal.lt(0) ? -1 : 0);
-  const change24 = UiUtil.toPercentageDelta(pair?.price.open || new BigNumber(0), pair?.price.close || new BigNumber(0)) + (deltaVal && !deltaVal.isZero() ? ' · ' + (deltaDir > 0 ? '+' : '-') + toFancyMoney(orderbook!.secondaryAsset, deltaVal.abs()) : '');
+  const change24 = UiUtil.toPercentageDelta(pair?.price.open || new BigNumber(0), pair?.price.close || new BigNumber(0)) + (deltaVal && !deltaVal.isZero() ? ' · ' + (deltaDir > 0 ? '+' : '-') + toFancyMoney(pair!.secondaryAsset, deltaVal.abs()) : '');
   const change24Style = deltaDir > 0 ? { color: 'var(--lime)' } : (deltaDir < 0 ? { color: 'var(--down)' } : undefined);
-  const nameP = orderbook?.primaryAsset ? Assetlist.toName(orderbook.primaryAsset).replace((orderbook.primaryAsset.chain || '') + ' ', '') : symP;
-  const nameQ = orderbook?.secondaryAsset ? Assetlist.toName(orderbook.secondaryAsset).replace((orderbook.secondaryAsset.chain || '') + ' ', '') : symQ;
+  const nameP = pair?.primaryAsset ? Assetlist.toName(pair.primaryAsset).replace((pair.primaryAsset.chain || '') + ' ', '') : symP;
+  const nameQ = pair?.secondaryAsset ? Assetlist.toName(pair.secondaryAsset).replace((pair.secondaryAsset.chain || '') + ' ', '') : symQ;
   const lpApy = market && pair?.price.poolVolume?.gt(0) && pair?.price.poolLiquidity?.gt(0) ? Exchange.toAPY(pair.poolFeeRate || market.maxPoolFeeRate, pair.price.poolLiquidity, pair.price.poolVolume) : new BigNumber(0);
   const pxClose = pair?.price.close || new BigNumber(0);
   const pxRcv = balances.primary.price;
-  const pxNow = Exchange.priceOf(orderbook!.primaryAsset!).close || pxClose;
+  const pxNow = pair?.primaryAsset != null ? (Exchange.priceOf(pair.primaryAsset).close || pxClose) : pxClose;
   const hasPrice = pxRcv != null && !pxRcv.isNaN() && pxRcv.gt(0) && pxNow.gt(0);
   const walletCard = (
     <div className="card">
       <div className="card-head">
         <div className="card-title">Your wallet</div>
         <div className="wallet-toggle">
-          <button type="button" className={ seriesOptions.showPrimary ? 'on' : '' } onClick={ () => updateSeriesOptions(prev => ({ ...prev, showPrimary: true })) } aria-label={ symP + ' view' }><AssetImage asset={ orderbook!.primaryAsset ?? undefined } size="1" iconSize="20px"></AssetImage></button>
-          <button type="button" className={ !seriesOptions.showPrimary ? 'on' : '' } onClick={ () => updateSeriesOptions(prev => ({ ...prev, showPrimary: false })) } aria-label={ symQ + ' view' }><AssetImage asset={ orderbook!.secondaryAsset ?? undefined } size="1" iconSize="20px"></AssetImage></button>
+          <button type="button" className={ seriesOptions.showPrimary ? 'on' : '' } onClick={ () => updateSeriesOptions(prev => ({ ...prev, showPrimary: true })) } aria-label={ symP + ' view' }><AssetImage asset={ pair?.primaryAsset || undefined } size="1" iconSize="20px"></AssetImage></button>
+          <button type="button" className={ !seriesOptions.showPrimary ? 'on' : '' } onClick={ () => updateSeriesOptions(prev => ({ ...prev, showPrimary: false })) } aria-label={ symQ + ' view' }><AssetImage asset={ pair?.secondaryAsset || undefined } size="1" iconSize="20px"></AssetImage></button>
         </div>
       </div>
       <div className="wallet-view" style={{ marginTop: 10 }}>
@@ -550,7 +634,7 @@ export default function OrderbookPage() {
       {
         tiers != null &&
         <div className="dl dl-rule" style={{ marginTop: 12 }}>
-          <div className="dl-row"><span className="dl-k">Account volume · { UiUtil.toAssetSymbol(valuation.primary) }</span><span className="dl-v num">{ toFancyMoney(valuation.primary, seriesOptions.showPrimary ? tiers.primary.volume : tiers.secondary.volume) }</span></div>
+          <div className="dl-row"><span className="dl-k">Account volume · { UiUtil.toAssetSymbol(valuation.primary) }</span><span className="dl-v num">{ toFancyMoney(valuation.primary, (seriesOptions.showPrimary !== reversed ? tiers.primary : tiers.secondary).volume) }</span></div>
         </div>
       }
     </div>
@@ -566,14 +650,14 @@ export default function OrderbookPage() {
           }
         </p>
         <div className="dl" style={{ marginTop: 12 }}>
-          <div className="dl-row"><span className="dl-k">Last price</span><span className="dl-v num">{ pair?.price.close?.gt(0) ? toFancyMoney(orderbook!.secondaryAsset, pair.price.close) : 'No trades yet' }</span></div>
+          <div className="dl-row"><span className="dl-k">Last price</span><span className="dl-v num">{ pair?.price.close?.gt(0) ? toFancyMoney(pair.secondaryAsset, pair.price.close) : 'No trades yet' }</span></div>
           <div className="dl-row"><span className="dl-k">Best bid</span><span className="dl-v num">{ spreads.bid && spreads.bid.gt(0) ? toFancyValue(null, spreads.bid, false, true) : '—' }</span></div>
           <div className="dl-row"><span className="dl-k">Best ask</span><span className="dl-v num">{ spreads.ask && spreads.ask.gt(0) ? toFancyValue(null, spreads.ask, false, true) : '—' }</span></div>
           <div className="dl-row"><span className="dl-k">Spread</span><span className="dl-v num">{ spread ? toFancyValue(null, spread, false, true) + ' · ' + (spreads.bid && spreads.bid.gt(0) ? spread.dividedBy(spreads.bid).multipliedBy(100).toFixed(2) : '0.00') + '%' : '—' }</span></div>
           <div className="dl-row"><span className="dl-k">24h change</span><span className="dl-v num" style={ change24Style }>{ change24 }</span></div>
           <div className="dl-row"><span className="dl-k">24h range</span><span className="dl-v num">{ toFancyValue(null, pair?.price.low || null, false, true) } – { toFancyValue(null, pair?.price.high || null, false, true) }</span></div>
-          <div className="dl-row"><span className="dl-k">24h volume</span><span className="dl-v num">{ toFancyMoney(orderbook!.secondaryAsset, pair?.price.totalVolume || new BigNumber(0)) }</span></div>
-          <div className="dl-row"><span className="dl-k">Book liquidity</span><span className="dl-v num">{ toFancyMoney(orderbook!.secondaryAsset, pair?.price.totalLiquidity || new BigNumber(0)) }</span></div>
+          <div className="dl-row"><span className="dl-k">24h volume</span><span className="dl-v num">{ toFancyMoney(pair?.secondaryAsset || null, pair?.price.totalVolume || new BigNumber(0)) }</span></div>
+          <div className="dl-row"><span className="dl-k">Book liquidity</span><span className="dl-v num">{ toFancyMoney(pair?.secondaryAsset || null, pair?.price.totalLiquidity || new BigNumber(0)) }</span></div>
         </div>
         <div className="dl dl-rule">
           <div className="dl-row"><span className="dl-k">Maker fee</span><span className="dl-v num">{ (market?.minMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.maxMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
@@ -599,14 +683,14 @@ export default function OrderbookPage() {
             <Link className="router-link mono" style={{ fontSize: 12 }} to={ '/portfolio/' + (market?.account || '') + '?view=wallet' }>{ UiUtil.toAddress(market?.account || 'NULL', 6) }</Link>
           </div>
           <div className="stat-grid">
-            <div><div className="k">Last price</div><div className="v">{ pair?.price.close?.gt(0) ? toFancyMoney(orderbook!.secondaryAsset, pair.price.close) : 'No trades yet' }</div></div>
+            <div><div className="k">Last price</div><div className="v">{ pair?.price.close?.gt(0) ? toFancyMoney(pair.secondaryAsset, pair.price.close) : 'No trades yet' }</div></div>
             <div><div className="k">24h change</div><div className="v" style={ change24Style }>{ change24 }</div></div>
             <div><div className="k">Best bid</div><div className="v">{ spreads.bid && spreads.bid.gt(0) ? toFancyValue(null, spreads.bid, false, true) : '—' }</div></div>
             <div><div className="k">Best ask</div><div className="v">{ spreads.ask && spreads.ask.gt(0) ? toFancyValue(null, spreads.ask, false, true) : '—' }</div></div>
             <div><div className="k">Spread</div><div className="v">{ spread ? toFancyValue(null, spread, false, true) + ' · ' + (spreads.bid && spreads.bid.gt(0) ? spread.dividedBy(spreads.bid).multipliedBy(100).toFixed(2) : '0.00') + '%' : '—' }</div></div>
             <div><div className="k">24h range</div><div className="v">{ toFancyValue(null, pair?.price.low || null, false, true) } – { toFancyValue(null, pair?.price.high || null, false, true) }</div></div>
-            <div><div className="k">24h volume</div><div className="v">{ toFancyMoney(orderbook!.secondaryAsset, pair?.price.totalVolume || new BigNumber(0)) }</div></div>
-            <div><div className="k">Book liquidity</div><div className="v">{ toFancyMoney(orderbook!.secondaryAsset, pair?.price.totalLiquidity || new BigNumber(0)) }</div></div>
+            <div><div className="k">24h volume</div><div className="v">{ toFancyMoney(pair?.secondaryAsset || null, pair?.price.totalVolume || new BigNumber(0)) }</div></div>
+            <div><div className="k">Book liquidity</div><div className="v">{ toFancyMoney(pair?.secondaryAsset || null, pair?.price.totalLiquidity || new BigNumber(0)) }</div></div>
           </div>
           <div className="stat-grid dl-rule" style={{ marginTop: 14, paddingTop: 14 }}>
             <div><div className="k">Maker fee</div><div className="v">{ (market?.minMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.maxMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</div></div>
@@ -627,16 +711,17 @@ export default function OrderbookPage() {
         path={makerPath}
         marketId={orderbook?.marketId || new BigNumber(0)}
         pairId={pair?.id || new BigNumber(0)}
-        primaryAsset={orderbook?.primaryAsset || new AssetId()}
-        secondaryAsset={orderbook?.secondaryAsset || new AssetId()}
+        primaryAsset={pair?.primaryAsset || new AssetId()}
+        secondaryAsset={pair?.secondaryAsset || new AssetId()}
         balances={loading ? undefined : polyBalances}
         prices={spreads}
         tiers={tiers || undefined}
         preset={preset}
+        reversed={reversed}
         onStateChange={(state) => setShowingPools(state.pool)}></Maker>
       <Box>
         {
-          !showingPools && orders.map((item) =>
+          !showingPools && (reversed ? orders.map(invertOrder) : orders).map((item) =>
             <Box mt="3" key={item.orderId.toString()}>
               <OrderView flash={true} item={item}></OrderView>
             </Box>)
@@ -674,7 +759,7 @@ export default function OrderbookPage() {
         {
           seriesOptions.priceScope == PriceScope.All &&
           <div className="book-mid">
-            <span className="num" style={{ fontWeight: 800, fontSize: 16 }}>{ toFancyMoney(orderbook?.secondaryAsset || null, pair?.price.close || null) }</span>
+            <span className="num" style={{ fontWeight: 800, fontSize: 16 }}>{ toFancyMoney(pair?.secondaryAsset || null, pair?.price.close || null) }</span>
             <span className="tiny dim mono">{ spread ? 'spread ' + toFancyValue(null, spread, false, true) + ' · ' + (spreads.bid?.gt(0) ? spread.dividedBy(spreads.bid).multipliedBy(100).toFixed(2) : '0.00') + '%' : 'no book' }</span>
           </div>
         }
@@ -715,7 +800,7 @@ export default function OrderbookPage() {
                   <span className={'tx-ico ' + (pool ? 'dex' : (buy ? 'in' : 'out'))}><Icon path={pool ? (item.quantity.gt(0) ? mdiLayersPlus : mdiLayersMinus) : (buy ? mdiArrowDownBold : mdiArrowUpBold)} size={0.9}></Icon></span>
                   <div className="tx-main">
                     <div className="tx-title"><span style={{ color }}>{action} { pool ? 'liquidity' : '' }</span></div>
-                    <div className="tx-meta mono"><span className="tx-detail">{ toFancyMoney(orderbook?.primaryAsset || null, item.quantity, pool) } { toFancyMoney(orderbook?.secondaryAsset || null, item.price) ? 'at ' + toFancyMoney(orderbook?.secondaryAsset || null, item.price) : '' }</span></div>
+                    <div className="tx-meta mono"><span className="tx-detail">{ toFancyMoney(pair?.primaryAsset || null, item.quantity, pool) } { toFancyMoney(pair?.secondaryAsset || null, item.price) ? 'at ' + toFancyMoney(pair?.secondaryAsset || null, item.price) : '' }</span></div>
                     <div className="tx-meta"><Link className="tx-hash mono" style={{ fontSize: 11.5 }} to={'/portfolio/' + item.account + '?view=wallet'}>{ UiUtil.toAddress(item.account || 'NULL', 6) }</Link><span>·</span><span>{ UiUtil.toTimePassed(item.time) }</span></div>
                   </div>
                 </div>)
@@ -740,7 +825,7 @@ export default function OrderbookPage() {
     <Box width="100%" mx="auto" className={mobile ? undefined : 'term-grid'}>
       {
         mobile &&
-        <ObHeroTitle store={scrubStore} orderbook={orderbook} pair={pair}></ObHeroTitle>
+        <ObHeroTitle store={scrubStore} pair={pair}></ObHeroTitle>
       }
       {
         mobile &&
@@ -759,8 +844,8 @@ export default function OrderbookPage() {
           !mobile &&
           <div ref={ leftRef } className="term-left" style={{ flex: 1, minWidth: 0 }}>
             <ChartWidget
-              orderbook={orderbook}
               pair={pair}
+              reversed={reversed}
               whitelisted={whitelisted}
               options={seriesOptions}
               tradeEvents={incomingTrades}
@@ -768,7 +853,7 @@ export default function OrderbookPage() {
               onTradesChange={updateIncomingTrades}
               onPairChange={setPair}></ChartWidget>
             {
-              orderbook?.primaryAsset && orderbook.secondaryAsset && aboutCardsGrid
+              pair?.primaryAsset && pair.secondaryAsset && aboutCardsGrid
             }
           </div>
         }
@@ -788,8 +873,8 @@ export default function OrderbookPage() {
             mobile &&
             <div style={{ display: tab == 'info' ? undefined : 'none', paddingTop: 16 }}>
               <ChartWidget
-                orderbook={orderbook}
                 pair={pair}
+                reversed={reversed}
                 whitelisted={whitelisted}
                 options={seriesOptions}
                 tradeEvents={incomingTrades}
@@ -799,7 +884,7 @@ export default function OrderbookPage() {
             </div>
           }
           {
-            tab == 'info' && mobile && orderbook?.primaryAsset && orderbook.secondaryAsset && aboutCards
+            tab == 'info' && mobile && pair?.primaryAsset && pair.secondaryAsset && aboutCards
           }
           {
             vTab == 'maker' && ticketBlock
