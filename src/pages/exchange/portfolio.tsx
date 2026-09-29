@@ -1,5 +1,5 @@
 import { Box, Button, Dialog, Flex, SegmentedControl, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { mdiArrowLeft, mdiArrowRight, mdiBankOutline, mdiChartTimelineVariant, mdiChevronDown, mdiEyeOutline, mdiListBoxOutline, mdiLockOutline, mdiPlus, mdiRefresh, mdiSwapVertical, mdiWalletOutline } from "@mdi/js";
+import { mdiArrowLeft, mdiArrowRight, mdiBankOutline, mdiChartTimelineVariant, mdiChevronDown, mdiContentCopy, mdiEyeOutline, mdiListBoxOutline, mdiLockOutline, mdiPlus, mdiRefresh, mdiSwapVertical, mdiWalletOutline } from "@mdi/js";
 import { AssetId, ByteUtil, Signing } from "tangentsdk/algorithm";
 import { UiUtil } from 'tangentsdk/ui';
 import { Whitelist } from 'tangentsdk/whitelist';
@@ -218,7 +218,6 @@ function StandardBalanceView(props: { item: Balance & { equity: { current: BigNu
 
 function WalletNavigator(props: {
   address: string | null,
-  assetResync: number,
   forceResync: number,
   readOnly: boolean,
   todayProfits: boolean,
@@ -229,6 +228,7 @@ function WalletNavigator(props: {
   const [assets, setAssets] = useState<CachedBalance[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [sync, setSync] = useState(0);
+  const lastAddress = useRef<string | null>(null);
   const equityAssets = useMemo(toEquityAssets(assets, props.todayProfits, props.available), [assets, props.todayProfits, props.available, sync]);
   const equity = useMemo((): { previous: BigNumber, current: BigNumber } => {
     return {
@@ -237,28 +237,36 @@ function WalletNavigator(props: {
     }
   }, [equityAssets]);
   useEffectAsync(async () => {
-    if (sync > 0) {
+    const address = props.address;
+    if (sync > 0 && lastAddress.current == address) {
       if (props.onAssetsChange)
         props.onAssetsChange([...assets]);
       return;
     }
 
-    if (props.address) {
+    lastAddress.current = address;
+    if (address) {
       setLoading(true);
+      setAssets([]);
+      if (props.onAssetsChange)
+        props.onAssetsChange([]);
       try {
         const process = (data: Balance[]) => (data || []).map((x) => ({ ...x, cached: false }));
-        const result = await Exchange.accountBalances({ address: props.address, resync: sync == -1 }, (cache) => {
+        const result = await Exchange.accountBalances({ address, resync: sync == -1 }, (cache) => {
+          if (lastAddress.current != address)
+            return;
           setAssets(prev => prev.length > 0 ? prev : process(cache));
           if (props.onAssetsChange)
             props.onAssetsChange(prev => prev.length > 0 ? prev : process(cache));
         });
-        if (result != null) {
+        if (result != null && lastAddress.current == address) {
           setAssets(process(result));
           if (props.onAssetsChange)
             props.onAssetsChange(process(result));
         }
       } catch { }
-      setLoading(false);
+      if (lastAddress.current == address)
+        setLoading(false);
     } else {
       setAssets([]);
       if (props.onAssetsChange)
@@ -283,12 +291,6 @@ function WalletNavigator(props: {
       window.removeEventListener('update:delegated-pool', updateBalances);
     };
   }, [props.address]);
-  useEffect(() => {
-    if (props.assetResync > 0 && props.onAssetsChange) {
-      props.onAssetsChange([...assets]);
-      setSync(0);
-    }
-  }, [props.assetResync]);
   useEffect(() => {
     if (props.forceResync > 0)
       setSync(-1);
@@ -332,7 +334,7 @@ function WalletAssets(props: {
         )
       }
       {
-        !equityAssets.length && 
+        props.assets.length > 0 && !equityAssets.length &&
         <div className="card">
           <div className="empty">
             <div className="art"><Icon path={mdiBankOutline} size={1.4}></Icon></div>
@@ -977,7 +979,6 @@ export default function PortfolioPage() {
   const navigate = useNavigate();
   const [market, setMarket] = useState<Market | null>(null);
   const [search, setSearch] = useSearchParams();
-  const [assetResync, setAssetResync] = useState(0);
   const [dexPull, setDexPull] = useState(0);
   const [query, setQuery] = useState('');
   const [assets, setAssets] = useState<CachedBalance[]>([]);
@@ -1214,6 +1215,9 @@ export default function PortfolioPage() {
     }
   }, [search, readOnly, params.account]);
   useEffect(() => {
+    setAssetsReady(false);
+  }, [params.account]);
+  useEffect(() => {
     if (viewer != 'wallet')
       return;
     const ordersUpdate = () => findOrders(true);
@@ -1286,10 +1290,13 @@ export default function PortfolioPage() {
                 <Button className="btn-brand btn-block" style={{ marginTop: 14, height: 46, borderRadius: 'var(--r-md)', fontWeight: 700, fontSize: 15 }} type="submit" disabled={!query.trim().length || !Signing.verifyAddress(query.trim())} onClick={(e) => {
                   e.preventDefault();
                   navigate(`/portfolio/${query.trim()}?view=wallet`);
-                  setAssetResync(new Date().getTime());
                   setSearching(false);
                 }}>Search</Button>
               </form>
+              <Button className="btn-soft btn-block" style={{ marginTop: 14, height: 44, borderRadius: 'var(--r-md)', fontWeight: 700, fontSize: 14 }} disabled={!baseAddress} onClick={() => {
+                navigator.clipboard.writeText(baseAddress || '');
+                AlertBox.open(AlertType.Info, 'Address copied!');
+              }}><Icon path={mdiContentCopy} size={0.8}></Icon>Copy address</Button>
             <div style={{ borderTop: '1px solid var(--line)', marginTop: 16, paddingTop: 14 }}>
               <div className="menu-cap" style={{ padding: '0 0 8px' }}>Dex market</div>
               <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => {
@@ -1306,14 +1313,14 @@ export default function PortfolioPage() {
               <Button className="btn-soft btn-block" style={{ marginTop: 10, height: 44, borderRadius: 'var(--r-md)', fontWeight: 700, fontSize: 14 }} onClick={() => {
                 setDexPull((prev) => prev + 1);
                 setSearching(false);
-              }}><Icon path={mdiRefresh} size={0.8}></Icon>Pull dex data</Button>
+              }}><Icon path={mdiRefresh} size={0.8}></Icon>Sync latest balances</Button>
             </div>
             </Dialog.Content>
           </Dialog.Root>
         </div>
       </Box>
       <Box>
-        <WalletNavigator address={baseAddress} available={viewer == 'wallet' ? availableOnly : false} assetResync={assetResync} forceResync={dexPull} readOnly={readOnly} todayProfits={todayProfits} onTodayProfitsChange={setTodayProfits} onAssetsChange={(value: CachedBalance[] | ((prev: CachedBalance[]) => CachedBalance[])) => { setAssets(value); setAssetsReady(true); }}></WalletNavigator>
+        <WalletNavigator address={baseAddress} available={viewer == 'wallet' ? availableOnly : false} forceResync={dexPull} readOnly={readOnly} todayProfits={todayProfits} onTodayProfitsChange={setTodayProfits} onAssetsChange={(value: CachedBalance[] | ((prev: CachedBalance[]) => CachedBalance[])) => { setAssets(value); setAssetsReady(true); }}></WalletNavigator>
       </Box>
       <Box style={{ marginTop: 2 }}>
         <SegmentedControl.Root value={tab} radius="full" size="3" mb="4" onValueChange={(value) => openTab(value as 'trade' | 'swap' | 'earn' | 'wallet')}>

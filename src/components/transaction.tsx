@@ -6,7 +6,7 @@ import { AlertBox, AlertType } from "./alert";
 import { Link, useLocation, useNavigate } from "react-router";
 import { AppData } from "../core/app";
 import { useMemo, useState } from "react";
-import { mdiAccountCheckOutline, mdiAccountGroupOutline, mdiAccountKeyOutline, mdiAlertCircleOutline, mdiAlertOctagram, mdiArrowDownBold, mdiArrowLeftRight, mdiArrowUpBold, mdiBackupRestore, mdiBankTransfer, mdiBridge, mdiBroadcast, mdiCash, mdiChevronDown, mdiClockOutline, mdiCodeBraces, mdiCogOutline, mdiConsoleLine, mdiDatabaseOutline, mdiEyeOutline, mdiFingerprint, mdiKeyChange, mdiLayersTriple, mdiOpenInNew, mdiPackageVariant, mdiSafe, mdiSafeSquareOutline, mdiSync, mdiTimerOutline } from "@mdi/js";
+import { mdiAccountCheckOutline, mdiAccountGroupOutline, mdiAccountKeyOutline, mdiAlertCircleOutline, mdiAlertOctagram, mdiArrowDownBold, mdiArrowLeftRight, mdiArrowUpBold, mdiBackupRestore, mdiBankTransfer, mdiBridge, mdiBroadcast, mdiCash, mdiChevronDown, mdiClockOutline, mdiCodeBraces, mdiCogOutline, mdiConsoleLine, mdiDatabaseOutline, mdiEyeOutline, mdiFingerprint, mdiKeyChange, mdiLayersTriple, mdiOpenInNew, mdiPackageVariant, mdiSafe, mdiSafeSquareOutline, mdiStateMachine, mdiTimerOutline } from "@mdi/js";
 import { AssetImage } from "./asset-image";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
@@ -103,7 +103,7 @@ function toIcon(type: string | null, direction: 'in' | 'out' | 'neutral', pendin
     case 'withdraw': return { cls: 't-withdraw', path: mdiBankTransfer };
     case 'broadcast': return { cls: 't-broadcast', path: mdiBroadcast };
     case 'anticast': return { cls: 't-anticast', path: mdiBackupRestore };
-    case 'attestate': return { cls: 't-attestate', path: mdiSync };
+    case 'attestate': return { cls: 't-attestate', path: mdiStateMachine };
   }
   if (pending)
     return { cls: 'pending', path: mdiClockOutline };
@@ -234,7 +234,6 @@ export function TransactionInputFields(props: { transaction: any }) {
     case 'rollup':
       return (
         <Box>
-          <div className="card-title">Internal transactions</div>
           <div className="dl-group">{
             transaction.transactions.map((item: any, index: number) =>
               <div className="subtx-row" key={'IF1' + item.action.hash + index}>     
@@ -668,7 +667,7 @@ export function TransactionOutputFields(props: { state: SummaryState }) {
             case EventType.BridgeQueue: {
               return <EventRow key={'OF4113' + event.type.toString() + index} icon={mdiTimerOutline} cls="warn" title="Vault queue"
                 meta={<EventHash hash={event.bridgeHash} message="Vault hash copied!" />}
-                badge={<Badge color={event.size.gt(1) ? 'yellow' : 'green'} ml="1">{ event.size.gt(1) ? 'Executes after ' + UiUtil.toCount('transaction', event.size) : 'Executes immediately' }</Badge>} />
+                badge={<Badge color={event.size.gt(1) ? 'yellow' : 'green'}>{ event.size.gt(1) ? 'Executes after ' + UiUtil.toCount('transaction', event.size) : 'Executes immediately' }</Badge>} />
             }
             case EventType.BridgeTransfer: {
               return <EventRow key={'OF4' + event.type.toString() + index} icon={mdiBankTransfer} cls="warn" title="Vault transfer"
@@ -685,7 +684,7 @@ export function TransactionOutputFields(props: { state: SummaryState }) {
             }
             case EventType.WitnessAccount: {
               return <EventRow key={'OF9' + event.type.toString() + index} icon={mdiEyeOutline} cls="info" title="Witness account"
-                badge={<Badge ml="1">{ event.purpose[0].toUpperCase() + event.purpose.substring(1) } account</Badge>}
+                badge={<Badge>{ event.purpose[0].toUpperCase() + event.purpose.substring(1) } account</Badge>}
                 meta={event.addresses.map((item, index) =>
                   <span key={'OF10' + event.addresses[0] + event.asset.handle + item} className="event-addr" onClick={() => copyValue(item, 'Address copied!')}>{ 'v' + (event.addresses.length - index) + ' ' + UiUtil.toAddress(item, 6) }</span>
                 )} />
@@ -703,7 +702,7 @@ export function TransactionOutputFields(props: { state: SummaryState }) {
               let copy = event as { type: EventType.Unknown; event: BigNumber; args: any[]; }
               return <EventRow key={'OF13' + event.type.toString() + index} icon={mdiCodeBraces} cls="err"
                 title={'0x' + copy.event.toString(16)}
-                badge={<Badge color="yellow" ml="1">Non-standard</Badge>}
+                badge={<Badge color="yellow">Non-standard</Badge>}
                 meta={copy.args != null && <div className="err-pre" style={{ textAlign: 'left' }}>{ JSON.stringify(copy.args, null, 1) }</div>} />
             }
           }
@@ -785,7 +784,7 @@ function TransactionDetails(props: { transaction: any, receipt?: any, state?: Su
           <div className="dl-row"><span className="dl-k">Gas limit</span><span className="dl-v num">{ gasLimit != null ? UiUtil.toGas(gasLimit) : '—' }</span></div>
           <div className="dl-row">
             <span className="dl-k">Gas use</span>
-            <span className="dl-v num">{ gasUse != null ? UiUtil.toGas(gasUse) + ' · ' + (gasPercent != null ? gasPercent.toFixed(2) + '%' : '') : <span className="dim">not executed yet</span> }</span>
+            <span className="dl-v num">{ gasUse != null ? UiUtil.toGas(gasUse) + (gasPercent != null ? ' · ' + gasPercent.toFixed(2) + '%' : '') : <span className="dim">not executed yet</span> }</span>
           </div>
           {
             gasPercent != null &&
@@ -853,7 +852,7 @@ export function TransactionView(props: { variant?: 'row' | 'full', ownerAddress:
     const icon = toIcon(type, flow.direction, props.preview ? true : pending, reverted);
     const detail = toRowDetail(transaction, receipt, type, flow.direction, props.ownerAddress);
     const row = (
-      <div className={'tx-row' + (props.preview ? ' tx-row-clickable' : '')}>
+      <div className={'tx-row' + (icon.cls.startsWith('t-') ? ' ' + icon.cls : '') + (props.preview ? ' tx-row-clickable' : '')}>
         <span className={'tx-ico ' + icon.cls}><Icon path={icon.path} size={1} /></span>
         <div className="tx-main">
           <div className="tx-title">{ label }</div>

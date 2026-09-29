@@ -1,9 +1,4 @@
-
-
 *, *::before, *::after { box-sizing: border-box; }
-
-/* No overscroll stretch / pull-glow anywhere (Android 12 WebView stretches the
-   whole surface at scroll bounds; a wallet app has no pull-to-refresh to keep). */
 html, body { overscroll-behavior: none; }
 
 @font-face {
@@ -56,11 +51,6 @@ html, body { overscroll-behavior: none; }
   --sans: ui-sans-serif, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   --mono: "PT Mono", ui-monospace, "Cascadia Mono", monospace;
   --tabbar-h: 84px;
-
-  /* Safe-area insets: active only in the Tauri mobile build (html.tauri-mobile is set by the platform probe).
-     Tune manually with --safe-extra-top / --safe-extra-bottom if a device reports insets wrong.
-     --safe-min-bottom guarantees clearance for the OS gesture pill / home indicator even when the
-     platform reports a 0 bottom inset (common on Android gesture navigation). */
   --safe-extra-top: 0px;
   --safe-extra-bottom: 0px;
   --safe-min-bottom: 20px;
@@ -803,7 +793,7 @@ button.asset-row:hover { background: var(--elev); }
   color: var(--text-3);
   margin: 22px 4px 8px;
 }
-.tx-row { display: flex; align-items: center; gap: 13px; padding: 13px 2px; }
+.tx-row { position: relative; display: flex; align-items: center; gap: 13px; padding: 13px 2px; }
 .tx-ico {
   width: 40px;
   height: 40px;
@@ -826,18 +816,18 @@ button.asset-row:hover { background: var(--elev); }
 .tx-ico.reverted, .tx-ico[class*=" t-"] { background: color-mix(in srgb, var(--txc) 13%, transparent); color: var(--txc); }
 .tx-ico.reverted svg, .tx-ico[class*=" t-"] svg { color: var(--txc); }
 .tx-ico.reverted { --txc: var(--tx-reverted); }
-.tx-ico.t-deploy { --txc: var(--tx-deploy); }
-.tx-ico.t-call { --txc: var(--tx-call); }
-.tx-ico.t-rollup { --txc: var(--tx-rollup); }
-.tx-ico.t-route { --txc: var(--tx-route); }
-.tx-ico.t-bind { --txc: var(--tx-bind); }
-.tx-ico.t-imbind { --txc: var(--tx-imbind); }
-.tx-ico.t-rebind { --txc: var(--tx-rebind); }
-.tx-ico.t-setup { --txc: var(--tx-setup); }
-.tx-ico.t-withdraw { --txc: var(--tx-withdraw); }
-.tx-ico.t-broadcast { --txc: var(--tx-broadcast); }
-.tx-ico.t-anticast { --txc: var(--tx-anticast); }
-.tx-ico.t-attestate { --txc: var(--tx-attestate); }
+.t-deploy { --txc: var(--tx-deploy); }
+.t-call { --txc: var(--tx-call); }
+.t-rollup { --txc: var(--tx-rollup); }
+.t-route { --txc: var(--tx-route); }
+.t-bind { --txc: var(--tx-bind); }
+.t-imbind { --txc: var(--tx-imbind); }
+.t-rebind { --txc: var(--tx-rebind); }
+.t-setup { --txc: var(--tx-setup); }
+.t-withdraw { --txc: var(--tx-withdraw); }
+.t-broadcast { --txc: var(--tx-broadcast); }
+.t-anticast { --txc: var(--tx-anticast); }
+.t-attestate { --txc: var(--tx-attestate); }
 .tx-main { flex: 1; min-width: 0; }
 .tx-meta.mono { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
 .tx-title { font-weight: 650; font-size: 14.5px; }
@@ -865,6 +855,14 @@ button.asset-row:hover { background: var(--elev); }
 .tx-row:has(.tx-flow) { align-items: flex-start; }
 .tx-row:has(.tx-flow) .tx-ico { margin-top: 1px; }
 .tx-row:has(.tx-flow) .tx-time { margin-top: 2px; }
+.tx-row:has(.tx-amt span + span) { align-items: flex-start; }
+.tx-row:has(.tx-amt span + span) .tx-ico { margin-top: 1px; }
+.tx-row:has(.tx-amt span:nth-child(n+3))::after {
+  content: '';
+  position: absolute; left: 21px; top: 57px; bottom: 0; width: 2px; border-radius: 2px;
+  background: linear-gradient(180deg, var(--tx-thread, rgba(238,244,234,0.16)), transparent 96%);
+}
+.tx-row[class*=" t-"]:has(.tx-amt span:nth-child(n+3))::after { --tx-thread: color-mix(in srgb, var(--txc) 45%, transparent); }
 @media (max-width: 400px) {
   .tx-flow { font-size: 11.5px; }
   .tx-flow .fa::before { margin-right: 6px; }
@@ -891,6 +889,7 @@ button.asset-row:hover { background: var(--elev); }
 .event-main { flex: 1; min-width: 0; display: flex; align-items: center; gap: 4px 8px; flex-wrap: wrap; }
 .event-text { flex: 1 1 min-content; }
 .event-title { font-weight: 650; font-size: 13.5px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.event-title .rt-Badge { height: 16px; padding: 0 6px; font-size: 9.5px; letter-spacing: 0.04em; transform: translateY(0.5px); }
 .event-meta { font: 500 11px var(--mono); color: var(--text-2); margin-top: 4px; display: flex; align-items: center; gap: 3px 4px; flex-wrap: wrap; }
 .event-meta .arrow { color: var(--text-3); }
 .event-addr { color: var(--info); cursor: pointer; white-space: nowrap; }

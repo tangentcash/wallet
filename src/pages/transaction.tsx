@@ -3,19 +3,41 @@ import { useEffectAsync } from "../core/react";
 import { useCallback, useEffect, useState } from "react";
 import { Box, Button, IconButton } from "@radix-ui/themes";
 import { Stream } from "tangentsdk/serialization";
-import { EventResolver, RPC } from "tangentsdk/rpc";
+import { EventResolver, RPC, type SummaryState } from "tangentsdk/rpc";
 import { UiUtil } from "tangentsdk/ui";
 import { Chain } from "tangentsdk/algorithm";
 import { AppData } from "../core/app";
 import { mdiAlertCircleOutline, mdiArrowLeftBoldCircleOutline } from "@mdi/js";
 import { TransactionView, toTransactionLabel } from "../components/transaction";
-import BigNumber from "bignumber.js";
+import type { ReceiptRecord, TxRecord } from "../core/types";
 import Icon from "@mdi/react";
+import type BigNumber from "bignumber.js";
 
+type TransactionTarget = { transaction: TxRecord, receipt?: ReceiptRecord | null, state?: SummaryState };
+type SubtransactionEntry = { action: TxRecord, receipt?: ReceiptRecord | null };
+
+// The SDK event resolver consumes raw event records; receipts carry them untyped.
+type RawEventRecord = { event: BigNumber, args: unknown[] };
+
+// Internal transactions have no receipt of their own; when the parent's state contains a
+// rollup receipt event for one, it executed on-chain, so it must mimic the parent's
+// confirmation status and report its own gas use from that event.
+function toSubtransactionReceipt(data: TransactionTarget, subtransaction: SubtransactionEntry): ReceiptRecord | null {
+  if (subtransaction.receipt != null)
+    return subtransaction.receipt;
+  const receipts = data.state?.receipts;
+  if (receipts == null || data.receipt == null)
+    return null;
+  const hash = String(subtransaction.action.hash).toLowerCase();
+  const key = Object.keys(receipts).find((key) => key.toLowerCase() == hash);
+  if (key == null)
+    return null;
+  return { ...data.receipt, relative_gas_use: receipts[key].relativeGasUse };
+}
 export default function TransactionPage() {
   const params = useParams();
   const navigate = useNavigate();
-  const [targets, setTargets] = useState<any[] | null>(null);
+  const [targets, setTargets] = useState<TransactionTarget[] | null>(null);
   const [timeoutId, setTimeoutId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -27,7 +49,7 @@ export default function TransactionPage() {
       if (!params.id)
         throw false;
 
-      let results: any[] | null = null;
+      let results: TransactionTarget[] | null = null;
       try {
         results = await RPC.getTransactionsByHash(params.id, 2);
         if (!results)
@@ -49,16 +71,10 @@ export default function TransactionPage() {
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
         if (!result.transaction) {
-          results[i] = { transaction: result };
+          const bare = result as unknown as TxRecord; // RPC returns bare transaction records unwrapped
+          results[i] = { transaction: bare };
         } else {
-          result.state = EventResolver.calculateSummaryState(result.receipt?.events);
-        }
-
-        result.rollupGasLimit = new BigNumber(0);
-        if (result.state != null && result.state.receipts) {
-          for (let hash in result.state.receipts) {
-            result.rollupGasLimit = result.rollupGasLimit.plus(result.state.receipts[hash].relativeGasUse);
-          }
+          result.state = EventResolver.calculateSummaryState(result.receipt?.events as RawEventRecord[] | undefined);
         }
       }
 
@@ -105,19 +121,22 @@ export default function TransactionPage() {
         { headStatus }
         </div>
         {
-          targets.map((data, index) => (
-            <Box key={data.transaction.hash} mt={index > 0 ? '6' : undefined}>
-              <TransactionView variant="full" ownerAddress={ownerAddress} transaction={data.transaction} receipt={data.receipt} state={data.state}></TransactionView>
-              {
-                Array.isArray(data.transaction.transactions) && data.transaction.transactions.map((subtransaction: any, subIndex: number) =>
-                  <Box mt="5" key={subtransaction.action.hash + subIndex.toString()}>
-                    <div className="card-title" style={{ marginBottom: 10 }}>Transaction { subIndex + 2 } of { data.transaction.transactions.length + 1 }</div>
-                    <TransactionView variant="full" ownerAddress={ownerAddress} transaction={subtransaction.action} receipt={subtransaction.receipt} state={EventResolver.calculateSummaryState(subtransaction.receipt?.events)}></TransactionView>
-                  </Box>
-                )
-              }
-            </Box>
-          ))
+          targets.map((data, index) => {
+            const subtransactions = Array.isArray(data.transaction.transactions) ? data.transaction.transactions as SubtransactionEntry[] : [];
+            return (
+              <Box key={data.transaction.hash} mt={index > 0 ? '6' : undefined}>
+                <TransactionView variant="full" ownerAddress={ownerAddress} transaction={data.transaction} receipt={data.receipt} state={data.state}></TransactionView>
+                {
+                  subtransactions.map((subtransaction, subIndex) =>
+                    <Box mt="5" key={subtransaction.action.hash + subIndex.toString()}>
+                      <div className="card-title" style={{ marginBottom: 10 }}>Internal transaction { subIndex + 1 } of { subtransactions.length }</div>
+                      <TransactionView variant="full" ownerAddress={ownerAddress} transaction={subtransaction.action} receipt={toSubtransactionReceipt(data, subtransaction)} state={EventResolver.calculateSummaryState(subtransaction.receipt?.events as RawEventRecord[] | undefined)}></TransactionView>
+                    </Box>
+                  )
+                }
+              </Box>
+            )
+          })
         }
       </Box>
     )
