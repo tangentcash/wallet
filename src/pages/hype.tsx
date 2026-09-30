@@ -80,7 +80,7 @@ export default function HypePage() {
           accounts: toNiceCount(new BigNumber(result.accounts), 'user'),
           actions: toNiceCount(new BigNumber(result.actions), 'action'),
           quantity: toNiceAmount(new BigNumber(new BigNumber(result.quantity).toFixed(2))),
-          volume: toNiceAmount(new BigNumber(new BigNumber(result.volume).toFixed(2)))
+          volume: toNiceAmount(new BigNumber(new BigNumber(result.volume).toFixed(2)).dividedBy(Math.max(1, Math.floor(Math.abs(new Date().getTime() - genesisTimeDEX.getTime()) / 86_400_000))))
         };
       } catch {
         cachedMetrics = null;
@@ -218,7 +218,7 @@ export default function HypePage() {
             <Heading align="center" size={mobile ? '8' : '9'}>True Sovereignty</Heading>
           </Flex>
           <Flex justify="center" mb="8">
-            <Text align="center" size={mobile ? '4' : '5'}>Forget about KYC abuse and frozen accounts.</Text>
+            <Text align="center" size={mobile ? '4' : '5'}>No overreach. No freezes. Just privacy.</Text>
           </Flex>
           <Flex wrap="wrap" gap="3" justify="center">
             <Flex px="5" py="4" style={{ borderRadius: '999px', backgroundColor: 'var(--lime-solid)' }}>
@@ -319,7 +319,7 @@ export default function HypePage() {
           }
           <Box mx="auto" px="4" py="4">
             <Flex justify="center" mb="6">
-              <Heading align="center" size={mobile ? '7' : '9'} className="mono num">{ metrics.accounts }</Heading>
+              <Heading align="center" size={mobile ? '7' : '9'} className="num">{ metrics.accounts }</Heading>
             </Flex>
             <Flex justify="center" mb="8">
               <Text align="center" size={mobile ? '4' : '5'}><span style={{ 
@@ -341,7 +341,7 @@ export default function HypePage() {
                 <Heading size={mobile ? '3' : '5'} weight="regular" style={{ color: 'var(--text)' }}><Text weight="bold">{ metrics.quantity }</Text> locked in <Text weight="bold">{ metrics.assets }</Text></Heading>
               </Flex>
               <Flex px="5" py="4" style={{ borderRadius: '999px', backgroundColor: 'var(--lime-solid)' }}>
-                <Heading size={mobile ? '3' : '5'} weight="regular" style={{ color: 'var(--ink)' }}><Text weight="bold">{ metrics.volume }</Text> transacted</Heading>
+                <Heading size={mobile ? '3' : '5'} weight="regular" style={{ color: 'var(--ink)' }}><Text weight="bold">{ metrics.volume }</Text> moved in 24h</Heading>
               </Flex>
             </Flex>
           </Box>
