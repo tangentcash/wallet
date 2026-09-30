@@ -312,7 +312,7 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
   }, [extra, mode, item, primaryReserve, secondaryReserve]);
   const state = useMemo(() => {
     const primaryPrice = Exchange.priceOf(item.primaryAsset), secondaryPrice = Exchange.priceOf(item.secondaryAsset);
-    const initialLiquidity = item.initialPrimaryValue.multipliedBy(primaryPrice.close || new BigNumber(0)).plus(item.initialSecondaryValue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
+    const initialLiquidity = item.initialPrimaryValue.multipliedBy(item.allocationPrice ? item.allocationPrice.multipliedBy(secondaryPrice.close || new BigNumber(0)) : primaryPrice.close || new BigNumber(0)).plus(item.initialSecondaryValue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
     const currentLiquidity = item.primaryValue.multipliedBy(primaryPrice.close || new BigNumber(0)).plus(item.secondaryValue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
     const revenueLiquidity = currentLiquidity.minus(initialLiquidity);
     return {
@@ -375,7 +375,7 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
             <div className="dl-row"><span className="dl-k">TAN revenue</span><span className="dl-v">{ toFancyMoney(new AssetId(), item.rewardValue) }</span></div>
           </div>
           <div className="dl dl-rule">
-            <div className="dl-row"><span className="dl-k">Revenue</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, item.volume.multipliedBy(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE), true) }</span></div>
+            <div className="dl-row"><span className="dl-k">Revenue and IL</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</span></div>
             <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.primaryAsset) } reserve (est.)</span><span className="dl-v">{ toFancyMoney(item.primaryAsset, item.primaryValue) }</span></div>
             <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.secondaryAsset) } reserve (est.)</span><span className="dl-v">{ toFancyMoney(item.secondaryAsset, item.secondaryValue) }</span></div>
             <div className="dl-row"><span className="dl-k">Status</span><span className="dl-v"><span className={ 'badge ' + (item.active ? 'ok' : 'flat') }>{ item.active ? 'Active' : 'Inactive' }</span></span></div>

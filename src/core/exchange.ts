@@ -118,6 +118,7 @@ export type DelegatedPool = {
     initialSecondaryValue: BigNumber;
     primaryValue: BigNumber;
     secondaryValue: BigNumber;
+    allocationPrice?: BigNumber;
     primaryTotal: BigNumber;
     secondaryTotal: BigNumber;
     primaryReserve: BigNumber;
@@ -939,6 +940,7 @@ export class Exchange {
       secondaryReserve: new BigNumber(value.secondaryReserve),
       primaryTotal: new BigNumber(value.primaryTotal),
       secondaryTotal: new BigNumber(value.secondaryTotal),
+      allocationPrice: value.allocationPrice ? new BigNumber(value.allocationPrice) : undefined,
       share: new BigNumber(value.share),
       volume: new BigNumber(value.volume),
       feeRate: value.feeRate ? new BigNumber(value.feeRate) : undefined,
