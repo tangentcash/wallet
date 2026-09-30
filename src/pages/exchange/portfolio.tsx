@@ -218,17 +218,37 @@ function StandardBalanceView(props: { item: Balance & { equity: { current: BigNu
 
 function WalletNavigator(props: {
   address: string | null,
-  forceResync: number,
   readOnly: boolean,
   todayProfits: boolean,
   available: boolean,
   onTodayProfitsChange: (value: boolean) => any,
   onAssetsChange?: (value: CachedBalance[] | ((prev: CachedBalance[]) => CachedBalance[])) => any
+  onSync?: () => any
 }) {
   const [assets, setAssets] = useState<CachedBalance[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [sync, setSync] = useState(0);
   const lastAddress = useRef<string | null>(null);
+  const spinStart = useRef<number>(0);
+  const spinTimeout = useRef<number | undefined>(undefined);
+  const beginSpin = () => {
+    clearTimeout(spinTimeout.current);
+    spinStart.current = Date.now();
+    setLoading(true);
+  };
+  const endSpin = () => {
+    const period = 900; // must match .hero-refresh-mark.spin animation duration
+    const elapsed = Date.now() - spinStart.current;
+    const delay = Math.ceil(elapsed / period) * period - elapsed;
+    clearTimeout(spinTimeout.current);
+    spinTimeout.current = window.setTimeout(() => {
+      spinTimeout.current = undefined;
+      setLoading(false);
+    }, delay);
+  };
+  useEffect(() => () => {
+    clearTimeout(spinTimeout.current);
+  }, []);
   const equityAssets = useMemo(toEquityAssets(assets, props.todayProfits, props.available), [assets, props.todayProfits, props.available, sync]);
   const equity = useMemo((): { previous: BigNumber, current: BigNumber } => {
     return {
@@ -244,12 +264,15 @@ function WalletNavigator(props: {
       return;
     }
 
+    const addressChanged = lastAddress.current != address;
     lastAddress.current = address;
     if (address) {
-      setLoading(true);
-      setAssets([]);
-      if (props.onAssetsChange)
-        props.onAssetsChange([]);
+      beginSpin();
+      if (addressChanged) {
+        setAssets([]);
+        if (props.onAssetsChange)
+          props.onAssetsChange([]);
+      }
       try {
         const process = (data: Balance[]) => (data || []).map((x) => ({ ...x, cached: false }));
         const result = await Exchange.accountBalances({ address, resync: sync == -1 }, (cache) => {
@@ -266,7 +289,7 @@ function WalletNavigator(props: {
         }
       } catch { }
       if (lastAddress.current == address)
-        setLoading(false);
+        endSpin();
     } else {
       setAssets([]);
       if (props.onAssetsChange)
@@ -292,19 +315,29 @@ function WalletNavigator(props: {
     };
   }, [props.address]);
   useEffect(() => {
-    if (props.forceResync > 0)
-      setSync(-1);
-  }, [props.forceResync]);
+    const refetchEquity = () => setSync(new Date().getTime());
+    window.addEventListener('exchange:ready', refetchEquity);
+    return () => window.removeEventListener('exchange:ready', refetchEquity);
+  }, []);
   
   return (
     <Box>
-      {
-        loading && !assets.length ?
-        <div><span className="skel" style={{ display: 'inline-block', width: 220, height: 42, marginTop: 4 }}></span></div> :
-        <div className="hero-num">{ toFancyMoney(Exchange.equityAsset, equity.current) }</div>
-      }
+      <Tooltip content="Refresh">
+        <button className="hero-num hero-refresh" aria-label="Refresh" disabled={loading} onClick={() => {
+          setSync(-1);
+          if (props.onSync)
+            props.onSync();
+        }}>
+          {
+            loading && !assets.length ?
+            <span className="skel" style={{ display: 'inline-block', width: 220, height: 42, verticalAlign: 'middle' }}></span> :
+            toFancyMoney(Exchange.equityAsset, equity.current)
+          }
+          <span className={'hero-refresh-mark' + (loading ? ' spin' : '')}><Icon path={mdiRefresh} size="1em"></Icon></span>
+        </button>
+      </Tooltip>
       <div className="hero-sub-row">
-        <button className="page-sub hero-sub-btn" onClick={() => props.onTodayProfitsChange(!props.todayProfits)}>{ toFancyMoney(Exchange.equityAsset, equity.current.minus(equity.previous), true) } ({ UiUtil.toPercentageDelta(equity.previous, equity.current) }) { props.todayProfits ? 'today' : 'total' }</button>
+        <button className="page-sub hero-sub-btn" onClick={() => props.onTodayProfitsChange(!props.todayProfits)}>{ toFancyMoney(Exchange.equityAsset, equity.current.minus(equity.previous), true) } ({ UiUtil.toPercentageDelta(equity.previous, equity.current) }) { props.todayProfits ? 'today' : 'total' } · in { Exchange.equityAsset.chain || '?' }</button>
       </div>
     </Box>
   )
@@ -353,6 +386,7 @@ function MarketRouter(props: {
   pair: { primary: AssetId | null, secondary: AssetId | null }
   setPair: (p: { primary: AssetId | null, secondary: AssetId | null }) => any
   onPair?: (pair: { primary: AssetId | null, secondary: AssetId | null }) => void
+  refreshKey?: number
 }) {
   const assets = props.assets;
   const superMobile = document.body.clientWidth <= 400;
@@ -439,7 +473,7 @@ function MarketRouter(props: {
       setPolyAssets([]);
     }
     setLoadingPoly(false);
-  }, [props.pair.primary]);
+  }, [props.pair.primary, props.refreshKey]);
   useEffect(() => {
     props.onPair?.(props.pair);
   }, [props.pair]);
@@ -481,7 +515,7 @@ function MarketRouter(props: {
       if (swapPathTimeoutId != null)
         clearTimeout(swapPathTimeoutId);
     };
-  }, [props.market, props.pair.secondary, props.pair.primary, state.amountIn, state.slippage, assetsIn]);
+  }, [props.market, props.pair.secondary, props.pair.primary, state.amountIn, state.slippage, assetsIn, props.refreshKey]);
   useEffect(() => {
     const prev = AppStorage.get(ExchangeField.PortfolioRouter);
     if (prev != null) {
@@ -712,6 +746,7 @@ function MarketExplorer(props: {
   type: 'pairs' | 'router' | 'pools' | 'delegated-pools',
   setType: (type: string) => any
   onPair?: (pair: { primary: AssetId | null, secondary: AssetId | null }) => void
+  refreshKey?: number
 }) {
   const navigate = useNavigate();
   const [launchablePair, setLaunchablePair] = useState<AggregatedPair | null>(null);
@@ -896,7 +931,7 @@ function MarketExplorer(props: {
       await findPools(true);
     }
 
-  }, [props.market, props.type]);
+  }, [props.market, props.type, props.refreshKey]);
   useEffect(() => {
     const updatePairs = () => {
       setPairs(prev => {
@@ -1019,7 +1054,7 @@ function MarketExplorer(props: {
       }
       {
         props.type == 'router' && props.assets != null &&
-        <MarketRouter market={props.market} assets={props.assets} pair={searchPair} setPair={setSearchPair} onPair={props.onPair}></MarketRouter>
+        <MarketRouter market={props.market} assets={props.assets} pair={searchPair} setPair={setSearchPair} onPair={props.onPair} refreshKey={props.refreshKey}></MarketRouter>
       }
       {
         (props.type == 'pools' || props.type == 'delegated-pools') &&
@@ -1059,7 +1094,7 @@ function MarketExplorer(props: {
         </Box>
       }
       {
-        loading &&
+        loading && !pairs.length && !pools.length && !delegatedPools.length &&
         <Flex px="4" pt="4" justify="center">
           <Spinner></Spinner>
         </Flex>
@@ -1076,8 +1111,9 @@ export default function PortfolioPage() {
   const searchInput = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
   const [market, setMarket] = useState<Market | null>(null);
+  const [displayAsset, setDisplayAsset] = useState<string>(Exchange.equityAsset.chain || '');
   const [search, setSearch] = useSearchParams();
-  const [dexPull, setDexPull] = useState(0);
+  const [viewPull, setViewPull] = useState(0);
   const [query, setQuery] = useState('');
   const [assets, setAssets] = useState<CachedBalance[]>([]);
   const [viewer, setViewer] = useState<'market-pairs' | 'market-router' | 'market-pools' | 'market-delegated-pools' | 'wallet'>('market-pairs');
@@ -1280,9 +1316,10 @@ export default function PortfolioPage() {
     if (viewer == 'wallet') {
       await Promise.all([findOrders(true), findPools(true), findDelegatedPools(true)]);
     }
-  }, [viewer, params.account, readOnly, settled, historic]);
+  }, [viewer, params.account, readOnly, settled, historic, viewPull]);
   useEffectAsync(async () => {
-    await Exchange.connectSocket();
+    await Exchange.establish();
+    setDisplayAsset(Exchange.equityAsset.chain || '');
     if (Exchange.markets.length > 0) {
       setMarket(Exchange.markets[0]);
     }
@@ -1361,6 +1398,11 @@ export default function PortfolioPage() {
     else
       setSearch({ view: 'market-pairs' });
   }, [setSearch]);
+  const equityAssets = useMemo(() => Exchange.getEquityAssets().slice().sort((a, b) => a[1].localeCompare(b[1])), []);
+  const displayAssetName = useMemo(() => {
+    const entry = equityAssets.find(([symbol]) => symbol == displayAsset);
+    return entry ? entry[1] + ' (' + entry[0] + ')' : (displayAsset || 'Unknown');
+  }, [displayAsset, equityAssets]);
   return (
     <Box pt="2" minWidth="285px" maxWidth="680px" mx="auto" pb="2">
       <Box>
@@ -1408,17 +1450,34 @@ export default function PortfolioPage() {
                   </Select.Group>
                 </Select.Content>
               </Select.Root>
-              <Button className="btn-soft btn-block" style={{ marginTop: 10, height: 44, borderRadius: 'var(--r-md)', fontWeight: 700, fontSize: 14 }} onClick={() => {
-                setDexPull((prev) => prev + 1);
-                setSearching(false);
-              }}><Icon path={mdiRefresh} size={0.8}></Icon>Sync latest balances</Button>
+            </div>
+            <div style={{ borderTop: '1px solid var(--line)', marginTop: 16, paddingTop: 14 }}>
+              <div className="menu-cap" style={{ padding: '0 0 8px' }}>Display asset</div>
+              <Select.Root value={displayAsset} onValueChange={async (symbol) => {
+                if (!Exchange.setEquityAsset(AssetId.fromHandle(symbol)))
+                  return;
+                setDisplayAsset(symbol);
+                try {
+                  await Exchange.synchronize();
+                } finally {
+                  setDisplayAsset(Exchange.equityAsset.chain || symbol);
+                }
+              }} size="3">
+                <Select.Trigger style={{ width: '100%' }} placeholder="Unknown">{ displayAssetName }</Select.Trigger>
+                <Select.Content position="popper" side="bottom">
+                  <Select.Group>
+                    <Select.Label>Display currency</Select.Label>
+                    { equityAssets.map(([symbol, name]) => <Select.Item key={symbol} value={symbol}>{ name }<Text size="1" color="gray" style={{ marginLeft: 6 }}>{ symbol }</Text></Select.Item>) }
+                  </Select.Group>
+                </Select.Content>
+              </Select.Root>
             </div>
             </Dialog.Content>
           </Dialog.Root>
         </div>
       </Box>
       <Box>
-        <WalletNavigator address={baseAddress} available={viewer == 'wallet' ? availableOnly : false} forceResync={dexPull} readOnly={readOnly} todayProfits={todayProfits} onTodayProfitsChange={setTodayProfits} onAssetsChange={(value: CachedBalance[] | ((prev: CachedBalance[]) => CachedBalance[])) => { setAssets(value); setAssetsReady(true); }}></WalletNavigator>
+        <WalletNavigator address={baseAddress} available={viewer == 'wallet' ? availableOnly : false} readOnly={readOnly} todayProfits={todayProfits} onTodayProfitsChange={setTodayProfits} onSync={() => setViewPull((prev) => prev + 1)} onAssetsChange={(value: CachedBalance[] | ((prev: CachedBalance[]) => CachedBalance[])) => { setAssets(value); setAssetsReady(true); }}></WalletNavigator>
       </Box>
       <Box style={{ marginTop: 2 }}>
         <SegmentedControl.Root value={tab} radius="full" size="3" mb="4" onValueChange={(value) => openTab(value as 'trade' | 'swap' | 'earn' | 'wallet')}>
@@ -1429,7 +1488,7 @@ export default function PortfolioPage() {
         </SegmentedControl.Root>
         {
           tab != 'wallet' &&
-          <MarketExplorer market={market} assets={viewer == 'market-router' || viewer == 'market-delegated-pools' ? assets : undefined} type={toMarketExplorerType(viewer)} setType={(type) => setSearch({ view: 'market-' + type })} onPair={setSwapPair}></MarketExplorer>
+          <MarketExplorer market={market} assets={viewer == 'market-router' || viewer == 'market-delegated-pools' ? assets : undefined} type={toMarketExplorerType(viewer)} setType={(type) => setSearch({ view: 'market-' + type })} refreshKey={viewPull} onPair={setSwapPair}></MarketExplorer>
         }
         {
           viewer == 'wallet' &&

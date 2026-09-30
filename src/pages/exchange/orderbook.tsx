@@ -517,7 +517,7 @@ export default function OrderbookPage() {
       };
     } catch (exception: any) {
       AlertBox.open(AlertType.Error, 'Failed to fetch market: ' + (exception.message || 'unknown error'));
-      navigate(Exchange.location);
+      navigate('/portfolio');
     }
   }, [orderbook]);
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { AssetId } from "tangentsdk/algorithm";
 import { UiUtil } from "tangentsdk/ui";
 import BigNumber from "bignumber.js";
+import { Exchange } from "./exchange";
 
 export function secondsToDuration(baseSeconds: number, short?: boolean): string {
   if (!baseSeconds)
@@ -28,9 +29,13 @@ export function secondsToDuration(baseSeconds: number, short?: boolean): string 
     return toDuration(seconds / SEC_PER_MIN, short ? "m" : "minute");
   return toDuration(seconds, short ? "s" : "second");
 }
-export function toFancyPrecision(value: string | number | BigNumber | null): BigNumber | null {
+export function toFancyPrecision(value: string | number | BigNumber | null, asset?: AssetId | null): BigNumber | null {
   let numeric: BigNumber | null = value ? new BigNumber(BigNumber.isBigNumber(value) ? value.toPrecision(12) : value) : null;
   if (numeric) {
+    if (asset != null && asset == Exchange.equityAsset) {
+      numeric = numeric?.multipliedBy(Exchange.equityRate);
+    }
+    
     const test = numeric.abs();
     if (test.gte(100))
       numeric = numeric.decimalPlaces(2);
@@ -42,8 +47,8 @@ export function toFancyPrecision(value: string | number | BigNumber | null): Big
   return numeric;
 }
 export function toFancyValue(asset: AssetId | null, value: string | number | BigNumber | null, delta: boolean, trailing: boolean) {
-  return UiUtil.toValue(asset, toFancyPrecision(value), delta, trailing);
+  return UiUtil.toValue(asset, toFancyPrecision(value, asset), delta, trailing);
 }
 export function toFancyMoney(asset: AssetId | null, value: string | number | BigNumber | null, delta?: boolean) {
-  return UiUtil.toMoney(asset, toFancyPrecision(value), delta);
+  return UiUtil.toMoney(asset, toFancyPrecision(value, asset), delta);
 }

@@ -1154,6 +1154,14 @@ button.asset-row:hover { background: var(--elev); }
 .icon-btn svg { width: 17px; height: 17px; }
 .icon-btn-lg { width: 40px; height: 40px; }
 .icon-btn-lg svg { width: 19px; height: 19px; }
+.hero-refresh { font-family: inherit; text-align: left; background: none; border: 0; padding: 0; margin: 0; cursor: pointer; color: inherit; }
+.hero-refresh-mark { font-size: 0.6em; line-height: 0; display: inline-block; margin-left: 0.22em; color: var(--text-2); }
+.hero-refresh:hover .hero-refresh-mark { color: var(--text); }
+.hero-refresh:active { transform: scale(0.985); }
+.hero-refresh:disabled { cursor: default; }
+.hero-refresh:disabled:active { transform: none; }
+@keyframes hero-refresh-spin { to { transform: rotate(360deg); } }
+.hero-refresh-mark.spin { animation: hero-refresh-spin 0.9s linear infinite; }
 
 
 

@@ -6,6 +6,7 @@ import { Whitelist } from "tangentsdk/whitelist";
 import { AppStorage } from "./storage"
 import { AppData } from "./app"
 import BigNumber from "bignumber.js"
+import Currencies from './../configs/currencies.json'
 
 const WEBSOCKET_TIMEOUT = 24000;
 
@@ -297,16 +298,17 @@ export enum ExchangeField {
   PortfolioMarket = '__portfolio_market__',
   PortfolioRouter = '__portfolio_router__',
   PortfolioMockPairs = '__mock_pairs__',
-  AssetsHistory = '__assets_history__'
+  AssetsHistory = '__assets_history__',
+  EquityAsset = '__equity_asset__'
 }
 
 export class Exchange {
-  static location: string = '';
   static prices: PriceDescriptors = { };
   static markets: Market[] = [];
   static delegators: Delegator[] = [];
   static descriptors: BlockchainInfo[] = [];
   static equityAsset: AssetId = AssetId.fromHandle('USD');
+  static equityRate: BigNumber = new BigNumber(1);
   static orderbook:  string | null = null;
   static socket: WebSocket | null = null;
   static ready: boolean = false;
@@ -398,6 +400,15 @@ export class Exchange {
       detail: notification.data
     }));
   }
+  static setEquityAsset(asset: AssetId): boolean {
+    if (this.equityAsset.id != asset.id && asset.chain && !asset.token && !asset.checksum && Currencies.find(x => x[0] == asset.chain)) {
+      this.ready = false;
+      this.equityAsset = asset;
+      AppStorage.set(ExchangeField.EquityAsset, this.equityAsset.chain);
+      return true;
+    }
+    return false;
+  }
   static setOrderbook(orderbook: string): void {
     const target = this.fromOrderbookQuery(orderbook);
     const value = target.marketId && target.primaryAsset && target.secondaryAsset ? orderbook : null;
@@ -407,35 +418,48 @@ export class Exchange {
   static getOrderbook(): string | null {
     return this.orderbook;
   }
-  static connectSocket(): Promise<void> {
-    return new Promise<void>((resolve) => {
+  static getEquityAssets(): string[][] {
+    return Currencies;
+  }
+  static establish(): Promise<void> {
+    return new Promise<void>(async (resolve) => {
       if (!this.socket || !this.ready) {
         this.awaitables.push(resolve);
-        if (this.awaitables.length == 1)
-          this.connectSocketInternal();
+        if (this.awaitables.length == 1) {
+          const address = AppData.getWalletAddress();
+          await this.channel(address ? [address] : []);
+          await this.synchronize();
+        }
       } else {
         resolve();
       }
     });
   }
-  private static async connectSocketInternal(): Promise<void> {
-    const address = AppData.getWalletAddress();
-    this.location = AppData.props.exchange || '';
-    await this.channel(address ? [address] : []);
-    try {
-      const portfolio = await this.assetsPortfolio();
-      this.prices = portfolio?.prices || { };
-      this.markets = portfolio?.markets || [];
-      this.delegators = portfolio?.delegators || [];
-      this.descriptors = (portfolio?.descriptors || []).sort((a, b) => UiUtil.toAssetSymbol(a).localeCompare(UiUtil.toAssetSymbol(b)));
-      
-      const base = this.prices['__BASE__']?.base || null;
-      this.equityAsset = base ? AssetId.fromHandle(base) : this.equityAsset;
-    } catch { }
+  static async synchronize(): Promise<void> {
+    if (!this.ready) {
+      const equityAsset = AppStorage.get(ExchangeField.EquityAsset);
+      if (typeof equityAsset == 'string' && equityAsset.length > 0) {
+        this.setEquityAsset(AssetId.fromHandle(equityAsset));
+      }
 
-    this.orderbook = AppStorage.get(ExchangeField.Orderbook);
-    this.ready = true;
-    this.dispatchEvent('exchange:ready', { data: { } });
+      try {
+        const portfolio = await this.assetsPortfolio(this.equityAsset.chain || undefined);
+        this.prices = portfolio?.prices || { };
+        this.markets = portfolio?.markets || [];
+        this.delegators = portfolio?.delegators || [];
+        this.descriptors = (portfolio?.descriptors || []).sort((a, b) => UiUtil.toAssetSymbol(a).localeCompare(UiUtil.toAssetSymbol(b)));
+        this.equityRate = portfolio?.rate || new BigNumber(0);   
+        if (!this.equityAsset) {
+          const base = this.prices['__BASE__']?.base || null;
+          this.equityAsset = base ? AssetId.fromHandle(base) : this.equityAsset;
+        }
+      } catch { }
+
+      this.ready = true;
+      this.orderbook = AppStorage.get(ExchangeField.Orderbook);
+      this.dispatchEvent('exchange:ready', { data: { } });
+    }
+    
     if (this.awaitables != null) {
       for (let i = 0; i < this.awaitables.length; i++) {
         this.awaitables[i]();
@@ -458,9 +482,10 @@ export class Exchange {
         }
       }
 
-      if (policy == 'cache' || policy == 'no-cache')
-        await this.connectSocket();
-
+      if (policy == 'cache' || policy == 'no-cache') {
+        await this.establish();
+      }
+      
       if (this.socket) {
         const id = (++this.requests.count).toString();
         const content = JSON.stringify({
@@ -495,8 +520,9 @@ export class Exchange {
         const search = new URLSearchParams();
         if (!body && args != null && typeof args == 'object')
           Object.keys(args).forEach(key => this.storeURL(search, key, args[key]));
+        await this.synchronize();
 
-        const url = new URL(`${this.location}/${location}${search.size > 0 ? '?' : ''}${search.toString()}`);
+        const url = new URL(`${this.getURL()}/${location}${search.size > 0 ? '?' : ''}${search.toString()}`);
         const response = await fetch(url, {
           method: method,
           headers: body && args != null ? { 'Content-Type': 'application/json' } : undefined,
@@ -535,10 +561,12 @@ export class Exchange {
     if (!this.socket) {
       try {
         this.socket = await new Promise<WebSocket>((resolve, reject) => {
-          const socket = new WebSocket(`${this.location}/`);
+          const socket = new WebSocket(`${this.getURL()}/`);
           socket.onopen = () => resolve(socket);
           socket.onerror = () => reject(new Error('websocket connection error'));
         });
+        if (RPC.onNodeMessage && !this.quiet)
+          RPC.onNodeMessage('erelay', { args: null, result: null }, 0);
         this.socket.onopen = null;
         this.socket.onerror = null;
         this.socket.onmessage = (event) => {
@@ -592,8 +620,8 @@ export class Exchange {
 
     return true;
   }
-  static async assetsPortfolio(): Promise<{ prices: PriceDescriptors, descriptors: BlockchainInfo[], markets: Market[], delegators: Delegator[] } | null> {
-    const result = await this.fetch('no-cache-direct', 'GET', `assets/portfolio`, { });
+  static async assetsPortfolio(base?: string): Promise<{ prices: PriceDescriptors, descriptors: BlockchainInfo[], markets: Market[], delegators: Delegator[], rate: BigNumber | null } | null> {
+    const result = await this.fetch('no-cache-direct', 'GET', `assets/portfolio`, { base: base });
     if (!result) {
       return null;
     } else if (Array.isArray(result.delegators)) {
@@ -830,7 +858,7 @@ export class Exchange {
     return result;
   }
   static getURL(): string {
-    return this.location;
+    return AppData.props.exchange || '';
   }
   static toOrder(value: any): Order {
     return {
