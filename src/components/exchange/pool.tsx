@@ -372,10 +372,10 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
             <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
             <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
             <div className="dl-row"><span className="dl-k">Your share</span><span className="dl-v">{ item.share.multipliedBy(100).toFixed(2) }%</span></div>
-            <div className="dl-row"><span className="dl-k">TAN subsidy</span><span className="dl-v">{ toFancyMoney(new AssetId(), item.rewardValue) }</span></div>
+            <div className="dl-row"><span className="dl-k">TAN revenue</span><span className="dl-v">{ toFancyMoney(new AssetId(), item.rewardValue) }</span></div>
           </div>
           <div className="dl dl-rule">
-            <div className="dl-row"><span className="dl-k">Revenue + IL (est.)</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, state.absoluteRevenue, true) }</span></div>
+            <div className="dl-row"><span className="dl-k">Revenue</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, item.volume.multipliedBy(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE), true) }</span></div>
             <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.primaryAsset) } reserve (est.)</span><span className="dl-v">{ toFancyMoney(item.primaryAsset, item.primaryValue) }</span></div>
             <div className="dl-row"><span className="dl-k">{ UiUtil.toAssetSymbol(item.secondaryAsset) } reserve (est.)</span><span className="dl-v">{ toFancyMoney(item.secondaryAsset, item.secondaryValue) }</span></div>
             <div className="dl-row"><span className="dl-k">Status</span><span className="dl-v"><span className={ 'badge ' + (item.active ? 'ok' : 'flat') }>{ item.active ? 'Active' : 'Inactive' }</span></span></div>
@@ -501,11 +501,11 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
             <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
             <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
             <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
-            <div className="dl-row"><span className="dl-k">Revenue</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, item.currentValue.minus(item.initialValue), true) }</span></div>
+            <div className="dl-row"><span className="dl-k">Revenue</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, item.volume.multipliedBy(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE), true) }</span></div>
             <div className="dl-row"><span className="dl-k">Liquidity</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, item.currentValue) }</span></div>
             {
               extra.delegator &&
-              <div className="dl-row"><span className="dl-k">TAN subsidy</span><span className="dl-v">{ toFancyMoney(new AssetId(), extra.delegator.rewardEmission.dividedBy(extra.delegator.permissions.length).multipliedBy(86400000 / Chain.policy.BLOCK_TIME)) } per day</span></div>
+              <div className="dl-row"><span className="dl-k">TAN rewards</span><span className="dl-v">{ toFancyMoney(new AssetId(), extra.delegator.rewardEmission.dividedBy(extra.delegator.permissions.length).multipliedBy(86400000 / Chain.policy.BLOCK_TIME)) } per day</span></div>
             }
           </div>
           <Box my="4" className="dl-rule"></Box>
