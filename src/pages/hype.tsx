@@ -492,7 +492,7 @@ export default function HypePage() {
             <GlassSurface backgroundOpacity={0.3} saturation={0} borderRadius={999} width="auto" height="auto" style={{ padding: '10px 16px' }}>
               <Flex gap="2">
                 <Icon path={mdiSale} color="var(--gray-12)" size={mobile ? 0.9 : 1.2}></Icon> 
-                <Heading size={mobile ? '3' : '5'} weight="regular" style={{ color: 'var(--gray-12)' }}>0.05% Spread</Heading>
+                <Heading size={mobile ? '3' : '5'} weight="regular" style={{ color: 'var(--gray-12)' }}>0.10% Spread</Heading>
               </Flex>
             </GlassSurface>
             <Flex px="5" py="4" gap="2" style={{ borderRadius: '999px', backgroundColor: 'var(--lime-solid)' }}>
