@@ -1,12 +1,6 @@
 *, *::before, *::after { box-sizing: border-box; }
 html, body { overscroll-behavior: none; }
 
-@font-face {
-  font-family: 'PT Mono';
-  src: url('./fonts/ptmono-regular.ttf') format('truetype');
-  font-display: swap;
-}
-
 :root {
   --bg: #0B0D0C;
   --surface: #161918;
@@ -49,7 +43,7 @@ html, body { overscroll-behavior: none; }
   --r-md: 18px;
   --r-sm: 12px;
   --sans: ui-sans-serif, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  --mono: "PT Mono", ui-monospace, "Cascadia Mono", monospace;
+  --mono: ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
   --tabbar-h: 84px;
   --safe-extra-top: 0px;
   --safe-extra-bottom: 0px;
