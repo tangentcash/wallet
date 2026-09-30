@@ -607,7 +607,7 @@ export default function OrderbookPage() {
   const change24Style = deltaDir > 0 ? { color: 'var(--lime)' } : (deltaDir < 0 ? { color: 'var(--down)' } : undefined);
   const nameP = pair?.primaryAsset ? Assetlist.toName(pair.primaryAsset).replace((pair.primaryAsset.chain || '') + ' ', '') : symP;
   const nameQ = pair?.secondaryAsset ? Assetlist.toName(pair.secondaryAsset).replace((pair.secondaryAsset.chain || '') + ' ', '') : symQ;
-  const lpApy = market && pair?.price.poolVolume?.gt(0) && pair?.price.poolLiquidity?.gt(0) ? Exchange.toAPY(pair.poolFeeRate || market.maxPoolFeeRate, pair.price.poolLiquidity, pair.price.poolVolume) : new BigNumber(0);
+  const lpApy = market && pair?.price.poolVolume?.gt(0) && pair?.price.poolLiquidity?.gt(0) ? Exchange.toAPY(pair.poolFeeRate || market.maxPoolFeeRate, pair.price.poolLiquidity, pair.price.poolVolume.dividedBy(180)) : new BigNumber(0);
   const pxClose = pair?.price.close || new BigNumber(0);
   const pxRcv = balances.primary.price;
   const pxNow = pair?.primaryAsset != null ? (Exchange.priceOf(pair.primaryAsset).close || pxClose) : pxClose;
@@ -656,7 +656,7 @@ export default function OrderbookPage() {
           <div className="dl-row"><span className="dl-k">Spread</span><span className="dl-v num">{ spread ? toFancyValue(null, spread, false, true) + ' · ' + (spreads.bid && spreads.bid.gt(0) ? spread.dividedBy(spreads.bid).multipliedBy(100).toFixed(2) : '0.00') + '%' : '—' }</span></div>
           <div className="dl-row"><span className="dl-k">24h change</span><span className="dl-v num" style={ change24Style }>{ change24 }</span></div>
           <div className="dl-row"><span className="dl-k">24h range</span><span className="dl-v num">{ toFancyValue(null, pair?.price.low || null, false, true) } – { toFancyValue(null, pair?.price.high || null, false, true) }</span></div>
-          <div className="dl-row"><span className="dl-k">24h volume</span><span className="dl-v num">{ toFancyMoney(pair?.secondaryAsset || null, pair?.price.totalVolume || new BigNumber(0)) }</span></div>
+          <div className="dl-row"><span className="dl-k">30d volume</span><span className="dl-v num">{ toFancyMoney(pair?.secondaryAsset || null, pair?.price.totalVolume?.dividedBy(180).multipliedBy(30) || new BigNumber(0)) }</span></div>
           <div className="dl-row"><span className="dl-k">Book liquidity</span><span className="dl-v num">{ toFancyMoney(pair?.secondaryAsset || null, pair?.price.totalLiquidity || new BigNumber(0)) }</span></div>
         </div>
         <div className="dl dl-rule">
@@ -689,7 +689,7 @@ export default function OrderbookPage() {
             <div><div className="k">Best ask</div><div className="v">{ spreads.ask && spreads.ask.gt(0) ? toFancyValue(null, spreads.ask, false, true) : '—' }</div></div>
             <div><div className="k">Spread</div><div className="v">{ spread ? toFancyValue(null, spread, false, true) + ' · ' + (spreads.bid && spreads.bid.gt(0) ? spread.dividedBy(spreads.bid).multipliedBy(100).toFixed(2) : '0.00') + '%' : '—' }</div></div>
             <div><div className="k">24h range</div><div className="v">{ toFancyValue(null, pair?.price.low || null, false, true) } – { toFancyValue(null, pair?.price.high || null, false, true) }</div></div>
-            <div><div className="k">24h volume</div><div className="v">{ toFancyMoney(pair?.secondaryAsset || null, pair?.price.totalVolume || new BigNumber(0)) }</div></div>
+            <div><div className="k">30d volume</div><div className="v">{ toFancyMoney(pair?.secondaryAsset || null, pair?.price.totalVolume?.dividedBy(180).multipliedBy(30) || new BigNumber(0)) }</div></div>
             <div><div className="k">Book liquidity</div><div className="v">{ toFancyMoney(pair?.secondaryAsset || null, pair?.price.totalLiquidity || new BigNumber(0)) }</div></div>
           </div>
           <div className="stat-grid dl-rule" style={{ marginTop: 14, paddingTop: 14 }}>

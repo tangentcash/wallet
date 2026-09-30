@@ -336,7 +336,7 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
       secondaryValue: mode == 'withdraw' && secondary.eq(extra.secondary) ? '' : secondary.toString()
     };
   }, [primaryReserve, secondaryReserve, extra, item, mode]);
-  const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, state.currentLiquidity, item.volume.dividedBy(30).multipliedBy(item.share)), [item.volume, item.share, state.currentLiquidity]);
+  const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, state.currentLiquidity, item.volume.dividedBy(180).multipliedBy(item.share)), [item.volume, item.share, state.currentLiquidity]);
   const symP = item.primaryAsset.token || item.primaryAsset.chain;
   const symQ = item.secondaryAsset.token || item.secondaryAsset.chain;
   return (
@@ -453,7 +453,7 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
       relativeRevenue: relativeRevenue
     }
   }, [item, props.assets]);
-  const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, item.currentValue, item.volume.dividedBy(30)), [item.currentValue, item.volume]);
+  const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, item.currentValue, item.volume.dividedBy(180)), [item.currentValue, item.volume]);
   const payload = useMemo(() => {
     const primary = new BigNumber(primaryReserve || '0');
     const secondary = new BigNumber(secondaryReserve || '0');
