@@ -2,6 +2,7 @@ import { defineConfig, type Plugin } from "vite";
 import { visualizer } from '@aklinker1/rollup-plugin-visualizer';
 import { resolve } from 'path';
 import react from "@vitejs/plugin-react";
+import { minify as minifyHtml } from "html-minifier-terser";
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -18,6 +19,22 @@ export default defineConfig(async () => ({
       gzipSize: true,
       brotliSize: true,
     }),
+    {
+      name: 'minify-html',
+      apply: 'build',
+      // Runs after Vite injects the hashed asset tags so the final HTML is minified.
+      transformIndexHtml: {
+        order: 'post',
+        handler: (html) =>
+          minifyHtml(html, {
+            collapseWhitespace: true,
+            removeComments: true,
+            minifyCSS: true,
+            minifyJS: true,
+            removeOptionalTags: true,
+          }),
+      },
+    } satisfies Plugin,
   ],
   resolve: {
     alias: { buffer: 'buffer/' },
