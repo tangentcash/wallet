@@ -357,6 +357,16 @@ export default function OrderbookPage() {
       bid: reduceLevels(viewLevels.bid, range).sort((a, b) => b.price.minus(a.price).toNumber())
     }
   }, [seriesOptions.priceLevel, viewLevels]);
+  const bookTotals = useMemo(() => ({
+    ask: {
+      quantity: groupedLevels.ask.reduce((a, b) => a.plus(b.quantity), new BigNumber(0)),
+      value: groupedLevels.ask.reduce((a, b) => a.plus(b.price.multipliedBy(b.quantity)), new BigNumber(0))
+    },
+    bid: {
+      quantity: groupedLevels.bid.reduce((a, b) => a.plus(b.quantity), new BigNumber(0)),
+      value: groupedLevels.bid.reduce((a, b) => a.plus(b.price.multipliedBy(b.quantity)), new BigNumber(0))
+    }
+  }), [groupedLevels]);
   const updateTab = useCallback((value: 'info' | 'maker' | 'book' | 'logs') => {
     AppStorage.set(ExchangeField.OrderbookTab, value);
     setTab(value);
@@ -748,8 +758,8 @@ export default function OrderbookPage() {
       </div>
       <div style={{ marginTop: 12 }}>
         {
-          seriesOptions.priceScope != PriceScope.Ask &&
-          [...groupedLevels.ask].slice(0, 12).reverse().map((item) =>
+          seriesOptions.priceScope != PriceScope.Bid &&
+          [...groupedLevels.ask].reverse().map((item) =>
             <button className="book-row ask" key={'a' + item.price.toString()} onClick={() => updatePreset(OrderSide.Sell, item.price)}>
               <span className="apx">{ toFancyValue(null, item.price, false, true) }</span>
               <span className="track"><i style={{ width: Math.min(100, item.quantity.dividedBy(liquidity.ask[0].gt(0) ? liquidity.ask[0] : new BigNumber(1)).multipliedBy(100).toNumber()) + '%' }}></i></span>
@@ -764,8 +774,8 @@ export default function OrderbookPage() {
           </div>
         }
         {
-          seriesOptions.priceScope != PriceScope.Bid &&
-          groupedLevels.bid.slice(0, 12).map((item) =>
+          seriesOptions.priceScope != PriceScope.Ask &&
+          groupedLevels.bid.map((item) =>
             <button className="book-row bid" key={'b' + item.price.toString()} onClick={() => updatePreset(OrderSide.Buy, item.price)}>
               <span className="bpx">{ toFancyValue(null, item.price, false, true) }</span>
               <span className="track"><i style={{ width: Math.min(100, item.quantity.dividedBy(liquidity.bid[0].gt(0) ? liquidity.bid[0] : new BigNumber(1)).multipliedBy(100).toNumber()) + '%' }}></i></span>
@@ -783,6 +793,15 @@ export default function OrderbookPage() {
       </div>
       </div>
       <p className="tiny dim" style={{ marginTop: 14, textAlign: 'center' }}>Tap a level → the Trade tab opens with its price filled.</p>
+      {
+        seriesOptions.priceScope != PriceScope.All && bookTotals[seriesOptions.priceScope == PriceScope.Bid ? 'bid' : 'ask'].quantity.gt(0) &&
+        <p className="tiny" style={{ marginTop: 6, textAlign: 'center' }}>
+          <span className="dim">{ seriesOptions.priceScope == PriceScope.Bid ? 'Total being bought' : 'Total being sold' }: </span>
+          <span style={{ color: seriesOptions.priceScope == PriceScope.Bid ? 'var(--lime)' : 'var(--down)' }}>
+            { toFancyMoney(pair?.primaryAsset || null, bookTotals[seriesOptions.priceScope == PriceScope.Bid ? 'bid' : 'ask'].quantity) } · { toFancyMoney(pair?.secondaryAsset || null, bookTotals[seriesOptions.priceScope == PriceScope.Bid ? 'bid' : 'ask'].value) }
+          </span>
+        </p>
+      }
     </>
   );
   const logsBlock = (
