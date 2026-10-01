@@ -397,6 +397,7 @@ function MarketRouter(props: {
   const [loadingPoly, setLoadingPoly] = useState<boolean>(false);
   const [loadingPath, setLoadingPath] = useState<boolean>(false);
   const assetsIn = useMemo((): Balance[] => assets.filter((v) => v.asset.id == props.pair.primary?.id || polyAssets.findIndex((i) => i.id == v.asset.id) != -1), [props.pair.primary, assets, polyAssets]);
+  const payableBalances = useMemo((): Balance[] => assets.filter((v) => v.available.gt(0)), [assets]);
   const swapInfo = useMemo((): { balanceIn: BigNumber, balanceOut: BigNumber, amountIn: BigNumber, amountOut: BigNumber, priceIn: BigNumber | null, priceOut: BigNumber | null, valuationIn: BigNumber | null, valuationOut: BigNumber | null, slippage: BigNumber } => {
     const assetIn = assetsIn.reduce((a, b) => a.plus(b.available), new BigNumber(0));
     const assetOut = props.pair.secondary ? assets.find((x) => x.asset.id == props.pair.secondary?.id) : null;
@@ -550,11 +551,11 @@ function MarketRouter(props: {
         <div className="swap-lab"><span>Pay · any token</span><span>Balance { toFancyMoney(props.pair.primary, swapInfo.balanceIn) }</span></div>
         <div className="swap-amt">
           <TextField.Root placeholder="0.0" type="text" value={state.amountIn} onChange={(e) => setAmount('amount-in', e.target.value)} />
-          <AssetSelector title="token" value={props.pair.primary} onChange={(value) => props.setPair({ primary: value || null, secondary: props.pair.secondary })}>
+          <AssetSelector title="token" value={props.pair.primary} balances={payableBalances} onChange={(value) => props.setPair({ primary: value || null, secondary: props.pair.secondary })}>
             <button className={props.pair.primary ? 'token-select' : 'token-select dot'}>
               { props.pair.primary && <AssetImage asset={props.pair.primary} size="2" iconSize="26px"></AssetImage> }
               { props.pair.primary ? UiUtil.toAssetSymbol(props.pair.primary) : 'Select' }
-              ▾
+              <span>▾</span>
             </button>
           </AssetSelector>
         </div>
@@ -586,7 +587,7 @@ function MarketRouter(props: {
             <button className={props.pair.secondary ? 'token-select' : 'token-select dot'}>
               { props.pair.secondary && <AssetImage asset={props.pair.secondary} size="2" iconSize="26px"></AssetImage> }
               { props.pair.secondary ? UiUtil.toAssetSymbol(props.pair.secondary) : 'Select' }
-              ▾
+              <span>▾</span>
             </button>
           </AssetSelector>
         </div>
@@ -664,7 +665,7 @@ function MarketRouter(props: {
         !loadingPoly && !bestPaths?.length &&
         (loadingPath ?
           <Flex px="4" pt="4" justify="center"><Text size="2" align="center" className="dim">Optimizing swap routes...</Text></Flex> :
-          <button className="btn-block" disabled style={{ marginTop: 14, background: 'var(--elev)', color: 'var(--text-3)', border: 0, borderRadius: 'var(--r-md)', height: 48, fontWeight: 700, fontSize: 14, cursor: 'not-allowed', opacity: 0.6 }}>{ bestPaths ? 'No routes for the swap.' : 'Invalid swap action.' }</button>)
+          <button className="btn-block" disabled style={{ marginTop: 14, background: 'var(--elev)', color: 'var(--text-3)', border: 0, borderRadius: 'var(--r-md)', height: 48, fontWeight: 700, fontSize: 14, cursor: 'not-allowed', opacity: 0.6 }}>{ bestPaths ? 'No routes for the swap.' : 'Waiting for details' }</button>)
       }
     </Box>
   )

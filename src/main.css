@@ -1047,9 +1047,13 @@ button.asset-row:hover { background: var(--elev); }
   box-shadow: 0 -18px 50px rgba(0, 0, 0, 0.6);
 }
 @media (min-width: 768px) { .sheet-content { max-width: 520px; min-height: 56vh; } }
+.sheet-content.token-picker { display: flex; flex-direction: column; overflow: hidden; }
+.picker-list { flex: 1; min-height: 0; margin-top: 12px; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
 
 
-.address-view { text-align: center; }
+.picker-list .asset-row { width: 100%; margin-inline: 0; padding-inline: 12px; }
+.picker-list .asset-main .rt-Flex { min-width: 0; }
+.picker-list .asset-main .rt-Flex > .rt-Text { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .address-view .rt-SelectTrigger.token-select { height: 36px; padding: 6px 12px 6px 6px; background-color: var(--elev); gap: 8px; font-weight: 700; }
 .address-view .rt-SelectTrigger.token-select .rt-SelectTriggerInner { display: flex; flex: 1; min-height: 0; align-items: center; }
 .address-view .rt-SelectTrigger.token-select .rt-SelectTriggerInner > span { display: inline-flex; align-items: center; gap: 8px; }
