@@ -18,7 +18,7 @@ Multi-chain tokens are labeled with their chain in the token pickers (`TAN USDC`
 
 ## Earn Tab
 
-The Earn tab lists **delegated liquidity** pools: vault-operated concentrated positions anyone can fund. Each pool shows current value, APR/APY, 24h volume and the operator's fee; funding a pool delegates your assets into the operator-managed range, and the position shows up in your Wallet tab.
+The Earn tab lists **delegated liquidity** pools: vault-operated concentrated positions anyone can fund. Each pool shows current value, APR/APY, 24h volume and the operator's fee; funding a pool delegates your assets into the operator-managed range, and the position shows up in your Wallet tab. The Earn cards are for **deposits only** — each card says so and links to the Wallet tab, where the position can also be withdrawn.
 
 ![Earn tab](./../../assets/exchange/02-portfolio/3.png)
 
@@ -28,7 +28,7 @@ The Wallet tab is the account dashboard:
 
 - **Total balance window** — overall portfolio value in fiat with a P&L toggle (today vs. all time) and a `Total / Available` switch that includes or excludes balance locked by orders and positions.
 - **Asset list** — every holding with amount, market value and P&L. Multi-variant tokens (for example the same stablecoin on different chains) appear as **unified assets** with a `Wrap` action: wrap 1:1 into the unified form to trade them as one, unwrap back at any time without fees.
-- **Delegated liquidity** — your funded operator pools, with a `History` toggle for withdrawn positions.
+- **Delegated liquidity** — your funded operator pools, with a `History` toggle for withdrawn positions. Opening a position gives explicit `Add funds` / `Withdraw` actions. A withdrawal picks what you `End up with`: both assets in amounts you set, or **everything as one asset** — the other side of the position is then swapped at the market rate inside the same execution plan, and the amount slider turns red past what the market can absorb.
 - **Liquidity pools** — your own LP positions, active and closed.
 - **Open orders** — live orders placed from the terminal, with a `History` toggle for settled and cancelled ones.
 

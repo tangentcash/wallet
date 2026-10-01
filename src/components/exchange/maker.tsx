@@ -542,7 +542,7 @@ export function Maker(props: {
           </div>
         }
       </div>
-      <PerformerButton className="btn-brand btn-cta" title={ 'Review ' + (state.side == OrderSide.Buy ? 'buy' : 'sell') + ' order' } description={`Order placement involves paying ${UiUtil.toAssetSymbol(valueAsset)} to smart contract that can re-pay it back by withdrawal otherwise it will pay ${UiUtil.toAssetSymbol(state.side == OrderSide.Buy ? props.primaryAsset : props.secondaryAsset)} as it executes the order`} style={{ width: '100%' }} disabled={!orderPayload} onBuild={async () => {
+      <PerformerButton name={ (state.side == OrderSide.Buy ? 'Buy ' : 'Sell ') + UiUtil.toAssetSymbol(props.primaryAsset) + '/' + UiUtil.toAssetSymbol(props.secondaryAsset) } className="btn-brand btn-cta" title={ 'Review ' + (state.side == OrderSide.Buy ? 'buy' : 'sell') + ' order' } description={`Order placement involves paying ${UiUtil.toAssetSymbol(valueAsset)} to smart contract that can re-pay it back by withdrawal otherwise it will pay ${UiUtil.toAssetSymbol(state.side == OrderSide.Buy ? props.primaryAsset : props.secondaryAsset)} as it executes the order`} style={{ width: '100%' }} disabled={!orderPayload} onBuild={async () => {
         return orderPayload ? Builder.depositOrder(orderPayload) : null;
       }}></PerformerButton>
       {
@@ -594,7 +594,7 @@ export function Maker(props: {
           <TextField.Root placeholder="0.0" type="text" value={state.secondaryValue} onChange={(e) => setSecondaryValue(e.target.value)} />
         </div>
       </div>
-      <PerformerButton className="btn-brand btn-cta" title="Review LP order" description={`Pool creation involves paying ${UiUtil.toAssetSymbol(props.primaryAsset)} and ${UiUtil.toAssetSymbol(props.secondaryAsset)} to smart contract that will re-pay it back by withdrawal otherwise it will use it to provide liquidity for taker orders`} style={{ width: '100%' }} disabled={!poolPayload} onBuild={async () => {
+      <PerformerButton name={ 'Add liquidity ' + UiUtil.toAssetSymbol(props.primaryAsset) + '/' + UiUtil.toAssetSymbol(props.secondaryAsset) } className="btn-brand btn-cta" title="Review LP order" description={`Pool creation involves paying ${UiUtil.toAssetSymbol(props.primaryAsset)} and ${UiUtil.toAssetSymbol(props.secondaryAsset)} to smart contract that will re-pay it back by withdrawal otherwise it will use it to provide liquidity for taker orders`} style={{ width: '100%' }} disabled={!poolPayload} onBuild={async () => {
         return poolPayload ? Builder.depositPool(poolPayload) : null;
       }}></PerformerButton>
     </Box>

@@ -106,7 +106,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
           !props.flash && !props.readOnly && item.active &&
           <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <PerformerButton className="btn-sm btn-ghost" title="Cancel" description="Smart contract will re-pay you back all unfilled value after this action" variant="classic" color="gray" onBuild={() => {
+              <PerformerButton name="Cancel order" className="btn-sm btn-ghost" title="Cancel" description="Smart contract will re-pay you back all unfilled value after this action" variant="classic" color="gray" onBuild={() => {
                 return Builder.withdrawOrder({ orderId: item.id.toString() });
               }}></PerformerButton>
             </div>
@@ -205,7 +205,7 @@ export default function OrderView(props: { item: Order, open?: boolean, flash?: 
           {
             !props.readOnly && item.active &&
             <Flex justify="center" mt="1">
-              <PerformerButton title="Close order" description="Smart contract will re-pay you back all unfilled value after this action" color="red" style={{ width: '100%' }} onBuild={() => {
+              <PerformerButton name="Cancel order" title="Close order" description="Smart contract will re-pay you back all unfilled value after this action" color="red" style={{ width: '100%' }} onBuild={() => {
                 return Builder.withdrawOrder({ orderId: item.id.toString() });
               }}></PerformerButton>
             </Flex>

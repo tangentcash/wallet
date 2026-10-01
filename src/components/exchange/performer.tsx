@@ -2,7 +2,7 @@ import { Box, Button, Dialog, Flex, Spinner, Text, Tooltip } from "@radix-ui/the
 import { CSSProperties, useCallback, useEffect, useState } from "react";
 import { OrderCondition, OrderPolicy, OrderSide, Exchange, RouterPath, Market, AggregatedPair } from "../../core/exchange";
 import { AlertBox, AlertType } from "./../alert";
-import { mdiArrowRight, mdiBookPlus, mdiBookRemove, mdiCashPlus, mdiCashRefund, mdiClose, mdiCollage, mdiSwapHorizontalVariant, mdiWater, mdiWaterOff } from "@mdi/js";
+import { mdiAlertCircleOutline, mdiArrowRight, mdiBookPlus, mdiBookRemove, mdiCashPlus, mdiCashRefund, mdiCollage, mdiSwapHorizontalVariant, mdiTrashCanOutline, mdiWater, mdiWaterOff } from "@mdi/js";
 import { useNavigate } from "react-router";
 import { AppData } from "../../core/app";
 import { AssetId, Chain, Hashsig, Signing, Uint256 } from "tangentsdk/algorithm";
@@ -23,7 +23,10 @@ export type BuilderResult = {
 
 export type BuilderQueueItem = {
   result: BuilderResult,
-  recent: boolean
+  recent: boolean,
+  name: string,
+  hash: string,
+  batch: number
 }
 
 export class Builder {
@@ -646,6 +649,7 @@ export class Builder {
 
 export class BuilderQueue {
   static internal: BuilderQueueItem[] = [];
+  static seq = 0;
 
   static set(newQueue: BuilderQueueItem[]) {
     this.internal = newQueue;
@@ -654,11 +658,51 @@ export class BuilderQueue {
   static get(): BuilderQueueItem[] {
     return this.internal;
   }
+  static hash(results: BuilderResult[]): string {
+    const text = results.map((v) => JSON.stringify(v.body)).join('#');
+    let fnv = 0x811c9dc5;
+    for (let i = 0; i < text.length; i++) {
+      fnv ^= text.charCodeAt(i);
+      fnv = Math.imul(fnv, 0x01000193);
+    }
+    let rev = 0x9e3779b9;
+    for (let i = text.length - 1; i >= 0; i--) {
+      rev ^= text.charCodeAt(i);
+      rev = Math.imul(rev, 0x85ebca6b);
+    }
+    return (fnv >>> 0).toString(36) + '-' + (rev >>> 0).toString(36);
+  }
+  static has(hash: string): boolean {
+    return this.internal.some((v) => v.hash == hash);
+  }
+  static append(name: string, results: BuilderResult | BuilderResult[]) {
+    const items = Array.isArray(results) ? results : [results];
+    const hash = this.hash(items);
+    const batch = ++this.seq;
+    const prev = this.internal.map((v) => ({ ...v, recent: false }));
+    this.set([...prev, ...items.map((v) => ({ result: v, recent: true, name, hash, batch }))]);
+  }
+  static groups(): { batch: number, name: string, items: { item: BuilderQueueItem, index: number }[] }[] {
+    const groups: { batch: number, name: string, items: { item: BuilderQueueItem, index: number }[] }[] = [];
+    this.internal.forEach((item, index) => {
+      const last = groups[groups.length - 1];
+      if (last && last.batch == item.batch)
+        last.items.push({ item, index });
+      else
+        groups.push({ batch: item.batch, name: item.name, items: [{ item, index }] });
+    });
+    return groups;
+  }
+  static removeBatch(batch: number) {
+    this.set(this.internal.filter((v) => v.batch != batch));
+  }
 }
 
-export function PerformerButton(props: { title: string, description: string, disabled?: boolean, variant?: string, color?: string, className?: string, style?: CSSProperties, onBuild: () => Promise<BuilderResult | BuilderResult[] | null> }) {
+export function PerformerButton(props: { name: string, title: string, description: string, disabled?: boolean, variant?: string, color?: string, className?: string, style?: CSSProperties, onBuild: () => Promise<BuilderResult | BuilderResult[] | null> }) {
   const [loading, setLoading] = useState(false);
   const [state, setState] = useState(0);
+  const [open, setOpen] = useState(false);
+  const [pending, setPending] = useState<{ name: string, items: BuilderResult[] } | null>(null);
   const navigate = useNavigate();
   const append = useCallback(async () => {
     if (loading)
@@ -670,14 +714,12 @@ export function PerformerButton(props: { title: string, description: string, dis
       if (!result)
         throw new Error('Failed to receive action data');
 
-      const prev = BuilderQueue.get();
-      for (let i = 0; i < prev.length; i++)
-        prev[i].recent = false;
-
-      if (Array.isArray(result)) {
-        BuilderQueue.set([...prev, ...result.map(x => ({ result: x, recent: true }))]);
-      } else {
-        BuilderQueue.set([...prev, { result: result, recent: true }]);
+      const items = Array.isArray(result) ? result : [result];
+      if (BuilderQueue.has(BuilderQueue.hash(items)))
+        setPending({ name: props.name, items });
+      else {
+        BuilderQueue.append(props.name, result);
+        setOpen(true);
       }
     } catch (exception: any) {
       AlertBox.open(AlertType.Error, 'Build failed: ' + exception.message);
@@ -735,50 +777,75 @@ export function PerformerButton(props: { title: string, description: string, dis
   return (
     <Tooltip content={props.description}>
       <Flex style={props.style}>
-        <Dialog.Root>
-          <Dialog.Trigger disabled={props.disabled || loading}>
+        <Dialog.Root open={open} onOpenChange={(value) => setOpen(value)}>
             <Flex style={{ ...(props.style || {}), width: '100%', minWidth: 0 }}>
               <Button className={props.className} style={{ flex: 1, width: '100%', minWidth: 0, overflow: 'hidden', borderTopRightRadius: 0, borderBottomRightRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any} disabled={props.disabled || loading} onClick={() => append()}>
                 <Spinner loading={loading}>
                   { props.title }
                 </Spinner>
               </Button>
-              <Button className={props.className} style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any} disabled={props.disabled || loading}>
+              <Button className={props.className} style={{ borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }} variant={props.variant as any || 'soft'} color={props.color as any} disabled={props.disabled || loading} onClick={() => setOpen(true)}>
                 <Icon path={mdiCollage} size={0.65}></Icon>
               </Button>
             </Flex>
-          </Dialog.Trigger>
-          <Dialog.Content maxWidth="560px" className="plan-dialog">
-            <Dialog.Title>Execution plan</Dialog.Title>
+          <Dialog.Content className="sheet-content token-picker plan-dialog">
+            <Dialog.Title style={{ fontWeight: 750, fontSize: 16, margin: 0, color: 'var(--text)', flex: 'none' }}>Execution plan</Dialog.Title>
             {
               BuilderQueue.get().length ?
-                <Box key={state.toString()} mt="3" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="picker-list" key={state.toString()} style={{ marginTop: 12 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                   {
-                    BuilderQueue.get().map((item, index) =>
-                      <div className={'plan-item' + (item.recent ? ' recent' : '')} key={item.result.text + index}>
-                        <span className="plan-n">{ index + 1 }</span>
-                        <span className="plan-ico"><Icon path={item.result.icon} size={0.95}></Icon></span>
-                        <span className="plan-text">{ item.result.text }</span>
-                        <button className="plan-x" title="Remove step" onClick={() => {
-                          const queue = BuilderQueue.get();
-                          queue.splice(index, 1);
-                          BuilderQueue.set(queue);
-                        }}><Icon path={mdiClose} size={0.55}></Icon></button>
-                      </div>)
+                    BuilderQueue.groups().map((group, action) =>
+                      <Box key={group.batch} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        <div className="plan-group">
+                          <span>{ (BuilderQueue.groups().length > 1 ? (action == 0 ? 'First ' : 'Then ') : '') + group.name }</span>
+                          <button className="plan-gx" title="Remove action" onClick={() => BuilderQueue.removeBatch(group.batch)}><Icon path={mdiTrashCanOutline} size={0.62}></Icon></button>
+                        </div>
+                        {
+                          group.items.map(({ item, index }) =>
+                            <div className={'plan-item' + (item.recent ? ' recent' : '')} key={item.batch + ':' + index}>
+                              <span className="plan-n">{ index + 1 }</span>
+                              <span className="plan-ico"><Icon path={item.result.icon} size={0.95}></Icon></span>
+                              <span className="plan-text">{ item.result.text }</span>
+                            </div>)
+                        }
+                      </Box>)
                   }
-                </Box> :
-                <Flex direction="column" align="center" justify="center" gap="3" py="6" className="dim">
+                  </div>
+                </div> :
+                <Flex direction="column" align="center" justify="center" gap="3" py="6" className="dim" style={{ flex: 1 }}>
                   <Icon path={mdiCollage} size={1.4}></Icon>
                   <Text size="2">Nothing queued · press the action button to add a step</Text>
                 </Flex>
             }
-            <Flex justify="between" gap="2" mt="4">
+            <Flex justify="between" gap="2" mt="4" style={{ flex: 'none' }}>
               <Button className="btn-ghost" onClick={() => BuilderQueue.set([])} disabled={!BuilderQueue.get().length}>Clear all</Button>
               <Dialog.Close>
                 <Button className="btn-brand" onClick={() => BuilderQueue.get().length ? checkout() : undefined} disabled={!BuilderQueue.get().length}>
                   Checkout <Icon path={mdiArrowRight} size={0.7}></Icon>
                 </Button>
               </Dialog.Close>
+            </Flex>
+          </Dialog.Content>
+        </Dialog.Root>
+        <Dialog.Root open={!!pending} onOpenChange={(value) => { if (!value) setPending(null); }}>
+          <Dialog.Content maxWidth="420px">
+            <Dialog.Title size="4">Duplicate action</Dialog.Title>
+            <Flex align="center" gap="3" mt="3">
+              <span className="plan-dup-ico"><Icon path={mdiAlertCircleOutline} size={1.3}></Icon></span>
+              <Box style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Text size="2" weight="bold">{ pending?.name }</Text>
+                <Text size="1" className="dim">is already in the execution plan</Text>
+              </Box>
+            </Flex>
+            <Flex justify="end" gap="2" mt="4">
+              <Button className="btn-ghost" onClick={() => {
+                if (pending)
+                  BuilderQueue.append(pending.name, pending.items);
+                setPending(null);
+                setOpen(true);
+              }}>Still add</Button>
+              <Button className="btn-brand" onClick={() => setPending(null)}>Okay</Button>
             </Flex>
           </Dialog.Content>
         </Dialog.Root>

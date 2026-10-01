@@ -1,25 +1,50 @@
-import { Badge, Box, Button, Card, Dialog, Flex, Slider, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { Badge, Box, Button, Card, Dialog, Flex, SegmentedControl, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { AssetId, ByteUtil, Chain, LiquidityPool } from "tangentsdk/algorithm";
 import { TextUtil } from "tangentsdk/text";
 import { UiUtil } from "tangentsdk/ui";
 import { Assetlist } from "tangentsdk/assetlist";
-import { Pool, Exchange, Balance, PseudoDelegatedPool, DelegatedPool } from "../../core/exchange";
-import { useCallback, useMemo, useState } from "react";
+import { Pool, Exchange, Balance, PseudoDelegatedPool, DelegatedPool, PolyAsset } from "../../core/exchange";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { AlertBox, AlertType } from "../alert";
-import { mdiArrowRight, mdiBankPlus, mdiCurrencyUsd, mdiLayers, mdiOpenInNew, mdiWallet } from "@mdi/js";
+import { mdiArrowRight, mdiLayers, mdiOpenInNew, mdiWallet } from "@mdi/js";
 import { AssetImage } from "../asset-image";
 import { PerformerButton, Builder, BuilderResult } from "./performer";
 import { defaultMakerState } from "./maker";
 import { AppData } from "../../core/app";
 import { AppStorage } from "../../core/storage";
 import { pathOfMaker } from "../../pages/exchange/orderbook";
+import { useEffectAsync } from "../../core/react";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
 import { toFancyMoney } from "../../core/utils";
 
 const DLP_DEFAULT_FEE_RATE_MAYBE = 0.0005;
+
+function DlpAmount(props: { label: string, meta?: string, asset: AssetId, value: string, onChange: (value: string) => any, max: BigNumber, err?: boolean }) {
+  const amount = new BigNumber(props.value || '0');
+  const near = (fraction: number) => { const target = props.max.multipliedBy(fraction); return target.gt(0) && amount.gt(0) && amount.lte(target.multipliedBy(1.005)) && amount.gte(target.multipliedBy(0.995)); };
+  const set = (fraction: number) => props.onChange(props.max.multipliedBy(fraction).decimalPlaces(8, BigNumber.ROUND_FLOOR).toString());
+  return (
+    <div className={ 'amount-box' + (props.err ? ' err' : '') }>
+      <div className="swap-lab"><span>{ props.label }</span><span>{ props.meta }</span></div>
+      <div className="swap-amt">
+        <TextField.Root placeholder="0.0" type="text" value={props.value} onChange={(e) => props.onChange(TextUtil.toValue(props.value, e.target.value))} />
+        <span className="token-select static">
+          <AssetImage asset={props.asset} size="2" iconSize="26px"></AssetImage>
+          { UiUtil.toAssetSymbol(props.asset) }
+        </span>
+      </div>
+      <div className="pct-row">
+        <button type="button" className={ 'pct' + (near(0.25) ? ' hot' : '') } onClick={() => set(0.25)}>25%</button>
+        <button type="button" className={ 'pct' + (near(0.5) ? ' hot' : '') } onClick={() => set(0.5)}>50%</button>
+        <button type="button" className={ 'pct' + (near(0.75) ? ' hot' : '') } onClick={() => set(0.75)}>75%</button>
+        <button type="button" className={ 'pct' + (near(1) ? ' hot' : '') } onClick={() => set(1)}>Max</button>
+      </div>
+    </div>
+  );
+}
 
 
 export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, readOnly?: boolean }) {
@@ -163,12 +188,12 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
         !props.readOnly && item.active &&
         <div style={{ display: 'flex', gap: 10, marginTop: 14, alignItems: 'center' }}>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <PerformerButton className="btn-sm btn-ghost" title="Close" description="Close position — Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" variant="classic" color="gray" onBuild={() => {
+            <PerformerButton name="Close position" className="btn-sm btn-ghost" title="Close" description="Close position — Smart contract will re-pay you back the liquidity left in pool along with accumulated fees minus the exit fee" variant="classic" color="gray" onBuild={() => {
               return Builder.withdrawPool({ poolId: item.id.toString() });
             }}></PerformerButton>
           </div>
           <div style={{ flex: 1, minWidth: 0 }}>
-            <PerformerButton className="btn-sm btn-brand" title="Adjust" description={ rebalancer == 'cross' ? "Smart contract will re-balance this pool based on current market price, pool liquidity and available balance" : "Smart contract will re-balance this pool using only the assets allocated to it" } onBuild={() => rebalance(rebalancer == 'cross')}></PerformerButton>
+            <PerformerButton name="Adjust position" className="btn-sm btn-brand" title="Adjust" description={ rebalancer == 'cross' ? "Smart contract will re-balance this pool based on current market price, pool liquidity and available balance" : "Smart contract will re-balance this pool using only the assets allocated to it" } onBuild={() => rebalance(rebalancer == 'cross')}></PerformerButton>
           </div>
           <Tooltip content={ rebalancer == 'cross' ? 'Adjust takes free balances into account · switch to pool-only rebalance' : 'Adjust uses the pool allocation only · switch to rebalance with free balances' }>
             <button className="icon-btn icon-btn-lg" aria-label="Adjust rebalance mode" onClick={() => setRebalancer(rebalancer == 'cross' ? 'isolated' : 'cross')} style={ rebalancer == 'isolated' ? { background: 'var(--lime-dim)', color: 'var(--lime)' } : undefined }>
@@ -280,16 +305,60 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
   );
 }
 
+function usePolyBalance(assets: Balance[], asset: AssetId, marketId: BigNumber, enabled: boolean) {
+  const [family, setFamily] = useState<PolyAsset[] | null>(null);
+  useEffectAsync(async () => {
+    if (!enabled)
+      return;
+    try {
+      const result = await Exchange.marketAssets(asset, true);
+      setFamily(result.filter((v) => v.marketId?.toString() == marketId.toString()));
+    } catch {
+      setFamily(null);
+    }
+  }, [asset.id, marketId.toString(), enabled]);
+  const total = useMemo((): BigNumber => {
+    const own = assets.find((v) => v.asset.id == asset.id)?.available || new BigNumber(0);
+    if (!family)
+      return own;
+    return assets.filter((v) => v.asset.id == asset.id || family.some((f) => f.id == v.asset.id)).reduce((a, b) => a.plus(b.available), new BigNumber(0));
+  }, [assets, family, asset]);
+  return { family, total };
+}
+function toWrapPlan(deposit: BigNumber, target: AssetId, family: PolyAsset[] | null, assets: Balance[]): { entry: PolyAsset, value: BigNumber }[] | null {
+  let shortage = deposit.minus(assets.find((v) => v.asset.id == target.id)?.available || new BigNumber(0));
+  if (!shortage.gt(0))
+    return [];
+  if (!family)
+    return null;
+
+  const plan: { entry: PolyAsset, value: BigNumber }[] = [];
+  for (const entry of family) {
+    if (!shortage.gt(0))
+      break;
+    if (entry.id == target.id)
+      continue;
+    const balance = assets.find((v) => v.asset.id == entry.id)?.available || new BigNumber(0);
+    const capacity = entry.liquidity ? BigNumber.min(balance, entry.liquidity) : balance;
+    if (!capacity.gt(0))
+      continue;
+    const value = BigNumber.min(shortage, capacity);
+    plan.push({ entry, value });
+    shortage = shortage.minus(value);
+  }
+  return shortage.gt(0) ? null : plan;
+}
+
 export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[], readOnly?: boolean }) {
   const item = props.item;
   const [mode, setMode] = useState<'deposit' | 'withdraw'>('deposit');
-  const assets = useMemo(() => ({
-    primary: props.assets.find((v) => v.asset.id == item.primaryAsset.id)?.available || new BigNumber(0),
-    secondary: props.assets.find((v) => v.asset.id == item.secondaryAsset.id)?.available || new BigNumber(0),
-  }), [props.assets, item]);
   const [primaryReserve, setPrimaryReserve] = useState<string>('');
   const [secondaryReserve, setSecondaryReserve] = useState<string>('');
+  const [exit, setExit] = useState<'primary' | 'secondary' | 'both'>('both');
+  const [flexAmount, setFlexAmount] = useState<string>('');
   const [expanded, setExpanded] = useState(false);
+  const primaryPoly = usePolyBalance(props.assets, item.primaryAsset, item.marketId, expanded);
+  const secondaryPoly = usePolyBalance(props.assets, item.secondaryAsset, item.marketId, expanded);
   const extra = useMemo(() => {
     const delegator = Exchange.delegators.find((v) => v.id.eq(item.delegatorId));
     return mode == 'withdraw' ? {
@@ -297,19 +366,15 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
       secondary: item.secondaryValue,
       delegator: delegator
     } : {
-      primary: assets.primary,
-      secondary: assets.secondary,
+      primary: primaryPoly.total,
+      secondary: secondaryPoly.total,
       delegator: delegator
     };
-  }, [item, assets, mode]);
-  const slider = useMemo(() => {
-    const primaryValue = new BigNumber(primaryReserve || '0');
-    const secondaryValue = new BigNumber(secondaryReserve || '0');
-    return {
-      primary: { overpulling: mode == 'withdraw' ? item.primaryTotal.minus(item.primaryReserve).minus(primaryValue).lt(0) : false, value: [extra.primary.gt(0) ? primaryValue.multipliedBy(100).dividedBy(extra.primary).toNumber() : 0] },
-      secondary: { overpulling: mode == 'withdraw' ? item.secondaryTotal.minus(item.secondaryReserve).minus(secondaryValue).lt(0) : false, value: [extra.secondary.gt(0) ? secondaryValue.multipliedBy(100).dividedBy(extra.secondary).toNumber() : 0] }
-    };
-  }, [extra, mode, item, primaryReserve, secondaryReserve]);
+  }, [item, primaryPoly, secondaryPoly, mode]);
+  const overpulling = useMemo(() => ({
+    primary: mode == 'withdraw' && item.primaryTotal.minus(item.primaryReserve).minus(new BigNumber(primaryReserve || '0')).lt(0),
+    secondary: mode == 'withdraw' && item.secondaryTotal.minus(item.secondaryReserve).minus(new BigNumber(secondaryReserve || '0')).lt(0)
+  }), [mode, item, primaryReserve, secondaryReserve]);
   const state = useMemo(() => {
     const primaryPrice = Exchange.priceOf(item.primaryAsset), secondaryPrice = Exchange.priceOf(item.secondaryAsset);
     const initialLiquidity = item.initialPrimaryValue.multipliedBy(item.allocationPrice ? item.allocationPrice.multipliedBy(secondaryPrice.close || new BigNumber(0)) : primaryPrice.close || new BigNumber(0)).plus(item.initialSecondaryValue.multipliedBy(secondaryPrice.close || new BigNumber(0)));
@@ -322,7 +387,70 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
       currentLiquidity: currentLiquidity
     }
   }, [item]);
+  const flex = useMemo(() => {
+    if (mode != 'withdraw' || exit == 'both')
+      return null;
+    const primaryPrice = Exchange.priceOf(item.primaryAsset).close || new BigNumber(0);
+    const secondaryPrice = Exchange.priceOf(item.secondaryAsset).close || new BigNumber(0);
+    const wanted = exit == 'primary' ? item.primaryAsset : item.secondaryAsset;
+    const unwanted = exit == 'primary' ? item.secondaryAsset : item.primaryAsset;
+    const wantedPrice = exit == 'primary' ? primaryPrice : secondaryPrice;
+    const unwantedPrice = exit == 'primary' ? secondaryPrice : primaryPrice;
+    const toWanted = (value: BigNumber, price: BigNumber) => wantedPrice.gt(0) ? value.multipliedBy(price).dividedBy(wantedPrice) : new BigNumber(0);
+    const wantedPosition = exit == 'primary' ? item.primaryValue : item.secondaryValue;
+    const unwantedPosition = exit == 'primary' ? item.secondaryValue : item.primaryValue;
+    const cap = toWanted(item.primaryValue, primaryPrice).plus(toWanted(item.secondaryValue, secondaryPrice));
+    const amount = new BigNumber(flexAmount || '0');
+    const free = toWanted(BigNumber.max(item.primaryTotal.minus(item.primaryReserve), 0), primaryPrice).plus(toWanted(BigNumber.max(item.secondaryTotal.minus(item.secondaryReserve), 0), secondaryPrice));
+    const atMax = amount.gt(0) && cap.minus(amount).lte('0.00000001');
+    const wantedOut = atMax ? wantedPosition : BigNumber.min(amount, wantedPosition);
+    const swapIn = atMax ? unwantedPosition : unwantedPrice.gt(0) ? BigNumber.min(amount.minus(wantedOut).multipliedBy(wantedPrice).dividedBy(unwantedPrice), unwantedPosition) : new BigNumber(0);
+    return {
+      wanted: wanted,
+      unwanted: unwanted,
+      cap: cap,
+      amount: amount,
+      atMax: atMax,
+      over: amount.gt(cap),
+      pullLp: amount.gt(free),
+      swapIn: swapIn,
+      withdrawPrimary: exit == 'primary' ? wantedOut : swapIn,
+      withdrawSecondary: exit == 'primary' ? swapIn : wantedOut
+    };
+  }, [mode, exit, item, flexAmount]);
+  const swapInKey = flex && !flex.over && flex.swapIn.gt(0) ? flex.swapIn.toString() : null;
+  const [swapOk, setSwapOk] = useState<boolean | null>(null);
+  const probeSeq = useRef(0);
+  useEffect(() => {
+    const seq = ++probeSeq.current;
+    if (!swapInKey || !flex) {
+      setSwapOk(null);
+      return;
+    }
+    const timer = setTimeout(() => {
+      Exchange.marketPaths(item.marketId, flex.unwanted, flex.wanted, swapInKey, '0.005').then((paths) => {
+        if (seq == probeSeq.current)
+          setSwapOk(paths.length > 0);
+      }, () => {
+        if (seq == probeSeq.current)
+          setSwapOk(false);
+      });
+    }, 350);
+    return () => clearTimeout(timer);
+  }, [swapInKey, item.marketId]);
+  const blocked = !!flex && swapInKey != null && swapOk == false;
   const payload = useMemo(() => {
+    if (flex) {
+      if (!flex.amount.gt(0) || flex.over || blocked)
+        return null;
+      return {
+        delegatorId: item.delegatorId.toString(),
+        primaryAssetHash: item.primaryAsset.id,
+        secondaryAssetHash: item.secondaryAsset.id,
+        primaryValue: flex.atMax ? '' : flex.withdrawPrimary.toString(),
+        secondaryValue: flex.atMax ? '' : flex.withdrawSecondary.toString()
+      };
+    }
     const primary = new BigNumber(primaryReserve || '0');
     const secondary = new BigNumber(secondaryReserve || '0');
     if (primary.gt(extra.primary) || secondary.gt(extra.secondary) || (!primary.gt(0) && !secondary.gt(0)))
@@ -335,7 +463,16 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
       primaryValue: mode == 'withdraw' && primary.eq(extra.primary) ? '' : primary.toString(),
       secondaryValue: mode == 'withdraw' && secondary.eq(extra.secondary) ? '' : secondary.toString()
     };
-  }, [primaryReserve, secondaryReserve, extra, item, mode]);
+  }, [primaryReserve, secondaryReserve, extra, item, mode, flex, blocked]);
+  const wrapPlan = useMemo((): { entry: PolyAsset, value: BigNumber, target: AssetId }[] | null => {
+    if (!payload || mode == 'withdraw')
+      return [];
+    const primary = toWrapPlan(new BigNumber(payload.primaryValue || '0'), item.primaryAsset, primaryPoly.family, props.assets);
+    const secondary = toWrapPlan(new BigNumber(payload.secondaryValue || '0'), item.secondaryAsset, secondaryPoly.family, props.assets);
+    if (!primary || !secondary)
+      return null;
+    return primary.map((v) => ({ ...v, target: item.primaryAsset })).concat(secondary.map((v) => ({ ...v, target: item.secondaryAsset })));
+  }, [payload, mode, primaryPoly, secondaryPoly, item, props.assets]);
   const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, state.currentLiquidity, item.volume.dividedBy(180).multipliedBy(item.share)), [item.volume, item.share, state.currentLiquidity]);
   const symP = item.primaryAsset.token || item.primaryAsset.chain;
   const symQ = item.secondaryAsset.token || item.secondaryAsset.chain;
@@ -383,49 +520,80 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
           {
             item.active &&
             <>
-              <Box my="4" className="dl-rule"></Box>
-              <Tooltip side="left" content={`Reserve value in ${UiUtil.toAssetSymbol(item.primaryAsset)} to ${mode}`}>
-                <Box mb="3">
-                  <TextField.Root placeholder={Assetlist.toName(item.primaryAsset) + ' to ' + mode} size="2" value={primaryReserve} onChange={(e) => setPrimaryReserve(TextUtil.toValue(primaryReserve, e.target.value))}>
-                    <TextField.Slot>
-                      <Icon path={mdiCurrencyUsd} size={0.8} />
-                    </TextField.Slot>
-                  </TextField.Root>
-                  <Box px="2" pt="2">
-                    <Slider color={slider.primary.overpulling ? 'red' : undefined} step={1} value={slider.primary.value} onValueChange={(v) => setPrimaryReserve(new BigNumber(v[0] / 100).multipliedBy(extra.primary).toString())} />
-                  </Box>
-                </Box>
-              </Tooltip>
-              <Tooltip side="left" content={`Reserve value in ${UiUtil.toAssetSymbol(item.secondaryAsset)} to ${mode}`}>
-                <Box mb="3">
-                  <TextField.Root placeholder={Assetlist.toName(item.secondaryAsset) + ' to ' + mode} size="2" value={secondaryReserve} onChange={(e) => setSecondaryReserve(TextUtil.toValue(secondaryReserve, e.target.value))}>
-                    <TextField.Slot>
-                      <Icon path={mdiCurrencyUsd} size={0.8} />
-                    </TextField.Slot>
-                  </TextField.Root>
-                  <Box px="2" pt="2">
-                    <Slider color={slider.secondary.overpulling ? 'red' : undefined} step={1} value={slider.secondary.value} onValueChange={(v) => setSecondaryReserve(new BigNumber(v[0] / 100).multipliedBy(extra.secondary).toString())} />
-                  </Box>
-                </Box>
-              </Tooltip>
+              <SegmentedControl.Root value={mode} onValueChange={(value) => setMode(value as 'deposit' | 'withdraw')} size="2" radius="full" mb="3" style={{ width: '100%' }}>
+                <SegmentedControl.Item value="deposit" style={{ flex: 1, justifyContent: 'center' }}><Text size="2">Add funds</Text></SegmentedControl.Item>
+                <SegmentedControl.Item value="withdraw" style={{ flex: 1, justifyContent: 'center' }}><Text size="2">Withdraw</Text></SegmentedControl.Item>
+              </SegmentedControl.Root>
               {
-                (slider.primary.overpulling || slider.secondary.overpulling) &&
-                <Flex justify="end" mb="2">
-                  <Text size="1" color="gray">Underlying LP will be withdrawn</Text>
-                </Flex>
+                mode == 'deposit' &&
+                <>
+                  <DlpAmount label={ Assetlist.toName(item.primaryAsset) } meta={ 'Available ' + toFancyMoney(item.primaryAsset, extra.primary) } asset={item.primaryAsset} value={primaryReserve} onChange={setPrimaryReserve} max={extra.primary} />
+                  <DlpAmount label={ Assetlist.toName(item.secondaryAsset) } meta={ 'Available ' + toFancyMoney(item.secondaryAsset, extra.secondary) } asset={item.secondaryAsset} value={secondaryReserve} onChange={setSecondaryReserve} max={extra.secondary} />
+                </>
               }
-              <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginTop: 14 }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <PerformerButton className="btn-sm btn-brand" title={ mode == 'deposit' ? 'Review deposit' : 'Review withdrawal' } description={mode == 'deposit' ? "Smart contract will add your deposit into the delegated LP and allocate your position" : "Smart contract will re-pay your deposit and deallocate the position"} color={mode == 'deposit' ? 'jade' : 'red'} disabled={!payload} onBuild={async () => {
-                    return payload ? (mode == 'deposit' ? await Builder.depositLiquidity(payload) : await Builder.withdrawLiquidity(payload)) : null;
-                  }}></PerformerButton>
-                </div>
-                <Tooltip content={ mode == 'deposit' ? 'Mode: adding funds · switch to withdrawal' : 'Mode: withdrawing funds · switch to adding funds' }>
-                  <button className="icon-btn icon-btn-lg" aria-label="Deposit or withdrawal mode" onClick={() => setMode(mode == 'deposit' ? 'withdraw' : 'deposit')} style={ mode == 'withdraw' ? { background: 'var(--down-dim)', color: 'var(--down)' } : undefined }>
-                    <Icon path={ mdiBankPlus } size={0.65}></Icon>
-                  </button>
-                </Tooltip>
-              </div>
+              {
+                mode == 'withdraw' &&
+                <>
+                  <SegmentedControl.Root value={exit} onValueChange={(value) => setExit(value as 'primary' | 'secondary' | 'both')} size="1" radius="full" mb="3" style={{ width: '100%' }}>
+                    <SegmentedControl.Item value="primary" style={{ flex: 1, justifyContent: 'center' }}><Text size="1">{ symP }</Text></SegmentedControl.Item>
+                    <SegmentedControl.Item value="secondary" style={{ flex: 1, justifyContent: 'center' }}><Text size="1">{ symQ }</Text></SegmentedControl.Item>
+                    <SegmentedControl.Item value="both" style={{ flex: 1, justifyContent: 'center' }}><Text size="1">{ symP } and { symQ }</Text></SegmentedControl.Item>
+                  </SegmentedControl.Root>
+                  {
+                    !flex &&
+                    <>
+                      <DlpAmount label={ Assetlist.toName(item.primaryAsset) } meta={ 'In position ' + toFancyMoney(item.primaryAsset, extra.primary) } asset={item.primaryAsset} value={primaryReserve} onChange={setPrimaryReserve} max={extra.primary} err={overpulling.primary} />
+                      <DlpAmount label={ Assetlist.toName(item.secondaryAsset) } meta={ 'In position ' + toFancyMoney(item.secondaryAsset, extra.secondary) } asset={item.secondaryAsset} value={secondaryReserve} onChange={setSecondaryReserve} max={extra.secondary} err={overpulling.secondary} />
+                      {
+                        (overpulling.primary || overpulling.secondary) &&
+                        <Flex justify="end" mt="3" mb="3">
+                          <Text size="1" color="gray">Underlying LP will be withdrawn</Text>
+                        </Flex>
+                      }
+                    </>
+                  }
+                  {
+                    flex &&
+                    <>
+                      <DlpAmount label={ 'Total to receive in ' + UiUtil.toAssetSymbol(flex.wanted) } meta={ 'Position ≈ ' + toFancyMoney(flex.wanted, flex.cap) } asset={flex.wanted} value={flexAmount} onChange={setFlexAmount} max={flex.cap} err={flex.over || blocked || flex.pullLp} />
+                      {
+                        flex.over ?
+                        <Flex justify="end" mt="3" mb="3"><Text size="1" color="gray">Exceeds total position value</Text></Flex> :
+                        blocked ?
+                        <Flex justify="end" mt="3" mb="3"><Text size="1" color="gray">No market liquidity to swap { UiUtil.toAssetSymbol(flex.unwanted) } · reduce the amount</Text></Flex> :
+                        flex.pullLp ?
+                        <Flex justify="end" mt="3" mb="3"><Text size="1" color="gray">Underlying LP will be withdrawn · the swap may fail if the liquidity is gone</Text></Flex> :
+                        null
+                      }
+                    </>
+                  }
+                </>
+              }
+              <PerformerButton name={ (mode == 'deposit' ? 'Deposit ' : 'Withdraw ' + (flex ? (exit == 'primary' ? symP : symQ) + ' from ' : '')) + symP + 'x' + symQ + ' DLP' } className="btn-sm btn-brand" style={{ width: '100%' }} title={ mode == 'deposit' ? 'Review deposit' : 'Review withdrawal' } description={mode == 'deposit' ? (wrapPlan && wrapPlan.length ? 'Other-network versions of your tokens will be converted into the pool asset 1:1 automatically, then the smart contract will add your deposit into the delegated LP and allocate your position' : 'Smart contract will add your deposit into the delegated LP and allocate your position') : flex ? 'Both sides of the position are withdrawn and ' + (exit == 'primary' ? symQ : symP) + ' is swapped into ' + (exit == 'primary' ? symP : symQ) + ' at the current market rate' : 'Smart contract will re-pay your deposit and deallocate the position'} color={mode == 'deposit' ? 'jade' : 'red'} disabled={!payload || wrapPlan == null} onBuild={async () => {
+                if (!payload)
+                  return null;
+                if (mode == 'withdraw') {
+                  const results = [await Builder.withdrawLiquidity(payload)];
+                  if (flex) {
+                    const swapIn = exit == 'primary' ? flex.withdrawSecondary : flex.withdrawPrimary;
+                    if (swapIn.gt(0)) {
+                      const paths = await Exchange.marketPaths(item.marketId, flex.unwanted, flex.wanted, swapIn, '0.005');
+                      if (!paths.length)
+                        throw new Error('No liquidity to swap ' + UiUtil.toAssetSymbol(flex.unwanted) + ' in this market');
+                      const path = paths.reduce((best, candidate) => candidate[candidate.length - 1].output.min.gt(best[best.length - 1].output.min) ? candidate : best, paths[0]);
+                      const legs = await Builder.swap({ tokenIn: flex.unwanted, tokenOut: flex.wanted, amountIn: swapIn.toString(), amountOut: '', slippage: '0.5', path: path, pays: { [flex.unwanted.id]: swapIn.toString() }, marketId: item.marketId.toString() });
+                      legs[0].body.function = '>' + legs[0].body.function;
+                      results.push(...legs);
+                    }
+                  }
+                  return results;
+                }
+                const results: BuilderResult[] = [];
+                for (const leg of (wrapPlan || []))
+                  results.push(await Builder.payUnifiedAsset({ pays: { [leg.entry.id]: leg.value.toString() }, marketId: item.marketId.toString(), primaryAssetHash: AssetId.fromHandle(leg.entry.chain || '').id, secondaryAssetHash: leg.target.id }));
+                results.push(await Builder.depositLiquidity(payload));
+                return results;
+              }}></PerformerButton>
             </>
           }
         </Collapsible.Content>
@@ -439,20 +607,20 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
   const [expanded, setExpanded] = useState(false);
   const [primaryReserve, setPrimaryReserve] = useState<string>('');
   const [secondaryReserve, setSecondaryReserve] = useState<string>('');
+  const primaryPoly = usePolyBalance(props.assets, item.primaryAsset, item.marketId, expanded);
+  const secondaryPoly = usePolyBalance(props.assets, item.secondaryAsset, item.marketId, expanded);
   const extra = useMemo(() => {
     const delegator = Exchange.delegators.find((v) => v.id.eq(item.delegatorId));
-    const primary = props.assets.find((v) => v.asset.id == item.primaryAsset.id);
-    const secondary = props.assets.find((v) => v.asset.id == item.secondaryAsset.id);
     const absoluteRevenue = item.currentValue.minus(item.initialValue);
     const relativeRevenue = item.initialValue.gt(0) ? absoluteRevenue.dividedBy(item.initialValue) : new BigNumber(0);
     return {
-      primary: primary?.available || new BigNumber(0),
-      secondary: secondary?.available || new BigNumber(0),
+      primary: primaryPoly.total,
+      secondary: secondaryPoly.total,
       delegator: delegator,
       absoluteRevenue: absoluteRevenue,
       relativeRevenue: relativeRevenue
     }
-  }, [item, props.assets]);
+  }, [item, primaryPoly, secondaryPoly]);
   const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, item.currentValue, item.volume.dividedBy(180)), [item.currentValue, item.volume]);
   const payload = useMemo(() => {
     const primary = new BigNumber(primaryReserve || '0');
@@ -468,6 +636,16 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
       secondaryValue: secondary.toString()
     };
   }, [primaryReserve, secondaryReserve, extra, item]);
+  const wrapPlan = useMemo((): { entry: PolyAsset, value: BigNumber, target: AssetId }[] | null => {
+    if (!payload)
+      return [];
+    const primary = toWrapPlan(new BigNumber(payload.primaryValue || '0'), item.primaryAsset, primaryPoly.family, props.assets);
+    const secondary = toWrapPlan(new BigNumber(payload.secondaryValue || '0'), item.secondaryAsset, secondaryPoly.family, props.assets);
+    if (!primary || !secondary)
+      return null;
+    return primary.map((v) => ({ ...v, target: item.primaryAsset })).concat(secondary.map((v) => ({ ...v, target: item.secondaryAsset })));
+  }, [payload, primaryPoly, secondaryPoly, item, props.assets]);
+
 
   return (
     <Card variant="surface" style={{ padding: 16, position: "relative" }}>
@@ -509,35 +687,20 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
             }
           </div>
           <Box my="4" className="dl-rule"></Box>
-          <Tooltip side="left" content={`Reserve value in ${UiUtil.toAssetSymbol(item.primaryAsset)} to deposit`}>
-            <Box mb="3">
-              <TextField.Root placeholder={Assetlist.toName(item.primaryAsset) + ' deposit'} size="2" value={primaryReserve} onChange={(e) => setPrimaryReserve(TextUtil.toValue(primaryReserve, e.target.value))}>
-                <TextField.Slot>
-                  <Icon path={mdiCurrencyUsd} size={0.8} />
-                </TextField.Slot>
-              </TextField.Root>
-              <Box px="2" pt="2">
-                <Slider step={1} value={[extra.primary.gt(0) ? new BigNumber(primaryReserve || '0').multipliedBy(100).dividedBy(extra.primary).toNumber() : 0]} onValueChange={(v) => setPrimaryReserve(new BigNumber(v[0] / 100).multipliedBy(extra.primary).toString())} />
-              </Box>
-            </Box>
-          </Tooltip>
-          <Tooltip side="left" content={`Reserve value in ${UiUtil.toAssetSymbol(item.secondaryAsset)} to deposit`}>
-            <Box mb="3">
-              <TextField.Root placeholder={Assetlist.toName(item.secondaryAsset) + ' deposit'} size="2" value={secondaryReserve} onChange={(e) => setSecondaryReserve(TextUtil.toValue(secondaryReserve, e.target.value))}>
-                <TextField.Slot>
-                  <Icon path={mdiCurrencyUsd} size={0.8} />
-                </TextField.Slot>
-              </TextField.Root>
-              <Box px="2" pt="2">
-                <Slider step={1} value={[extra.secondary.gt(0) ? new BigNumber(secondaryReserve || '0').multipliedBy(100).dividedBy(extra.secondary).toNumber() : 0]} onValueChange={(v) => setSecondaryReserve(new BigNumber(v[0] / 100).multipliedBy(extra.secondary).toString())} />
-              </Box>
-            </Box>
-          </Tooltip>
+          <DlpAmount label={ Assetlist.toName(item.primaryAsset) } meta={ 'Available ' + toFancyMoney(item.primaryAsset, extra.primary) } asset={item.primaryAsset} value={primaryReserve} onChange={setPrimaryReserve} max={extra.primary} />
+          <DlpAmount label={ Assetlist.toName(item.secondaryAsset) } meta={ 'Available ' + toFancyMoney(item.secondaryAsset, extra.secondary) } asset={item.secondaryAsset} value={secondaryReserve} onChange={setSecondaryReserve} max={extra.secondary} />
           <Flex pt="2">
-            <PerformerButton title="Review deposit" description="Smart contract will add your deposit into the delegated LP and allocate your position" className="btn-brand btn-cta" color="jade" style={{ width: '100%' }} disabled={!payload} onBuild={async () => {
-              return payload ? await Builder.depositLiquidity(payload) : null;
+            <PerformerButton name={ 'Deposit ' + (item.primaryAsset.token || item.primaryAsset.chain) + 'x' + (item.secondaryAsset.token || item.secondaryAsset.chain) + ' DLP' } title="Review deposit" description="Smart contract will add your deposit into the delegated LP and allocate your position" className="btn-brand btn-cta" color="jade" style={{ width: '100%' }} disabled={!payload || wrapPlan == null} onBuild={async () => {
+              if (!payload)
+                return null;
+              const results: BuilderResult[] = [];
+              for (const leg of (wrapPlan || []))
+                results.push(await Builder.payUnifiedAsset({ pays: { [leg.entry.id]: leg.value.toString() }, marketId: item.marketId.toString(), primaryAssetHash: AssetId.fromHandle(leg.entry.chain || '').id, secondaryAssetHash: leg.target.id }));
+              results.push(await Builder.depositLiquidity(payload));
+              return results;
             }}></PerformerButton>
           </Flex>
+          <Text size="1" className="dim" style={{ display: 'block', marginTop: 10, textAlign: 'center' }}>Deposits only · withdrawals are handled in the <Link className="router-link" to="?view=wallet">Wallet tab</Link></Text>
         </Collapsible.Content>
       </Collapsible.Root>
     </Card>

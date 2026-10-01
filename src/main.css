@@ -485,9 +485,12 @@ button.rt-Trigger.token-select { display: inline-flex; background: var(--elev); 
 .plan-n { flex: none; width: 18px; text-align: center; font: 700 11.5px var(--mono); color: var(--text-3); }
 .plan-ico { flex: none; width: 34px; height: 34px; border-radius: 50%; background: var(--lime-dim); color: var(--lime); display: grid; place-items: center; }
 .plan-text { flex: 1; min-width: 0; font-size: 13px; line-height: 1.45; word-break: break-word; }
-.plan-x { flex: none; width: 28px; height: 28px; border-radius: 50%; border: 0; background: none; color: var(--text-3); cursor: pointer; display: grid; place-items: center; transition: background 0.15s ease, color 0.15s ease; }
-.plan-x:hover { background: var(--down-dim); color: var(--down); }
-.plan-x:active { transform: scale(0.9); }
+.plan-group { display: flex; align-items: center; gap: 8px; font: 700 12.5px var(--mono); letter-spacing: 0.02em; color: var(--lime); padding: 8px 4px 2px; }
+.plan-group > span { flex: 1; min-width: 0; }
+.plan-gx { flex: none; width: 24px; height: 24px; border-radius: 50%; border: 0; background: none; color: var(--text-3); cursor: pointer; display: grid; place-items: center; transition: background 0.15s ease, color 0.15s ease; }
+.plan-gx:hover { background: var(--down-dim); color: var(--down); }
+.plan-gx:active { transform: scale(0.9); }
+.plan-dup-ico { flex: none; display: grid; place-items: center; color: var(--down); }
 button.btn-brand:disabled, button.btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
 
 
@@ -953,6 +956,8 @@ button.asset-row:hover { background: var(--elev); }
 .field { margin-bottom: 16px; }
 .field-label { font-size: 12.5px; font-weight: 600; color: var(--text-2); margin-bottom: 7px; display: block; }
 .amount-box { background: var(--card-2); border-radius: var(--r-lg); padding: 16px 18px; }
+.amount-box + .amount-box { margin-top: 12px; }
+.amount-box + .rt-Flex:has(button) { margin-top: 12px; }
 .amount-box .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .amount-box input {
   flex: 1;

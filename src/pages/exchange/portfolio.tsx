@@ -177,7 +177,7 @@ function RepayableBalanceView(props: { item: Balance & { type: 'std' | 'wrapped'
               <span className="lime-link" onClick={() => setAmount(max.gt(0) ? max.toFixed() : '')}>Max</span>
             </div>
           </div>
-          <PerformerButton className="btn-brand" style={{ width: '100%', marginTop: 16 }} title={ wrapping ? (asset ? 'Wrap into ' + Assetlist.toName(asset) : 'Wrap into unified asset') : 'Receive on ' + Assetlist.toName(AssetId.fromHandle(asset?.chain || '')) } description={ wrapping ? 'Selected token will be locked 1:1 into the unified asset of the chosen market' : "Smart contract will re-pay you back the 1:1 value of selected token after this action" } disabled={!assetPayload} onBuild={async () => {
+          <PerformerButton name={ (wrapping ? 'Wrap ' : 'Unwrap ') + (asset ? toChainAssetSymbol(asset) : 'asset') } className="btn-brand" style={{ width: '100%', marginTop: 16 }} title={ wrapping ? (asset ? 'Wrap into ' + Assetlist.toName(asset) : 'Wrap into unified asset') : 'Receive on ' + Assetlist.toName(AssetId.fromHandle(asset?.chain || '')) } description={ wrapping ? 'Selected token will be locked 1:1 into the unified asset of the chosen market' : "Smart contract will re-pay you back the 1:1 value of selected token after this action" } disabled={!assetPayload} onBuild={async () => {
             if (!assetPayload)
               return null;
             return wrapping ? Builder.payUnifiedAsset({
@@ -720,7 +720,7 @@ function MarketRouter(props: {
                   <span className="v" style={{ color: (amountOut || new BigNumber(0)).gte(amountIn || new BigNumber(0)) ? 'var(--lime)' : 'var(--down)' }}>{ amountIn && amountOut ? amountOut.minus(amountIn).dividedBy(amountIn).multipliedBy(100).toFixed(2) : '0.00' }%</span>
                 </div>
               </Box>
-              <PerformerButton className={ pathIndex == 0 ? 'btn-brand btn-cta' : undefined } title={ pathIndex == 0 ? 'Review swap' : 'Execute'} description={`Swap involves paying ${UiUtil.toAssetSymbol(props.pair.primary || new AssetId())} to smart contract and placing one or more market orders in a row to receive ${toChainAssetSymbol(props.pair.secondary || new AssetId())} as a result`} variant={ pathIndex == 0 ? undefined : 'soft'} color={pathIndex == 0 ? undefined : 'gray'} style={{ width: '100%', marginTop: 2 }} onBuild={async () => {
+              <PerformerButton name={ 'Swap ' + toChainAssetSymbol(props.pair.primary || new AssetId()) + ' → ' + toChainAssetSymbol(props.pair.secondary || new AssetId()) } className={ pathIndex == 0 ? 'btn-brand btn-cta' : undefined } title={ pathIndex == 0 ? 'Review swap' : 'Execute'} description={`Swap involves paying ${UiUtil.toAssetSymbol(props.pair.primary || new AssetId())} to smart contract and placing one or more market orders in a row to receive ${toChainAssetSymbol(props.pair.secondary || new AssetId())} as a result`} variant={ pathIndex == 0 ? undefined : 'soft'} color={pathIndex == 0 ? undefined : 'gray'} style={{ width: '100%', marginTop: 2 }} onBuild={async () => {
                 const pays: Record<string, string> = Exchange.toPayment(new BigNumber(swapInfo.amountIn), assetsIn);
                 const results = await Builder.swap({
                   ...state,
@@ -759,7 +759,7 @@ function MarketRouter(props: {
               <span className="v" style={{ color: 'var(--lime)' }}>0.00%</span>
             </div>
           </Box>
-          <PerformerButton className="btn-brand btn-cta" title="Review swap" description={ `Swap involves paying ${toChainAssetSymbol(wrapAction.from)} to smart contract which re-pays you back the 1:1 value of ${toChainAssetSymbol(wrapAction.to)} as a result` } style={{ width: '100%', marginTop: 2 }} disabled={!wrapPayload} onBuild={async () => {
+          <PerformerButton name={ (wrapAction.direction == 'unwrap' ? 'Unwrap ' : 'Wrap ') + toChainAssetSymbol(wrapAction.from) + ' → ' + toChainAssetSymbol(wrapAction.to) } className="btn-brand btn-cta" title="Review swap" description={ `Swap involves paying ${toChainAssetSymbol(wrapAction.from)} to smart contract which re-pays you back the 1:1 value of ${toChainAssetSymbol(wrapAction.to)} as a result` } style={{ width: '100%', marginTop: 2 }} disabled={!wrapPayload} onBuild={async () => {
             if (!wrapPayload)
               return null;
             return wrapAction.direction == 'unwrap' ? Builder.repayAsset({
