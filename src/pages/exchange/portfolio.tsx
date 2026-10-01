@@ -23,7 +23,7 @@ import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
 import AssetSelector from "../../components/exchange/selector";
 import AddressAvatar from "../../components/avatar";
-import { toFancyMoney } from "../../core/utils";
+import { toFancyMoney, toChainAssetSymbol, toFancyMoneyChain } from "../../core/utils";
 
 type SwapState = {
   amountIn: string,
@@ -390,13 +390,54 @@ function MarketRouter(props: {
 }) {
   const assets = props.assets;
   const superMobile = document.body.clientWidth <= 400;
-  const [polyAssets, setPolyAssets] = useState<AssetId[]>([]);
+  const [polyAssets, setPolyAssets] = useState<PolyAsset[]>([]);
+  const [secondaryPoly, setSecondaryPoly] = useState<PolyAsset[] | null>(null);
   const [state, setState] = useState<SwapState>({ amountIn: '', amountOut: '', slippage: '0.50%' });
   const [bestPaths, setBestPaths] = useState<RouterPath[] | null>(null);
   const [convervative, setConservative] = useState(false);
   const [loadingPoly, setLoadingPoly] = useState<boolean>(false);
   const [loadingPath, setLoadingPath] = useState<boolean>(false);
-  const assetsIn = useMemo((): Balance[] => assets.filter((v) => v.asset.id == props.pair.primary?.id || polyAssets.findIndex((i) => i.id == v.asset.id) != -1), [props.pair.primary, assets, polyAssets]);
+  const wrapAction = useMemo((): { direction: 'wrap' | 'unwrap', marketId: BigNumber, unified: AssetId, native: AssetId, from: AssetId, to: AssetId, liquidity: BigNumber | null } | null => {
+    const primary = props.pair.primary, secondary = props.pair.secondary;
+    if (!primary || !secondary || primary.id == secondary.id || !primary.token || primary.token != secondary.token)
+      return null;
+    const unifiedChain = new AssetId().chain;
+    const primaryUnified = primary.chain == unifiedChain;
+    if (primaryUnified == (secondary.chain == unifiedChain))
+      return null;
+    const unified = primaryUnified ? primary : secondary;
+    const native = primaryUnified ? secondary : primary;
+    const match = polyAssets.find((v) => v.id == secondary.id || (v.chain == secondary.chain && v.token == secondary.token));
+    if (!match || !match.marketId)
+      return null;
+    return { direction: primaryUnified ? 'unwrap' : 'wrap', marketId: new BigNumber(match.marketId), unified, native, from: primary, to: secondary, liquidity: match.liquidity ? new BigNumber(match.liquidity) : null };
+  }, [props.pair.primary, props.pair.secondary, polyAssets]);
+  const swapUnwrap = useMemo((): { marketId: BigNumber, unified: AssetId, native: AssetId, liquidity: BigNumber | null } | null => {
+    const secondary = props.pair.secondary;
+    if (!secondary || !secondary.token || !secondaryPoly)
+      return null;
+    const unifiedChain = new AssetId().chain;
+    if (secondary.chain == unifiedChain)
+      return null;
+    const entry = secondaryPoly.find((v) => v.chain == unifiedChain && v.token == secondary.token && v.marketId);
+    if (!entry || !entry.marketId)
+      return null;
+    const variant = secondaryPoly.find((v) => v.id == secondary.id);
+    return { marketId: new BigNumber(entry.marketId), unified: new AssetId(entry.id), native: secondary, liquidity: variant?.liquidity ? new BigNumber(variant.liquidity) : null };
+  }, [props.pair.secondary, secondaryPoly]);
+  useEffectAsync(async () => {
+    const secondary = props.pair.secondary;
+    if (!secondary || !secondary.token || secondary.chain == new AssetId().chain) {
+      setSecondaryPoly(null);
+      return;
+    }
+    try {
+      setSecondaryPoly(await Exchange.marketAssets(secondary, true));
+    } catch {
+      setSecondaryPoly(null);
+    }
+  }, [props.pair.secondary?.id, props.refreshKey]);
+  const assetsIn = useMemo((): Balance[] => assets.filter((v) => wrapAction ? v.asset.id == props.pair.primary?.id : (v.asset.id == props.pair.primary?.id || polyAssets.findIndex((i) => i.id == v.asset.id) != -1)), [props.pair.primary, assets, polyAssets, wrapAction]);
   const payableBalances = useMemo((): Balance[] => assets.filter((v) => v.available.gt(0)), [assets]);
   const swapInfo = useMemo((): { balanceIn: BigNumber, balanceOut: BigNumber, amountIn: BigNumber, amountOut: BigNumber, priceIn: BigNumber | null, priceOut: BigNumber | null, valuationIn: BigNumber | null, valuationOut: BigNumber | null, slippage: BigNumber } => {
     const assetIn = assetsIn.reduce((a, b) => a.plus(b.available), new BigNumber(0));
@@ -420,6 +461,14 @@ function MarketRouter(props: {
       slippage: BigNumber.min(1, BigNumber.max(0, slippage.relative || new BigNumber(0)))
     }
   }, [state, assets, assetsIn, props.pair]);
+  const wrapPayload = useMemo((): string | null => {
+    if (!wrapAction || !swapInfo.amountIn.gt(0) || swapInfo.amountIn.gt(swapInfo.balanceIn))
+      return null;
+    if (wrapAction.liquidity && swapInfo.amountIn.gt(wrapAction.liquidity))
+      return null;
+    return wrapAction.liquidity ? ByteUtil.bigNumberToString(BigNumber.min(swapInfo.amountIn, wrapAction.liquidity)) : swapInfo.amountIn.toString();
+  }, [wrapAction, swapInfo.amountIn, swapInfo.balanceIn]);
+  const effectiveMax = wrapAction?.liquidity && wrapAction.liquidity.lt(swapInfo.balanceIn) ? wrapAction.liquidity : swapInfo.balanceIn;
   const updateState = useCallback((change: (prev: SwapState) => SwapState) => {
     setState(prev => {
       const result = change(prev);
@@ -468,7 +517,7 @@ function MarketRouter(props: {
 
     setLoadingPoly(true);
     try {
-      setPolyAssets(await Exchange.marketAssets(props.pair.primary));
+      setPolyAssets(await Exchange.marketAssets(props.pair.primary, true));
     } catch (exception) {
       AlertBox.open(AlertType.Error, 'Failed to fetch poly assets: ' + (exception as Error).message);
       setPolyAssets([]);
@@ -484,7 +533,7 @@ function MarketRouter(props: {
       setLoadingPath(false);
     }
 
-    if (props.market != null && props.pair.primary != null && props.pair.secondary != null && props.pair.secondary.id != props.pair.primary.id) {
+    if (!wrapAction && props.market != null && props.pair.primary != null && props.pair.secondary != null && props.pair.secondary.id != props.pair.primary.id) {
       const balanceIn = assetsIn.reduce((a, b) => a.plus(b.available), new BigNumber(0));
       const finalAmountIn = TextUtil.toNumericValueOrPercent(state.amountIn);
       const amountIn = finalAmountIn.relative?.gt(0) ? finalAmountIn.relative.multipliedBy(balanceIn) : (finalAmountIn.absolute?.gt(0) ? finalAmountIn.absolute : new BigNumber(0));
@@ -516,7 +565,7 @@ function MarketRouter(props: {
       if (swapPathTimeoutId != null)
         clearTimeout(swapPathTimeoutId);
     };
-  }, [props.market, props.pair.secondary, props.pair.primary, state.amountIn, state.slippage, assetsIn, props.refreshKey]);
+  }, [props.market, props.pair.secondary, props.pair.primary, state.amountIn, state.slippage, assetsIn, props.refreshKey, wrapAction]);
   useEffect(() => {
     const prev = AppStorage.get(ExchangeField.PortfolioRouter);
     if (prev != null) {
@@ -554,16 +603,16 @@ function MarketRouter(props: {
           <AssetSelector title="token" value={props.pair.primary} balances={payableBalances} onChange={(value) => props.setPair({ primary: value || null, secondary: props.pair.secondary })}>
             <button className={props.pair.primary ? 'token-select' : 'token-select dot'}>
               { props.pair.primary && <AssetImage asset={props.pair.primary} size="2" iconSize="26px"></AssetImage> }
-              { props.pair.primary ? UiUtil.toAssetSymbol(props.pair.primary) : 'Select' }
+              { props.pair.primary ? toChainAssetSymbol(props.pair.primary) : 'Select' }
               <span>▾</span>
             </button>
           </AssetSelector>
         </div>
         <div className="pct-row">
-          <button className={ 'pct' + (approxEq(swapInfo.amountIn, swapInfo.balanceIn.multipliedBy(0.25)) ? ' hot' : '') } onClick={() => setAmount('amount-in', ByteUtil.bigNumberToString(swapInfo.balanceIn.multipliedBy(0.25)))}>25%</button>
-          <button className={ 'pct' + (approxEq(swapInfo.amountIn, swapInfo.balanceIn.multipliedBy(0.50)) ? ' hot' : '') } onClick={() => setAmount('amount-in', ByteUtil.bigNumberToString(swapInfo.balanceIn.multipliedBy(0.50)))}>50%</button>
-          { !superMobile && <button className={ 'pct' + (approxEq(swapInfo.amountIn, swapInfo.balanceIn.multipliedBy(0.75)) ? ' hot' : '') } onClick={() => setAmount('amount-in', ByteUtil.bigNumberToString(swapInfo.balanceIn.multipliedBy(0.75)))}>75%</button> }
-          <button className={ 'pct' + (approxEq(swapInfo.amountIn, swapInfo.balanceIn.multipliedBy(1.00)) ? ' hot' : '') } onClick={() => setAmount('amount-in', ByteUtil.bigNumberToString(swapInfo.balanceIn.multipliedBy(1.00)))}>Max</button>
+          <button className={ 'pct' + (approxEq(swapInfo.amountIn, effectiveMax.multipliedBy(0.25)) ? ' hot' : '') } onClick={() => setAmount('amount-in', ByteUtil.bigNumberToString(effectiveMax.multipliedBy(0.25)))}>25%</button>
+          <button className={ 'pct' + (approxEq(swapInfo.amountIn, effectiveMax.multipliedBy(0.50)) ? ' hot' : '') } onClick={() => setAmount('amount-in', ByteUtil.bigNumberToString(effectiveMax.multipliedBy(0.50)))}>50%</button>
+          { !superMobile && <button className={ 'pct' + (approxEq(swapInfo.amountIn, effectiveMax.multipliedBy(0.75)) ? ' hot' : '') } onClick={() => setAmount('amount-in', ByteUtil.bigNumberToString(effectiveMax.multipliedBy(0.75)))}>75%</button> }
+          <button className={ 'pct' + (approxEq(swapInfo.amountIn, effectiveMax) ? ' hot' : '') } onClick={() => setAmount('amount-in', ByteUtil.bigNumberToString(effectiveMax))}>Max</button>
         </div>
       </div>
       <div className="swap-arrow">
@@ -586,16 +635,18 @@ function MarketRouter(props: {
           <AssetSelector title="token" value={props.pair.secondary} onChange={(value) => props.setPair({ primary: props.pair.primary, secondary: value || null })}>
             <button className={props.pair.secondary ? 'token-select' : 'token-select dot'}>
               { props.pair.secondary && <AssetImage asset={props.pair.secondary} size="2" iconSize="26px"></AssetImage> }
-              { props.pair.secondary ? UiUtil.toAssetSymbol(props.pair.secondary) : 'Select' }
+              { props.pair.secondary ? toChainAssetSymbol(props.pair.secondary) : 'Select' }
               <span>▾</span>
             </button>
           </AssetSelector>
         </div>
         {
           bestPaths && bestPaths.length > 0 &&
-          <div className="tiny dim" style={{ marginTop: 10 }}>Routed across { bestPaths[0].length } book{ bestPaths[0].length > 1 ? 's' : '' } · { bestPaths[0][0].side == OrderSide.Buy ? 'Buy' : 'Sell' } { toAssetSymbol(bestPaths[0][0].side == OrderSide.Buy ? bestPaths[0][0].pair.secondaryAsset?.hash || new AssetId() : bestPaths[0][0].pair.primaryAsset?.hash || new AssetId()) } first</div>
+          <div className="tiny dim" style={{ marginTop: 10 }}>Routed across { bestPaths[0].length } book{ bestPaths[0].length > 1 ? 's' : '' }</div>
         }
       </div>
+      {
+        !wrapAction && (
       <div className="field-lite" style={{ marginTop: 14 }}>
         <div className="lab"><span>Max slippage</span><span style={{ color: 'var(--text-3)' }}>max value loss { state.slippage || '0%' }</span></div>
         <div className="val" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
@@ -613,12 +664,23 @@ function MarketRouter(props: {
           </span>
         </div>
       </div>
+      ) }
       {
         bestPaths?.map((path: RouterPath, pathIndex: number) => {
           const last = path[path.length - 1];
           const type = convervative ? 'min' : 'max';
           const amountIn = swapInfo.priceIn?.gt(0) && swapInfo.amountIn.gt(0) ? swapInfo.amountIn.multipliedBy(swapInfo.priceIn) : null;
           const amountOut = swapInfo.priceOut?.gt(0) && last.output[type].gt(0) ? last.output[type].multipliedBy(swapInfo.priceOut) : null;
+          const repayStep = ((): BigNumber | null => {
+            if (!swapUnwrap || path.length == 0)
+              return null;
+            const finalLeg = path[path.length - 1];
+            const finalOut = finalLeg.side == OrderSide.Buy ? finalLeg.pair.primaryAsset?.hash : finalLeg.pair.secondaryAsset?.hash;
+            if (!finalOut || finalOut.id != swapUnwrap.unified.id)
+              return null;
+            const value = swapUnwrap.liquidity && swapUnwrap.liquidity.lt(finalLeg.output.max) ? swapUnwrap.liquidity : finalLeg.output.max;
+            return value.gt(0) ? value : null;
+          })();
           return (
             <div key={'swap_path_' + pathIndex} className="card" style={{ marginTop: 14 }}>
               <div className="order-head">
@@ -638,17 +700,29 @@ function MarketRouter(props: {
                         <AssetImage asset={swap.side == OrderSide.Buy ? swap.pair.primaryAsset?.hash : swap.pair.secondaryAsset?.hash} iconSize="18px"></AssetImage>
                         { swap.side == OrderSide.Buy ? 'Buy' : 'Sell' }
                       </span>
-                      <span className="v">{ toFancyMoney(swap.side == OrderSide.Buy ? swap.pair.primaryAsset?.hash || null : swap.pair.secondaryAsset?.hash || null, swap.output[type]) }</span>
+                      <span className="v">{ toFancyMoneyChain(swap.side == OrderSide.Buy ? swap.pair.primaryAsset?.hash || null : swap.pair.secondaryAsset?.hash || null, swap.output[type]) }</span>
                     </div>)
+                }
+                {
+                  repayStep != null && swapUnwrap != null &&
+                  <div className="q-row">
+                    <span className="k" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                      <AssetImage asset={swapUnwrap.unified} iconSize="18px"></AssetImage>
+                      <Icon path={mdiArrowRight} size={0.55} style={{ color: 'var(--text-3)' }}></Icon>
+                      <AssetImage asset={swapUnwrap.native} iconSize="18px"></AssetImage>
+                      Unwrap
+                    </span>
+                    <span className="v">{ toFancyMoneyChain(swapUnwrap.native, repayStep) }</span>
+                  </div>
                 }
                 <div className="q-row">
                   <span className="k">{ (amountOut || new BigNumber(0)).gte(amountIn || new BigNumber(0)) ? (convervative ? 'Min gain' : 'Gain') : (convervative ? 'Max loss' : 'Loss') }</span>
                   <span className="v" style={{ color: (amountOut || new BigNumber(0)).gte(amountIn || new BigNumber(0)) ? 'var(--lime)' : 'var(--down)' }}>{ amountIn && amountOut ? amountOut.minus(amountIn).dividedBy(amountIn).multipliedBy(100).toFixed(2) : '0.00' }%</span>
                 </div>
               </Box>
-              <PerformerButton className={ pathIndex == 0 ? 'btn-brand btn-cta' : undefined } title={ pathIndex == 0 ? 'Review swap' : 'Execute'} description={`Swap involves paying ${UiUtil.toAssetSymbol(props.pair.primary || new AssetId())} to smart contract and placing one or more market orders in a row to receive ${UiUtil.toAssetSymbol(props.pair.secondary || new AssetId())} as a result`} variant={ pathIndex == 0 ? undefined : 'soft'} color={pathIndex == 0 ? undefined : 'gray'} style={{ width: '100%', marginTop: 2 }} onBuild={async () => {
+              <PerformerButton className={ pathIndex == 0 ? 'btn-brand btn-cta' : undefined } title={ pathIndex == 0 ? 'Review swap' : 'Execute'} description={`Swap involves paying ${UiUtil.toAssetSymbol(props.pair.primary || new AssetId())} to smart contract and placing one or more market orders in a row to receive ${toChainAssetSymbol(props.pair.secondary || new AssetId())} as a result`} variant={ pathIndex == 0 ? undefined : 'soft'} color={pathIndex == 0 ? undefined : 'gray'} style={{ width: '100%', marginTop: 2 }} onBuild={async () => {
                 const pays: Record<string, string> = Exchange.toPayment(new BigNumber(swapInfo.amountIn), assetsIn);
-                return Builder.swap({
+                const results = await Builder.swap({
                   ...state,
                   tokenIn: props.pair.primary,
                   tokenOut: props.pair.secondary,
@@ -656,13 +730,54 @@ function MarketRouter(props: {
                   path: path,
                   pays: pays,
                 });
+                if (repayStep != null && swapUnwrap != null)
+                  results.push(await Builder.repayAsset({ marketId: swapUnwrap.marketId.toString(), repaymentAssetHash: swapUnwrap.native.id, paymentAssetHash: swapUnwrap.unified.id, pays: repayStep.toString() }, true));
+                return results;
               }}></PerformerButton>
             </div>
           )
         })
       }
       {
-        !loadingPoly && !bestPaths?.length &&
+        wrapAction &&
+        <div className="card" style={{ marginTop: 14 }}>
+          <div className="order-head">
+            <span className="tag day">Best · 1 swap</span>
+          </div>
+          <Box mt="2">
+            <div className="q-row">
+              <span className="k" style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <AssetImage asset={wrapAction.from} iconSize="18px"></AssetImage>
+                <Icon path={mdiArrowRight} size={0.55} style={{ color: 'var(--text-3)' }}></Icon>
+                <AssetImage asset={wrapAction.to} iconSize="18px"></AssetImage>
+                { wrapAction.direction == 'unwrap' ? 'Unwrap' : 'Wrap' }
+              </span>
+              <span className="v">{ wrapPayload ? toFancyMoneyChain(wrapAction.to, new BigNumber(wrapPayload)) : '—' }</span>
+            </div>
+            <div className="q-row">
+              <span className="k">Gain</span>
+              <span className="v" style={{ color: 'var(--lime)' }}>0.00%</span>
+            </div>
+          </Box>
+          <PerformerButton className="btn-brand btn-cta" title="Review swap" description={ `Swap involves paying ${toChainAssetSymbol(wrapAction.from)} to smart contract which re-pays you back the 1:1 value of ${toChainAssetSymbol(wrapAction.to)} as a result` } style={{ width: '100%', marginTop: 2 }} disabled={!wrapPayload} onBuild={async () => {
+            if (!wrapPayload)
+              return null;
+            return wrapAction.direction == 'unwrap' ? Builder.repayAsset({
+              marketId: wrapAction.marketId.toString(),
+              repaymentAssetHash: wrapAction.native.id,
+              paymentAssetHash: wrapAction.unified.id,
+              pays: wrapPayload
+            }) : Builder.payUnifiedAsset({
+              pays: { [wrapAction.native.id]: wrapPayload },
+              marketId: wrapAction.marketId.toString(),
+              primaryAssetHash: AssetId.fromHandle(wrapAction.native.chain || '').id,
+              secondaryAssetHash: wrapAction.unified.id
+            });
+          }}></PerformerButton>
+        </div>
+      }
+      {
+        !loadingPoly && !bestPaths?.length && !wrapAction &&
         (loadingPath ?
           <Flex px="4" pt="4" justify="center"><Text size="2" align="center" className="dim">Optimizing swap routes...</Text></Flex> :
           <button className="btn-block" disabled style={{ marginTop: 14, background: 'var(--elev)', color: 'var(--text-3)', border: 0, borderRadius: 'var(--r-md)', height: 48, fontWeight: 700, fontSize: 14, cursor: 'not-allowed', opacity: 0.6 }}>{ bestPaths ? 'No routes for the swap.' : 'Waiting for details' }</button>)

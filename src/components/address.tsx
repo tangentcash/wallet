@@ -168,8 +168,12 @@ export function AddressView(props: { address: { asset: AssetId, purpose?: string
           }} />
         }
       </div>
-      <div className="av-k">{ toAddressType(props.address.purpose || '') }{ target.tag ? '' : '' }</div>
-      <div className="av-addr">{ UiUtil.toAddress(toTextAddress(target, props.policy), 6) }</div>
+      <Flex justify="center">
+        <Box>
+          <div className="av-k">{ toAddressType(props.address.purpose || '') }{ target.tag ? '' : '' }</div>
+          <div className="av-addr">{ UiUtil.toAddress(toTextAddress(target, props.policy), 6) }</div>
+        </Box>
+      </Flex>
       {
         target.tag &&
         <div className="av-memo">

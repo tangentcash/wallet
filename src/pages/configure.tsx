@@ -6,7 +6,7 @@ import { AppData, AppPermission, ConnectionState } from "../core/app";
 import { ByteUtil, Signing } from "tangentsdk/algorithm";
 import { RPC } from "tangentsdk/rpc";
 import { UiUtil } from "tangentsdk/ui";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useEffectAsync } from "../core/react";
 import Icon from "@mdi/react";
 import License from "../components/license";
@@ -15,7 +15,6 @@ import AddressAvatar from "../components/avatar";
 export default function ConfigurePage() {
   const address = AppData.getWalletAddress();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const [counter, setCounter] = useState(0);
   const [walletAddresses, setWalletAddresses] = useState<(string | null)[]>([]);
   const [validatorAddress, setValidatorAddress] = useState(AppData.props.validator || '');
@@ -27,9 +26,6 @@ export default function ConfigurePage() {
   useEffect(() => {
     AppData.setTitle('App settings');
   }, []);
-  const highlightExport = useMemo(() => {
-    return searchParams.has('export');
-  }, [searchParams]);
   const networkInfo = useMemo<ConnectionState>(() => {
     return AppData.server || {
       traffic: 0,
@@ -93,7 +89,7 @@ export default function ConfigurePage() {
   }, [loadingProps]);
   const exportWallet = useCallback(async (type: 'wallet' | 'mnemonic' | 'secretkey' | 'publickey' | 'address') => {
     if (!AppData.isWalletReady() && type != 'address') {
-      navigate(`/restore?to=${encodeURIComponent('/configure?export=1')}`);
+      navigate(`/restore?to=${encodeURIComponent('/configure')}`);
       return;
     }
     switch (type) {
@@ -249,7 +245,7 @@ export default function ConfigurePage() {
         }
         <DropdownMenu.Root>
           <DropdownMenu.Trigger disabled={!AppData.isWalletExists()}>
-            <button className={'srow' + (highlightExport ? ' shadow-rainbow-animation' : '')}>
+            <button className="srow">
               <span className="ic"><Icon path={mdiDownload} size={0.95}></Icon></span>
               <span className="t"><b>Backup wallet</b><span>Wallet file or recovery phrase</span></span>
               <span className="go"><Icon path={mdiChevronRight} size={0.8}></Icon></span>

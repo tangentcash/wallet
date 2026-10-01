@@ -10,7 +10,7 @@ import { Exchange, BlockchainInfo, Balance, ExchangeField } from "../../core/exc
 import { AssetImage } from "../asset-image";
 import { AssetName } from "../asset-name";
 import { AppStorage } from "../../core/storage";
-import { toFancyMoney } from "../../core/utils";
+import { toFancyMoney, toChainAssetSymbol } from "../../core/utils";
 import Icon from "@mdi/react";
 
 type SelectorAsset = { asset: AssetId, contractAddress: boolean | string, amount?: BigNumber };
@@ -40,7 +40,7 @@ function TokenRow(props: { item: SelectorAsset, onSelect: (asset: AssetId) => vo
         <div className="asset-main">
           <AssetName asset={item.asset} size="3"></AssetName>
           <div className="mono tiny dim" style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
-            <span>{ UiUtil.toAssetSymbol(item.asset) }</span>
+            <span>{ toChainAssetSymbol(item.asset) }</span>
             { typeof item.contractAddress == 'string' && <span>{ UiUtil.toAddress(item.contractAddress, 8) }</span> }
           </div>
         </div>

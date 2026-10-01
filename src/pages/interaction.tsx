@@ -1596,7 +1596,7 @@ export default function InteractionPage() {
       </Box>
       {
         previewTransaction != null &&
-        <Box mt="2">
+        <Box mt="4">
           <TransactionView variant="row" ownerAddress={ownerAddress} transaction={previewTransaction} receipt={simulation?.receipt || undefined} state={simulation?.state || undefined} preview={true}></TransactionView>
           {
             Array.isArray(previewTransaction.transactions) && previewTransaction.transactions.map((subtransaction: any, index: number) =>

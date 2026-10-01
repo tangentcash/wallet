@@ -4739,7 +4739,7 @@ superstruct@^2.0.2:
 
 "tangentsdk@https://github.com/tangentcash/sdk.git":
   version "1.0.0"
-  resolved "https://github.com/tangentcash/sdk.git#d4a26ebe87a082afa7be35585ceeffcbc2fcf618"
+  resolved "https://github.com/tangentcash/sdk.git#ab77fd25c028b97f54521028ce53cf380b34e14f"
   dependencies:
     "@ethersproject/random" "5.8.0"
     "@noble/hashes" "1.8.0"

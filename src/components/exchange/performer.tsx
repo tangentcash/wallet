@@ -504,7 +504,7 @@ export class Builder {
             }
         };
     }
-    static async repayAsset(args: { marketId: string, repaymentAssetHash: string, paymentAssetHash: string, pays: string }): Promise<BuilderResult> {
+    static async repayAsset(args: { marketId: string, repaymentAssetHash: string, paymentAssetHash: string, pays: string }, pipeline?: boolean): Promise<BuilderResult> {
         const repaymentAsset = typeof args.repaymentAssetHash == 'string' || typeof args.repaymentAssetHash == 'number' ? new AssetId(args.repaymentAssetHash) : null;
         if (!repaymentAsset || !repaymentAsset.isValid())
             throw new Error('Repayment asset must be set');
@@ -535,7 +535,7 @@ export class Builder {
             body: {
               callable: marketAccount,
               pays: [{ asset: paymentAsset, value: value }],
-              function: UiUtil.toFunction(Spot.DEX.repayAsset),
+              function: (pipeline ? '>' : '') + UiUtil.toFunction(Spot.DEX.repayAsset),
               args: [repaymentAsset.toUint256()]
             }
         };

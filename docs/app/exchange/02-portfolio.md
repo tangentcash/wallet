@@ -12,6 +12,8 @@ The Trade tab is the market list: every trading pair with its latest price and 2
 
 The Swap tab exchanges one token for another along the best route. Enter the amount on either side (in or out), pick the tokens, and the router quotes the path — through liquidity pools or across the order book — before submitting. The slippage tolerance control caps how much price impact you accept.
 
+Multi-chain tokens are labeled with their chain in the token pickers (`TAN USDC`, `SOL USDC`), so the synthetic unified form and the native form are never confused. Any variant works on either side: paying with a native variant is wrapped automatically by the market contract, and when the requested receive token is a native variant the router lands the swap on the unified asset and queues an additional 1:1 conversion step in the same execution plan, so the funds arrive as the selected native token, ready to withdraw to that chain. A pair of the unified asset and its own native variant (for example `TAN USDC` → `SOL USDC`) trades 1:1 without going through the book at all — it is quoted as a plain zero-fee swap card.
+
 ![Swap tab](./../../assets/exchange/02-portfolio/2.png)
 
 ## Earn Tab

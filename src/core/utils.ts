@@ -2,6 +2,12 @@ import { AssetId } from "tangentsdk/algorithm";
 import { UiUtil } from "tangentsdk/ui";
 import BigNumber from "bignumber.js";
 import { Exchange } from "./exchange";
+export function toChainAssetSymbol(asset: AssetId): string {
+  return asset.token ? (asset.chain ? asset.chain + ' ' : '') + asset.token : (asset.chain || UiUtil.toAssetSymbol(asset));
+}
+export function toFancyMoneyChain(asset: AssetId | null, value: string | number | BigNumber | null): string {
+  return asset?.token ? toFancyMoney(null, value) + ' ' + toChainAssetSymbol(asset) : toFancyMoney(asset, value);
+}
 
 export function secondsToDuration(baseSeconds: number, short?: boolean): string {
   if (!baseSeconds)
