@@ -21,12 +21,6 @@ import BigNumber from "bignumber.js";
 import { toFancyMoney } from "../../core/utils";
 
 const DLP_DEFAULT_FEE_RATE_MAYBE = 0.0005;
-// Single condition shared by the lime Max highlight and the automatic 100% withdrawal (empty value)
-// so the button state and the on-chain execution can never disagree: the amount counts as full when it
-// lies within the wider of the ±0.5% band and the ±1e-6 dust range around the full position. The
-// contract tracks reserves with 18 decimals while the UI floors amounts to 8 (Max button) and users
-// may round manual input either way; the dust cap covers tiny positions where ±0.5% is narrower than
-// the flooring/rounding error.
 const DLP_FULL_WITHDRAW_EPSILON = new BigNumber('0.000001');
 const isFullWithdraw = (position: BigNumber, amount: BigNumber) => position.gt(0) && amount.gt(0)
   && amount.lte(BigNumber.max(position.multipliedBy(1.005), position.plus(DLP_FULL_WITHDRAW_EPSILON)))
@@ -36,7 +30,7 @@ const isFullWithdraw = (position: BigNumber, amount: BigNumber) => position.gt(0
 function DlpAmount(props: { label: string, meta?: string, asset: AssetId, value: string, onChange: (value: string) => any, max: BigNumber, err?: boolean }) {
   const amount = new BigNumber(props.value || '0');
   const near = (fraction: number) => { const target = props.max.multipliedBy(fraction); return target.gt(0) && amount.gt(0) && amount.lte(target.multipliedBy(1.005)) && amount.gte(target.multipliedBy(0.995)); };
-  const set = (fraction: number) => props.onChange(props.max.multipliedBy(fraction).decimalPlaces(8, BigNumber.ROUND_FLOOR).toString());
+  const set = (fraction: number) => props.onChange(props.max.multipliedBy(fraction).toString());
   return (
     <div className={ 'amount-box' + (props.err ? ' err' : '') }>
       <div className="swap-lab"><span>{ props.label }</span><span>{ props.meta }</span></div>
