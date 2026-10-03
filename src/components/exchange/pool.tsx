@@ -21,6 +21,17 @@ import BigNumber from "bignumber.js";
 import { toFancyMoney } from "../../core/utils";
 
 const DLP_DEFAULT_FEE_RATE_MAYBE = 0.0005;
+// Single condition shared by the lime Max highlight and the automatic 100% withdrawal (empty value)
+// so the button state and the on-chain execution can never disagree: the amount counts as full when it
+// lies within the wider of the ±0.5% band and the ±1e-6 dust range around the full position. The
+// contract tracks reserves with 18 decimals while the UI floors amounts to 8 (Max button) and users
+// may round manual input either way; the dust cap covers tiny positions where ±0.5% is narrower than
+// the flooring/rounding error.
+const DLP_FULL_WITHDRAW_EPSILON = new BigNumber('0.000001');
+const isFullWithdraw = (position: BigNumber, amount: BigNumber) => position.gt(0) && amount.gt(0)
+  && amount.lte(BigNumber.max(position.multipliedBy(1.005), position.plus(DLP_FULL_WITHDRAW_EPSILON)))
+  && amount.gte(BigNumber.min(position.multipliedBy(0.995), position.minus(DLP_FULL_WITHDRAW_EPSILON)));
+
 
 function DlpAmount(props: { label: string, meta?: string, asset: AssetId, value: string, onChange: (value: string) => any, max: BigNumber, err?: boolean }) {
   const amount = new BigNumber(props.value || '0');
@@ -40,7 +51,7 @@ function DlpAmount(props: { label: string, meta?: string, asset: AssetId, value:
         <button type="button" className={ 'pct' + (near(0.25) ? ' hot' : '') } onClick={() => set(0.25)}>25%</button>
         <button type="button" className={ 'pct' + (near(0.5) ? ' hot' : '') } onClick={() => set(0.5)}>50%</button>
         <button type="button" className={ 'pct' + (near(0.75) ? ' hot' : '') } onClick={() => set(0.75)}>75%</button>
-        <button type="button" className={ 'pct' + (near(1) ? ' hot' : '') } onClick={() => set(1)}>Max</button>
+        <button type="button" className={ 'pct' + (isFullWithdraw(props.max, amount) ? ' hot' : '') } onClick={() => set(1)}>Max</button>
       </div>
     </div>
   );
@@ -402,7 +413,7 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
     const cap = toWanted(item.primaryValue, primaryPrice).plus(toWanted(item.secondaryValue, secondaryPrice));
     const amount = new BigNumber(flexAmount || '0');
     const free = toWanted(BigNumber.max(item.primaryTotal.minus(item.primaryReserve), 0), primaryPrice).plus(toWanted(BigNumber.max(item.secondaryTotal.minus(item.secondaryReserve), 0), secondaryPrice));
-    const atMax = amount.gt(0) && cap.minus(amount).lte('0.00000001');
+    const atMax = isFullWithdraw(cap, amount);
     const wantedOut = atMax ? wantedPosition : BigNumber.min(amount, wantedPosition);
     const swapIn = atMax ? unwantedPosition : unwantedPrice.gt(0) ? BigNumber.min(amount.minus(wantedOut).multipliedBy(wantedPrice).dividedBy(unwantedPrice), unwantedPosition) : new BigNumber(0);
     return {
@@ -411,7 +422,7 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
       cap: cap,
       amount: amount,
       atMax: atMax,
-      over: amount.gt(cap),
+      over: !atMax && amount.gt(cap),
       pullLp: amount.gt(free),
       swapIn: swapIn,
       withdrawPrimary: exit == 'primary' ? wantedOut : swapIn,
@@ -453,15 +464,17 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
     }
     const primary = new BigNumber(primaryReserve || '0');
     const secondary = new BigNumber(secondaryReserve || '0');
-    if (primary.gt(extra.primary) || secondary.gt(extra.secondary) || (!primary.gt(0) && !secondary.gt(0)))
+    const primaryFull = mode == 'withdraw' && isFullWithdraw(extra.primary, primary);
+    const secondaryFull = mode == 'withdraw' && isFullWithdraw(extra.secondary, secondary);
+    if ((!primaryFull && primary.gt(extra.primary)) || (!secondaryFull && secondary.gt(extra.secondary)) || (!primary.gt(0) && !secondary.gt(0)))
       return null;
 
     return {
       delegatorId: item.delegatorId.toString(),
       primaryAssetHash: item.primaryAsset.id,
       secondaryAssetHash: item.secondaryAsset.id,
-      primaryValue: mode == 'withdraw' && primary.eq(extra.primary) ? '' : primary.toString(),
-      secondaryValue: mode == 'withdraw' && secondary.eq(extra.secondary) ? '' : secondary.toString()
+      primaryValue: primaryFull ? '' : primary.toString(),
+      secondaryValue: secondaryFull ? '' : secondary.toString()
     };
   }, [primaryReserve, secondaryReserve, extra, item, mode, flex, blocked]);
   const wrapPlan = useMemo((): { entry: PolyAsset, value: BigNumber, target: AssetId }[] | null => {
