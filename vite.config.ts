@@ -1,8 +1,10 @@
 import { defineConfig, type Plugin } from "vite";
 import { visualizer } from '@aklinker1/rollup-plugin-visualizer';
 import { resolve } from 'path';
-import react from "@vitejs/plugin-react";
 import { minify as minifyHtml } from "html-minifier-terser";
+import { compression, defineAlgorithm } from 'vite-plugin-compression2'
+import react from "@vitejs/plugin-react";
+import zlib from 'zlib';
 
 const host = process.env.TAURI_DEV_HOST;
 
@@ -22,7 +24,6 @@ export default defineConfig(async () => ({
     {
       name: 'minify-html',
       apply: 'build',
-      // Runs after Vite injects the hashed asset tags so the final HTML is minified.
       transformIndexHtml: {
         order: 'post',
         handler: (html) =>
@@ -35,6 +36,18 @@ export default defineConfig(async () => ({
           }),
       },
     } satisfies Plugin,
+    compression({
+      algorithms: [
+        defineAlgorithm('gzip', { level: 9 }),
+        defineAlgorithm('brotli', {
+          params: {
+            [zlib.constants.BROTLI_PARAM_QUALITY]: 11
+          }
+        })
+      ],
+      skipIfLargerOrEqual: true,
+      deleteOriginalAssets: false
+    })
   ],
   resolve: {
     alias: { buffer: 'buffer/' },

@@ -5,8 +5,9 @@ RUN apt-get update && apt-get install -y python3 python3-pip && pip install mkdo
 COPY ./ /home/make
 RUN yarn && yarn make && mkdocs build
 
-FROM nginx AS deployment
+FROM nginx:1.30.4-alpine AS deployment
 WORKDIR /home
 COPY --from=build /home/make/dist /home/wallet
+RUN apk add nginx-mod-http-brotli
 EXPOSE 80
 EXPOSE 443
