@@ -1,5 +1,5 @@
 import { Badge, Box, Button, Card, Dialog, Flex, SegmentedControl, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { AssetId, ByteUtil, Chain, LiquidityPool } from "tangentsdk/algorithm";
+import { AssetId, ByteUtil, LiquidityPool } from "tangentsdk/algorithm";
 import { TextUtil } from "tangentsdk/text";
 import { UiUtil } from "tangentsdk/ui";
 import { Assetlist } from "tangentsdk/assetlist";
@@ -8,6 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { AlertBox, AlertType } from "../alert";
 import { mdiArrowRight, mdiLayers, mdiOpenInNew, mdiWallet } from "@mdi/js";
+import Icon from "@mdi/react";
 import { AssetImage } from "../asset-image";
 import { PerformerButton, Builder, BuilderResult } from "./performer";
 import { defaultMakerState } from "./maker";
@@ -16,7 +17,6 @@ import { AppStorage } from "../../core/storage";
 import { pathOfMaker } from "../../pages/exchange/orderbook";
 import { useEffectAsync } from "../../core/react";
 import * as Collapsible from "@radix-ui/react-collapsible";
-import Icon from "@mdi/react";
 import BigNumber from "bignumber.js";
 import { toFancyMoney } from "../../core/utils";
 
@@ -103,7 +103,7 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
       try {
         const account = AppData.getWalletAddress();
         if (account != null) {
-          const [poly, balances] = await Promise.all([Exchange.marketPairAssets(item.marketId, item.pairId), Exchange.accountBalances({ address: account })]);
+          const [poly, balances] = await Promise.all([Exchange.marketPairAssets(item.pairId), Exchange.accountBalances({ address: account })]);
           if (Array.isArray(balances)) {
             const primaryBalance = balances?.filter((v) => v.asset.id == item.primaryAsset.id || (poly?.primary ? poly.primary.findIndex((i) => i.id == v.asset.id) != -1 : false)).reduce((p, c) => p.plus(c.available), new BigNumber(0));
             const secondaryBalance = balances?.filter((v) => v.asset.id == item.secondaryAsset.id || (poly?.secondary ? poly.secondary.findIndex((i) => i.id == v.asset.id) != -1 : false)).reduce((p, c) => p.plus(c.available), new BigNumber(0));
@@ -146,7 +146,6 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
     return [
       await Builder.withdrawPool({ poolId: item.id.toString() }),
       await Builder.depositPool({
-        marketId: item.marketId.toString(),
         primaryAssetHash: item.primaryAsset.id,
         secondaryAssetHash: item.secondaryAsset.id,
         primaryPays: primaryPays,
@@ -209,11 +208,6 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
       }
       <Collapsible.Content>
         <div className="dl dl-rule" style={{ marginTop: 16 }}>
-          <div className="dl-row"><span className="dl-k">Market account</span><span className="dl-v"><span className="copyable" onClick={() => {
-            navigator.clipboard.writeText(item.marketAccount || 'NULL');
-            AlertBox.open(AlertType.Info, 'Address copied!')
-          }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</span>
-          <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
           <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
           <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
           <div className="dl-row"><span className="dl-k">Reference</span><span className="dl-v"><span className="copyable" onClick={() => {
@@ -250,7 +244,7 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
           !props.flash && props.readOnly && item.active &&
           <Flex justify="center" mt="3">
             <Button variant="soft" onClick={() => {
-              const orderbook = Exchange.toOrderbookQuery(item.marketId, item.primaryAsset, item.secondaryAsset);
+              const orderbook = Exchange.toOrderbookQuery(item.primaryAsset, item.secondaryAsset);
               const path = pathOfMaker(orderbook);
               AppStorage.set(path, {
                 ...(AppStorage.get(path) || defaultMakerState),
@@ -310,18 +304,18 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
   );
 }
 
-function usePolyBalance(assets: Balance[], asset: AssetId, marketId: BigNumber, enabled: boolean) {
+function usePolyBalance(assets: Balance[], asset: AssetId, enabled: boolean) {
   const [family, setFamily] = useState<PolyAsset[] | null>(null);
   useEffectAsync(async () => {
     if (!enabled)
       return;
     try {
       const result = await Exchange.marketAssets(asset, true);
-      setFamily(result.filter((v) => v.marketId?.toString() == marketId.toString()));
+      setFamily(result);
     } catch {
       setFamily(null);
     }
-  }, [asset.id, marketId.toString(), enabled]);
+  }, [asset.id, enabled]);
   const total = useMemo((): BigNumber => {
     const own = assets.find((v) => v.asset.id == asset.id)?.available || new BigNumber(0);
     if (!family)
@@ -362,10 +356,10 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
   const [exit, setExit] = useState<'primary' | 'secondary' | 'both'>('both');
   const [flexAmount, setFlexAmount] = useState<string>('');
   const [expanded, setExpanded] = useState(false);
-  const primaryPoly = usePolyBalance(props.assets, item.primaryAsset, item.marketId, expanded);
-  const secondaryPoly = usePolyBalance(props.assets, item.secondaryAsset, item.marketId, expanded);
+  const primaryPoly = usePolyBalance(props.assets, item.primaryAsset, expanded);
+  const secondaryPoly = usePolyBalance(props.assets, item.secondaryAsset, expanded);
   const extra = useMemo(() => {
-    const delegator = Exchange.delegators.find((v) => v.id.eq(item.delegatorId));
+    const delegator = Exchange.dlpContract();
     return mode == 'withdraw' ? {
       primary: item.primaryValue,
       secondary: item.secondaryValue,
@@ -377,8 +371,8 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
     };
   }, [item, primaryPoly, secondaryPoly, mode]);
   const overpulling = useMemo(() => ({
-    primary: mode == 'withdraw' && item.primaryTotal.minus(item.primaryReserve).minus(new BigNumber(primaryReserve || '0')).lt(0),
-    secondary: mode == 'withdraw' && item.secondaryTotal.minus(item.secondaryReserve).minus(new BigNumber(secondaryReserve || '0')).lt(0)
+    primary: mode == 'withdraw' && (item.primaryTotal || new BigNumber(0)).minus(item.primaryReserve || new BigNumber(0)).minus(new BigNumber(primaryReserve || '0')).lt(0),
+    secondary: mode == 'withdraw' && (item.secondaryTotal || new BigNumber(0)).minus(item.secondaryReserve || new BigNumber(0)).minus(new BigNumber(secondaryReserve || '0')).lt(0)
   }), [mode, item, primaryReserve, secondaryReserve]);
   const state = useMemo(() => {
     const primaryPrice = Exchange.priceOf(item.primaryAsset), secondaryPrice = Exchange.priceOf(item.secondaryAsset);
@@ -406,7 +400,7 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
     const unwantedPosition = exit == 'primary' ? item.secondaryValue : item.primaryValue;
     const cap = toWanted(item.primaryValue, primaryPrice).plus(toWanted(item.secondaryValue, secondaryPrice));
     const amount = new BigNumber(flexAmount || '0');
-    const free = toWanted(BigNumber.max(item.primaryTotal.minus(item.primaryReserve), 0), primaryPrice).plus(toWanted(BigNumber.max(item.secondaryTotal.minus(item.secondaryReserve), 0), secondaryPrice));
+    const free = toWanted(BigNumber.max((item.primaryTotal || new BigNumber(0)).minus(item.primaryReserve || new BigNumber(0)), 0), primaryPrice).plus(toWanted(BigNumber.max((item.secondaryTotal || new BigNumber(0)).minus(item.secondaryReserve || new BigNumber(0)), 0), secondaryPrice));
     const atMax = isFullWithdraw(cap, amount);
     const wantedOut = atMax ? wantedPosition : BigNumber.min(amount, wantedPosition);
     const swapIn = atMax ? unwantedPosition : unwantedPrice.gt(0) ? BigNumber.min(amount.minus(wantedOut).multipliedBy(wantedPrice).dividedBy(unwantedPrice), unwantedPosition) : new BigNumber(0);
@@ -433,7 +427,7 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
       return;
     }
     const timer = setTimeout(() => {
-      Exchange.marketPaths(item.marketId, flex.unwanted, flex.wanted, swapInKey, '0.005').then((paths) => {
+      Exchange.marketPaths(flex.unwanted, flex.wanted, swapInKey, '0.005').then((paths) => {
         if (seq == probeSeq.current)
           setSwapOk(paths.length > 0);
       }, () => {
@@ -442,14 +436,13 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
       });
     }, 350);
     return () => clearTimeout(timer);
-  }, [swapInKey, item.marketId]);
+  }, [swapInKey]);
   const blocked = !!flex && swapInKey != null && swapOk == false;
   const payload = useMemo(() => {
     if (flex) {
       if (!flex.amount.gt(0) || flex.over || blocked)
         return null;
       return {
-        delegatorId: item.delegatorId.toString(),
         primaryAssetHash: item.primaryAsset.id,
         secondaryAssetHash: item.secondaryAsset.id,
         primaryValue: flex.atMax ? '' : flex.withdrawPrimary.toString(),
@@ -464,7 +457,6 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
       return null;
 
     return {
-      delegatorId: item.delegatorId.toString(),
       primaryAssetHash: item.primaryAsset.id,
       secondaryAssetHash: item.secondaryAsset.id,
       primaryValue: primaryFull ? '' : primary.toString(),
@@ -480,7 +472,7 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
       return null;
     return primary.map((v) => ({ ...v, target: item.primaryAsset })).concat(secondary.map((v) => ({ ...v, target: item.secondaryAsset })));
   }, [payload, mode, primaryPoly, secondaryPoly, item, props.assets]);
-  const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, state.currentLiquidity, item.volume.dividedBy(180).multipliedBy(item.share)), [item.volume, item.share, state.currentLiquidity]);
+  const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, state.currentLiquidity, (item.volume || new BigNumber(0)).dividedBy(180).multipliedBy(item.share || new BigNumber(0))), [item.volume, item.share, state.currentLiquidity]);
   const symP = item.primaryAsset.token || item.primaryAsset.chain;
   const symQ = item.secondaryAsset.token || item.secondaryAsset.chain;
   return (
@@ -508,14 +500,9 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
               AlertBox.open(AlertType.Info, 'Address copied!')
             }}>{ UiUtil.toAddress(item.delegatorAccount || 'NULL') }</span>
             <Link className="dl-open router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
-            <div className="dl-row"><span className="dl-k">Market account</span><span className="dl-v"><span className="copyable" onClick={() => {
-              navigator.clipboard.writeText(item.marketAccount || 'NULL');
-              AlertBox.open(AlertType.Info, 'Address copied!')
-            }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</span>
-            <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
             <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
             <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
-            <div className="dl-row"><span className="dl-k">Your share</span><span className="dl-v">{ item.share.multipliedBy(100).toFixed(2) }%</span></div>
+            <div className="dl-row"><span className="dl-k">Your share</span><span className="dl-v">{ (item.share || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
             <div className="dl-row"><span className="dl-k">TAN revenue</span><span className="dl-v">{ toFancyMoney(new AssetId(), item.rewardValue) }</span></div>
           </div>
           <div className="dl dl-rule">
@@ -584,11 +571,11 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
                   if (flex) {
                     const swapIn = exit == 'primary' ? flex.withdrawSecondary : flex.withdrawPrimary;
                     if (swapIn.gt(0)) {
-                      const paths = await Exchange.marketPaths(item.marketId, flex.unwanted, flex.wanted, swapIn, '0.005');
+                      const paths = await Exchange.marketPaths(flex.unwanted, flex.wanted, swapIn, '0.005');
                       if (!paths.length)
                         throw new Error('No liquidity to swap ' + UiUtil.toAssetSymbol(flex.unwanted) + ' in this market');
                       const path = paths.reduce((best, candidate) => candidate[candidate.length - 1].output.min.gt(best[best.length - 1].output.min) ? candidate : best, paths[0]);
-                      const legs = await Builder.swap({ tokenIn: flex.unwanted, tokenOut: flex.wanted, amountIn: swapIn.toString(), amountOut: '', slippage: '0.5', path: path, pays: { [flex.unwanted.id]: swapIn.toString() }, marketId: item.marketId.toString() });
+                      const legs = await Builder.swap({ tokenIn: flex.unwanted, tokenOut: flex.wanted, amountIn: swapIn.toString(), amountOut: '', slippage: '0.5', path: path, pays: { [flex.unwanted.id]: swapIn.toString() } });
                       legs[0].body.function = '>' + legs[0].body.function;
                       results.push(...legs);
                     }
@@ -597,7 +584,7 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
                 }
                 const results: BuilderResult[] = [];
                 for (const leg of (wrapPlan || []))
-                  results.push(await Builder.payUnifiedAsset({ pays: { [leg.entry.id]: leg.value.toString() }, marketId: item.marketId.toString(), primaryAssetHash: AssetId.fromHandle(leg.entry.chain || '').id, secondaryAssetHash: leg.target.id }));
+                  results.push(await Builder.payUnifiedAsset({ pays: { [leg.entry.id]: leg.value.toString() }, primaryAssetHash: AssetId.fromHandle(leg.entry.chain || '').id, secondaryAssetHash: leg.target.id }));
                 results.push(await Builder.depositLiquidity(payload));
                 return results;
               }}></PerformerButton>
@@ -614,10 +601,10 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
   const [expanded, setExpanded] = useState(false);
   const [primaryReserve, setPrimaryReserve] = useState<string>('');
   const [secondaryReserve, setSecondaryReserve] = useState<string>('');
-  const primaryPoly = usePolyBalance(props.assets, item.primaryAsset, item.marketId, expanded);
-  const secondaryPoly = usePolyBalance(props.assets, item.secondaryAsset, item.marketId, expanded);
+  const primaryPoly = usePolyBalance(props.assets, item.primaryAsset, expanded);
+  const secondaryPoly = usePolyBalance(props.assets, item.secondaryAsset, expanded);
   const extra = useMemo(() => {
-    const delegator = Exchange.delegators.find((v) => v.id.eq(item.delegatorId));
+    const delegator = Exchange.dlpContract();
     const absoluteRevenue = item.currentValue.minus(item.initialValue);
     const relativeRevenue = item.initialValue.gt(0) ? absoluteRevenue.dividedBy(item.initialValue) : new BigNumber(0);
     return {
@@ -628,7 +615,7 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
       relativeRevenue: relativeRevenue
     }
   }, [item, primaryPoly, secondaryPoly]);
-  const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, item.currentValue, item.volume.dividedBy(180)), [item.currentValue, item.volume]);
+  const revenue = useMemo(() => Exchange.toAPY(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE, item.currentValue, (item.volume || new BigNumber(0)).dividedBy(180)), [item.currentValue, item.volume]);
   const payload = useMemo(() => {
     const primary = new BigNumber(primaryReserve || '0');
     const secondary = new BigNumber(secondaryReserve || '0');
@@ -636,7 +623,6 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
       return null;
 
     return {
-      delegatorId: item.delegatorId.toString(),
       primaryAssetHash: item.primaryAsset.id,
       secondaryAssetHash: item.secondaryAsset.id,
       primaryValue: primary.toString(),
@@ -652,7 +638,6 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
       return null;
     return primary.map((v) => ({ ...v, target: item.primaryAsset })).concat(secondary.map((v) => ({ ...v, target: item.secondaryAsset })));
   }, [payload, primaryPoly, secondaryPoly, item, props.assets]);
-
 
   return (
     <Card variant="surface" style={{ padding: 16, position: "relative" }}>
@@ -679,19 +664,7 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
               AlertBox.open(AlertType.Info, 'Address copied!')
             }}>{ UiUtil.toAddress(item.delegatorAccount || 'NULL') }</span>
             <Link className="dl-open router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
-            <div className="dl-row"><span className="dl-k">Market account</span><span className="dl-v"><span className="copyable" onClick={() => {
-              navigator.clipboard.writeText(item.marketAccount || 'NULL');
-              AlertBox.open(AlertType.Info, 'Address copied!')
-            }}>{ UiUtil.toAddress(item.marketAccount || 'NULL') }</span>
-            <Link className="dl-open router-link" to={'/portfolio/' + item.marketAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
             <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
-            <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
-            <div className="dl-row"><span className="dl-k">Revenue</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, item.volume.multipliedBy(item.feeRate || DLP_DEFAULT_FEE_RATE_MAYBE), true) }</span></div>
-            <div className="dl-row"><span className="dl-k">Liquidity</span><span className="dl-v">{ toFancyMoney(Exchange.equityAsset, item.currentValue) }</span></div>
-            {
-              extra.delegator &&
-              <div className="dl-row"><span className="dl-k">TAN rewards</span><span className="dl-v">{ toFancyMoney(new AssetId(), extra.delegator.rewardEmission.dividedBy(extra.delegator.permissions.length).multipliedBy(86400000 / Chain.policy.BLOCK_TIME)) } per day</span></div>
-            }
           </div>
           <Box my="4" className="dl-rule"></Box>
           <DlpAmount label={ Assetlist.toName(item.primaryAsset) } meta={ 'Available ' + toFancyMoney(item.primaryAsset, extra.primary) } asset={item.primaryAsset} value={primaryReserve} onChange={setPrimaryReserve} max={extra.primary} />
@@ -702,7 +675,7 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
                 return null;
               const results: BuilderResult[] = [];
               for (const leg of (wrapPlan || []))
-                results.push(await Builder.payUnifiedAsset({ pays: { [leg.entry.id]: leg.value.toString() }, marketId: item.marketId.toString(), primaryAssetHash: AssetId.fromHandle(leg.entry.chain || '').id, secondaryAssetHash: leg.target.id }));
+                results.push(await Builder.payUnifiedAsset({ pays: { [leg.entry.id]: leg.value.toString() }, primaryAssetHash: AssetId.fromHandle(leg.entry.chain || '').id, secondaryAssetHash: leg.target.id }));
               results.push(await Builder.depositLiquidity(payload));
               return results;
             }}></PerformerButton>

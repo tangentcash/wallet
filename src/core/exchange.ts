@@ -44,17 +44,14 @@ export type Balance = {
   price: BigNumber | null
 }
 
-export type PolyAsset = (AssetId & { marketId?: BigNumber, liquidity?: BigNumber });
+export type PolyAsset = (AssetId & { liquidity?: BigNumber });
 
 export type Order = {
     id: BigNumber;
     orderId: BigNumber;
-    marketId: BigNumber;
-    marketAccount: string;
+    pairId: BigNumber;
     primaryAsset: AssetId;
-    primaryAssetId: BigNumber;
     secondaryAsset: AssetId;
-    secondaryAssetId: BigNumber;
     accountId: BigNumber;
     blockNumber: BigNumber;
     condition: OrderCondition;
@@ -68,6 +65,8 @@ export type Order = {
     slippage?: BigNumber;
     trailingStep?: BigNumber;
     trailingDistance?: BigNumber;
+    lastPrice?: BigNumber;
+    lastQuantity?: BigNumber;
     active: boolean
 }
 
@@ -76,11 +75,7 @@ export type Pool = {
     poolId: BigNumber;
     pairId: BigNumber;
     primaryAsset: AssetId;
-    primaryAssetId: BigNumber;
     secondaryAsset: AssetId;
-    secondaryAssetId: BigNumber;
-    marketId: BigNumber;
-    marketAccount: string;
     accountId: BigNumber;
     blockNumber: BigNumber;
     initialPrice: BigNumber;
@@ -105,9 +100,6 @@ export type Pool = {
 export type DelegatedPool = {
     id: BigNumber;
     pairId: BigNumber;
-    marketId: BigNumber;
-    marketAccount: string;
-    delegatorId: BigNumber;
     delegatorAccount: string;
     accountId: BigNumber;
     primaryAsset: AssetId;
@@ -119,13 +111,13 @@ export type DelegatedPool = {
     primaryValue: BigNumber;
     secondaryValue: BigNumber;
     allocationPrice?: BigNumber;
-    primaryTotal: BigNumber;
-    secondaryTotal: BigNumber;
-    primaryReserve: BigNumber;
-    secondaryReserve: BigNumber;
-    volume: BigNumber;
+    primaryTotal?: BigNumber;
+    secondaryTotal?: BigNumber;
+    primaryReserve?: BigNumber;
+    secondaryReserve?: BigNumber;
+    volume?: BigNumber;
     feeRate?: BigNumber;
-    share: BigNumber;
+    share?: BigNumber;
     active: boolean;
 }
 
@@ -138,52 +130,64 @@ export type AccountQuery = {
   address?: string
 }
 
-export type Market = {
-  id: BigNumber;
-  accountId: BigNumber;
-  account: string;
-  version?: string;
-  unifiedAssetProxyAccount?: string;
-  deployerAccountId: BigNumber;
-  deployerAccount: string;
-  blockNumber: BigNumber;
-  poolExitFee: BigNumber;
-  maxPoolFeeRate: BigNumber;
-  minMakerFee: BigNumber;
-  maxMakerFee: BigNumber;
-  makerFeeExponent: BigNumber;
-  minTakerFee: BigNumber;
-  maxTakerFee: BigNumber;
-  takerFeeExponent: BigNumber;
-  assetVolumeTarget: BigNumber;
-  assetResetDays: BigNumber;
-  accountResetDays: BigNumber;
-  marketPolicy: BigNumber;
+export enum ContractType {
+  DEX = 'dex',
+  DLP = 'dlp',
+  UAP = 'uap',
+  AMS = 'ams'
 }
 
-export type Delegator = {
+export type Contract = {
   id: BigNumber;
-  marketId: BigNumber;
+  type: string;
   accountId: BigNumber;
   account: string;
   deployerAccountId: BigNumber;
   deployerAccount: string;
   blockNumber: BigNumber;
-  rewardEmission: BigNumber;
-  rewardBalance: BigNumber;
-  permissions: {
-      primaryAssetId: BigNumber;
-      primaryAsset: AssetId;
-      secondaryAssetId: BigNumber;
-      secondaryAsset: AssetId;
-  }[];
+  parameters: any;
+}
+
+export type Booking = {
+  id: string;
+  asset: string | { id: string };
+  amount: string;
+  publicKey: string;
+  status: string;
+  expiresBlock: string | number;
+  txHash: string;
+  depositHash: string | null;
+  depositStatus: string | null;
+  depositBlock: string | number | null;
+  depositPayer: string | null;
+  withdrawHash: string | null;
+  outAsset: string | null;
+  outAmount: string | null;
+  broadcastHash: string | null;
+  proofTransactionId: string | null;
+  relayError: string | null;
+  attestateHash: string | null;
+  routingAddress: string | null;
+}
+
+export type SwapLeg = {
+  symbol: string,
+  asset: string,
+  price: string,
+  amount: string,
+  expected?: string,
+  slippage: string,
+  buying: boolean
+}
+
+export type SwapPreview = {
+  successful: boolean,
+  outAmount: string | null,
+  error: string | null
 }
 
 export type PseudoDelegatedPool = {
-    marketId: BigNumber;
     pairId: BigNumber;
-    delegatorId: BigNumber;
-    marketAccount: string;
     delegatorAccount: string;
     primaryAsset: AssetId;
     secondaryAsset: AssetId;
@@ -270,6 +274,7 @@ export type RouterPath = {
 }[];
 
 export type PriceDescriptors = Record<string, { whitelist: boolean, base: string | null, price: { open: BigNumber | null, close: BigNumber | null } }>;
+
 export type PromiseCallback = (data: any) => void;
 
 export class Cursor {
@@ -296,17 +301,17 @@ export enum ExchangeField {
   OrderbookMaker = '__orderbook_maker:path__',
   OrderbookTab = '__orderbook_tab__',
   PortfolioView = '__portfolio_view__',
-  PortfolioMarket = '__portfolio_market__',
   PortfolioRouter = '__portfolio_router__',
+  PortfolioMarket = '__portfolio_market__',
   PortfolioMockPairs = '__mock_pairs__',
   AssetsHistory = '__assets_history__',
   EquityAsset = '__equity_asset__'
 }
 
 export class Exchange {
+  private static synchronizing: Promise<void> | null = null;
   static prices: PriceDescriptors = { };
-  static markets: Market[] = [];
-  static delegators: Delegator[] = [];
+  static contracts: Contract[] = [];
   static descriptors: BlockchainInfo[] = [];
   static equityAsset: AssetId = AssetId.fromHandle('USD');
   static equityRate: BigNumber = new BigNumber(1);
@@ -366,20 +371,17 @@ export class Exchange {
       return primaryTarget ? primaryTarget.price : { open: null, close: null };
     }
   }
-  static toOrderbookQuery(marketId: BigNumber, primaryAsset: AssetId, secondaryAsset: AssetId): string {
+  static toOrderbookQuery(primaryAsset: AssetId, secondaryAsset: AssetId): string {
     const query = new Stream();
-    query.writeInteger(marketId.toNumber());
     query.writeInteger(primaryAsset.toUint256());
     query.writeInteger(secondaryAsset.toUint256());
     return query.encode();
   }
-  static fromOrderbookQuery(orderbookQuery: string): { marketId: BigNumber | null, primaryAsset: AssetId | null, secondaryAsset: AssetId | null } {
+  static fromOrderbookQuery(orderbookQuery: string): { primaryAsset: AssetId | null, secondaryAsset: AssetId | null } {
     const query = Stream.decode(orderbookQuery);
-    const marketId = query.readInteger(query.readType() || Viewable.Invalid);
     const primaryAsset = query.readInteger(query.readType() || Viewable.Invalid);
     const secondaryAsset = query.readInteger(query.readType() || Viewable.Invalid);
     return {
-      marketId: marketId ? new BigNumber(marketId.toInteger()) : null,
       primaryAsset: primaryAsset ? new AssetId(primaryAsset.toHex()) : null,
       secondaryAsset: secondaryAsset ? new AssetId(secondaryAsset.toHex()) : null
     }
@@ -412,7 +414,7 @@ export class Exchange {
   }
   static setOrderbook(orderbook: string): void {
     const target = this.fromOrderbookQuery(orderbook);
-    const value = target.marketId && target.primaryAsset && target.secondaryAsset ? orderbook : null;
+    const value = target.primaryAsset && target.secondaryAsset ? orderbook : null;
     if (value != this.orderbook)
       AppStorage.set(ExchangeField.Orderbook, this.orderbook = value);
   }
@@ -436,31 +438,53 @@ export class Exchange {
       }
     });
   }
+  static dexContract(): Contract | null {
+    return this.contracts.find((v) => v.type == ContractType.DEX) || null;
+  }
+  static dlpContract(): Contract | null {
+    return this.contracts.find((v) => v.type == ContractType.DLP) || null;
+  }
+  static uapContract(): Contract | null {
+    return this.contracts.find((v) => v.type == ContractType.UAP) || null;
+  }
+  static amsContract(): Contract | null {
+    return this.contracts.find((v) => v.type == ContractType.AMS) || null;
+  }
   static async synchronize(): Promise<void> {
-    if (!this.ready) {
-      const equityAsset = AppStorage.get(ExchangeField.EquityAsset);
-      if (typeof equityAsset == 'string' && equityAsset.length > 0) {
-        this.setEquityAsset(AssetId.fromHandle(equityAsset));
-      }
+    if (this.synchronizing != null)
+      return;
 
-      try {
-        const portfolio = await this.assetsPortfolio(this.equityAsset.chain || undefined);
-        this.prices = portfolio?.prices || { };
-        this.markets = portfolio?.markets || [];
-        this.delegators = portfolio?.delegators || [];
-        this.descriptors = (portfolio?.descriptors || []).sort((a, b) => UiUtil.toAssetSymbol(a).localeCompare(UiUtil.toAssetSymbol(b)));
-        this.equityRate = portfolio?.rate || new BigNumber(0);   
-        if (!this.equityAsset) {
-          const base = this.prices['__BASE__']?.base || null;
-          this.equityAsset = base ? AssetId.fromHandle(base) : this.equityAsset;
+    let release: () => void;
+    this.synchronizing = new Promise<void>((resolve) => { release = resolve; });
+    try {
+      if (!this.ready) {
+        const equityAsset = AppStorage.get(ExchangeField.EquityAsset);
+        if (typeof equityAsset == 'string' && equityAsset.length > 0) {
+          this.setEquityAsset(AssetId.fromHandle(equityAsset));
         }
-      } catch { }
 
-      this.ready = true;
-      this.orderbook = AppStorage.get(ExchangeField.Orderbook);
-      this.dispatchEvent('exchange:ready', { data: { } });
+        try {
+          const portfolio = await this.assets(this.equityAsset.chain || undefined);
+          this.prices = portfolio?.prices || { };
+          this.contracts = portfolio?.contracts || [];
+          this.descriptors = (portfolio?.descriptors || []).sort((a, b) => UiUtil.toAssetSymbol(a).localeCompare(UiUtil.toAssetSymbol(b)));
+          this.equityRate = portfolio?.rate || new BigNumber(0);
+          if (!this.equityAsset) {
+            const base = this.prices['__BASE__']?.base || null;
+            this.equityAsset = base ? AssetId.fromHandle(base) : this.equityAsset;
+          }
+        } catch { }
+
+        this.ready = true;
+        this.orderbook = AppStorage.get(ExchangeField.Orderbook);
+        this.dispatchEvent('exchange:ready', { data: { } });
+      }
+    } finally {
+      const done = release!;
+      this.synchronizing = null;
+      done();
     }
-    
+
     if (this.awaitables != null) {
       for (let i = 0; i < this.awaitables.length; i++) {
         this.awaitables[i]();
@@ -468,7 +492,7 @@ export class Exchange {
       this.awaitables = [];
     }
   }
-  static async fetch(policy: 'cache' | 'no-cache' | 'cache-direct' | 'no-cache-direct', method: 'GET' | 'POST' | 'DELETE', location: string, args: Record<string, any>, preflightCache?: PreflightCallback) {
+  static async fetch(policy: 'cache' | 'no-cache' | 'cache-direct' | 'no-cache-direct', method: 'GET' | 'POST' | 'DELETE', location: string, args: Record<string, any>, preflightCache?: PreflightCallback, quiet?: boolean) {
     const hash = ByteUtil.uint8ArrayToHexString(Hashing.hash512(ByteUtil.utf8StringToUint8Array(JSON.stringify([method, location, args || []]))));
     try {
       if (RPC.onCacheLoad != null && (policy == 'cache' || policy == 'cache-direct' || preflightCache)) {
@@ -537,9 +561,9 @@ export class Exchange {
         return result;
       }
     } catch (exception) {
-      if (RPC.onNodeMessage && !this.quiet)
+      if (RPC.onNodeMessage && !this.quiet && quiet !== true)
         RPC.onNodeMessage(location, { args: [], error: exception }, 0);
-      if (RPC.onCacheLoad != null) {
+      if (!(exception instanceof Error) && RPC.onCacheLoad != null) {
         let cache = RPC.onCacheLoad(hash);
         cache = (cache instanceof Promise ? await cache : cache);
         if (cache != null)
@@ -621,13 +645,14 @@ export class Exchange {
 
     return true;
   }
-  static async assetsPortfolio(base?: string): Promise<{ prices: PriceDescriptors, descriptors: BlockchainInfo[], markets: Market[], delegators: Delegator[], rate: BigNumber | null } | null> {
-    const result = await this.fetch('no-cache-direct', 'GET', `assets/portfolio`, { base: base });
-    if (!result) {
+  static async assets(base?: string): Promise<{ prices: PriceDescriptors, descriptors: BlockchainInfo[], contracts: Contract[], rate: BigNumber | null } | null> {
+    const result = await this.fetch('no-cache-direct', 'GET', `assets`, { base: base });
+    if (!result)
       return null;
-    } else if (Array.isArray(result.delegators)) {
-      result.delegators = result.delegators.map((x: any) => this.toDelegator(x));
-    }
+
+    if (Array.isArray(result.contracts))
+      result.contracts = result.contracts.map((x: any) => this.toContract(x));
+
     return result;
   }
   static async assetQuery(query: string): Promise<AssetId[]> {
@@ -641,15 +666,6 @@ export class Exchange {
   static async assetDescriptors(): Promise<BlockchainInfo[]> {
     const result = await this.fetch('cache', 'GET', `asset/descriptors`, { });
     return result;
-  }
-  static async marketContracts(): Promise<Market[]> {
-    const result = await this.fetch('no-cache', 'GET', `markets`, { });
-    if (Array.isArray(result.delegators))
-      result.delegators = result.delegators.map((x: any) => this.toDelegator(x));
-    return result;
-  }
-  static async market(marketId: number | string | BigNumber): Promise<Market> {
-    return await this.fetch('cache', 'GET', `market`, { id: marketId.toString() });
   }
   static async marketOrder(orderId: number | string | BigNumber): Promise<Order> {
     const result = await this.fetch('no-cache', 'GET', `market/order`, { id: orderId.toString() });
@@ -672,10 +688,7 @@ export class Exchange {
   static async marketDelegatedPools(): Promise<PseudoDelegatedPool[]> {
     const result = await this.fetch('no-cache', 'GET', `market/pools/delegated`, { });
     return result.map((v: any): PseudoDelegatedPool => ({
-      marketId: new BigNumber(v.marketId),
       pairId: new BigNumber(v.pairId),
-      delegatorId: new BigNumber(v.delegatorId),
-      marketAccount: v.marketAccount,
       delegatorAccount: v.delegatorAccount,
       primaryAsset: new AssetId(v.primaryAsset),
       secondaryAsset: new AssetId(v.secondaryAsset),
@@ -692,8 +705,6 @@ export class Exchange {
     });
     return result.map((item: any) => {
       const updated: PolyAsset = new AssetId(item.id);
-      if (item.marketId)
-        updated.marketId = item.marketId;
       if (item.liquidity)
         updated.liquidity = item.liquidity;
       return updated;
@@ -714,8 +725,8 @@ export class Exchange {
     }
     return result;
   }
-  static async marketPaths(marketId: number | string | BigNumber, assetIn: AssetId, assetOut: AssetId, amountIn: number | string | BigNumber, slippage: number | string | BigNumber): Promise<RouterPath[]> {
-    const result = await this.fetch('no-cache', 'GET', `market/paths`, { marketId: marketId.toString(), assetHashIn: assetIn.id.toString(), assetHashOut: assetOut.id.toString(), amountIn: amountIn.toString(), slippage: slippage.toString() });
+  static async marketPaths(assetIn: AssetId, assetOut: AssetId, amountIn: number | string | BigNumber, slippage: number | string | BigNumber): Promise<RouterPath[]> {
+    const result = await this.fetch('no-cache', 'GET', `market/paths`, { assetHashIn: assetIn.id.toString(), assetHashOut: assetOut.id.toString(), amountIn: amountIn.toString(), slippage: slippage.toString() });
     for (let i = 0; i < result.length; i++) {
       const path = result[i];
       for (let j = 0; j < path.length; j++) {
@@ -727,7 +738,14 @@ export class Exchange {
     }
     return result;
   }
-  static async marketPairs(marketId: number | string | BigNumber, preflightCache?: PreflightCallback): Promise<AggregatedPair[]> {
+  static async marketPathsDirect(assetHashIn: string, assetHashOut: string, amountIn: string, slippage: string): Promise<any[]> {
+    try {
+      return (await this.fetch('no-cache', 'GET', 'market/paths', { assetHashIn, assetHashOut, amountIn, slippage })) || [ ];
+    } catch {
+      return [ ];
+    }
+  }
+  static async marketPairs(preflightCache?: PreflightCallback): Promise<AggregatedPair[]> {
     const process = (data: any) => {
       for (let key in data) {
         const item = data[key];
@@ -736,11 +754,11 @@ export class Exchange {
       }
       return data;
     };
-    const result = await this.fetch('no-cache', 'GET', `market/pairs`, { id: marketId.toString() }, preflightCache ? (cache) => preflightCache(process(cache)) : undefined);
+    const result = await this.fetch('no-cache', 'GET', `market/pairs`, { }, preflightCache ? (cache) => preflightCache(process(cache)) : undefined);
     return process(result);
   }
-  static async marketPair(marketId: number | string | BigNumber, primaryAsset: AssetId, secondaryAsset: AssetId, createIfNotExists: boolean): Promise<AggregatedPair> {
-    const result = await this.fetch('no-cache', 'GET', `market/pair`, { id: marketId.toString(), primaryAssetHash: primaryAsset.id.toString(), secondaryAssetHash: secondaryAsset.id.toString(), createIfNotExists: createIfNotExists }, undefined);
+  static async marketPair(primaryAsset: AssetId, secondaryAsset: AssetId, createIfNotExists: boolean): Promise<AggregatedPair> {
+    const result = await this.fetch('no-cache', 'GET', `market/pair`, { primaryAssetHash: primaryAsset.id.toString(), secondaryAssetHash: secondaryAsset.id.toString(), createIfNotExists: createIfNotExists }, undefined);
     result.primaryAsset = new AssetId(result.primaryAsset);
     result.secondaryAsset = new AssetId(result.secondaryAsset);
     return result;
@@ -756,7 +774,7 @@ export class Exchange {
       close: v[5]
     }));
   }
-  static async marketPairPriceLevels(marketId: number | string | BigNumber, pairId: number | string | BigNumber, levels: number): Promise<{ ask: AggregatedLevel[], bid: AggregatedLevel[] }> {
+  static async marketPairPriceLevels(pairId: number | string | BigNumber, levels: number): Promise<{ ask: AggregatedLevel[], bid: AggregatedLevel[] }> {
     const toAggregatedLevel = (v: any[]): AggregatedLevel => {
       return {
         id: v[0].toNumber(),
@@ -771,15 +789,14 @@ export class Exchange {
         } : undefined
       };
     };
-    const result = await this.fetch('no-cache', 'GET', `market/pair/price/levels`, { marketId: marketId.toString(), pairId: pairId.toString(), levels: levels });
+    const result = await this.fetch('no-cache', 'GET', `market/pair/price/levels`, { pairId: pairId.toString(), levels: levels });
     return {
       ask: result.ask.map(toAggregatedLevel),
       bid: result.bid.map(toAggregatedLevel)
     };
   }
-  static async marketPairAssets(marketId: number | string | BigNumber, pairId: number | string | BigNumber): Promise<{ primary: AssetId[], secondary: AssetId[] }> {
+  static async marketPairAssets(pairId: number | string | BigNumber): Promise<{ primary: AssetId[], secondary: AssetId[] }> {
     const result = await this.fetch('no-cache', 'GET', `market/pair/assets`, {
-      marketId: marketId?.toString(),
       pairId: pairId?.toString()
     });
     return {
@@ -787,9 +804,8 @@ export class Exchange {
       secondary: result.secondary.map((item: any) => new AssetId(item.id)),
     };
   }
-  static async marketPairLogs(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber } & PageQuery): Promise<AggregatedLog[]> {
+  static async marketPairLogs(account: { pairId?: number | string | BigNumber } & PageQuery): Promise<AggregatedLog[]> {
     const result = await this.fetch('no-cache', 'GET', `market/pair/logs`, {
-      marketId: account.marketId?.toString(),
       pairId: account.pairId?.toString(),
       page: account.page
     });
@@ -816,10 +832,9 @@ export class Exchange {
     }, preflightCache ? (cache) => preflightCache(process(cache)) : undefined);
     return result != null ? process(result) : null;
   }
-  static async accountOrders(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber, active?: boolean } & AccountQuery & PageQuery): Promise<Order[]> {
+  static async accountOrders(account: { pairId?: number | string | BigNumber, active?: boolean } & AccountQuery & PageQuery): Promise<Order[]> {
     const result = await this.fetch('no-cache', 'GET', `account/orders`, {
       id: account.id,
-      marketId: account.marketId?.toString(),
       pairId: account.pairId?.toString(),
       active: account.active,
       account: account.address,
@@ -827,10 +842,9 @@ export class Exchange {
     });
     return result.map((v: any) => this.toOrder(v));
   }
-  static async accountPools(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber, active?: boolean } & AccountQuery & PageQuery): Promise<Pool[]> {
+  static async accountPools(account: { pairId?: number | string | BigNumber, active?: boolean } & AccountQuery & PageQuery): Promise<Pool[]> {
     const result = await this.fetch('no-cache', 'GET', `account/pools`, {
       id: account.id,
-      marketId: account.marketId?.toString(),
       pairId: account.pairId?.toString(),
       active: account.active,
       account: account.address,
@@ -838,10 +852,9 @@ export class Exchange {
     });
     return result.map((v: any) => this.toPool(v));
   }
-  static async accountDelegatedPools(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber, active?: boolean } & AccountQuery & PageQuery): Promise<DelegatedPool[]> {
+  static async accountDelegatedPools(account: { pairId?: number | string | BigNumber, active?: boolean } & AccountQuery & PageQuery): Promise<DelegatedPool[]> {
     const result = await this.fetch('no-cache', 'GET', `account/pools/delegated`, {
       id: account.id,
-      marketId: account.marketId?.toString(),
       pairId: account.pairId?.toString(),
       active: account.active,
       account: account.address,
@@ -849,14 +862,45 @@ export class Exchange {
     });
     return result.map((v: any) => this.toDelegatedPool(v));
   }
-  static async accountTiers(account: { marketId?: number | string | BigNumber, pairId?: number | string | BigNumber } & AccountQuery): Promise<AccountTier> {
+  static async accountTiers(account: { pairId?: number | string | BigNumber } & AccountQuery): Promise<AccountTier> {
     const result = await this.fetch('no-cache', 'GET', `account/tiers`, {
       id: account.id,
-      marketId: account.marketId?.toString(),
       pairId: account.pairId?.toString(),
       account: account.address
     });
     return result;
+  }
+  static async swapsBooking(asset: string, amount: string, quiet?: boolean): Promise<Booking | null> {
+    try {
+      return this.parseResponse(await this.fetch('no-cache', 'GET', 'swaps', { asset, amount }, undefined, quiet));
+    } catch (exception: any) {
+      return null;
+    }
+  }
+  static async swapsHistory(page: number, publicKeys?: string[], statuses?: string[]): Promise<Booking[]> {
+    try {
+      const params: Record<string, any> = { page };
+      if (publicKeys != null && publicKeys.length > 0)
+        params['publicKeys'] = publicKeys;
+      if (statuses != null && statuses.length > 0)
+        params['status'] = statuses;
+      const result = await this.fetch('no-cache', 'GET', 'swaps/history', params);
+      return Array.isArray(result) ? (result as any[]).map((item) => this.parseResponse(item)) : [ ];
+    } catch (exception: any) {
+      return [ ];
+    }
+  }
+  static async swapsBook(asset: string, amount: string, publicKey: string): Promise<{ transaction: string | null, amount?: string | null }> {
+    return this.parseResponse(await this.fetch('no-cache', 'POST', 'swaps', { asset, amount, publicKey }));
+  }
+  static async swapsPreview(depositHash: string, bridgeHash: string, routingAddress: string, tokenPath: SwapLeg[], feePath: SwapLeg[], signature: string): Promise<SwapPreview> {
+    return this.parseResponse(await this.fetch('no-cache', 'POST', 'swaps/preview', { depositHash, bridgeHash, routingAddress, tokenPath, feePath, signature }));
+  }
+  static async swapsSpend(depositHash: string, bridgeHash: string, routingAddress: string, tokenPath: SwapLeg[], feePath: SwapLeg[], signature: string): Promise<{ transaction: string | null }> {
+    return this.parseResponse(await this.fetch('no-cache', 'POST', 'swaps/spend', { depositHash, bridgeHash, routingAddress, tokenPath, feePath, signature }));
+  }
+  static async swapsRespend(depositHash: string, broadcastHash: string, bridgeHash: string, routingAddress: string, signature: string): Promise<{ transaction: string | null }> {
+    return this.parseResponse(await this.fetch('no-cache', 'POST', 'swaps/respend', { depositHash, broadcastHash, bridgeHash, routingAddress, signature }));
   }
   static getURL(): string {
     return AppData.props.exchange || '';
@@ -865,17 +909,14 @@ export class Exchange {
     return {
       id: new BigNumber(value.id),
       orderId: new BigNumber(value.orderId),
-      marketId: new BigNumber(value.marketId),
-      marketAccount: value.marketAccount,
+      pairId: new BigNumber(value.pairId),
       primaryAsset: new AssetId(value.primaryAsset),
-      primaryAssetId: new BigNumber(value.primaryAssetId),
       secondaryAsset: new AssetId(value.secondaryAsset),
-      secondaryAssetId: new BigNumber(value.secondaryAssetId),
       accountId: new BigNumber(value.accountId),
       blockNumber: new BigNumber(value.blockNumber),
-      condition: value.condition.toNumber() as OrderCondition,
-      side: value.side.toNumber() as OrderSide,
-      policy: value.policy.toNumber() as OrderPolicy,
+      condition: Number(value.condition) as OrderCondition,
+      side: Number(value.side) as OrderSide,
+      policy: Number(value.policy) as OrderPolicy,
       price: value.price ? new BigNumber(value.price) : undefined,
       stopPrice: value.stopPrice ? new BigNumber(value.stopPrice) : undefined,
       fillingPrice: value.fillingPrice ? new BigNumber(value.fillingPrice) : undefined,
@@ -884,6 +925,8 @@ export class Exchange {
       slippage: value.slippage ? new BigNumber(value.slippage) : undefined,
       trailingStep: value.trailingStep ? new BigNumber(value.trailingStep) : undefined,
       trailingDistance: value.trailingDistance ? new BigNumber(value.trailingDistance) : undefined,
+      lastPrice: value.lastPrice ? new BigNumber(value.lastPrice) : undefined,
+      lastQuantity: value.lastQuantity ? new BigNumber(value.lastQuantity) : undefined,
       active: value.active
     }
   }
@@ -893,11 +936,7 @@ export class Exchange {
       poolId: new BigNumber(value.poolId),
       pairId: new BigNumber(value.pairId),
       primaryAsset: new AssetId(value.primaryAsset),
-      primaryAssetId: new BigNumber(value.primaryAssetId),
       secondaryAsset: new AssetId(value.secondaryAsset),
-      secondaryAssetId: new BigNumber(value.secondaryAssetId),
-      marketId: new BigNumber(value.marketId),
-      marketAccount: value.marketAccount,
       accountId: new BigNumber(value.accountId),
       blockNumber: new BigNumber(value.blockNumber),
       initialPrice: new BigNumber(value.initialPrice),
@@ -915,18 +954,15 @@ export class Exchange {
       exitFee: new BigNumber(value.exitFee),
       lastAskPrice: new BigNumber(value.lastAskPrice),
       lastBidPrice: new BigNumber(value.lastBidPrice),
-      volume: new BigNumber(value.volume),
+      volume: value.volume ? new BigNumber(value.volume) : new BigNumber(0),
       active: value.active
     }
   }
   static toDelegatedPool(value: any): DelegatedPool {
     return {
       id: new BigNumber(value.id),
-      delegatorId: new BigNumber(value.delegatorId),
-      delegatorAccount: value.delegatorAccount,
       pairId: new BigNumber(value.pairId),
-      marketId: new BigNumber(value.marketId),
-      marketAccount: value.marketAccount,
+      delegatorAccount: value.delegatorAccount,
       accountId: new BigNumber(value.accountId),
       primaryAsset: new AssetId(value.primaryAsset),
       secondaryAsset: new AssetId(value.secondaryAsset),
@@ -936,38 +972,31 @@ export class Exchange {
       initialSecondaryValue: new BigNumber(value.initialSecondaryValue),
       primaryValue: new BigNumber(value.primaryValue),
       secondaryValue: new BigNumber(value.secondaryValue),
-      primaryReserve: new BigNumber(value.primaryReserve),
-      secondaryReserve: new BigNumber(value.secondaryReserve),
-      primaryTotal: new BigNumber(value.primaryTotal),
-      secondaryTotal: new BigNumber(value.secondaryTotal),
+      primaryReserve: value.primaryReserve ? new BigNumber(value.primaryReserve) : undefined,
+      secondaryReserve: value.secondaryReserve ? new BigNumber(value.secondaryReserve) : undefined,
+      primaryTotal: value.primaryTotal ? new BigNumber(value.primaryTotal) : undefined,
+      secondaryTotal: value.secondaryTotal ? new BigNumber(value.secondaryTotal) : undefined,
       allocationPrice: value.allocationPrice ? new BigNumber(value.allocationPrice) : undefined,
-      share: new BigNumber(value.share),
-      volume: new BigNumber(value.volume),
+      share: value.share ? new BigNumber(value.share) : undefined,
+      volume: value.volume ? new BigNumber(value.volume) : undefined,
       feeRate: value.feeRate ? new BigNumber(value.feeRate) : undefined,
       active: value.active
     }
   }
-  static toDelegator(value: any): Delegator {
+  static toContract(value: any): Contract {
     return {
       id: new BigNumber(value.id),
-      marketId: new BigNumber(value.marketId),
+      type: value.type,
       accountId: new BigNumber(value.accountId),
       account: value.account,
       deployerAccountId: new BigNumber(value.deployerAccountId),
       deployerAccount: value.deployerAccount,
       blockNumber: new BigNumber(value.blockNumber),
-      rewardEmission: new BigNumber(value.rewardEmission),
-      rewardBalance: new BigNumber(value.rewardBalance),
-      permissions: Array.isArray(value.permissions) ? value.permissions.map((x: any) => ({
-          primaryAssetId: new BigNumber(x.primaryAssetId),
-          primaryAsset: new AssetId(x.primaryAsset),
-          secondaryAssetId: new BigNumber(x.secondaryAssetId),
-          secondaryAsset: new AssetId(x.secondaryAsset),
-      })) : []
+      parameters: value.parameters || { }
     }
   }
-  static marketPolicyOf(market: Market | null): string {
-    switch (market ? market.marketPolicy.toNumber() : -1) {
+  static marketPolicyOf(contract: Contract | null): string {
+    switch (contract ? Number(contract.parameters.marketPolicy ?? -1) : -1) {
       case MarketPolicy.Spot:
         return 'Spot';
       case MarketPolicy.Margin:
@@ -1011,5 +1040,17 @@ export class Exchange {
         total = total.plus(value);
     }
     return { pays: pays, value: total };
+  }
+  static parseResponse(response: any): any {
+    if (response == null || typeof response != 'object' || Array.isArray(response))
+      return response;
+
+    const result: any = { };
+    for (const key of Object.keys(response)) {
+      const value = response[key];
+      result[key] = value != null && typeof value == 'object' && typeof value.toFixed == 'function' && 's' in value && 'e' in value ? value.toFixed() : value;
+    }
+
+    return result;
   }
 }

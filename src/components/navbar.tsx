@@ -60,6 +60,9 @@ export function Navbar() {
   }, [location.pathname]);
 
   AppData.state.setNavigation = navigate;
+  if (location.pathname.startsWith('/swaps'))
+    return <></>;
+  
   return (
     <nav className="tabbar" role="navigation">
       {

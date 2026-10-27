@@ -906,7 +906,7 @@ export default function InteractionPage() {
             </div>
             <Heading size="6">Transaction sent!</Heading>
           </Flex>
-          <TransactionView variant="row" ownerAddress={ownerAddress} transaction={sent.transaction} receipt={sent.receipt || undefined} state={sent.state || undefined} preview="transaction accepted"></TransactionView>
+          <TransactionView variant="row" ownerAddress={ownerAddress} transaction={sent.transaction} receipt={sent.receipt || undefined} state={sent.state || undefined} preview="Transaction accepted"></TransactionView>
           {
             Array.isArray(sent.transaction.transactions) && sent.transaction.transactions.map((subtransaction: any, index: number) =>
               <Box mt="4" key={subtransaction.action.hash + index.toString()}>
@@ -1619,8 +1619,8 @@ export default function InteractionPage() {
       {
         program instanceof ProgramRoute &&
         <>
-          <Box px="0">
-            <div className="callout warn" style={{ marginTop: 8 }}>
+          <Box px="0" pt="4">
+            <div className="callout warn">
               <Icon path={mdiTimelapse} size={1} />
               <span>Claim is free of charge but takes a bit more time to submit</span>
             </div>

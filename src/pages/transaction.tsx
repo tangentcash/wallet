@@ -2,26 +2,20 @@ import { useNavigate, useParams } from "react-router";
 import { useEffectAsync } from "../core/react";
 import { useCallback, useEffect, useState } from "react";
 import { Box, Button, IconButton } from "@radix-ui/themes";
-import { Stream } from "tangentsdk/serialization";
 import { EventResolver, RPC, type SummaryState } from "tangentsdk/rpc";
 import { UiUtil } from "tangentsdk/ui";
-import { Chain } from "tangentsdk/algorithm";
+import { ByteUtil, Chain, Hashing } from "tangentsdk/algorithm";
 import { AppData } from "../core/app";
 import { mdiAlertCircleOutline, mdiArrowLeftBoldCircleOutline } from "@mdi/js";
-import { TransactionView, toTransactionLabel } from "../components/transaction";
+import { TransactionView, isPreattestationRecord, toTransactionLabel } from "../components/transaction";
 import type { ReceiptRecord, TxRecord } from "../core/types";
 import Icon from "@mdi/react";
-import type BigNumber from "bignumber.js";
+import BigNumber from "bignumber.js";
 
 type TransactionTarget = { transaction: TxRecord, receipt?: ReceiptRecord | null, state?: SummaryState };
 type SubtransactionEntry = { action: TxRecord, receipt?: ReceiptRecord | null };
-
-// The SDK event resolver consumes raw event records; receipts carry them untyped.
 type RawEventRecord = { event: BigNumber, args: unknown[] };
 
-// Internal transactions have no receipt of their own; when the parent's state contains a
-// rollup receipt event for one, it executed on-chain, so it must mimic the parent's
-// confirmation status and report its own gas use from that event.
 function toSubtransactionReceipt(data: TransactionTarget, subtransaction: SubtransactionEntry): ReceiptRecord | null {
   if (subtransaction.receipt != null)
     return subtransaction.receipt;
@@ -52,26 +46,42 @@ export default function TransactionPage() {
       let results: TransactionTarget[] | null = null;
       try {
         results = await RPC.getTransactionsByHash(params.id, 2);
-        if (!results)
-            throw false;
+        if (results == null || results.length == 0)
+          throw false;
       } catch {
         try {
-          results = await RPC.getTransactionsByHash(new Stream().writeString(params.id).hash().toHex(), 2);
-          if (!results)
+          results = await RPC.getTransactionsByHash(ByteUtil.uint8ArrayToHexString(Hashing.hash256(ByteUtil.byteStringToUint8Array(params.id))), 2);
+          if (results == null || results.length == 0)
             throw false;
         } catch {
-          let result = await RPC.getMempoolTransactionByHash(params.id);
-          if (!result)
-            throw false;
+          let result = await RPC.getMempoolTransactionByHash(params.id).catch(() => null);
+          if (!result) {
+            const preattestations = await RPC.getMempoolPreattestations(0, 16, { transactionIds: [params.id], addresses: [], memoAccounts: [] });
+            const record = Array.isArray(preattestations) ? preattestations.find((x: unknown) => isPreattestationRecord(x)) : null;
+            if (record == null)
+              throw false;
 
-          results = [result];
+            results = [{
+              transaction: {
+                hash: null,
+                type: 'attestate',
+                nonce: 0,
+                gas_limit: new BigNumber(0),
+                asset: { chain: Chain.policy.TOKEN_NAME },
+                commitments: record.signers != null && record.signers.length > 0 ? { [record.transaction_id]: record.signers } : {},
+                proof: record
+              }
+            }];
+          } else {
+            results = [result];
+          }
         }
       }
 
       for (let i = 0; i < results.length; i++) {
         const result = results[i];
         if (!result.transaction) {
-          const bare = result as unknown as TxRecord; // RPC returns bare transaction records unwrapped
+          const bare = result as unknown as TxRecord;
           results[i] = { transaction: bare };
         } else {
           result.state = EventResolver.calculateSummaryState(result.receipt?.events as RawEventRecord[] | undefined);
@@ -85,7 +95,7 @@ export default function TransactionPage() {
     } catch {
       setTargets(null);
     }
-    setTimeoutId(setTimeout(() => fetchTransaction(), Chain.policy.BLOCK_TIME) as any);
+    setTimeoutId(setTimeout(() => fetchTransaction(), Chain.policy.BLOCK_TIME * 3) as any);
   }, [params.id]);
   useEffectAsync(async () => {
     setLoading(true);

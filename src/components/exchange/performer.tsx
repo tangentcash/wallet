@@ -1,6 +1,6 @@
 import { Box, Button, Dialog, Flex, Spinner, Text, Tooltip } from "@radix-ui/themes";
 import { CSSProperties, useCallback, useEffect, useState } from "react";
-import { OrderCondition, OrderPolicy, OrderSide, Exchange, RouterPath, Market, AggregatedPair } from "../../core/exchange";
+import { OrderCondition, OrderPolicy, OrderSide, Exchange, RouterPath, AggregatedPair } from "../../core/exchange";
 import { AlertBox, AlertType } from "./../alert";
 import { mdiAlertCircleOutline, mdiArrowRight, mdiBookPlus, mdiBookRemove, mdiCashPlus, mdiCashRefund, mdiCollage, mdiSwapHorizontalVariant, mdiTrashCanOutline, mdiWater, mdiWaterOff } from "@mdi/js";
 import { useNavigate } from "react-router";
@@ -38,7 +38,6 @@ export class Builder {
       slippage: string,
       path: RouterPath,
       pays: Record<string, string>
-      marketId: string,
     }): Promise<BuilderResult[]> {
         const payment = Exchange.parsePayment(args.pays);
         if (!payment) {
@@ -47,17 +46,13 @@ export class Builder {
             throw new Error('Not enough balance to build a swap');
         }
 
-        const marketId = typeof args.marketId == 'string' || typeof args.marketId == 'number' ? new BigNumber(args.marketId) : null;
-        if (!marketId)
-            throw new Error('Market id must be set');
-
-        const market = Exchange.markets.find((v) => v.id.eq(marketId));
+        const market = Exchange.dexContract();
         if (!market || !market.account)
-            throw new Error('Market ' + args.marketId.toString() + ' account cannot be found');
+            throw new Error('DEX contract account cannot be found');
 
         const marketAccount = Signing.decodeAddress(market.account || '');
         if (!marketAccount)
-            throw new Error('Market ' + market.id.toString() + ' account cannot be found');
+            throw new Error('DEX contract account cannot be decoded');
 
         return args.path.map((swap, swapIndex) => {
             const tokenIn = (swap.side == OrderSide.Buy ? swap.pair.secondaryAsset?.hash : swap.pair.primaryAsset?.hash) || null;
@@ -85,7 +80,6 @@ export class Builder {
     }
     static async depositOrder(args: {
         pays: Record<string, string>, 
-        marketId: string,
         primaryAssetHash: string,
         secondaryAssetHash: string,
         condition: OrderCondition,
@@ -101,13 +95,9 @@ export class Builder {
         if (!payment)
             throw new Error('Order value must be positive');
         
-        const marketId = typeof args.marketId == 'string' || typeof args.marketId == 'number' ? new BigNumber(args.marketId) : null;
-        if (!marketId)
-            throw new Error('Market id must be set');
-
-        const market = Exchange.markets.find((v) => v.id.eq(marketId));
+        const market = Exchange.dexContract();
         if (!market || !market.account)
-            throw new Error('Market ' + args.marketId.toString() + ' account cannot be found');
+            throw new Error('DEX contract account cannot be found');
 
         const primaryAsset = typeof args.primaryAssetHash == 'string' || typeof args.primaryAssetHash == 'number' ? new AssetId(args.primaryAssetHash) : null;
         if (!primaryAsset)
@@ -134,15 +124,15 @@ export class Builder {
 
         const marketAccount = Signing.decodeAddress(market.account || '');
         if (!marketAccount)
-            throw new Error('Market ' + market.id.toString() + ' account cannot be found');
+            throw new Error('DEX contract account cannot be decoded');
 
-        const pair = await Exchange.marketPair(market.id, primaryAsset, secondaryAsset, true);
+        const pair = await Exchange.marketPair(primaryAsset, secondaryAsset, true);
         if (!pair)
             throw new Error('Pair cannot be found');
 
         let levelPrice: BigNumber | null = null;
         try {
-          const levels = await Exchange.marketPairPriceLevels(market.id, pair.id, 1);
+          const levels = await Exchange.marketPairPriceLevels(pair.id, 1);
           levelPrice = levels[side == OrderSide.Buy ? 'ask' : 'bid'][0]?.price || null;
         } catch { }
         
@@ -343,9 +333,9 @@ export class Builder {
         if (!order)
             throw new Error('Order ' + id.toString() + ' not found');
 
-        const marketAccount = Signing.decodeAddress(order.marketAccount || '');
+        const marketAccount = Signing.decodeAddress(Exchange.dexContract()?.account || '');
         if (!marketAccount)
-            throw new Error('Order ' + id.toString() + ' market account cannot be found');
+            throw new Error('DEX contract account cannot be found');
       
         return {
             icon: mdiBookRemove,
@@ -361,14 +351,13 @@ export class Builder {
     static async depositPool(args: {
         primaryPays: Record<string, string>,
         secondaryPays: Record<string, string>,
-        marketId: string,
         primaryAssetHash: string,
         secondaryAssetHash: string,
         feeRate: string;
         price: string,
         minPrice?: string;
         maxPrice?: string;
-    }, ref?: { market: Market, pair: AggregatedPair }): Promise<BuilderResult> {
+    }, ref?: { pair: AggregatedPair }): Promise<BuilderResult> {
         if (typeof args.primaryPays != 'object' || typeof args.secondaryPays != 'object')
             throw new Error('Pool value must be set');
 
@@ -380,10 +369,6 @@ export class Builder {
         if (!secondaryPayment)
             throw new Error('Secondary pool value must be positive');
         
-        const marketId = typeof args.marketId == 'string' || typeof args.marketId == 'number' ? new BigNumber(args.marketId) : null;
-        if (!marketId)
-            throw new Error('Market id must be set');
-
         const primaryAsset = typeof args.primaryAssetHash == 'string' || typeof args.primaryAssetHash == 'number' ? new AssetId(args.primaryAssetHash) : null;
         if (!primaryAsset)
             throw new Error('Primary asset must be set');
@@ -408,15 +393,15 @@ export class Builder {
         if (maxPrice && minPrice && (maxPrice.lt(price) || maxPrice.eq(minPrice)))
             throw new Error('Pool max price must be lower or equal to price');
 
-        const market = Exchange.markets.find((v) => v.id.eq(marketId));
+        const market = Exchange.dexContract();
         if (!market || !market.account)
-            throw new Error('Market ' + marketId.toString() + ' account cannot be found');
+            throw new Error('DEX contract account cannot be found');
 
         const marketAccount = Signing.decodeAddress(market.account || '');
         if (!marketAccount)
-            throw new Error('Market ' + marketId.toString() + ' account cannot be found');
+            throw new Error('DEX contract account cannot be decoded');
 
-        const pairId = ref ? ref.pair : await Exchange.marketPair(market.id, primaryAsset, secondaryAsset, true);
+        const pairId = ref ? ref.pair : await Exchange.marketPair(primaryAsset, secondaryAsset, true);
         if (!pairId)
             throw new Error('Pair cannot be found');
 
@@ -443,9 +428,9 @@ export class Builder {
         if (!pool)
             throw new Error('Pool ' + id.toString() + ' not found');
 
-        const marketAccount = Signing.decodeAddress(pool.marketAccount || '');
+        const marketAccount = Signing.decodeAddress(Exchange.dexContract()?.account || '');
         if (!marketAccount)
-            throw new Error('Pool ' + id.toString() + ' market account cannot be found');
+            throw new Error('DEX contract account cannot be found');
 
         return {
             icon: mdiWaterOff,
@@ -460,7 +445,6 @@ export class Builder {
     }
     static async payUnifiedAsset(args: {
         pays: Record<string, string>, 
-        marketId: string,
         primaryAssetHash: string,
         secondaryAssetHash: string
     }): Promise<BuilderResult> {
@@ -468,13 +452,9 @@ export class Builder {
         if (!payment)
             throw new Error('Order value must be positive');
         
-        const marketId = typeof args.marketId == 'string' || typeof args.marketId == 'number' ? new BigNumber(args.marketId) : null;
-        if (!marketId)
-            throw new Error('Market id must be set');
-
-        const market = Exchange.markets.find((v) => v.id.eq(marketId));
-        if (!market || !market.account || !market.unifiedAssetProxyAccount)
-            throw new Error('Market ' + args.marketId.toString() + ' account cannot be found');
+        const market = Exchange.dexContract();
+        if (!market || !market.account)
+            throw new Error('DEX contract account cannot be found');
 
         const primaryAsset = typeof args.primaryAssetHash == 'string' || typeof args.primaryAssetHash == 'number' ? new AssetId(args.primaryAssetHash) : null;
         if (!primaryAsset)
@@ -486,13 +466,17 @@ export class Builder {
 
         const marketAccount = Signing.decodeAddress(market.account || '');
         if (!marketAccount)
-            throw new Error('Market ' + market.id.toString() + ' account cannot be found');
+            throw new Error('DEX contract account cannot be decoded');
 
-        const unifiedAssetProxyAccount = Signing.decodeAddress(market.unifiedAssetProxyAccount || '');
+        const uap = Exchange.uapContract();
+        if (!uap || !uap.account)
+            throw new Error('UAP contract account cannot be found');
+
+        const unifiedAssetProxyAccount = Signing.decodeAddress(uap.account || '');
         if (!unifiedAssetProxyAccount)
-            throw new Error('Market ' + market.id.toString() + ' unified asset proxy account cannot be found');
+            throw new Error('UAP contract account cannot be decoded');
 
-        const pair = await Exchange.marketPair(market.id, primaryAsset, secondaryAsset, true);
+        const pair = await Exchange.marketPair(primaryAsset, secondaryAsset, true);
         if (!pair)
             throw new Error('Pair cannot be found');
         
@@ -507,7 +491,7 @@ export class Builder {
             }
         };
     }
-    static async repayAsset(args: { marketId: string, repaymentAssetHash: string, paymentAssetHash: string, pays: string }, pipeline?: boolean): Promise<BuilderResult> {
+    static async repayAsset(args: { repaymentAssetHash: string, paymentAssetHash: string, pays: string }, pipeline?: boolean): Promise<BuilderResult> {
         const repaymentAsset = typeof args.repaymentAssetHash == 'string' || typeof args.repaymentAssetHash == 'number' ? new AssetId(args.repaymentAssetHash) : null;
         if (!repaymentAsset || !repaymentAsset.isValid())
             throw new Error('Repayment asset must be set');
@@ -520,17 +504,13 @@ export class Builder {
         if (!value || !value.gt(0))
             throw new Error('Value must be positive');
 
-        const marketId = typeof args.marketId == 'string' || typeof args.marketId == 'number' ? new BigNumber(args.marketId) : null;
-        if (!marketId)
-            throw new Error('Market id must be set');
-
-        const market = Exchange.markets.find((v) => v.id.eq(marketId));
+        const market = Exchange.dexContract();
         if (!market || !market.account)
-            throw new Error('Market ' + marketId.toString() + ' account cannot be found');
+            throw new Error('DEX contract account cannot be found');
 
         const marketAccount = Signing.decodeAddress(market.account || '');
         if (!marketAccount)
-            throw new Error('Market ' + marketId.toString() + ' account cannot be found');
+            throw new Error('DEX contract account cannot be decoded');
 
         return {
             icon: mdiCashRefund,
@@ -543,7 +523,7 @@ export class Builder {
             }
         };
     }
-    static async depositLiquidity(args: { delegatorId: string, primaryAssetHash: string, secondaryAssetHash: string, primaryValue: string, secondaryValue: string }): Promise<BuilderResult> {
+    static async depositLiquidity(args: { primaryAssetHash: string, secondaryAssetHash: string, primaryValue: string, secondaryValue: string }): Promise<BuilderResult> {
         const primaryAsset = typeof args.primaryAssetHash == 'string' || typeof args.primaryAssetHash == 'number' ? new AssetId(args.primaryAssetHash) : null;
         if (!primaryAsset || !primaryAsset.isValid())
             throw new Error('Primary asset must be set');
@@ -563,17 +543,13 @@ export class Builder {
         if (!primaryValue.gt(0) && !secondaryValue.gt(0))
             throw new Error('Primary/secondary value must greater than zero');
 
-        const delegatorId = typeof args.delegatorId == 'string' || typeof args.delegatorId == 'number' ? new BigNumber(args.delegatorId) : null;
-        if (!delegatorId)
-            throw new Error('Market id must be set');
-
-        const delegator = Exchange.delegators.find((v) => v.id.eq(delegatorId));
+        const delegator = Exchange.dlpContract();
         if (!delegator || !delegator.account)
-            throw new Error('Delegator ' + delegatorId.toString() + ' account cannot be found');
+            throw new Error('DLP contract account cannot be found');
 
         const delegatorAccount = Signing.decodeAddress(delegator.account || '');
         if (!delegatorAccount)
-            throw new Error('Delegator ' + delegatorId.toString() + ' account cannot be found');
+            throw new Error('DLP contract account cannot be decoded');
 
         let liquidityText = '';
         if (primaryValue.gt(0)) liquidityText += toFancyMoney(primaryAsset, primaryValue);
@@ -589,7 +565,7 @@ export class Builder {
             }
         };
     }
-    static async withdrawLiquidity(args: { delegatorId: string, primaryAssetHash: string, secondaryAssetHash: string, primaryValue: string, secondaryValue: string }): Promise<BuilderResult> {
+    static async withdrawLiquidity(args: { primaryAssetHash: string, secondaryAssetHash: string, primaryValue: string, secondaryValue: string }): Promise<BuilderResult> {
         const primaryAsset = typeof args.primaryAssetHash == 'string' || typeof args.primaryAssetHash == 'number' ? new AssetId(args.primaryAssetHash) : null;
         if (!primaryAsset || !primaryAsset.isValid())
             throw new Error('Primary asset must be set');
@@ -611,17 +587,13 @@ export class Builder {
         if (!primaryValueFull && !primaryValue?.gt(0) && !secondaryValueFull && !secondaryValue?.gt(0))
             throw new Error('Primary/secondary value must greater than zero');
 
-        const delegatorId = typeof args.delegatorId == 'string' || typeof args.delegatorId == 'number' ? new BigNumber(args.delegatorId) : null;
-        if (!delegatorId)
-            throw new Error('Market id must be set');
-
-        const delegator = Exchange.delegators.find((v) => v.id.eq(delegatorId));
+        const delegator = Exchange.dlpContract();
         if (!delegator || !delegator.account)
-            throw new Error('Delegator ' + delegatorId.toString() + ' account cannot be found');
+            throw new Error('DLP contract account cannot be found');
 
         const delegatorAccount = Signing.decodeAddress(delegator.account || '');
         if (!delegatorAccount)
-            throw new Error('Delegator ' + delegatorId.toString() + ' account cannot be found');
+            throw new Error('DLP contract account cannot be decoded');
 
         let liquidityText = '';
         if (primaryValue?.gte(0)) {

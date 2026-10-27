@@ -141,14 +141,14 @@ const appKit = createAppKit({
 
 export default function WcAdapter({
   ref, network, to, amount, memo, token,
-  onInit, onConnect, onCacheLoad, onCacheStore, onStatusChange, onSent, onError,
+  onInit, onConnect, onAfterConnect, onCacheLoad, onCacheStore, onStatusChange, onSent, onError,
 }: WcProps) {
   const [status, setStatus] = useState<WcStatus>('idle');
   const [error, setError] = useState<string | null>(null);
   const [txId, setTxId] = useState<string | null>(null);
   const busy = useRef(false);
-  const events = useRef({ onConnect, onStatusChange, onSent, onError });
-  events.current = { onConnect, onStatusChange, onSent, onError };
+  const events = useRef({ onConnect, onAfterConnect, onStatusChange, onSent, onError });
+  events.current = { onConnect, onAfterConnect, onStatusChange, onSent, onError };
   const cache = useMemo<WcCache | undefined>(
     () => onCacheLoad || onCacheStore ? { load: onCacheLoad, store: onCacheStore } : undefined,
     [onCacheLoad, onCacheStore],
@@ -203,6 +203,8 @@ export default function WcAdapter({
     if (!net || !rpc)
       throw new Error(`'${String(network)}' is not a supported network name.`);
 
+    let address: string = '';
+    let tokens: { contractAddress: string, symbol: string }[] = [];
     const family = familyOf(net);
     const ns = namespaceOf(net);
     setError(null);
@@ -218,7 +220,7 @@ export default function WcAdapter({
         throw new Error(`${net.name} is not configured in AppKit.`);
 
       appKit.setCaipNetwork(chain);
-      const address = await new Promise<string>((resolve, reject) => {
+      address = await new Promise<string>((resolve, reject) => {
         let settled = false;
         let modalSeen = false;
         let unsubAccount: (() => void) | undefined;
@@ -257,7 +259,6 @@ export default function WcAdapter({
       let connect = events.current.onConnect?.(address, null);
       if (connect instanceof Promise) await connect;
 
-      let tokens: { contractAddress: string, symbol: string }[] = [];
       const tokensCache = await cacheLoad(cache, 'tokenset:' + address);
       if (!tokensCache || !Array.isArray(tokensCache.tokens) || typeof tokensCache.expiration != 'number' || tokensCache.expiration <= new Date().getTime()) {
         const saveCache = () => cacheStore(cache, 'tokenset:' + address, { tokens: tokens, expiration: new Date().getTime() + 300_000 });
@@ -376,6 +377,8 @@ export default function WcAdapter({
       events.current.onError?.(shown);
     } finally {
       busy.current = false;
+      if (address && events.current.onAfterConnect)
+        events.current.onAfterConnect(address, tokens.filter((v) => v.contractAddress && v.symbol));
     }
   }, [report, cacheLoad, cacheStore, network]);
   const submit = useCallback(async (from: string) => {

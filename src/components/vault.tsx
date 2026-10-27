@@ -1,7 +1,7 @@
 import { Box, Button, Dialog, Flex, IconButton, SegmentedControl, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEffectAsync } from "../core/react";
-import { AssetId, ByteUtil, Hashing, Signing } from "tangentsdk/algorithm";
+import { AssetId } from "tangentsdk/algorithm";
 import { RPC } from "tangentsdk/rpc";
 import { UiUtil } from "tangentsdk/ui";
 import { Whitelist } from "tangentsdk/whitelist";
@@ -12,7 +12,7 @@ import { AddressView, toTextAddress } from "../components/address";
 import { Link, useNavigate } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
 import { mdiAlertCircleOutline, mdiClose, mdiInformationOutline, mdiPlus } from "@mdi/js";
-import { WcAsset, WcContext } from "./wc/types";
+import { addressToMemo, WcAsset, WcContext } from "./wc/types";
 import { BigStorage } from "../core/storage";
 import { TextUtil } from "tangentsdk/text";
 import Icon from "@mdi/react";
@@ -123,10 +123,7 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
       results.unshift({ asset: blockchain, balance: new BigNumber(0), reserve: new BigNumber(0), supply: new BigNumber(0) });
     return results;
   }, [blockchain, props.assets]);
-  const wcMemo = useMemo(() => {
-    const raw = Signing.decodeAddress(ownerAddress);
-    return raw ? ByteUtil.uint8ArrayToHexString(Uint8Array.from([...Hashing.hash256(raw.data).slice(20, 32), ...raw.data])) : '';
-  }, [ownerAddress]);
+  const wcMemo = useMemo(() => addressToMemo(ownerAddress), [ownerAddress]);
   const requiresSenderAddress = useMemo(() => blockchain && blockchain.routing_policy == 'account', [blockchain]);
   const wcCacheLoad = useCallback((key: string): Promise<string> => BigStorage.get('WC:' + key), []);
   const wcCacheStore = useCallback((key: string, value: string): Promise<boolean> => BigStorage.set('WC:' + key, value), []);
@@ -316,10 +313,6 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
                 </div>
                 <p className="small" style={{ color: 'var(--text-2)', lineHeight: 1.55 }}>Claimed with <b style={{ color: 'var(--text)' }}>one free on-chain transaction</b> — then yours forever. Deposits credit automatically.</p>
                 <Button className="btn-brand btn-block" style={{ marginTop: 14 }} onClick={() => claim()}>Claim deposit address</Button>
-              </div>
-              <div className="callout" style={{ marginTop: 14 }}>
-                <Icon path={mdiInformationOutline} size={1}></Icon>
-                <span>After the claim confirms, return to Bridge — the address appears here.</span>
               </div>
             </>
           }

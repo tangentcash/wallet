@@ -12,7 +12,7 @@ import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
 import Icon from "@mdi/react";
 import { secondsToDuration } from "../core/utils";
-import type { ReceiptRecord, TxRecord } from "../core/types";
+import type { PreattestationEntry, PreattestationRecord, ReceiptRecord, TxRecord } from "../core/types";
 
 export function toTransactionLabel(transaction: any, type: string | null): string {
   switch (type) {
@@ -45,6 +45,28 @@ export function toTransactionLabel(transaction: any, type: string | null): strin
     default:
       return 'Non-standard';
   }
+}
+export function isPreattestationEntry(value: unknown): value is PreattestationEntry {
+  if (value == null || typeof value != 'object')
+    return false;
+  if (!('link' in value) || value.link == null || typeof value.link != 'object')
+    return false;
+  if (!('value' in value) || !(typeof value.value == 'number' ? Number.isFinite(value.value) : value.value != null && typeof value.value == 'object' && (('plus' in value.value && typeof value.value.plus == 'function') || ('isBigNumber' in value.value && value.value.isBigNumber === true))))
+    return false;
+  return true;
+}
+export function isPreattestationRecord(value: unknown): value is PreattestationRecord {
+  if (value == null || typeof value != 'object')
+    return false;
+  if (!('transaction_id' in value) || typeof value.transaction_id != 'string')
+    return false;
+  if (!('success' in value) || typeof value.success != 'boolean')
+    return false;
+  if (!('inputs' in value) || !Array.isArray(value.inputs) || !value.inputs.every(isPreattestationEntry))
+    return false;
+  if (!('outputs' in value) || !Array.isArray(value.outputs) || !value.outputs.every(isPreattestationEntry))
+    return false;
+  return true;
 }
 export function toFlow(state: SummaryState | null | undefined, receipt: ReceiptRecord | null | undefined, transaction: TxRecord, ownerAddress: string): { deltas: { asset: AssetId, value: BigNumber, reserved?: boolean }[], direction: 'in' | 'out' | 'neutral' } {
   const deltas: { asset: AssetId, value: BigNumber, reserved?: boolean }[] = [];
@@ -242,8 +264,7 @@ export function TransactionInputFields(props: { transaction: any }) {
                 <span className="copyable" onClick={() => {
                   navigator.clipboard.writeText(item.action.hash);
                   AlertBox.open(AlertType.Info, 'Internal transaction hash copied!')
-                }}>{ UiUtil.toAddress(item.action.hash) }</span>
-                <Link className="dl-open router-link" to={'/transaction/' + item.action.hash}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></div>
+                }}>{ UiUtil.toAddress(item.action.hash) }</span></div>
             )
           }</div>
         </Box>
@@ -490,17 +511,17 @@ export function TransactionInputFields(props: { transaction: any }) {
       )
     case 'attestate': {
       let signatures = 0;
-      const commitments = Object.keys(transaction.commitments).length;
-      for (let commitment in transaction.commitments)
+      const commitments = Object.keys(transaction.commitments ?? {}).length;
+      for (let commitment in transaction.commitments ?? {})
         signatures += transaction.commitments[commitment].length;
 
       if (transaction.proof != null) {
-        const from = transaction.proof.inputs.map((item: any) => {
+        const from = (transaction.proof.inputs ?? []).map((item: any) => {
           return [{
             address: item.link.address || item.link.public_key || item.link.owner,
             asset: item.asset || transaction.asset,
             value: item.value
-          }, ...item.tokens.map((token: any) => {
+          }, ...(item.tokens ?? []).map((token: any) => {
             return {
               address: item.link.address || item.link.public_key || item.link.owner,
               asset: token.asset ? token.asset : AssetId.fromHandle(transaction.asset.chain, token.symbol, token.contract_address),
@@ -508,12 +529,12 @@ export function TransactionInputFields(props: { transaction: any }) {
             };
           })]
         }).flat();
-        const to = transaction.proof.outputs.map((item: any) => {
+        const to = (transaction.proof.outputs ?? []).map((item: any) => {
           return [{
             address: item.link.address || item.link.public_key || item.link.owner,
             asset: item.asset || transaction.asset,
             value: item.value
-          }, ...item.tokens.map((token: any) => {
+          }, ...(item.tokens ?? []).map((token: any) => {
             return {
               address: item.link.address || item.link.public_key || item.link.owner,
               asset: token.asset ? token.asset : AssetId.fromHandle(transaction.asset.chain, token.symbol, token.contract_address),
@@ -545,6 +566,11 @@ export function TransactionInputFields(props: { transaction: any }) {
               <Badge>{ UiUtil.toCount('signature', signatures) }</Badge></span></div>
               <div className="dl-row"><span className="dl-k">Finality</span>
               <span className="dl-v"><Badge color={transaction.proof.success ? undefined : 'red'}>{ transaction.proof.success ? 'Executed' : 'Reverted' }</Badge></span></div>
+              <div className="dl-row"><span className="dl-k">Proof message</span>
+              <span className="dl-v"><span className="copyable" onClick={() => {
+                navigator.clipboard.writeText(JSON.stringify(transaction.proof, null, 2));
+                AlertBox.open(AlertType.Info, 'ABI data copied!')
+              }}>Copy ABI data</span></span></div>
             </div>
             {
               from.filter((item: any) => !new BigNumber(item.value).isZero()).map((item: any, index: number) =>
@@ -695,7 +721,7 @@ export function TransactionOutputFields(props: { state: SummaryState }) {
             }
             case EventType.RollupReceipt: {
               return <EventRow key={'OF12' + event.type.toString() + index} icon={mdiDatabaseOutline} cls="info" title="Rollup receipt"
-                meta={<><span className="event-who"><EventHash hash={event.transactionHash} message="Transaction hash copied!" /><Link className="dl-open router-link" to={'/transaction/' + event.transactionHash}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span><span className="arrow">·</span><span className="dim">#{ event.executionIndex.toString() } · { UiUtil.toGas(event.relativeGasUse) }</span></>} />
+                meta={<><span className="event-who"><EventHash hash={event.transactionHash} message="Transaction hash copied!" /></span><span className="arrow">·</span><span className="dim">#{ event.executionIndex.toString() } · { UiUtil.toGas(event.relativeGasUse) }</span></>} />
             }
             case EventType.Unknown:
             default: {
@@ -736,14 +762,15 @@ function TransactionDetails(props: { transaction: any, receipt?: any, state?: Su
         <div className="card-title">Brief</div>
         <div className="dl">
           <div className="dl-row"><span className="dl-k">Hash</span>
-            <span className="dl-v"><span className="copyable" onClick={() => {
-              navigator.clipboard.writeText(transaction.hash);
-              AlertBox.open(AlertType.Info, 'Transaction hash copied!')
-            }}>{ UiUtil.toAddress(transaction.hash, 8) }</span>
-            {
-              typeof props.preview !== 'boolean' &&
-              <Link className="dl-open router-link" to={'/transaction/' + transaction.hash}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link>
-            }</span></div>
+            <span className="dl-v">{ transaction.hash != null ? <>
+              <span className="copyable" onClick={() => {
+                navigator.clipboard.writeText(transaction.hash);
+                AlertBox.open(AlertType.Info, 'Transaction hash copied!')
+              }}>{ UiUtil.toAddress(transaction.hash, 8) }</span>
+              {
+                typeof props.preview !== 'boolean' &&
+                <Link className="dl-open router-link" to={'/transaction/' + transaction.hash}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link>
+              }</> : 'NULL' }</span></div>
           <div className="dl-row"><span className="dl-k">Status</span>
             <span className="dl-v">{
               props.preview ? <span className="badge warn">PREVIEW</span> :
@@ -781,7 +808,7 @@ function TransactionDetails(props: { transaction: any, receipt?: any, state?: Su
           }
           <div className="dl-row"><span className="dl-k">Nonce</span><span className="dl-v mono">0x{ transaction.nonce?.toString(16) }</span></div>
           <div className="dl-row"><span className="dl-k">Gas price</span><span className="dl-v num">{ transaction.gas_price != null ? UiUtil.toMoney(AssetId.fromHandle(transaction.asset?.chain), transaction.gas_price) : '0.0 TAN' }</span></div>
-          <div className="dl-row"><span className="dl-k">Gas limit</span><span className="dl-v num">{ gasLimit != null ? UiUtil.toGas(gasLimit) : '—' }</span></div>
+          <div className="dl-row"><span className="dl-k">Gas limit</span><span className="dl-v num">{ gasLimit != null ? UiUtil.toGas(gasUse ? BigNumber.max(gasUse, gasLimit) : gasUse) : '—' }</span></div>
           <div className="dl-row">
             <span className="dl-k">Gas use</span>
             <span className="dl-v num">{ gasUse != null ? UiUtil.toGas(gasUse) + (gasPercent != null ? ' · ' + gasPercent.toFixed(2) + '%' : '') : <span className="dim">not executed yet</span> }</span>
@@ -860,7 +887,7 @@ export function TransactionView(props: { variant?: 'row' | 'full', ownerAddress:
             props.preview ? (
               <div className="tx-meta" style={{ alignItems: 'center' }}>
                 <span className="badge warn">PREVIEW</span>
-                <span>{ typeof props.preview == 'string' ? props.preview : 'not broadcast yet' }</span>
+                <span>{ typeof props.preview == 'string' ? props.preview : 'Not broadcast yet' }</span>
               </div>
             ) : props.explorerMode ? (
               <div className="tx-meta mono" style={{ fontSize: 11 }}>{ UiUtil.toAddress(transaction.hash) }</div>
@@ -919,7 +946,8 @@ export function TransactionView(props: { variant?: 'row' | 'full', ownerAddress:
         </Collapsible.Root>
       )
     }
-    return <Link to={'/transaction/' + transaction.hash} style={{ color: 'inherit', textDecoration: 'none', display: 'block' }}>{ row }</Link>
+    const target = transaction.hash ?? transaction.proof?.transaction_id;
+    return target != null ? <Link to={'/transaction/' + target} style={{ color: 'inherit', textDecoration: 'none', display: 'block' }}>{ row }</Link> : row;
   }
   const hero = toIcon(type, flow.direction, pending, reverted);
   const gasLimit = transaction.gas_limit != null ? new BigNumber(transaction.gas_limit) : null;
@@ -949,6 +977,13 @@ export function TransactionView(props: { variant?: 'row' | 'full', ownerAddress:
         </div>
         <div className="tiny mono tx-hash" style={{ marginTop: 4, overflowWrap: 'anywhere' }} onClick={() => copyValue(transaction.hash, 'Transaction hash copied!')}>{ transaction.hash && UiUtil.toAddress(transaction.hash) }</div>
       </div>
+      {
+        receipt == null &&
+        <div className="callout warn" style={{ marginTop: 14 }}>
+          <Icon path={mdiClockOutline} size={1}></Icon>
+          <span><b>Pending transaction.</b> This transaction is not yet executed, so no balance changes are reflected.</span>
+        </div>
+      }
       {
         reverted &&
         <div className="callout err" style={{ marginTop: 14 }}>

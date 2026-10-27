@@ -1,16 +1,17 @@
 import { Box, Button, Dialog, Flex, SegmentedControl, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { mdiArrowLeft, mdiArrowRight, mdiBankOutline, mdiChartTimelineVariant, mdiChevronDown, mdiContentCopy, mdiEyeOutline, mdiListBoxOutline, mdiLockOutline, mdiPlus, mdiRefresh, mdiSwapVertical, mdiWalletOutline } from "@mdi/js";
+import { mdiArrowLeft, mdiArrowRight, mdiBankOutline, mdiChartTimelineVariant, mdiChevronDown, mdiContentCopy, mdiEyeOutline, mdiListBoxOutline, mdiLockOutline, mdiOpenInNew, mdiPlus, mdiRefresh, mdiSwapVertical, mdiWalletOutline } from "@mdi/js";
+import Icon from "@mdi/react";
 import { AssetId, ByteUtil, Signing } from "tangentsdk/algorithm";
 import { UiUtil } from 'tangentsdk/ui';
 import { Whitelist } from 'tangentsdk/whitelist';
 import { Assetlist } from 'tangentsdk/assetlist';
 import { TextUtil } from 'tangentsdk/text';
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Exchange, Balance, Order, Pool, Cursor, AggregatedPair, OrderSide, RouterPath, Market, PolyAsset, PseudoDelegatedPool, DelegatedPool, ExchangeField } from "../../core/exchange";
+import { Exchange, Balance, Order, Pool, Cursor, AggregatedPair, OrderSide, RouterPath, PolyAsset, PseudoDelegatedPool, DelegatedPool, ExchangeField } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { AppData } from "../../core/app";
 import { mdiMagnify } from "@mdi/js";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { AppStorage } from "../../core/storage";
 import { AlertBox, AlertType } from "../../components/alert";
 import { AssetImage } from "../../components/asset-image";
@@ -19,7 +20,6 @@ import { Builder, PerformerButton } from "./../../components/exchange/performer"
 import { DelegatedPoolView, PoolView, PseudoDelegatedPoolView } from "../../components/exchange/pool";
 import BigNumber from "bignumber.js";
 import OrderView from "../../components/exchange/order";
-import Icon from "@mdi/react";
 import InfiniteScroll from "react-infinite-scroll-component";
 import AssetSelector from "../../components/exchange/selector";
 import AddressAvatar from "../../components/avatar";
@@ -80,12 +80,11 @@ function RepayableBalanceView(props: { item: Balance & { type: 'std' | 'wrapped'
   const [amount, setAmount] = useState<string>('');
   const [open, setOpen] = useState(false);
   const assetPayload = useMemo((): {
-    marketId: string,
     repaymentAssetHash: string,
     paymentAssetHash: string,
     pays: string
   } | null => {
-    if (!asset || !asset.marketId || asset.chain == item.asset.chain || asset.token != item.asset.token)
+    if (!asset || asset.chain == item.asset.chain || asset.token != item.asset.token)
       return null;
 
     const valueQuantity = TextUtil.toNumericValueOrPercent(amount.trim());
@@ -97,7 +96,6 @@ function RepayableBalanceView(props: { item: Balance & { type: 'std' | 'wrapped'
       return null;
 
     return {
-      marketId: asset.marketId.toString(),
       repaymentAssetHash: asset.id,
       paymentAssetHash: item.asset.id,
       pays: value.toString()
@@ -182,8 +180,7 @@ function RepayableBalanceView(props: { item: Balance & { type: 'std' | 'wrapped'
               return null;
             return wrapping ? Builder.payUnifiedAsset({
               pays: { [assetPayload.paymentAssetHash]: assetPayload.pays },
-              marketId: assetPayload.marketId,
-              primaryAssetHash: AssetId.fromHandle(item.asset.chain || '').id,
+                            primaryAssetHash: AssetId.fromHandle(item.asset.chain || '').id,
               secondaryAssetHash: assetPayload.repaymentAssetHash
             }) : Builder.repayAsset(assetPayload);
           }}></PerformerButton>
@@ -237,7 +234,7 @@ function WalletNavigator(props: {
     setLoading(true);
   };
   const endSpin = () => {
-    const period = 900; // must match .hero-refresh-mark.spin animation duration
+    const period = 900;
     const elapsed = Date.now() - spinStart.current;
     const delay = Math.ceil(elapsed / period) * period - elapsed;
     clearTimeout(spinTimeout.current);
@@ -382,7 +379,6 @@ function WalletAssets(props: {
 
 function MarketRouter(props: {
   assets: CachedBalance[],
-  market: Market | null
   pair: { primary: AssetId | null, secondary: AssetId | null }
   setPair: (p: { primary: AssetId | null, secondary: AssetId | null }) => any
   onPair?: (pair: { primary: AssetId | null, secondary: AssetId | null }) => void
@@ -397,7 +393,7 @@ function MarketRouter(props: {
   const [convervative, setConservative] = useState(false);
   const [loadingPoly, setLoadingPoly] = useState<boolean>(false);
   const [loadingPath, setLoadingPath] = useState<boolean>(false);
-  const wrapAction = useMemo((): { direction: 'wrap' | 'unwrap', marketId: BigNumber, unified: AssetId, native: AssetId, from: AssetId, to: AssetId, liquidity: BigNumber | null } | null => {
+  const wrapAction = useMemo((): { direction: 'wrap' | 'unwrap', unified: AssetId, native: AssetId, from: AssetId, to: AssetId, liquidity: BigNumber | null } | null => {
     const primary = props.pair.primary, secondary = props.pair.secondary;
     if (!primary || !secondary || primary.id == secondary.id || !primary.token || primary.token != secondary.token)
       return null;
@@ -408,22 +404,22 @@ function MarketRouter(props: {
     const unified = primaryUnified ? primary : secondary;
     const native = primaryUnified ? secondary : primary;
     const match = polyAssets.find((v) => v.id == secondary.id || (v.chain == secondary.chain && v.token == secondary.token));
-    if (!match || !match.marketId)
+    if (!match)
       return null;
-    return { direction: primaryUnified ? 'unwrap' : 'wrap', marketId: new BigNumber(match.marketId), unified, native, from: primary, to: secondary, liquidity: match.liquidity ? new BigNumber(match.liquidity) : null };
+    return { direction: primaryUnified ? 'unwrap' : 'wrap', unified, native, from: primary, to: secondary, liquidity: match.liquidity ? new BigNumber(match.liquidity) : null };
   }, [props.pair.primary, props.pair.secondary, polyAssets]);
-  const swapUnwrap = useMemo((): { marketId: BigNumber, unified: AssetId, native: AssetId, liquidity: BigNumber | null } | null => {
+  const swapUnwrap = useMemo((): { unified: AssetId, native: AssetId, liquidity: BigNumber | null } | null => {
     const secondary = props.pair.secondary;
     if (!secondary || !secondary.token || !secondaryPoly)
       return null;
     const unifiedChain = new AssetId().chain;
     if (secondary.chain == unifiedChain)
       return null;
-    const entry = secondaryPoly.find((v) => v.chain == unifiedChain && v.token == secondary.token && v.marketId);
-    if (!entry || !entry.marketId)
+    const entry = secondaryPoly.find((v) => v.chain == unifiedChain && v.token == secondary.token);
+    if (!entry)
       return null;
     const variant = secondaryPoly.find((v) => v.id == secondary.id);
-    return { marketId: new BigNumber(entry.marketId), unified: new AssetId(entry.id), native: secondary, liquidity: variant?.liquidity ? new BigNumber(variant.liquidity) : null };
+    return { unified: new AssetId(entry.id), native: secondary, liquidity: variant?.liquidity ? new BigNumber(variant.liquidity) : null };
   }, [props.pair.secondary, secondaryPoly]);
   useEffectAsync(async () => {
     const secondary = props.pair.secondary;
@@ -533,7 +529,7 @@ function MarketRouter(props: {
       setLoadingPath(false);
     }
 
-    if (!wrapAction && props.market != null && props.pair.primary != null && props.pair.secondary != null && props.pair.secondary.id != props.pair.primary.id) {
+    if (!wrapAction && props.pair.primary != null && props.pair.secondary != null && props.pair.secondary.id != props.pair.primary.id) {
       const balanceIn = assetsIn.reduce((a, b) => a.plus(b.available), new BigNumber(0));
       const finalAmountIn = TextUtil.toNumericValueOrPercent(state.amountIn);
       const amountIn = finalAmountIn.relative?.gt(0) ? finalAmountIn.relative.multipliedBy(balanceIn) : (finalAmountIn.absolute?.gt(0) ? finalAmountIn.absolute : new BigNumber(0));
@@ -542,7 +538,7 @@ function MarketRouter(props: {
         setLoadingPath(true);
         swapPathTimeoutId = setTimeout(async () => {
           try {
-            const paths = (await Exchange.marketPaths(props.market?.id || '', props.pair.primary || new AssetId(), props.pair.secondary || new AssetId(), amountIn, slippage)).filter(x => x.length > 0);
+            const paths = (await Exchange.marketPaths(props.pair.primary || new AssetId(), props.pair.secondary || new AssetId(), amountIn, slippage)).filter(x => x.length > 0);
             const best = paths.length > 0 ? paths[0] : [];
             setBestPaths(paths);
             if (best.length > 0) {
@@ -565,7 +561,7 @@ function MarketRouter(props: {
       if (swapPathTimeoutId != null)
         clearTimeout(swapPathTimeoutId);
     };
-  }, [props.market, props.pair.secondary, props.pair.primary, state.amountIn, state.slippage, assetsIn, props.refreshKey, wrapAction]);
+  }, [props.pair.secondary, props.pair.primary, state.amountIn, state.slippage, assetsIn, props.refreshKey, wrapAction]);
   useEffect(() => {
     const prev = AppStorage.get(ExchangeField.PortfolioRouter);
     if (prev != null) {
@@ -726,12 +722,11 @@ function MarketRouter(props: {
                   ...state,
                   tokenIn: props.pair.primary,
                   tokenOut: props.pair.secondary,
-                  marketId: props.market?.id.toString() || '',
-                  path: path,
+                                    path: path,
                   pays: pays,
                 });
                 if (repayStep != null && swapUnwrap != null)
-                  results.push(await Builder.repayAsset({ marketId: swapUnwrap.marketId.toString(), repaymentAssetHash: swapUnwrap.native.id, paymentAssetHash: swapUnwrap.unified.id, pays: repayStep.toString() }, true));
+                  results.push(await Builder.repayAsset({ repaymentAssetHash: swapUnwrap.native.id, paymentAssetHash: swapUnwrap.unified.id, pays: repayStep.toString() }, true));
                 return results;
               }}></PerformerButton>
             </div>
@@ -763,13 +758,11 @@ function MarketRouter(props: {
             if (!wrapPayload)
               return null;
             return wrapAction.direction == 'unwrap' ? Builder.repayAsset({
-              marketId: wrapAction.marketId.toString(),
               repaymentAssetHash: wrapAction.native.id,
               paymentAssetHash: wrapAction.unified.id,
               pays: wrapPayload
             }) : Builder.payUnifiedAsset({
               pays: { [wrapAction.native.id]: wrapPayload },
-              marketId: wrapAction.marketId.toString(),
               primaryAssetHash: AssetId.fromHandle(wrapAction.native.chain || '').id,
               secondaryAssetHash: wrapAction.unified.id
             });
@@ -782,11 +775,17 @@ function MarketRouter(props: {
           <Flex px="4" pt="4" justify="center"><Text size="2" align="center" className="dim">Optimizing swap routes...</Text></Flex> :
           <button className="btn-block" disabled style={{ marginTop: 14, background: 'var(--elev)', color: 'var(--text-3)', border: 0, borderRadius: 'var(--r-md)', height: 48, fontWeight: 700, fontSize: 14, cursor: 'not-allowed', opacity: 0.6 }}>{ bestPaths ? 'No routes for the swap.' : 'Waiting for details' }</button>)
       }
+      <Flex justify="center" mt="8">
+        <Link to="/swaps" target="_blank" style={{ color: 'var(--text-3)', textDecoration: 'none' }}>
+          <Text mr="2">Try atomic swaps</Text>
+          <Icon path={mdiOpenInNew} size={0.6} style={{ transform: 'translateY(3px)' }}></Icon>
+        </Link>
+      </Flex>
     </Box>
   )
 }
 
-type MockPairEntry = { marketId: string, pair: AggregatedPair };
+type MockPairEntry = { pair: AggregatedPair };
 function loadMockPairs(): MockPairEntry[] {
   const stored = AppStorage.get(ExchangeField.PortfolioMockPairs);
   if (!Array.isArray(stored))
@@ -797,15 +796,13 @@ function loadMockPairs(): MockPairEntry[] {
   const seen = new Set<string>();
   for (const entry of stored) {
     try {
-      const marketId = String(entry.marketId);
       const primaryAsset = new AssetId(entry.pair.primaryAsset);
       const secondaryAsset = new AssetId(entry.pair.secondaryAsset);
-      const key = marketId + ':' + primaryAsset.id + ':' + secondaryAsset.id;
+      const key = primaryAsset.id + ':' + secondaryAsset.id;
       if (seen.has(key))
         continue;
       seen.add(key);
       result.push({
-        marketId: marketId,
         pair: {
           id: new BigNumber(entry.pair.id),
           primaryAsset: primaryAsset,
@@ -833,7 +830,6 @@ function loadMockPairs(): MockPairEntry[] {
 }
 function persistMockPairs(entries: MockPairEntry[]): void {
   AppStorage.set(ExchangeField.PortfolioMockPairs, entries.map((entry) => ({
-    marketId: entry.marketId,
     pair: {
       id: entry.pair.id.toString(),
       primaryAsset: entry.pair.primaryAsset.id,
@@ -858,7 +854,6 @@ function persistMockPairs(entries: MockPairEntry[]): void {
 }
 function MarketExplorer(props: {
   assets?: CachedBalance[],
-  market: Market | null,
   type: 'pairs' | 'router' | 'pools' | 'delegated-pools',
   setType: (type: string) => any
   onPair?: (pair: { primary: AssetId | null, secondary: AssetId | null }) => void
@@ -896,13 +891,9 @@ function MarketExplorer(props: {
     };
   }, [text]);
   const mockView = useMemo((): { pair: AggregatedPair, whitelisted: boolean }[] => {
-    if (props.market == null)
-      return [];
-
-    const marketId = props.market.id.toString();
-    const orientations = new Set(pairs.map((item) => item.pair.primaryAsset.id + ':' + item.pair.secondaryAsset.id));
-    return mockPairs.filter((entry) => entry.marketId == marketId && !orientations.has(entry.pair.primaryAsset.id + ':' + entry.pair.secondaryAsset.id)).map((entry) => ({ pair: entry.pair, whitelisted: !!Whitelist.contractAddressOf(entry.pair.primaryAsset) && !!Whitelist.contractAddressOf(entry.pair.secondaryAsset) }));
-  }, [mockPairs, props.market, pairs]);
+        const orientations = new Set(pairs.map((item) => item.pair.primaryAsset.id + ':' + item.pair.secondaryAsset.id));
+    return mockPairs.filter((entry) => !orientations.has(entry.pair.primaryAsset.id + ':' + entry.pair.secondaryAsset.id)).map((entry) => ({ pair: entry.pair, whitelisted: !!Whitelist.contractAddressOf(entry.pair.primaryAsset) && !!Whitelist.contractAddressOf(entry.pair.secondaryAsset) }));
+  }, [mockPairs, pairs]);
   const pairsFilter = useMemo((): { pair: AggregatedPair, whitelisted: boolean }[] => {
     const seen = new Set<string>();
     let result = [...pairs, ...mockView].filter((item) => {
@@ -926,12 +917,12 @@ function MarketExplorer(props: {
 
     setLoading(true);
     try {
-      if (!props.market || !searchPair.primary || !searchPair.secondary)
+      if (!searchPair.primary || !searchPair.secondary)
         throw false;
 
       const primary = searchPair.primary, secondary = searchPair.secondary;
       try {
-        const reverse = await Exchange.marketPair(props.market.id, secondary, primary, false);
+        const reverse = await Exchange.marketPair(secondary, primary, false);
         if (reverse != null && reverse.price.totalLiquidity != null && reverse.price.totalLiquidity.gt(0)) {
           const mock: AggregatedPair = {
             ...reverse,
@@ -943,8 +934,7 @@ function MarketExplorer(props: {
               close: reverse.price.close != null && reverse.price.close.gt(0) ? new BigNumber(1).dividedBy(reverse.price.close) : null
             }
           };
-          const marketId = props.market.id.toString();
-          const next = [{ marketId: marketId, pair: mock }, ...mockPairs.filter((entry) => entry.marketId != marketId || entry.pair.primaryAsset.id != primary.id || entry.pair.secondaryAsset.id != secondary.id)];
+                    const next = [{ pair: mock }, ...mockPairs.filter((entry) => entry.pair.primaryAsset.id != primary.id || entry.pair.secondaryAsset.id != secondary.id)];
           setMockPairs(next);
           persistMockPairs(next);
           setLoading(false);
@@ -952,7 +942,7 @@ function MarketExplorer(props: {
         }
       } catch { }
 
-      const result = await Exchange.marketPair(props.market.id, primary, secondary, true);
+      const result = await Exchange.marketPair(primary, secondary, true);
       setLaunchablePair(result);
       setLoading(false);
       return result;
@@ -963,7 +953,7 @@ function MarketExplorer(props: {
       setLoading(false);
       return null;
     }
-  }, [props.market, searchPair, mockPairs, loading]);
+  }, [searchPair, mockPairs, loading]);
   const findPools = useCallback(async (refresh?: boolean) => {
     setLoading(true);
     if (props.type == 'pools') {
@@ -1000,38 +990,15 @@ function MarketExplorer(props: {
         AlertBox.open(AlertType.Error, 'Failed to fetch LPs: ' + (exception as Error).message);
       }
 
-      const extra: PseudoDelegatedPool[] = [];
-      for (let i = 0; i < Exchange.delegators.length; i++) {
-        const delegator = Exchange.delegators[i];
-        const market = Exchange.markets.find((v) => v.id.eq(delegator.marketId));
-        for (let j = 0; j < delegator.permissions.length; j++) {
-          const permission = delegator.permissions[j];
-          if (!data.find((v) => v.primaryAsset.id == permission.primaryAsset.id && v.secondaryAsset.id == permission.secondaryAsset.id)) {
-            extra.push({
-                marketId: delegator.marketId,
-                pairId: new BigNumber(0),
-                delegatorId: delegator.id,
-                marketAccount: market?.account || '',
-                delegatorAccount: delegator.account,
-                primaryAsset: permission.primaryAsset,
-                secondaryAsset: permission.secondaryAsset,
-                initialValue: new BigNumber(0),
-                currentValue: new BigNumber(0),
-                volume: new BigNumber(0)
-            });
-          }
-        }
-      }
-
       setPools([]);
-      setDelegatedPools([...data, ...extra]);
+      setDelegatedPools(data);
       setMorePools(false);
       setLoading(false);
       return false;
     }
   }, [props.type, pools]);
   useEffectAsync(async () => {
-    if (props.market && props.type == 'pairs') {
+    if (props.type == 'pairs') {
       setLoading(true);
       try {
         const process = (data: AggregatedPair[]) => (data || []).map((x) => ({
@@ -1039,7 +1006,7 @@ function MarketExplorer(props: {
           whitelisted: !!Whitelist.contractAddressOf(x.primaryAsset) && !!Whitelist.contractAddressOf(x.secondaryAsset),
           cached: false
         }));
-        const data = process(await Exchange.marketPairs(props.market.id, (cache) => setPairs(prev => prev.length > 0 ? prev : process(cache))));
+        const data = process(await Exchange.marketPairs((cache) => setPairs(prev => prev.length > 0 ? prev : process(cache))));
         setPairs(data);
       } catch { }
       setLoading(false);
@@ -1047,7 +1014,7 @@ function MarketExplorer(props: {
       await findPools(true);
     }
 
-  }, [props.market, props.type, props.refreshKey]);
+  }, [props.type, props.refreshKey]);
   useEffect(() => {
     const updatePairs = () => {
       setPairs(prev => {
@@ -1104,7 +1071,7 @@ function MarketExplorer(props: {
           <div className="pair-list">
             {
               pairsFilter.map((item) =>
-                <button className="pair-row" key={item.pair.id.toString() + ':' + item.pair.primaryAsset.id} onClick={() => navigate(`/orderbook/${Exchange.toOrderbookQuery(props.market?.id || new BigNumber(0), item.pair.primaryAsset, item.pair.secondaryAsset)}`)}>
+                <button className="pair-row" key={item.pair.id.toString() + ':' + item.pair.primaryAsset.id} onClick={() => navigate(`/orderbook/${Exchange.toOrderbookQuery(item.pair.primaryAsset, item.pair.secondaryAsset)}`)}>
                   <span style={{ position: 'relative', width: 45, height: 45, flex: 'none' }}>
                     <AssetImage asset={item.pair.primaryAsset} size="3" iconSize="36px"></AssetImage>
                     <AssetImage asset={item.pair.secondaryAsset} size="1" iconSize="22px" style={{ position: 'absolute', bottom: 0, right: 0, border: '2px solid var(--card)', borderRadius: '50%' }}></AssetImage>
@@ -1170,7 +1137,7 @@ function MarketExplorer(props: {
       }
       {
         props.type == 'router' && props.assets != null &&
-        <MarketRouter market={props.market} assets={props.assets} pair={searchPair} setPair={setSearchPair} onPair={props.onPair} refreshKey={props.refreshKey}></MarketRouter>
+        <MarketRouter assets={props.assets} pair={searchPair} setPair={setSearchPair} onPair={props.onPair} refreshKey={props.refreshKey}></MarketRouter>
       }
       {
         (props.type == 'pools' || props.type == 'delegated-pools') &&
@@ -1193,7 +1160,7 @@ function MarketExplorer(props: {
               </InfiniteScroll>
             </Box> :
             <Box>
-              { delegatedPools.map((item) => <Box key={item.delegatorId.toString() + item.marketId.toString() + item.primaryAsset.id + item.secondaryAsset.id} mb="4"><PseudoDelegatedPoolView item={item} assets={props.assets || []}></PseudoDelegatedPoolView></Box>) }
+              { delegatedPools.map((item) => <Box key={item.pairId.toString() + ':' + item.primaryAsset.id + ':' + item.secondaryAsset.id} mb="4"><PseudoDelegatedPoolView item={item} assets={props.assets || []}></PseudoDelegatedPoolView></Box>) }
               {
                 !loading && !delegatedPools.length &&
                 <div className="card">
@@ -1226,7 +1193,6 @@ export default function PortfolioPage() {
   const readOnly = baseAddress != ownerAddress;
   const searchInput = useRef<HTMLInputElement | null>(null);
   const navigate = useNavigate();
-  const [market, setMarket] = useState<Market | null>(null);
   const [displayAsset, setDisplayAsset] = useState<string>(Exchange.equityAsset.chain || '');
   const [search, setSearch] = useSearchParams();
   const [viewPull, setViewPull] = useState(0);
@@ -1436,9 +1402,6 @@ export default function PortfolioPage() {
   useEffectAsync(async () => {
     await Exchange.establish();
     setDisplayAsset(Exchange.equityAsset.chain || '');
-    if (Exchange.markets.length > 0) {
-      setMarket(Exchange.markets[0]);
-    }
   }, []);
   useEffect(() => {
     const view = search.get('view') || AppStorage.get(ExchangeField.PortfolioView) || null;
@@ -1554,20 +1517,6 @@ export default function PortfolioPage() {
                 AlertBox.open(AlertType.Info, 'Address copied!');
               }}><Icon path={mdiContentCopy} size={0.8}></Icon>Copy address</Button>
             <div style={{ borderTop: '1px solid var(--line)', marginTop: 16, paddingTop: 14 }}>
-              <div className="menu-cap" style={{ padding: '0 0 8px' }}>Dex market</div>
-              <Select.Root value={market ? market.id.toString() : ''} onValueChange={(e) => {
-                setMarket(Exchange.markets.find((v) => v.id.toString() == e) || null);
-              }} size="3">
-                <Select.Trigger style={{ width: '100%' }} placeholder="Unknown">{ market ? Exchange.marketPolicyOf(market) + ' ' + (market.version || market.account.substring(market.account.length - 4)) : 'Unknown' }</Select.Trigger>
-                <Select.Content position="popper" side="bottom">
-                  <Select.Group>
-                    <Select.Label>DEX version</Select.Label>
-                    { Exchange.markets.map((item) => <Select.Item key={item.id.toString()} value={item.id.toString()}>{ Exchange.marketPolicyOf(item) } { item.version || item.account.substring(item.account.length - 4) }</Select.Item>) }
-                  </Select.Group>
-                </Select.Content>
-              </Select.Root>
-            </div>
-            <div style={{ borderTop: '1px solid var(--line)', marginTop: 16, paddingTop: 14 }}>
               <div className="menu-cap" style={{ padding: '0 0 8px' }}>Display asset</div>
               <Select.Root value={displayAsset} onValueChange={async (symbol) => {
                 if (!Exchange.setEquityAsset(AssetId.fromHandle(symbol)))
@@ -1604,7 +1553,7 @@ export default function PortfolioPage() {
         </SegmentedControl.Root>
         {
           tab != 'wallet' &&
-          <MarketExplorer market={market} assets={viewer == 'market-router' || viewer == 'market-delegated-pools' ? assets : undefined} type={toMarketExplorerType(viewer)} setType={(type) => setSearch({ view: 'market-' + type })} refreshKey={viewPull} onPair={setSwapPair}></MarketExplorer>
+          <MarketExplorer assets={viewer == 'market-router' || viewer == 'market-delegated-pools' ? assets : undefined} type={toMarketExplorerType(viewer)} setType={(type) => setSearch({ view: 'market-' + type })} refreshKey={viewPull} onPair={setSwapPair}></MarketExplorer>
         }
         {
           viewer == 'wallet' &&

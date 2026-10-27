@@ -1019,7 +1019,7 @@ button.asset-row:hover { background: var(--elev); }
   align-items: center;
   gap: 8px;
   height: 36px;
-  padding: 4px 12px 4px 4px;
+  padding: 3px 9px;
   border-radius: 999px;
   background: var(--elev);
   font: 700 14px var(--sans);
@@ -1116,7 +1116,7 @@ button.asset-row:hover { background: var(--elev); }
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-  border-radius: var(--r-md);
+  border-radius: var(--r-lg);
   font-size: 13.5px;
   line-height: 1.5;
   background: var(--gray-a3);

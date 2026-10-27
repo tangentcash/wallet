@@ -29,6 +29,13 @@ const ProgramPage = lazy(() => import("./../pages/program"));
 const InteractionPage = lazy(() => import("./../pages/interaction"));
 const PortfolioPage = lazy(() => import("../pages/exchange/portfolio"));
 const OrderbookPage = lazy(() => import("../pages/exchange/orderbook"));
+const SwapsPage = lazy(() => import("../pages/exchange/swaps"));
+
+declare global {
+  interface Window {
+    TangentNative?: { setSystemBars(dark: boolean): void };
+  }
+}
 
 export type ExtendedField = {
   transactionTime: number,
@@ -231,13 +238,8 @@ export enum AppPermission {
   Reset
 }
 
-declare global {
-  interface Window {
-    // Installed by MainActivity.onWebViewCreate on Android; absent elsewhere.
-    TangentNative?: { setSystemBars(dark: boolean): void };
-  }
-}
 export class AppData {
+  private static syncing: Promise<boolean> | null = null;
   static root: Root | null = null;
   static server: ConnectionState | null = null;
   static state: AppState = {
@@ -352,15 +354,11 @@ export class AppData {
     return this.tauriRef;
   }
   private static syncSystemBars(): void {
-    // Android: native bridge installed by MainActivity.onWebViewCreate.
-    // Tints status/navigation bar icons so they stay visible in dark theme.
     const native = window.TangentNative;
     if (native != null && typeof native.setSystemBars == 'function') {
       try {
         native.setSystemBars(this.props.appearance === 'dark');
-      } catch {
-        // best-effort cosmetic adjustment
-      }
+      } catch { }
     }
   }
   static async restoreWallet(passphrase: string, network?: NetworkType): Promise<boolean> {
@@ -615,17 +613,24 @@ export class AppData {
       result.receipt = receipt;
     return result;
   }
-  static async sync(): Promise<boolean> {
-    try {
-      const tipNumber = await RPC.getBlockTipNumber();
-      if (typeof tipNumber == 'string')
-        this.tip = new BigNumber(tipNumber, 16);
-      else if (BigNumber.isBigNumber(tipNumber))
-        this.tip = tipNumber;
-      return true;
-    } catch {
-      return false;
+  static sync(): Promise<boolean> {
+    if (this.syncing == null) {
+      this.syncing = (async () => {
+        try {
+          const tipNumber = await RPC.getBlockTipNumber();
+          if (typeof tipNumber == 'string')
+            this.tip = new BigNumber(tipNumber, 16);
+          else if (BigNumber.isBigNumber(tipNumber))
+            this.tip = tipNumber;
+          return true;
+        } catch {
+          return false;
+        } finally {
+          this.syncing = null;
+        }
+      })();
     }
+    return this.syncing;
   }
   static async main(): Promise<void> {
     const props: AppProps | null = AppStorage.get(StorageField.App);
@@ -713,7 +718,7 @@ export class AppData {
       input.click();
     })
   }
-  static removeSplashscreen(latency: number = 250): Promise<boolean> {
+  static removeSplashscreen(latency: number = 500): Promise<boolean> {
     return new Promise<boolean>((resolve) => {
       const splashscreen = document.getElementById('splashscreen');
       if (splashscreen != null) {
@@ -808,13 +813,6 @@ export function App() {
   AppData.state.setState = setState;
   useEffect(() => {
     AppData.removeSplashscreen();
-    const onDeferredData = () => AppData.setState();
-    window.addEventListener('tg-assets-ready', onDeferredData);
-    window.addEventListener('tg-whitelist-ready', onDeferredData);
-    return () => {
-      window.removeEventListener('tg-assets-ready', onDeferredData);
-      window.removeEventListener('tg-whitelist-ready', onDeferredData);
-    };
   }, []);
 
   return (
@@ -835,6 +833,7 @@ export function App() {
             <Route path="/legal" element={<LegalPage />} />
             <Route path="/orderbook/:orderbook" element={<OrderbookPage />} />
             <Route path="/portfolio/:account?" element={<PortfolioPage />} />
+            <Route path="/swaps/:booking?" element={<SwapsPage />} />
             <Route path="*" element={<ErrorPage />} />
           </Routes>
           <Navbar></Navbar>

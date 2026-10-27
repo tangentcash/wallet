@@ -14,9 +14,9 @@ import { useEffectAsync } from "../core/react";
 import { AssetImage } from "../components/asset-image";
 import { AssetName } from "../components/asset-name";
 import { AddressView } from "../components/address";
-import { TransactionView } from "../components/transaction";
+import { TransactionView, isPreattestationRecord } from "../components/transaction";
 import AddressAvatar from "../components/avatar";
-import type { ActivityEntry, BalanceRecord, RewardRecord } from "../core/types";
+import type { ActivityEntry, BalanceRecord, PreattestationRecord, RewardRecord } from "../core/types";
 import { AppStorage, StorageField } from "../core/storage";
 import BigNumber from "bignumber.js";
 import InfiniteScroll from 'react-infinite-scroll-component';
@@ -30,8 +30,8 @@ export default function AccountPage() {
   const ownerAddress = useParams().id || ownerBaseAddress;
   const self = ownerAddress == ownerBaseAddress;
   const navigate = useNavigate();
-  const [search, setSearch] = useSearchParams();
   const prevState = useRef<{ control: any, ownerAddress: any, nonce: any }>({ control: undefined, ownerAddress: undefined, nonce: undefined });
+  const [search, setSearch] = useSearchParams();
   const [loading, setLoading] = useState(false);
   const [nonce, setNonce] = useState(0);
   const [walletAddresses, setWalletAddresses] = useState<(string | null)[]>([]);
@@ -48,18 +48,17 @@ export default function AccountPage() {
   const [control, setControl] = useState<'balance' | 'address' | 'storage'>(() => search.get('view') == 'address' ? 'address' : search.get('view') == 'data' ? 'storage' : 'balance');
   const [finalizedTransactions, setFinalizedTransactions] = useState<{ transaction: any, receipt?: any, state?: SummaryState }[]>([]);
   const [mempoolTransactions, setMempoolTransactions] = useState<any[]>([]);
+  const [preattestations, setPreattestations] = useState<PreattestationRecord[]>([]);
   const [moreTransactions, setMoreTransactions] = useState(true);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [rpcError, setRpcError] = useState<string | null>(null);
-  useEffect(() => {
-    AppData.setTitle((control == 'address' ? 'Address of ' : control == 'storage' ? 'Data of ' : 'Balance of ') + UiUtil.toAddress(ownerAddress, 12));
-  }, [control, ownerAddress]);
-  useEffect(() => {
-    setControl(search.get('view') == 'address' ? 'address' : search.get('view') == 'data' ? 'storage' : 'balance');
-  }, [search]);
   const transactions = useMemo((): { transaction: any, receipt?: any, state?: SummaryState }[] => {
-    return [...mempoolTransactions.map((x) => ({ transaction: x })), ...finalizedTransactions];
-  }, [finalizedTransactions, mempoolTransactions]);
+    const known: Record<string, true> = {};
+    mempoolTransactions.forEach((x) => { if (x?.hash != null) known[x.hash] = true; });
+    finalizedTransactions.forEach((x) => { if (x.transaction?.hash != null) known[x.transaction.hash] = true; });
+    const pendingOffchain = preattestations.filter((x) => known[x.transaction_id] !== true).map((x) => ({ transaction: { hash: null, type: 'attestate', proof: { transaction_id: x.transaction_id } } }));
+    return [...pendingOffchain, ...mempoolTransactions.map((x) => ({ transaction: x })), ...finalizedTransactions];
+  }, [finalizedTransactions, mempoolTransactions, preattestations]);
   const filteredAddresses = useMemo((): any[] => {
     const routes = addresses.filter((x) => x.purpose == 'routing');
     const vaults = addresses.filter((x) => x.asset.chain == Chain.policy.TOKEN_NAME || x.purpose == 'bridge');
@@ -105,6 +104,26 @@ export default function AccountPage() {
     }
     return result;
   }, [allAssets, verifiedAssetsOnly]);
+  const significantMoney = useMemo((): [string, string] => {
+    const target = assets.find((x) => x.asset.id == new AssetId().id);
+    const money = UiUtil.toMoney(target ? target.asset : new AssetId(), target ? target.supply : new BigNumber(0));
+    const index = money.lastIndexOf(' ');
+    return index > 0 ? [money.substring(0, index), money.substring(index + 1)] : [money, 'TAN'];
+  }, [assets]);
+  const dayGroups = useMemo((): { day: number, label: string, entries: ActivityEntry[] }[] => {
+    const groups: { day: number, label: string, entries: ActivityEntry[] }[] = [];
+    transactions.forEach((item) => {
+      const timestamp = item.receipt?.block_time?.toNumber() || Date.now();
+      const day = new Date(timestamp).setHours(0, 0, 0, 0);
+      const label = day == new Date().setHours(0, 0, 0, 0) ? 'Today' : new Date(day).toLocaleDateString();
+      const last = groups[groups.length - 1];
+      if (last != null && last.day == day)
+        last.entries.push(item);
+      else
+        groups.push({ day, label, entries: [item] });
+    });
+    return groups;
+  }, [transactions]);
   const switchWallet = useCallback(async (index: number) => {
     const status = await AppData.switchWallet(index);
     if (status) {
@@ -148,6 +167,35 @@ export default function AccountPage() {
       return false;
     }
   }, [ownerAddress]);
+  const findMempoolPreattestations = useCallback(async () => {
+    try {
+      let addresses: string[] = [];
+      const bridgeAddresses = new Set<string>();
+      const networks = blockchains.length > 0 ? blockchains : (await RPC.getBlockchains()) || [];
+      (await RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count)))?.forEach((item: any) => {
+        if (item != null && typeof item == 'object' && ('addresses' in item) && Array.isArray(item.addresses)) {
+          const blockchain = networks.find((x: any) => x.chain == item.asset?.chain);
+          if (item.purpose == 'bridge' && blockchain?.routing_policy == 'account')
+            return;
+          if (item.purpose == 'bridge')
+            item.addresses.forEach((address: any) => { if (typeof address == 'string') bridgeAddresses.add(address); });
+          addresses = [...addresses, ...item.addresses];
+        }
+      });
+      const data = await RPC.getMempoolPreattestations(0, TRANSACTION_COUNT, { transactionIds: [], addresses: addresses.filter(x => typeof x == 'string'), memoAccounts: [ownerAddress] });
+      setPreattestations((Array.isArray(data) ? data.filter(isPreattestationRecord) : []).filter((record) => {
+        if (!record.inputs.some((entry) => typeof entry.link.address == 'string' && bridgeAddresses.has(entry.link.address)))
+          return true;
+        if (record.outputs.some((entry) => typeof entry.link.address == 'string' && bridgeAddresses.has(entry.link.address)))
+          return true;
+        if ((record.signers ?? []).some((signer) => bridgeAddresses.has(signer)))
+          return true;
+        return record.memo == ownerAddress;
+      }));
+    } catch {
+      setPreattestations([]);
+    }
+  }, [ownerAddress, blockchains]);
   const updateAccountData = useCallback(async () => {
     const tasks: Promise<any>[] = [];
     switch (control) {
@@ -241,6 +289,12 @@ export default function AccountPage() {
     }
     await Promise.all(tasks);
   }, [ownerAddress, control]);
+  useEffect(() => {
+    AppData.setTitle((control == 'address' ? 'Address of ' : control == 'storage' ? 'Data of ' : 'Balance of ') + UiUtil.toAddress(ownerAddress, 12));
+  }, [control, ownerAddress]);
+  useEffect(() => {
+    setControl(search.get('view') == 'address' ? 'address' : search.get('view') == 'data' ? 'storage' : 'balance');
+  }, [search]);
   useEffectAsync(async () => {
     if (!AppData.tip)
       await AppData.sync();
@@ -249,6 +303,7 @@ export default function AccountPage() {
     const tasks = nextState.ownerAddress != prevState.current.ownerAddress || nextState.nonce != prevState.current.nonce ? [
       updateAccountData(),
       findMempoolTransactions(),
+      findMempoolPreattestations(),
       findTransactions(true)
     ] : [updateAccountData()];
     prevState.current = nextState;
@@ -316,12 +371,6 @@ export default function AccountPage() {
     };
   }, [ownerAddress, ownerBaseAddress]);
 
-  const significantMoney = useMemo((): [string, string] => {
-    const target = assets.find((x) => x.asset.id == new AssetId().id);
-    const money = UiUtil.toMoney(target ? target.asset : new AssetId(), target ? target.supply : new BigNumber(0));
-    const index = money.lastIndexOf(' ');
-    return index > 0 ? [money.substring(0, index), money.substring(index + 1)] : [money, 'TAN'];
-  }, [assets]);
   const assetContext = (item: BalanceRecord): string => {
     if (item.asset.id == new AssetId().id)
       return 'Network token';
@@ -334,20 +383,6 @@ export default function AccountPage() {
       return '—';
     return Math.min(100, Math.round(item.balance.dividedBy(item.supply).toNumber() * 100)).toString() + '%';
   };
-  const dayGroups = useMemo((): { day: number, label: string, entries: ActivityEntry[] }[] => {
-    const groups: { day: number, label: string, entries: ActivityEntry[] }[] = [];
-    transactions.forEach((item) => {
-      const timestamp = item.receipt?.block_time?.toNumber() || Date.now();
-      const day = new Date(timestamp).setHours(0, 0, 0, 0);
-      const label = day == new Date().setHours(0, 0, 0, 0) ? 'Today' : new Date(day).toLocaleDateString();
-      const last = groups[groups.length - 1];
-      if (last != null && last.day == day)
-        last.entries.push(item);
-      else
-        groups.push({ day, label, entries: [item] });
-    });
-    return groups;
-  }, [transactions]);
 
   return (
     <Box>

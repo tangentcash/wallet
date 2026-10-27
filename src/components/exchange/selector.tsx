@@ -1,7 +1,7 @@
 import { mdiAlphabeticalVariant, mdiCancel, mdiConsole, mdiHistory, mdiMagnify, mdiPlus } from "@mdi/js";
 import { Box, Button, Dialog, Flex, Select, Text } from "@radix-ui/themes";
 import { ReactNode, useCallback, useEffect, useMemo, useState } from "react";
-import { AssetId } from "tangentsdk/algorithm";
+import { AssetId, Chain } from "tangentsdk/algorithm";
 import { UiUtil } from "tangentsdk/ui";
 import { Whitelist } from "tangentsdk/whitelist";
 import { Assetlist } from "tangentsdk/assetlist";
@@ -50,7 +50,8 @@ function TokenRow(props: { item: SelectorAsset, onSelect: (asset: AssetId) => vo
   );
 }
 
-export default function AssetSelector(props: { children: ReactNode, title?: string, value?: AssetId | null, onChange?: (asset: AssetId | null) => void, balances?: Balance[] }) {
+export default function AssetSelector(props: { children: ReactNode, title?: string, value?: AssetId | null, onChange?: (asset: AssetId | null) => void, balances?: Balance[], offchain?: boolean }) {
+  const offOk = useCallback((asset: AssetId) => !props.offchain || (asset.chain != null && asset.chain.toUpperCase() !== Chain.policy.TOKEN_NAME.toUpperCase()), [props.offchain]);
   const [launching, setLaunching] = useState(false);
   const [loading, setLoading] = useState<number | undefined>(undefined);
   const [policyIndex, setPolicyIndex] = useState<number | null>(null);
@@ -95,20 +96,20 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
       setLoading(window.setTimeout(async () => {
         try {
           const result = await Exchange.assetQuery(value);
-          setAssets(result.map((x) => ({ asset: x, contractAddress: Whitelist.contractAddressOf(x) })).sort(assetSort));
+          setAssets(result.map((x) => ({ asset: x, contractAddress: Whitelist.contractAddressOf(x) })).filter((v) => offOk(v.asset)).sort(assetSort));
         } catch { }
         setLoading(undefined);
       }, 150));
     } else {
       setLoading(undefined);
     }
-  }, [loading, props.balances]);
+  }, [loading, props.balances, offOk]);
   const balanceMatches = useMemo((): SelectorAsset[] => {
     if (!props.balances)
       return [];
     const target = query.trim().toLowerCase();
-    return props.balances.filter((v) => (!target.length || [UiUtil.toAssetSymbol(v.asset), v.asset.token, v.asset.chain, v.asset.handle, Assetlist.toName(v.asset, false)].filter(Boolean).join(' ').toLowerCase().includes(target)) && !added.some((a) => a.asset.id == v.asset.id)).map(toBalanceItem).sort(assetSort);
-  }, [props.balances, query, added]);
+    return props.balances.filter((v) => (!target.length || [UiUtil.toAssetSymbol(v.asset), v.asset.token, v.asset.chain, v.asset.handle, Assetlist.toName(v.asset, false)].filter(Boolean).join(' ').toLowerCase().includes(target)) && offOk(v.asset) && !added.some((a) => a.asset.id == v.asset.id)).map(toBalanceItem).sort(assetSort);
+  }, [props.balances, query, added, offOk]);
   const showSelected = props.value != null && selected != null && !balanceMatches.some((v) => v.asset.id == selected?.asset.id);
   const remoteMatches = useMemo((): SelectorAsset[] => {
     if (!props.balances)
@@ -117,7 +118,8 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
       return [];
     return assets.filter((v) => !balanceMatches.some((b) => b.asset.id == v.asset.id) && v.asset.id != selected?.asset.id && !added.some((a) => a.asset.id == v.asset.id));
   }, [props.balances, balanceMatches, selected, added, assets, query]);
-  const showHistory = !added.length && !balanceMatches.length && !remoteMatches.length && !showSelected && !loading && !query.trim().length && (!props.balances || !props.balances.length);
+  const historyItems = useMemo(() => history.filter((v) => offOk(v.asset)), [history, offOk]);
+  const showHistory = !added.length && !balanceMatches.length && !remoteMatches.length && !showSelected && !loading && !query.trim().length && (!props.balances || !props.balances.length) && historyItems.length > 0;
   const showEmpty = !added.length && !balanceMatches.length && !remoteMatches.length && !showSelected && !loading && query.trim().length > 0;
   const useAsset = useCallback((asset: AssetId | null) => {
     if (props.onChange)
@@ -218,7 +220,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
         showHistory &&
         <Box>
           <div className="menu-cap" style={{ padding: '14px 2px 4px' }}>Recent</div>
-          { history.map((item) => <TokenRow key={item.asset.id} item={item} onSelect={useAsset} trailing={<Icon path={mdiHistory} size={0.7} style={{ color: 'var(--text-3)', flex: 'none' }}></Icon>}></TokenRow>) }
+          { historyItems.map((item) => <TokenRow key={item.asset.id} item={item} onSelect={useAsset} trailing={<Icon path={mdiHistory} size={0.7} style={{ color: 'var(--text-3)', flex: 'none' }}></Icon>}></TokenRow>) }
         </Box>
       }
       {
@@ -283,7 +285,7 @@ export default function AssetSelector(props: { children: ReactNode, title?: stri
               </Button>
             </Flex>
             {
-              policy != null &&
+          policy != null && !props.offchain &&
               <Dialog.Close>
                 <Button variant="ghost" color="gray" style={{ marginTop: 10, height: 40, fontWeight: 650, width: '100%', maxWidth: '100%', boxSizing: 'border-box' }} onClick={() => useAsset(policy)}>
                   Or use native { UiUtil.toAssetSymbol(policy) }

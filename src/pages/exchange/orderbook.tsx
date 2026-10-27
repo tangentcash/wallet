@@ -2,10 +2,11 @@ import { Box, SegmentedControl, TextField, Tooltip } from "@radix-ui/themes";
 import { Link, useNavigate, useParams, useSearchParams } from "react-router";
 import { AppData } from "../../core/app";
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Exchange, AccountTier, AggregatedLevel, AggregatedLog, AggregatedPair, Market, MarketPolicy, Order, OrderCondition, OrderSide, Balance, Pool, Cursor, ExchangeField } from "../../core/exchange";
+import { Exchange, AccountTier, AggregatedLevel, AggregatedLog, AggregatedPair, Order, OrderCondition, OrderSide, Balance, Pool, Cursor, ExchangeField } from "../../core/exchange";
 import { useEffectAsync } from "../../core/react";
 import { CrosshairMode, PriceScaleMode } from "lightweight-charts";
 import { mdiAlert, mdiArrowDownBold, mdiArrowUpBold, mdiChartTimelineVariant, mdiCheckDecagram, mdiLayersMinus, mdiLayersPlus, mdiListBoxOutline } from "@mdi/js";
+import Icon from "@mdi/react";
 import { AlertBox, AlertType } from "../../components/alert";
 import { AssetId, LiquidityPool } from "tangentsdk/algorithm";
 import { Whitelist } from "tangentsdk/whitelist";
@@ -19,7 +20,6 @@ import { PoolView } from "../../components/exchange/pool";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import BigNumber from "bignumber.js";
 import OrderView from "../../components/exchange/order";
-import Icon from "@mdi/react";
 import Clock from "../../components/exchange/clock";
 import { Assetlist } from "tangentsdk/assetlist";
 import { toFancyMoney, toFancyValue } from "../../core/utils";
@@ -109,16 +109,6 @@ function reduceLevels(levels: (AggregatedGroupedLevel | AggregatedLevel)[], rang
   });
   return Object.values(groups);
 }
-function policyOf(market: Market | null): string {
-    switch (market ? market.marketPolicy.toNumber() : -1) {
-      case MarketPolicy.Spot:
-        return 'Spot';
-      case MarketPolicy.Margin:
-        return 'Margin';
-      default:
-        return 'Unknown';
-    }
-}
 function invertLevels(levels: AggregatedGroupedLevel[]): AggregatedGroupedLevel[] {
   return levels.filter((level) => level.price.gt(0)).map((level) => ({
     ids: [...level.ids],
@@ -163,9 +153,7 @@ function invertOrder(item: Order): Order {
   return {
     ...item,
     primaryAsset: item.secondaryAsset,
-    primaryAssetId: item.secondaryAssetId,
     secondaryAsset: item.primaryAsset,
-    secondaryAssetId: item.primaryAssetId,
     side: item.side == OrderSide.Buy ? OrderSide.Sell : OrderSide.Buy,
     price: rec(item.price),
     stopPrice: rec(item.stopPrice),
@@ -258,7 +246,7 @@ export default function OrderbookPage() {
   const [tiers, setTiers] = useState<AccountTier | null>(null);
   const [pair, setPair] = useState<AggregatedPair | null>(null);
   const [reversed, setReversed] = useState<boolean>(false);
-  const [market, setMarket] = useState<Market | null>(null);
+  const market = Exchange.dexContract();
   const [logs, setLogs] = useState<AggregatedLog[]>([]);
   const [moreLogs, setMoreLogs] = useState(true);
   const [_, setPolyAssets] = useState<{ primary: AssetId[], secondary: AssetId[] }>({ primary: [], secondary: [] });
@@ -394,14 +382,14 @@ export default function OrderbookPage() {
       setLogs(prev => ([...trades.sort((a, b) => a.time.getTime() - b.time.getTime()), ...prev]));
     }
   }, []);
-  const findLogs = useCallback(async (refresh?: boolean, marketId?: BigNumber, pairId?: BigNumber, view?: boolean) => {
-    if ((!orderbook?.marketId && !marketId) || (!pair?.id && !pairId))
+  const findLogs = useCallback(async (refresh?: boolean, pairId?: BigNumber, view?: boolean) => {
+    if (!pair?.id && !pairId)
       return false;
 
     try {
       const cursor = Cursor.offset(refresh ? 0 : logs.length);
       const page = Math.floor(cursor.offset / cursor.count);
-      const data = await Exchange.marketPairLogs({ marketId: orderbook?.marketId || marketId, pairId: pair?.id || pairId, page: page });
+      const data = await Exchange.marketPairLogs({ pairId: pair?.id || pairId, page: page });
       if (!Array.isArray(data) || !data.length) {
         if (refresh)
           setLogs([]);
@@ -420,24 +408,24 @@ export default function OrderbookPage() {
       setMoreLogs(false);
       return false;
     }
-  }, [orderbook?.marketId, pair?.id, logs, reversed]);
+  }, [pair?.id, logs, reversed]);
   useEffectAsync(async () => {
     setLoading(true);
     try {
-      if (!orderbook || !orderbook.marketId || !orderbook.primaryAsset || !orderbook.secondaryAsset)
+      if (!orderbook || !orderbook.primaryAsset || !orderbook.secondaryAsset)
         throw false;
       
       let result: AggregatedPair | null = null;
       Exchange.quiet = true;
       try {
-        result = await Exchange.marketPair(orderbook.marketId, orderbook.primaryAsset, orderbook.secondaryAsset, false);
+        result = await Exchange.marketPair(orderbook.primaryAsset, orderbook.secondaryAsset, false);
       } catch { }
       Exchange.quiet = false;
 
       let inverted = false;
       if (!result) {
         try {
-          result = await Exchange.marketPair(orderbook.marketId, orderbook.secondaryAsset, orderbook.primaryAsset, false);
+          result = await Exchange.marketPair(orderbook.secondaryAsset, orderbook.primaryAsset, false);
           inverted = result != null;
         } catch { }
       }
@@ -447,7 +435,6 @@ export default function OrderbookPage() {
       const realPair = result;
       setReversed(inverted);
       setPair(inverted ? invertPair(realPair) : realPair);
-      const marketId = orderbook.marketId;
       const viewPrimary = inverted ? realPair.secondaryAsset : realPair.primaryAsset;
       const viewSecondary = inverted ? realPair.primaryAsset : realPair.secondaryAsset;
       const updateAccount = async () => {
@@ -455,9 +442,9 @@ export default function OrderbookPage() {
         if (!account)
           return;
 
-        const ordersResult = Exchange.accountOrders({ marketId: marketId, pairId: realPair.id, address: account, active: true });
-        const poolsResults = Exchange.accountPools({ marketId: marketId, pairId: realPair.id, address: account, active: true });
-        const tiersResult = Exchange.accountTiers({ marketId: marketId, pairId: realPair.id, address: account });
+        const ordersResult = Exchange.accountOrders({ pairId: realPair.id, address: account, active: true });
+        const poolsResults = Exchange.accountPools({ pairId: realPair.id, address: account, active: true });
+        const tiersResult = Exchange.accountTiers({ pairId: realPair.id, address: account });
         const balancesResult = Exchange.accountBalances({ address: account });
         try {
           setOrders(await ordersResult || []);
@@ -482,15 +469,9 @@ export default function OrderbookPage() {
           });
         } catch { }
       };
-      const marketResult = Exchange.market(orderbook.marketId);
-      const levelsResult = Exchange.marketPairPriceLevels(orderbook.marketId, realPair.id, 128);
-      const assetsResult = Exchange.marketPairAssets(orderbook.marketId, realPair.id);
-      const logsResult = findLogs(true, orderbook.marketId, realPair.id, inverted);
-      try {
-        setMarket(await marketResult);
-      } catch (exception: any) {
-        AlertBox.open(AlertType.Error, 'Failed to fetch market data: ' + (exception.message || 'unknown error'));
-      }
+      const levelsResult = Exchange.marketPairPriceLevels(realPair.id, 128);
+      const assetsResult = Exchange.marketPairAssets(realPair.id);
+      const logsResult = findLogs(true, realPair.id, inverted);
 
       try {
         const marketLevels = await levelsResult;
@@ -605,7 +586,7 @@ export default function OrderbookPage() {
     ro.observe(el);
     window.addEventListener('resize', apply);
     return () => { ro.disconnect(); window.removeEventListener('resize', apply); };
-  }, [mobile, orderbook?.marketId?.toString()]);
+  }, [mobile]);
 
   const scrubStore = useMemo(() => createPriceScrubStore(), []);
   const symP = pair?.primaryAsset ? UiUtil.toAssetSymbol(pair.primaryAsset) : '?';
@@ -617,7 +598,7 @@ export default function OrderbookPage() {
   const change24Style = deltaDir > 0 ? { color: 'var(--lime)' } : (deltaDir < 0 ? { color: 'var(--down)' } : undefined);
   const nameP = pair?.primaryAsset ? Assetlist.toName(pair.primaryAsset).replace((pair.primaryAsset.chain || '') + ' ', '') : symP;
   const nameQ = pair?.secondaryAsset ? Assetlist.toName(pair.secondaryAsset).replace((pair.secondaryAsset.chain || '') + ' ', '') : symQ;
-  const lpApy = market && pair?.price.poolVolume?.gt(0) && pair?.price.poolLiquidity?.gt(0) ? Exchange.toAPY(pair.poolFeeRate || market.maxPoolFeeRate, pair.price.poolLiquidity, pair.price.poolVolume.dividedBy(180)) : new BigNumber(0);
+  const lpApy = market && pair?.price.poolVolume?.gt(0) && pair?.price.poolLiquidity?.gt(0) ? Exchange.toAPY(pair.poolFeeRate || market.parameters.maxPoolFeeRate, pair.price.poolLiquidity, pair.price.poolVolume.dividedBy(180)) : new BigNumber(0);
   const pxClose = pair?.price.close || new BigNumber(0);
   const pxRcv = balances.primary.price;
   const pxNow = pair?.primaryAsset != null ? (Exchange.priceOf(pair.primaryAsset).close || pxClose) : pxClose;
@@ -655,7 +636,7 @@ export default function OrderbookPage() {
       <div className="card" style={{ marginTop: 14 }}>
         <p className="about-text">
           <b>{ nameP }</b> trades against <b>{ nameQ }</b> in a fully on-chain order book.
-          Orders match inside the <b>{ policyOf(market) }</b> policy contract{
+          Orders match inside the <b>{ Exchange.marketPolicyOf(market) }</b> policy contract{
             whitelisted === true ? ', and the pair is verified against the token whitelist.' : (whitelisted === false ? ' — the pair is not whitelisted, trade carefully.' : '; pair verification is still being checked.')
           }
         </p>
@@ -670,11 +651,11 @@ export default function OrderbookPage() {
           <div className="dl-row"><span className="dl-k">Book liquidity</span><span className="dl-v num">{ toFancyMoney(pair?.secondaryAsset || null, pair?.price.totalLiquidity || new BigNumber(0)) }</span></div>
         </div>
         <div className="dl dl-rule">
-          <div className="dl-row"><span className="dl-k">Maker fee</span><span className="dl-v num">{ (market?.minMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.maxMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
-          <div className="dl-row"><span className="dl-k">Taker fee</span><span className="dl-v num">{ (market?.minTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.maxTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
-          <div className="dl-row"><span className="dl-k">Fee impact rule</span><span className="dl-v num">≥ { (market?.assetVolumeTarget || new BigNumber(0)).multipliedBy(100).toFixed(0) }% of { (market?.assetResetDays || new BigNumber(0)).toString() }d volume</span></div>
-          <div className="dl-row"><span className="dl-k">LP swap fee</span><span className="dl-v num">0.00% – { (market?.maxPoolFeeRate || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
-          <div className="dl-row"><span className="dl-k">LP exit fee</span><span className="dl-v num">{ (market?.poolExitFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
+          <div className="dl-row"><span className="dl-k">Maker fee</span><span className="dl-v num">{ (market?.parameters?.minMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.parameters?.maxMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
+          <div className="dl-row"><span className="dl-k">Taker fee</span><span className="dl-v num">{ (market?.parameters?.minTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.parameters?.maxTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
+          <div className="dl-row"><span className="dl-k">Fee impact rule</span><span className="dl-v num">≥ { (market?.parameters?.assetVolumeTarget || new BigNumber(0)).multipliedBy(100).toFixed(0) }% of { (market?.parameters?.assetResetDays || new BigNumber(0)).toString() }d volume</span></div>
+          <div className="dl-row"><span className="dl-k">LP swap fee</span><span className="dl-v num">0.00% – { (market?.parameters?.maxPoolFeeRate || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
+          <div className="dl-row"><span className="dl-k">LP exit fee</span><span className="dl-v num">{ (market?.parameters?.poolExitFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
           <div className="dl-row"><span className="dl-k">LP revenue</span><span className="dl-v num" style={{ color: 'var(--lime)' }}>{ lpApy.toFixed(2) }% APY</span></div>
         </div>
         <div className="tiny dim" style={{ marginTop: 12 }}>Policy account <Link className="router-link mono" style={{ fontSize: 12 }} to={ '/portfolio/' + (market?.account || '') + '?view=wallet' }>{ UiUtil.toAddress(market?.account || 'NULL', 6) }</Link></div>
@@ -703,12 +684,12 @@ export default function OrderbookPage() {
             <div><div className="k">Book liquidity</div><div className="v">{ toFancyMoney(pair?.secondaryAsset || null, pair?.price.totalLiquidity || new BigNumber(0)) }</div></div>
           </div>
           <div className="stat-grid dl-rule" style={{ marginTop: 14, paddingTop: 14 }}>
-            <div><div className="k">Maker fee</div><div className="v">{ (market?.minMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.maxMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</div></div>
-            <div><div className="k">Taker fee</div><div className="v">{ (market?.minTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.maxTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</div></div>
-            <div><div className="k">LP swap fee</div><div className="v">0.00% – { (market?.maxPoolFeeRate || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</div></div>
-            <div><div className="k">LP exit fee</div><div className="v">{ (market?.poolExitFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</div></div>
+            <div><div className="k">Maker fee</div><div className="v">{ (market?.parameters?.minMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.parameters?.maxMakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</div></div>
+            <div><div className="k">Taker fee</div><div className="v">{ (market?.parameters?.minTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }% – { (market?.parameters?.maxTakerFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</div></div>
+            <div><div className="k">LP swap fee</div><div className="v">0.00% – { (market?.parameters?.maxPoolFeeRate || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</div></div>
+            <div><div className="k">LP exit fee</div><div className="v">{ (market?.parameters?.poolExitFee || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</div></div>
             <div><div className="k">LP revenue</div><div className="v" style={{ color: 'var(--lime)' }}>{ lpApy.toFixed(2) }% APY</div></div>
-            <div><div className="k">Impact rule</div><div className="v">≥ { (market?.assetVolumeTarget || new BigNumber(0)).multipliedBy(100).toFixed(0) }% / { (market?.assetResetDays || new BigNumber(0)).toString() }d</div></div>
+            <div><div className="k">Impact rule</div><div className="v">≥ { (market?.parameters?.assetVolumeTarget || new BigNumber(0)).multipliedBy(100).toFixed(0) }% / { (market?.parameters?.assetResetDays || new BigNumber(0)).toString() }d</div></div>
           </div>
         </div>
         { walletCard }
@@ -719,7 +700,6 @@ export default function OrderbookPage() {
     <Box>
       <Maker
         path={makerPath}
-        marketId={orderbook?.marketId || new BigNumber(0)}
         pairId={pair?.id || new BigNumber(0)}
         primaryAsset={pair?.primaryAsset || new AssetId()}
         secondaryAsset={pair?.secondaryAsset || new AssetId()}

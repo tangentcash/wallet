@@ -1,3 +1,4 @@
+import { ByteUtil, Hashing, Signing } from "tangentsdk/algorithm";
 import { Ref } from "react";
 
 export type Family = 'evm' | 'solana' | 'tron';
@@ -54,11 +55,17 @@ export interface WcProps {
   ref?: Ref<WcContext>;
   onInit?: (acquire: () => void) => any;
   onConnect?: (address: string, tokens: { contractAddress: string, symbol: string }[] | null) => void | Promise<void>;
+  onAfterConnect?: (address: string, tokens: { contractAddress: string, symbol: string }[] | null) => any;
   onCacheLoad?: (key: string) => string | null | undefined | Promise<string | null | undefined>;
   onCacheStore?: (key: string, value: string) => void | Promise<boolean>;
   onStatusChange?: (status: WcStatus) => void;
   onSent?: (tx: WcTransaction) => void;
   onError?: (message: string) => void;
+}
+
+export function addressToMemo(address: string): string {
+    const raw = Signing.decodeAddress(address);
+    return raw ? ByteUtil.uint8ArrayToHexString(Uint8Array.from([...Hashing.hash256(raw.data).slice(20, 32), ...raw.data])) : '';
 }
 
 export function normalizeMemo(input: string): { hex: string | null; error: string | null } {

@@ -30,7 +30,7 @@ export type AccountAddressRecord = {
 export type TransferTarget = { to: string, value: BigNumber };
 
 export type TxRecord = {
-  hash: string;
+  hash: string | null;
   signature?: string;
   type: string | number | null;
   from?: string;
@@ -44,10 +44,12 @@ export type TxRecord = {
   args?: unknown;
   data?: string;
   error?: string | null;
-  proof?: { success: boolean };
+  proof?: { success: boolean, transaction_id?: string, block_id?: number | string, memo?: string | null };
+  commitments?: Record<string, string[]>;
   withdraw_hash?: string;
   route_hash?: string;
   setup_hash?: string;
+  action?: unknown,
   transactions?: unknown[];
 };
 
@@ -62,6 +64,32 @@ export type ReceiptRecord = {
 };
 
 export type ActivityEntry = { transaction: TxRecord, receipt?: ReceiptRecord, state?: SummaryState };
+
+export type PreattestationLink = {
+  hash: string | number | null;
+  public_key: string | null;
+  address: string | null;
+};
+
+export type PreattestationEntry = {
+  link: PreattestationLink;
+  transaction_id: string;
+  index: number | string;
+  value: BigNumber | number;
+  type: string;
+  tokens: unknown[];
+};
+
+export type PreattestationRecord = {
+  transaction_id: string;
+  block_id?: number | string;
+  memo?: string | null;
+  success: boolean;
+  inputs: PreattestationEntry[];
+  outputs: PreattestationEntry[];
+  signers?: string[];
+  confirmed_block_height?: number | string;
+};
 
 export type RewardRecord = { asset: AssetId, reward: BigNumber, block_number?: BigNumber };
 
