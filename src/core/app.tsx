@@ -27,7 +27,7 @@ const BlockPage = lazy(() => import("./../pages/block"));
 const TransactionPage = lazy(() => import("./../pages/transaction"));
 const ProgramPage = lazy(() => import("./../pages/program"));
 const InteractionPage = lazy(() => import("./../pages/interaction"));
-const PortfolioPage = lazy(() => import("../pages/exchange/portfolio"));
+const MarketsPage = lazy(() => import("../pages/exchange/markets"));
 const OrderbookPage = lazy(() => import("../pages/exchange/orderbook"));
 const SwapsPage = lazy(() => import("../pages/exchange/swaps"));
 
@@ -831,8 +831,8 @@ export function App() {
             <Route path="/restore" element={<RestorePage />} />
             <Route path="/app" element={<HypePage />} />
             <Route path="/legal" element={<LegalPage />} />
-            <Route path="/orderbook/:orderbook" element={<OrderbookPage />} />
-            <Route path="/portfolio/:account?" element={<PortfolioPage />} />
+            <Route path="/market/:orderbook" element={<OrderbookPage />} />
+            <Route path="/markets/:account?" element={<MarketsPage />} />
             <Route path="/swaps/:booking?" element={<SwapsPage />} />
             <Route path="*" element={<ErrorPage />} />
           </Routes>

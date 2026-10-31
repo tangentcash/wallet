@@ -253,7 +253,7 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
                 feeRate: ByteUtil.bigNumberToString(item.feeRate.multipliedBy(100)) + '%',
                 pool: true
               });
-              navigate(`/orderbook/${orderbook}?tab=pool`);
+              navigate(`/market/${orderbook}?tab=pool`);
             }}>
               Add liquidity using this LP
               <Icon path={mdiArrowRight} size={0.75}></Icon>
@@ -429,7 +429,7 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
     const timer = setTimeout(() => {
       Exchange.marketPaths(flex.unwanted, flex.wanted, swapInKey, '0.005').then((paths) => {
         if (seq == probeSeq.current)
-          setSwapOk(paths.length > 0);
+          setSwapOk(paths.some((path) => path.length > 0 && !path.some((leg) => leg.capped)));
       }, () => {
         if (seq == probeSeq.current)
           setSwapOk(false);
@@ -499,7 +499,7 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
               navigator.clipboard.writeText(item.delegatorAccount || 'NULL');
               AlertBox.open(AlertType.Info, 'Address copied!')
             }}>{ UiUtil.toAddress(item.delegatorAccount || 'NULL') }</span>
-            <Link className="dl-open router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
+            <Link className="dl-open router-link" to={'/markets/' + item.delegatorAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
             <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
             <div className="dl-row"><span className="dl-k">Secondary asset</span><span className="dl-v">{ Assetlist.toName(item.secondaryAsset) }</span></div>
             <div className="dl-row"><span className="dl-k">Your share</span><span className="dl-v">{ (item.share || new BigNumber(0)).multipliedBy(100).toFixed(2) }%</span></div>
@@ -572,9 +572,10 @@ export function DelegatedPoolView(props: { item: DelegatedPool, assets: Balance[
                     const swapIn = exit == 'primary' ? flex.withdrawSecondary : flex.withdrawPrimary;
                     if (swapIn.gt(0)) {
                       const paths = await Exchange.marketPaths(flex.unwanted, flex.wanted, swapIn, '0.005');
-                      if (!paths.length)
-                        throw new Error('No liquidity to swap ' + UiUtil.toAssetSymbol(flex.unwanted) + ' in this market');
-                      const path = paths.reduce((best, candidate) => candidate[candidate.length - 1].output.min.gt(best[best.length - 1].output.min) ? candidate : best, paths[0]);
+                      const usable = paths.filter((path) => !path.some((leg) => leg.capped));
+                      if (!usable.length)
+                        throw new Error('Not enough liquidity to swap ' + UiUtil.toAssetSymbol(flex.unwanted) + ' within slippage; the swap is all-or-none');
+                      const path = usable.reduce((best, candidate) => candidate[candidate.length - 1].output.min.gt(best[best.length - 1].output.min) ? candidate : best, usable[0]);
                       const legs = await Builder.swap({ tokenIn: flex.unwanted, tokenOut: flex.wanted, amountIn: swapIn.toString(), amountOut: '', slippage: '0.5', path: path, pays: { [flex.unwanted.id]: swapIn.toString() } });
                       legs[0].body.function = '>' + legs[0].body.function;
                       results.push(...legs);
@@ -663,7 +664,7 @@ export function PseudoDelegatedPoolView(props: { item: PseudoDelegatedPool, asse
               navigator.clipboard.writeText(item.delegatorAccount || 'NULL');
               AlertBox.open(AlertType.Info, 'Address copied!')
             }}>{ UiUtil.toAddress(item.delegatorAccount || 'NULL') }</span>
-            <Link className="dl-open router-link" to={'/portfolio/' + item.delegatorAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
+            <Link className="dl-open router-link" to={'/markets/' + item.delegatorAccount + '?view=wallet'}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
             <div className="dl-row"><span className="dl-k">Primary asset</span><span className="dl-v">{ Assetlist.toName(item.primaryAsset) }</span></div>
           </div>
           <Box my="4" className="dl-rule"></Box>

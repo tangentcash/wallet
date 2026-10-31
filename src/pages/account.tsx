@@ -14,10 +14,10 @@ import { useEffectAsync } from "../core/react";
 import { AssetImage } from "../components/asset-image";
 import { AssetName } from "../components/asset-name";
 import { AddressView } from "../components/address";
-import { TransactionView, isPreattestationRecord } from "../components/transaction";
-import AddressAvatar from "../components/avatar";
+import { TransactionView } from "../components/transaction";
 import type { ActivityEntry, BalanceRecord, PreattestationRecord, RewardRecord } from "../core/types";
 import { AppStorage, StorageField } from "../core/storage";
+import AddressAvatar from "../components/avatar";
 import BigNumber from "bignumber.js";
 import InfiniteScroll from 'react-infinite-scroll-component';
 import Icon from "@mdi/react";
@@ -169,29 +169,16 @@ export default function AccountPage() {
   }, [ownerAddress]);
   const findMempoolPreattestations = useCallback(async () => {
     try {
-      let addresses: string[] = [];
-      const bridgeAddresses = new Set<string>();
-      const networks = blockchains.length > 0 ? blockchains : (await RPC.getBlockchains()) || [];
+      const addresses = new Set<string>();
       (await RPC.fetchAll((offset, count) => RPC.getWitnessAccounts(ownerAddress, offset, count)))?.forEach((item: any) => {
         if (item != null && typeof item == 'object' && ('addresses' in item) && Array.isArray(item.addresses)) {
-          const blockchain = networks.find((x: any) => x.chain == item.asset?.chain);
-          if (item.purpose == 'bridge' && blockchain?.routing_policy == 'account')
-            return;
-          if (item.purpose == 'bridge')
-            item.addresses.forEach((address: any) => { if (typeof address == 'string') bridgeAddresses.add(address); });
-          addresses = [...addresses, ...item.addresses];
+          for (let i = 0; i < item.addresses.length; i++) {
+            addresses.add(item.addresses[i]);
+          }
         }
       });
-      const data = await RPC.getMempoolPreattestations(0, TRANSACTION_COUNT, { transactionIds: [], addresses: addresses.filter(x => typeof x == 'string'), memoAccounts: [ownerAddress] });
-      setPreattestations((Array.isArray(data) ? data.filter(isPreattestationRecord) : []).filter((record) => {
-        if (!record.inputs.some((entry) => typeof entry.link.address == 'string' && bridgeAddresses.has(entry.link.address)))
-          return true;
-        if (record.outputs.some((entry) => typeof entry.link.address == 'string' && bridgeAddresses.has(entry.link.address)))
-          return true;
-        if ((record.signers ?? []).some((signer) => bridgeAddresses.has(signer)))
-          return true;
-        return record.memo == ownerAddress;
-      }));
+      const data = await RPC.getMempoolPreattestations(0, TRANSACTION_COUNT, { transactionIds: [], addresses: [...addresses].filter(x => !!x), memoAccounts: [ownerAddress] });
+      setPreattestations(data);
     } catch {
       setPreattestations([]);
     }

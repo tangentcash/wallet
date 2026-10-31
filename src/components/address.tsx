@@ -20,7 +20,7 @@ function toAddressType(type: string): string {
       return 'Your Tangent address';
   }
 }
-function toAddressVariant(network: string | null, address: string): string {
+export function toAddressVariant(network: string | null, address: string): string {
   switch (network) {
     case 'SOL':
     case 'XLM':

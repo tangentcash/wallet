@@ -156,6 +156,7 @@ export type Booking = {
   status: string;
   expiresBlock: string | number;
   txHash: string;
+  depositId: string | null,
   depositHash: string | null;
   depositStatus: string | null;
   depositBlock: string | number | null;
@@ -270,7 +271,8 @@ export type RouterPath = {
     },
     side: OrderSide,
     input: { min: BigNumber, max: BigNumber },
-    output: { min: BigNumber, max: BigNumber }
+    output: { min: BigNumber, max: BigNumber },
+    capped: boolean
 }[];
 
 export type PriceDescriptors = Record<string, { whitelist: boolean, base: string | null, price: { open: BigNumber | null, close: BigNumber | null } }>;
@@ -666,6 +668,17 @@ export class Exchange {
   static async assetDescriptors(): Promise<BlockchainInfo[]> {
     const result = await this.fetch('cache', 'GET', `asset/descriptors`, { });
     return result;
+  }
+  static async marketMetrics(): Promise<{ assets: number, pairs: number, accounts: number, actions: number, quantity: BigNumber, volume: BigNumber }> {
+    const result = await this.fetch('no-cache', 'GET', `market/metrics`, { });
+    return {
+      assets: Number(result.assets),
+      pairs: Number(result.pairs),
+      accounts: Number(result.accounts),
+      actions: Number(result.actions),
+      quantity: new BigNumber(result.quantity),
+      volume: new BigNumber(result.volume)
+    };
   }
   static async marketOrder(orderId: number | string | BigNumber): Promise<Order> {
     const result = await this.fetch('no-cache', 'GET', `market/order`, { id: orderId.toString() });

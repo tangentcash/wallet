@@ -23,25 +23,25 @@ export function toTransactionLabel(transaction: any, type: string | null): strin
     case 'call':
       return transaction.function != null ? UiUtil.toFunctionName(transaction.function) : 'Execute contract';
     case 'rollup':
-      return 'Rollup' + (transaction.transactions?.length > 0 ? ' ' + transaction.transactions?.length + 'x' : '');
+      return 'Batch' + (transaction.transactions?.length > 0 ? ' ' + transaction.transactions?.length + 'x' : '');
     case 'route':
-      return transaction.routing_address ? 'Claim address' : 'Build vault';
+      return 'Claim address';
     case 'bind':
-      return 'New vault (legacy)';
+      return 'New address (legacy)';
     case 'imbind':
-      return 'New vault';
+      return 'New address';
     case 'rebind':
-      return 'Renew vault';
+      return 'Sweep validator';
     case 'setup':
       return 'Setup validator';
     case 'withdraw':
-      return 'Build vault transfer';
+      return `Queue ${transaction.asset?.chain || 'cross-chain'} transaction`;
     case 'broadcast':
-      return 'Relay vault transfer';
+      return `Send ${transaction.asset?.chain || 'cross-chain'} transaction`;
     case 'anticast':
-      return 'Reconcile vault transfer';
+      return `Reset ${transaction.asset?.chain || 'cross-chain'} transaction`;
     case 'attestate':
-      return 'Vault transfer';
+      return `${transaction.asset?.chain || 'Cross-chain'} transaction`;
     default:
       return 'Non-standard';
   }
@@ -212,7 +212,7 @@ export function TransactionInputFields(props: { transaction: any }) {
           navigator.clipboard.writeText(transaction.data);
           AlertBox.open(AlertType.Info, 'Program calldata copied!')
         }}>{ UiUtil.toAddress(transaction.data) }</span></span></div>
-        <div className="dl-row"><span className="dl-k">Calldata</span>
+        <div className="dl-row"><span className="dl-k">Arguments</span>
         <span className="dl-v"><span className="copyable" onClick={() => {
           const data: any = JSON.stringify(transaction.args, null, 2);
           navigator.clipboard.writeText(data);
@@ -222,8 +222,19 @@ export function TransactionInputFields(props: { transaction: any }) {
     }
     case 'call': {
       const flags = UiUtil.toFunctionFlags(transaction.function);
-      const origin = flags.pipelinePay ? transaction.function.substring(1) : transaction.function;
-      const method = origin.match(/[\(\)]/) != null ? origin : ('address_of(@' + origin + ')');
+      const origin = transaction.function.replace(/^[>@^]+/, '');
+      const emit = (type: string, completedBy: string, color: 'cyan' | 'orange') => ({
+        label: toTransactionLabel({}, type),
+        color: color,
+        tip: 'Call is includes a sub-transaction: ' + toTransactionLabel({}, completedBy)
+      });
+      const modifiers: { label: string, color?: 'cyan' | 'orange' | 'red', tip: string }[] = flags == null ?
+        [{ label: 'Invalid', color: 'red', tip: 'Conflicting or repeated modifiers in "' + transaction.function.match(/^[>@^]+/)?.[0] + '"' }] :
+        [
+          flags.pipelinePay ? { label: 'Pipeline pays', tip: 'Value is paid in fully or partially from account balance delta' } : null,
+          flags.requireRoute ? emit('route', 'route', 'cyan') : null,
+          flags.requireWithdraw ? emit('withdraw', 'broadcast', 'orange') : null
+        ].filter((mod) => mod != null) as { label: string, color?: 'cyan' | 'orange' | 'red', tip: string }[];
       const args = JSON.stringify(transaction.args);
       return (
         <div className="dl"><div className="dl-row"><span className="dl-k">Program</span>
@@ -232,12 +243,12 @@ export function TransactionInputFields(props: { transaction: any }) {
           AlertBox.open(AlertType.Info, 'Address copied!')
         }}>{ UiUtil.toAddress(transaction.callable) }</span>
         <Link className="dl-open router-link" to={'/account/' + transaction.callable}><Icon path={mdiOpenInNew} size={0.6}></Icon></Link></span></div>
-        <div className="dl-row"><span className="dl-k">Callable</span>
+        <div className="dl-row"><span className="dl-k">Function</span>
         <span className="dl-v"><span className="copyable" onClick={() => {
           navigator.clipboard.writeText(origin);
           AlertBox.open(AlertType.Info, 'Program function copied!')
-        }}>{ UiUtil.toAddress(method, 20) }</span></span></div>
-        <div className="dl-row"><span className="dl-k">Calldata</span>
+        }}>{ UiUtil.toAddress(origin, 20) }</span></span></div>
+        <div className="dl-row"><span className="dl-k">Arguments</span>
         <span className="dl-v"><span className="copyable" onClick={() => {
           navigator.clipboard.writeText(JSON.stringify(transaction.args, null, 2));
           AlertBox.open(AlertType.Info, 'Program arguments copied!')
@@ -247,10 +258,13 @@ export function TransactionInputFields(props: { transaction: any }) {
             <div className="dl-row" key={item.asset.id}><span className="dl-k">Value paid</span>
             <span className="dl-v">{ moneyNamed(item.asset, item.value) }</span></div>)
         }
-        <div className="dl-row"><span className="dl-k">Pay mode</span>
-        <span className="dl-v"><Tooltip content={flags.pipelinePay ? 'Value is paid in fully or partially from account balance delta' : 'Value is paid in full account balance directly'}>
-          <Badge>{ flags.pipelinePay ? 'Pipeline pays' : 'Account pays' }</Badge>
-        </Tooltip></span></div></div>
+        {
+          modifiers.length > 0 &&
+          <div className="dl-row"><span className="dl-k">Flags</span>
+          <span className="dl-v"><Flex gap="1" justify="end" wrap="wrap">{ modifiers.map((mod) =>
+            <Tooltip key={mod.label} content={mod.tip}><Badge color={mod.color}>{ mod.label }</Badge></Tooltip>) }</Flex></span></div>
+        }
+        </div>
       )
     }
     case 'rollup':

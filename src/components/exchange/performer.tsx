@@ -46,6 +46,9 @@ export class Builder {
             throw new Error('Not enough balance to build a swap');
         }
 
+        if (args.path.some((leg) => leg.capped))
+            throw new Error('Slippage is too tight for the full amount; the swap cannot execute completely');
+
         const market = Exchange.dexContract();
         if (!market || !market.account)
             throw new Error('DEX contract account cannot be found');

@@ -1,9 +1,11 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate, useParams } from 'react-router';
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { AssetId, ByteUtil, Chain, Hashing, Seckey, Signing, Uint256 } from 'tangentsdk/algorithm';
 import { Stream, Viewable } from 'tangentsdk/serialization';
 import { RPC } from 'tangentsdk/rpc';
 import { UiUtil } from 'tangentsdk/ui';
+import { Assetlist } from 'tangentsdk/assetlist';
+import { toAddressVariant } from '../../components/address';
 import { mdiAlertCircleOutline, mdiArrowRight, mdiCheck, mdiCheckDecagram, mdiClockOutline, mdiCloudUpload, mdiCog, mdiContentCopy, mdiContactlessPayment, mdiHistory, mdiLockOutline, mdiOpenInNew, mdiPlus, mdiProgressDownload, mdiStarFourPoints, mdiSwapVertical } from '@mdi/js';
 import { Button, Dialog, Select, Text } from '@radix-ui/themes';
 import { AlertBox, AlertType } from '../../components/alert';
@@ -68,10 +70,11 @@ function netAfterFee(gross: string | null, feeLegs: SwapLeg[], feeRate: BigNumbe
 }
 
 type DepositDestination =
-  | { mode: 'address', to: string, chain: string | null, vault: boolean }
+  | { mode: 'address', to: string, chain: string | null, all?: string[] }
   | { mode: 'wc', network: WcAsset, to: string, memo: string, chain: string }
   | { mode: 'manual', to: string, memo: string, chain: string }
   | { mode: 'notice', text: string };
+
 
 class AmsKeyring {
   private static readonly storageKey = 'ams.keys';
@@ -235,12 +238,12 @@ async function unifiedSymbolOf(assetId: string): Promise<string> {
     return '';
   }
 }
-async function quoteSwapPath(inAsset: string, outAsset: AssetId, amountIn: string, slippage: string): Promise<{ legs: SwapLeg[], received: string | null }> {
+async function quoteSwapPath(inAsset: string, outAsset: AssetId, amountIn: string, slippage: string): Promise<{ legs: SwapLeg[], received: string | null, capped: boolean }> {
   const fraction = new BigNumber(slippage || '0').div(100).toFixed();
   const paths = await Exchange.marketPathsDirect(inAsset, outAsset.id, amountIn, fraction);
   const best = Array.isArray(paths) && paths.length > 0 ? paths[0] : null;
   if (best == null)
-    return { legs: [], received: null };
+    return { legs: [], received: null, capped: false };
 
   const legs: SwapLeg[] = (best as any[]).map((leg: any) => {
     const buying = Number(leg.side) == 0;
@@ -269,7 +272,7 @@ async function quoteSwapPath(inAsset: string, outAsset: AssetId, amountIn: strin
   }
 
   const lastGot = new BigNumber((best[(best as any[]).length - 1] as any).output?.max ?? (best[(best as any[]).length - 1] as any).output?.min ?? 0);
-  return { legs, received: legs.length > 0 ? lastGot.toFixed() : null };
+  return { legs, received: legs.length > 0 ? lastGot.toFixed() : null, capped: (best as any[]).some((leg: any) => leg.capped === true) };
 }
 const bridgeRowsCache: Record<string, { time: number, rows: any[] }> = { };
 async function selectBridge(target: AssetId, amountOut: BigNumber | null): Promise<Bridge> {
@@ -333,7 +336,7 @@ async function quoteFeeLeg(outAssetId: string, bridge: Bridge | null, received: 
   try {
     const first = await Exchange.marketPathsDirect(outAssetId, base, received, fraction);
     const firstPath = Array.isArray(first) && first.length > 0 ? first[0] as any[] : null;
-    if (firstPath == null || firstPath.length < 1)
+    if (firstPath == null || firstPath.length < 1 || (firstPath as any[]).some((leg: any) => leg.capped === true))
       return [];
 
     const firstIn = new BigNumber(firstPath[0]?.input?.max ?? 0);
@@ -343,7 +346,7 @@ async function quoteFeeLeg(outAssetId: string, bridge: Bridge | null, received: 
 
     const second = await Exchange.marketPathsDirect(outAssetId, base, fee.times(firstIn).div(firstOut).toFixed(), fraction);
     const path = Array.isArray(second) && second.length > 0 ? second[0] as any[] : null;
-    if (path == null || path.length < 1)
+    if (path == null || path.length < 1 || (path as any[]).some((leg: any) => leg.capped === true))
       return [];
 
     const legs: SwapLeg[] = (path as any[]).map((leg: any) => {
@@ -409,7 +412,7 @@ function SwapHistory() {
 
     busy.current = true;
     const keys = myKeys.current != null ? myKeys.current : (myKeys.current = await AmsKeyring.publicKeys());
-    const next = await Exchange.swapsHistory(page.current, mode == 'mine' ? keys : undefined, mode == 'all' ? ['finalized'] : undefined);
+    const next = await Exchange.swapsHistory(page.current, mode == 'mine' ? keys : undefined, mode == 'all' ? ['awaiting_execution', 'finalized'] : undefined);
     if (next.length < HISTORY_PAGE_SIZE)
       setMore(false);
 
@@ -471,7 +474,7 @@ function SwapHistory() {
           const pay = assetIdOf(row.asset);
           const out = row.outAsset != null ? assetIdOf(row.outAsset) : null;
           const fiat = fiatValue(equity, pay, row.amount);
-          return <div className="card ams-hist-row" key={row.id} onClick={() => setTimeout(() => navigate(`/swaps/${bookingQuery(pay, row.amount)}`), 100)}>
+          return <div className="card ams-hist-row" key={row.id} onClick={() => navigate(`/swaps/${bookingQuery(pay, row.amount)}`)}>
             <div className="ams-hist-icons">
               <AssetImage asset={new AssetId(pay)} size="2" style={{ width: 40, height: 40 }}></AssetImage>
               {out != null ? <span className="ams-hist-badge"><AssetImage asset={new AssetId(out)} size="1" style={{ width: 18, height: 18 }}></AssetImage></span> : null}
@@ -491,13 +494,29 @@ function NewSwap() {
   const navigate = useNavigate();
   const equity = useEquity();
   const [contract, setContract] = useState<{ account: string } | null>(null);
-  const [payAsset, setPayAsset] = useState<AssetId | null>(null);
-  const [receiveAsset, setReceiveAsset] = useState<AssetId | null>(null);
-  const [amountIn, setAmountIn] = useState('');
+  const [search] = useSearchParams();
+  const prefill = useMemo((): { pay: AssetId | null, recv: AssetId | null, amount: string } => {
+    const asset = (key: string): AssetId | null => {
+      const value = search.get(key);
+      if (value == null || value.length == 0)
+        return null;
+      try {
+        const parts = value.split(':');
+        return AssetId.fromHandle(parts[0], parts[1]);
+      } catch {
+        return null;
+      }
+    };
+    const amount = search.get('amount');
+    return { pay: asset('pay'), recv: asset('recv'), amount: amount != null && /^[0-9]*\.?[0-9]+$/.test(amount) ? amount : '' };
+  }, []);
+  const [payAsset, setPayAsset] = useState<AssetId | null>(prefill.pay);
+  const [receiveAsset, setReceiveAsset] = useState<AssetId | null>(prefill.recv);
+  const [amountIn, setAmountIn] = useState<string>(prefill.amount);
   const [slippage, setSlippage] = useState('0.50');
   const slippageOk = useMemo(() => /^\d*\.?\d+$/.test(slippage) && new BigNumber(slippage).gte(0), [slippage]);
   const [routing, setRouting] = useState('');
-  const [quote, setQuote] = useState<{ legs: SwapLeg[], feeLegs: SwapLeg[], received: string | null, error: string | null } | null>(null);
+  const [quote, setQuote] = useState<{ legs: SwapLeg[], feeLegs: SwapLeg[], received: string | null, capped: boolean, error: string | null } | null>(null);
   const [bridge, setBridge] = useState<Bridge | null>(null);
   const [quoting, setQuoting] = useState(false);
   const [booking, setBooking] = useState(false);
@@ -516,7 +535,7 @@ function NewSwap() {
   }, [quote, bridge?.feeRate]);
   const addressError = useMemo(() => routingError(destinationChain, routing), [destinationChain, routing]);
   const feeError = useMemo((): string | null => {
-    if (receiveAsset == null || quote == null || quote.received == null || bridge == null)
+    if (receiveAsset == null || quote == null || quote.received == null || bridge == null || quote.capped)
       return null;
 
     const base = baseOfAsset(receiveAsset.id);
@@ -525,7 +544,7 @@ function NewSwap() {
 
     return quote.feeLegs.length < 1 ? 'no market route to pay the bridge fee for this output' : null;
   }, [receiveAsset, quote, bridge]);
-  const ready = useMemo(() => contract != null && payAsset != null && receiveAsset != null && !sameAsset && new BigNumber(amountIn || '0').gt(0) && quote != null && quote.received != null && new BigNumber(netReceived ?? '0').gt(0) && routing.length > 0 && bridge != null && !quoting && feeError == null && addressError == null && !booking && slippageOk, [contract, payAsset, receiveAsset, sameAsset, amountIn, quote, netReceived, routing, bridge, quoting, feeError, addressError, booking, slippageOk]);
+  const ready = useMemo(() => contract != null && payAsset != null && receiveAsset != null && !sameAsset && new BigNumber(amountIn || '0').gt(0) && quote != null && quote.received != null && !quote.capped && new BigNumber(netReceived ?? '0').gt(0) && routing.length > 0 && bridge != null && !quoting && feeError == null && addressError == null && !booking && slippageOk, [contract, payAsset, receiveAsset, sameAsset, amountIn, quote, netReceived, routing, bridge, quoting, feeError, addressError, booking, slippageOk]);
   const submit = useCallback(async () => {
     if (contract == null || payAsset == null || receiveAsset == null || quote == null || quote.received == null)
       return;
@@ -572,18 +591,18 @@ function NewSwap() {
       return;
     }
 
-    await new Promise((resolve) => setTimeout(resolve, 400));
+    await new Promise((resolve) => setTimeout(resolve, 500));
     if (run != quoteRun.current)
       return;
 
     setQuoting(true);
     try {
-      const { legs, received } = await quoteSwapPath(payAsset.id, receiveAsset, amountIn, slippage);
+      const { legs, received, capped } = await quoteSwapPath(payAsset.id, receiveAsset, amountIn, slippage);
       if (run == quoteRun.current)
-        setQuote({ legs, feeLegs: [], received, error: legs.length > 0 ? null : 'no route between these assets' });
+        setQuote({ legs, feeLegs: [], received, capped, error: legs.length > 0 ? null : 'no route between these assets' });
     } catch (exception: any) {
       if (run == quoteRun.current)
-        setQuote({ legs: [], feeLegs: [], received: null, error: exception?.message ?? 'quote failed' });
+        setQuote({ legs: [], feeLegs: [], received: null, capped: false, error: exception?.message ?? 'quote failed' });
     }
 
     if (run == quoteRun.current)
@@ -672,10 +691,14 @@ function NewSwap() {
     {feeError != null ? <div className="ams-error">{feeError}</div> : null}
     {error != null ? <div className="ams-error">{error}</div> : null}
     <Button className="btn-brand btn-cta btn-block" color="jade" style={{ marginTop: 12 }} disabled={!ready} onClick={submit}>
-      {booking ? 'Booking…' : 'Book swap'}
+      { booking ? 'Booking…' : payAsset != null && receiveAsset != null ? `Swap ${payAsset.token || payAsset.chain} to ${receiveAsset.token || receiveAsset.chain}` : 'Swap tokens' }
     </Button>
     {quote?.received != null && !quoting && new BigNumber(amountIn || '0').gt(0) && payAsset != null && receiveAsset != null ? <div className="ams-fee-line" style={{ marginTop: 12 }}>1 {payAsset.token || payAsset.chain} ≈ {toFancyMoney(null, new BigNumber(quote.received).div(amountIn))} {receiveAsset.token || receiveAsset.chain}{bridge != null ? <span className="dim tiny"> · {toFancyMoney(null, bridge.feeRate)} {baseSymbol} gas fee{fiatValue(equity, baseAsset, bridge.feeRate) != null ? ` (${fiatValue(equity, baseAsset, bridge.feeRate)})` : ''}</span> : null}</div> : null}
   </div>
+    {quote?.capped === true && new BigNumber(amountIn || '0').gt(0) ? <div className="callout err" style={{ width: '100%', marginTop: 16, marginBottom: 16 }}>
+      <Icon path={mdiAlertCircleOutline} size={1}></Icon>
+      <span><b>Cannot route the full amount.</b> Only part of it is fillable within the slippage limit and available liquidity — atomic swaps are all-or-none and will not execute. Lower the amount or raise max slippage.</span>
+    </div> : null}
     <SwapHistory />
   </div>;
 }
@@ -720,6 +743,7 @@ function DepositCard({ booking, contract, status }: { booking: Booking, contract
     }
   }, [submitTick, wcToken]);
   const [fallback, setFallback] = useState(false);
+  const [addressIndex, setAddressIndex] = useState(0);
   const destRun = useRef(0);
   const asset = useMemo(() => assetIdOf(booking.asset), [booking.asset]);
   const chain = useMemo((): string => {
@@ -737,8 +761,9 @@ function DepositCard({ booking, contract, status }: { booking: Booking, contract
     const run = ++destRun.current;
     setDestination(null);
     setFallback(false);
+    setAddressIndex(0);
     if (chain.length < 1) {
-      setDestination({ mode: 'address', to: contract, chain: null, vault: false });
+      setDestination({ mode: 'address', to: contract, chain: null });
       return;
     }
 
@@ -782,16 +807,23 @@ function DepositCard({ booking, contract, status }: { booking: Booking, contract
       const network: WcAsset | null = ({ ETH: 'ETH', SOL: 'SOL', SOLANA: 'SOL', TRX: 'TRX', TRON: 'TRX' } as Record<string, WcAsset>)[chain.toUpperCase()] ?? null;
       setDestination(network != null ? { mode: 'wc', network, to: master, memo: addressToMemo(contract), chain } : { mode: 'manual', to: master, memo: addressToMemo(contract), chain });
     } else {
-      let witness: string | null = null;
+      let witnesses: string[] = [];
       try {
         const rows = await RPC.getWitnessAccounts(contract, 0, 64) || [];
-        const match = rows.find((row: any) => row?.asset?.chain === chain && (row?.purpose == null || row.purpose == 'routing') && Array.isArray(row.addresses) && row.addresses.length > 0);
-        witness = match != null ? String(match.addresses[0]) : null;
+        for (const row of rows) {
+          if (row?.asset?.chain === chain && row?.purpose === 'bridge' && Array.isArray(row.addresses)) {
+            for (const address of row.addresses) {
+              const value = String(address);
+              if (value.length > 0 && !witnesses.includes(value))
+                witnesses.push(value);
+            }
+          }
+        }
       } catch { }
       if (run != destRun.current)
         return;
 
-      setDestination(witness != null ? { mode: 'address', to: witness, chain, vault: true } : { mode: 'address', to: contract, chain: null, vault: false });
+      setDestination(witnesses.length > 0 ? { mode: 'address', to: witnesses[0], chain, all: witnesses } : { mode: 'address', to: contract, chain: null });
     }
   }, [chain, contract, asset]);
 
@@ -801,15 +833,13 @@ function DepositCard({ booking, contract, status }: { booking: Booking, contract
     return <div className="ams-notice ams-inner">{destination.text}</div>;
 
   const seen = (status ?? booking.status) == 'finalizing_deposit' || booking.depositStatus == 'pending';
-  const rolledBack = booking.depositHash != null && booking.depositStatus == null && (status ?? booking.status) != 'finalizing_deposit';
   const depositStatusLine = () => {
-    if (seen && booking.depositHash != null)
-      return <div className="ams-pulse on"><span>Confirming your payment {hashRef(booking.depositHash)}</span></div>;
-    if (rolledBack)
-      return <div className="ams-pulse">Payment was reorganized out — send again if it never returns</div>;
+    const depositEvidence = booking.depositId ?? booking.depositHash;
+    if (seen && depositEvidence != null)
+      return <div className="ams-pulse on"><span>Confirming payment {hashRef(depositEvidence)} — awaiting more confirmations</span></div>;
     if (seen)
-      return <div className="ams-pulse on">Payment received, awaiting confirmations</div>;
-    return <div className="ams-pulse warn">Watching for your payment…</div>;
+      return <div className="ams-pulse on">Payment seen, awaiting more confirmations</div>;
+    return <div className="ams-pulse warn">Watching for your payment — it registers once included in a block (1 confirmation)</div>;
   };
   const bottomLine = <div>{depositStatusLine()}</div>;
   const fiat = fiatValue(equity, asset, booking.amount);
@@ -835,19 +865,17 @@ function DepositCard({ booking, contract, status }: { booking: Booking, contract
       {body}
     </button> : <div className="ams-pay-field">{body}</div>;
   };
-  const fallbackable = (status ?? booking.status) == 'awaiting_deposit' && (destination.mode == 'wc' || destination.mode == 'manual');
+  const fallbackable = (status ?? booking.status) == 'awaiting_deposit' && destination.to !== contract;
   const fb = fallback && fallbackable;
-  const overline = fb
-    ? <>on-chain TAN payment</>
-    : destination.mode == 'address'
-      ? <>pay exactly once</>
-      : <>pay from your {destination.chain} wallet</>;
-  const modeToggle = fallbackable ? <button className={'ams-pay-mode' + (fb ? ' on' : '')} aria-label={fb ? 'Switch to standard payment' : 'Switch to on-chain fallback payment'} title={fb ? 'Switch to standard payment' : 'Pay on-chain to the swap contract instead'} onClick={() => setFallback(!fallback)}>
-    <Icon path={mdiSwapVertical} size={0.8}></Icon>{fb ? 'Pay off-chain' : 'Pay on-chain'}
-  </button> : null;
+  const variants = destination.mode == 'address' ? destination.all ?? [destination.to] : [destination.to];
+  const selectedIndex = Math.min(addressIndex, variants.length - 1);
+  const currentTo = fb ? contract : variants[selectedIndex];
+  const variantChain = destination.mode == 'wc' || destination.mode == 'manual' ? String(destination.chain) : chain;
+  const variantLabels = variants.map((value) => `${Assetlist.toName(AssetId.fromHandle(variantChain), true)} payment · ${toAddressVariant(variantChain, value)}`);
+  const contractLabel = 'Tangent payment · P2PKH';
   const finalizing = (status ?? booking.status) == 'finalizing_deposit';
   const paySquare = fb || destination.mode != 'wc' ? <div className={'ams-qr' + (finalizing ? ' dim' : '')}>
-    <QRCode value={fb ? `pay?to=${contract}&asset=${asset}&amount=${booking.amount}` : destination.mode == 'address' ? `pay?to=${destination.to}&asset=${asset}&amount=${booking.amount}` : destination.to} size={140} bgColor="transparent" fgColor="currentColor" />
+    <QRCode value={fb ? `pay?to=${contract}&asset=${asset}&amount=${booking.amount}` : destination.mode == 'address' ? `pay?to=${currentTo}&asset=${asset}&amount=${booking.amount}` : currentTo} size={140} bgColor="transparent" fgColor="currentColor" />
   </div> : <button className="ams-pay-connect" disabled={wcStatus != 'idle' || finalizing} onClick={() => adapter.current?.acquire()}>
     <TechQr seed={contract} />
     <Icon path={mdiContactlessPayment} size={1.9}></Icon><b>{finalizing ? 'Payment seen…' : wcStatus == 'sending' ? 'Sending…' : wcStatus == 'connecting' ? 'Connecting…' : 'Connect wallet'}</b>
@@ -856,18 +884,27 @@ function DepositCard({ booking, contract, status }: { booking: Booking, contract
     <div className="ams-pay-grid">
       {paySquare}
       <div className="ams-pay-main">
-        <div className="ams-pay-overline">{overline}</div>
+        <div className="ams-pay-overline">{fallbackable ? <Select.Root value={fb ? 'contract' : String(selectedIndex)} onValueChange={(value) => { if (value == 'contract') { setFallback(true); } else { setFallback(false); setAddressIndex(Number(value)); } }}>
+          <Select.Trigger className="ams-pay-overline-select" aria-label="Deposit option">{fb ? contractLabel : variantLabels[selectedIndex]}</Select.Trigger>
+          <Select.Content position="popper" side="bottom">
+            <Select.Group>
+              <Select.Label>Deposit option</Select.Label>
+              {variantLabels.map((label, index) => <Select.Item key={index} value={String(index)}>{label}</Select.Item>)}
+              <Select.Item value="contract">{contractLabel}</Select.Item>
+            </Select.Group>
+          </Select.Content>
+        </Select.Root> : fb ? <>on-chain TAN payment</> : destination.mode == 'address' ? <>pay exactly once</> : <>pay from your {destination.chain} wallet</>}</div>
         {amountLine}
-        {payField(fb ? 'Swap contract address' : destination.mode == 'address' ? (destination.vault ? 'Swap vault address' : 'Deposit address') : 'Pay to address', fb ? contract : destination.to, 'address', (fb || destination.mode != 'wc') && !finalizing)}
+        {payField(fb ? 'Swap contract address' : destination.mode == 'address' ? 'Deposit address' : 'Pay to address', currentTo, 'address', (fb || destination.mode != 'wc') && !finalizing)}
         {!fb && destination.mode == 'manual' ? payField('Memo · required', destination.memo, 'memo', true) : null}
       </div>
     </div>
-    <div className="ams-pay-status">{bottomLine}{modeToggle}</div>
+    <div className="ams-pay-status">{bottomLine}</div>
     {destination.mode == 'wc' && !fb ? <Suspense fallback={<></>}>
       <WcAdapter
         ref={adapter}
         network={destination.network}
-        to={destination.to}
+        to={currentTo}
         amount={booking.amount}
         memo={destination.memo}
         token={wcToken}
@@ -922,7 +959,7 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
   const initialized = useRef(false);
   const [outAsset, setOutAsset] = useState<AssetId | null>(null);
   const [slippage, setSlippage] = useState('0.50');
-  const [route, setRoute] = useState<{ legs: SwapLeg[], feeLegs: SwapLeg[], received: string | null, bridge: Bridge | null } | null>(null);
+  const [route, setRoute] = useState<{ legs: SwapLeg[], feeLegs: SwapLeg[], received: string | null, bridge: Bridge | null, capped: boolean } | null>(null);
   const [requoting, setRequoting] = useState(false);
   const [routeError, setRouteError] = useState<string | null>(null);
   const routeRun = useRef(0);
@@ -979,7 +1016,7 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
     }
   }, [booking, context, sequencer, routing, active]);
   const addressError = useMemo(() => routingError(outAsset?.chain, routing), [outAsset, routing]);
-  const noRoute = useMemo(() => routeError != null || (modified && route == null), [routeError, modified, route]);
+  const noRoute = useMemo(() => routeError != null || (modified && route == null) || route?.capped === true, [routeError, modified, route]);
   const needAddress = useMemo(() => routing.trim().length < 1, [routing]);
   const feeLeg = useMemo(() => active != null && active.feePath.length > 0 ? active.feePath[active.feePath.length - 1] : null, [active]);
   const feeAmount = useMemo(() => route?.bridge?.feeRate ?? null, [route]);
@@ -1021,12 +1058,14 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
       return preview.error ?? 'the spend transaction failed to simulate';
     if (routeError != null)
       return routeError;
+    if (route?.capped === true)
+      return 'Only part of the amount can be routed within slippage and available liquidity; lower the amount or raise max slippage to re-route';
     if (addressError != null)
       return addressError;
     if (feeTooBig)
       return 'the fees consume the entire payout — nothing would come back';
     return null;
-  }, [error, preview, routeError, addressError, feeTooBig]);
+  }, [error, preview, routeError, route, addressError, feeTooBig]);
   const confirmLabel = (): string => {
     if (context == null)
       return 'No control keys';
@@ -1044,12 +1083,16 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
       return 'Enter destination';
     if (addressError != null)
       return 'Invalid destination';
+    if (route?.capped === true)
+      return 'Slippage too tight';
     if (noRoute)
       return 'No route';
     if (feeTooBig)
       return 'Fee exceeds payout';
     return 'Confirm swap';
   };
+  const doneTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (doneTimer.current != null) clearTimeout(doneTimer.current); }, []);
   const sign = useCallback(async () => {
     if (message == null || context == null || sequencer == null || active == null)
       return;
@@ -1065,7 +1108,7 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
       const submission = await Exchange.swapsSpend(booking.depositHash ?? '', active.bridgeHash, routing, active.tokenPath, active.feePath, signMessage(message, context.seckey));
       await AmsKeyring.save({ ...context, bridgeHash: active.bridgeHash, tokenPath: active.tokenPath, feePath: active.feePath, routingAddress: routing });
       setPosted(submission.transaction ?? 'simulated');
-      setTimeout(() => onDone(), 1200);
+      doneTimer.current = window.setTimeout(() => onDone(), 1200);
     } catch (exception: any) {
       setError(exception?.message != null ? String(exception.message) : 'spend rejected');
     }
@@ -1115,7 +1158,7 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
       if (outAssetId == context.asset) {
         const reclaimBridge = await selectBridge(outAsset!, new BigNumber(booking.amount));
         if (run == routeRun.current)
-          setRoute({ legs: [], feeLegs: [], received: booking.amount, bridge: reclaimBridge });
+          setRoute({ legs: [], feeLegs: [], received: booking.amount, bridge: reclaimBridge, capped: false });
       } else {
         const quoted = await quoteSwapPath(context.asset, outAsset!, booking.amount, slippage);
         if (quoted.legs.length < 1) {
@@ -1140,7 +1183,7 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
         }
 
         if (run == routeRun.current)
-          setRoute({ legs: quoted.legs, feeLegs, received: quoted.received, bridge: newBridge });
+          setRoute({ legs: quoted.legs, feeLegs, received: quoted.received, bridge: newBridge, capped: quoted.capped });
       }
     } catch (exception: any) {
       if (run == routeRun.current)
@@ -1166,7 +1209,6 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
       return;
     
     try {
-      (window as any).__dbg = { message: ByteUtil.uint8ArrayToHexString(message), bridgeHash: active.bridgeHash, routing, tokenPath: active.tokenPath, feePath: active.feePath };
       const result = await Exchange.swapsPreview(booking.depositHash!, active.bridgeHash, routing, active.tokenPath, active.feePath, signMessage(message, context.seckey));
       if (run == previewRun.current)
         setPreview(result);
@@ -1214,6 +1256,8 @@ function Respend({ booking, context, sequencer, onDone }: {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [routing, setRouting] = useState(context?.routingAddress ?? '');
+  const doneTimer = useRef<number | null>(null);
+  useEffect(() => () => { if (doneTimer.current != null) clearTimeout(doneTimer.current); }, []);
   const outChain = useMemo((): string | null => {
     try {
       return new AssetId(String(booking.outAsset)).chain ?? null;
@@ -1240,7 +1284,7 @@ function Respend({ booking, context, sequencer, onDone }: {
       writeAddress(message, sequencer);
       message.writeString(routing);
       await Exchange.swapsRespend(booking.depositHash ?? '', booking.broadcastHash, context.bridgeHash, routing, signMessage(message.data, context.seckey));
-      setTimeout(() => onDone(), 1200);
+      doneTimer.current = window.setTimeout(() => onDone(), 1200);
     } catch (exception: any) {
       setError(exception?.message != null ? String(exception.message) : 'respend rejected');
     }
@@ -1314,7 +1358,6 @@ export default function SwapsPage() {
   const [viewStep, setViewStep] = useState<number | null>(null);
   const [execOut, setExecOut] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
-  const [, setTick] = useState(0);
   const contract = useRef<string | null>(null);
   const loadRun = useRef(0);
   const target = useMemo((): { asset: string, amount: string } | null => {
@@ -1331,7 +1374,6 @@ export default function SwapsPage() {
     return null;
   }, [params.booking]);
   const swapId = useMemo(() => booking != null ? `AMS-${booking.id}-${bookingQuery(assetIdOf(booking.asset), booking.amount).replace(/^0x/, '')}` : '', [booking]);
-  const live = useMemo(() => booking != null && booking.status != 'finalized' && booking.status != 'expired', [booking]);
   const outSymbol = useMemo((): string => {
     if (execOut != null)
       return execOut;
@@ -1483,13 +1525,6 @@ export default function SwapsPage() {
     };
   }, [refresh, asset, amount]);
   useEffect(() => {
-    if (!live)
-      return;
-
-    const timer = setInterval(() => setTick((v) => v + 1), 1000);
-    return () => clearInterval(timer);
-  }, [live]);
-  useEffect(() => {
     if (!loading) {
       setStale(false);
       return;
@@ -1545,7 +1580,7 @@ export default function SwapsPage() {
             {expiryBadge()}
             <span className="dim tiny mono">block {booking.expiresBlock}</span>
           </div>
-          <div className="dim tiny ams-stay">Stay here to keep the swap going</div>
+          <div className="dim tiny ams-stay">{status === 'finalizing_withdrawal' ? 'Funds were sent and will arrive shortly' : 'Stay here to keep the swap going'}</div>
         </> : null}
       </div>
       <div className={`ams-stepper ${expired ? 'ams-stepper-expired' : ''}`}>

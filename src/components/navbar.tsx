@@ -13,17 +13,28 @@ type Route = {
   disabled?: (path: string) => boolean
 };
 
-const types: Route[] = [
+const inclusions: Route[] = [
   { path: ['/', '/explorer', '/block', '/transaction', '/account', '/program'], name: 'Hub', tip: 'Account & Blockchain', icon: mdiSquareRoundedBadgeOutline },
-  { path: ['/portfolio', '/orderbook'], name: 'Dex', tip: 'Trade & Analyze', icon: mdiRulerSquareCompass, nested: true },
+  { path: ['/markets', '/market'], name: 'Dex', tip: 'Trade & Analyze', icon: mdiRulerSquareCompass, nested: true },
   { path: ['/interaction', '/restore'], name: 'Pay', tip: 'Pay & Interact', icon: mdiContactlessPaymentCircleOutline, disabled: (path: string) => path.startsWith('/restore') && !AppData.isWalletReady() },
   { path: ['/configure', '/legal', '/app'], name: 'App', tip: 'Info & Settings', icon: mdiDotsCircle }
-]
+];
+const exclusions: string[] = [
+  '/',
+  '/swaps'
+];
 
 export function Navbar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const routes = useMemo((): (Route & { selected: boolean, inner: boolean })[] => {
+  const routes = useMemo((): (Route & { selected: boolean, inner: boolean })[] | null => {
+    for (let i = 0; i < exclusions.length; i++) {
+      const exclusion = exclusions[i];
+      if (exclusion.length == 1 ? location.pathname == '/' && !AppData.isWalletExists() : location.pathname.startsWith(exclusion)) {
+        return null;
+      }
+    }
+
     const toLongestString = (x: string[]) => {
       let target = '';
       for (let i = 0; i < x.length; i++) {
@@ -32,7 +43,7 @@ export function Navbar() {
       }
       return target;
     };
-    const sortedSubtypes = [...types].sort((a, b) => {
+    const sortedSubtypes = [...inclusions].sort((a, b) => {
       if (a.path == '*')
         return Number.MAX_SAFE_INTEGER;
       else if (b.path == '*')
@@ -52,7 +63,7 @@ export function Navbar() {
       }
       return false;
     }) || sortedSubtypes[sortedSubtypes.length - 1]).path;
-    return types.map((item) => ({
+    return inclusions.map((item) => ({
       ...item,
       selected: item.path == selected,
       inner: item.path == selected ? (typeof item.path == 'string' || (item.path[0] == '/' ? location.pathname != '/' : !(item.nested ? item.path[0].startsWith(location.pathname) : location.pathname.startsWith(item.path[0])))) : false
@@ -60,7 +71,7 @@ export function Navbar() {
   }, [location.pathname]);
 
   AppData.state.setNavigation = navigate;
-  if (location.pathname.startsWith('/swaps'))
+  if (!routes)
     return <></>;
   
   return (

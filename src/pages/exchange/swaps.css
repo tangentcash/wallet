@@ -64,6 +64,13 @@
 .ams-pay-grid { display: flex; gap: 26px; align-items: center; width: fit-content; max-width: 100%; }
 .ams-pay-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 12px; }
 .ams-pay-overline { font: 800 10px var(--sans); letter-spacing: .11em; text-transform: uppercase; color: var(--text-3); }
+.ams-pay-overline-select { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 5px; width: fit-content; font: 800 10px var(--sans); letter-spacing: .11em; text-transform: none; color: var(--text-3); padding: 3px 8px; margin: -3px -8px; border-radius: 7px; transition: background .15s ease, color .15s ease, transform 130ms cubic-bezier(0.34, 1.8, 0.5, 1); }
+.ams-pay-overline-select:hover { color: var(--text-2); background: color-mix(in srgb, var(--text-3) 10%, transparent); box-shadow: none; outline: none; }
+.ams-pay-overline-select:active { transform: scale(0.95); transition: transform 70ms cubic-bezier(0.4, 0, 0.2, 1); }
+.ams-pay-overline-select:focus-visible { outline: 2px solid color-mix(in srgb, var(--accent) 70%, transparent); outline-offset: 2px; color: var(--text-2); box-shadow: none; }
+.ams-pay-overline-select[data-state="open"] { color: var(--text-2); background: color-mix(in srgb, var(--text-3) 16%, transparent); box-shadow: none; outline: none; }
+button.ams-pay-overline-select:where(:hover, :focus, :focus-visible, [data-state]) { -webkit-tap-highlight-color: transparent; }
+.ams-pay-overline-select svg { width: 9px; height: 9px; opacity: .7; }
 .ams-pay-hero { display: inline-flex; align-items: center; gap: 14px; cursor: pointer; user-select: none; width: fit-content; transition: transform 130ms cubic-bezier(0.34, 1.8, 0.5, 1); }
 .ams-pay-hero:active { transform: scale(0.95); transition: transform 70ms cubic-bezier(0.4, 0, 0.2, 1); }
 .ams-pay-amount { font-size: 38px; font-weight: 800; letter-spacing: -.02em; line-height: 1.05; color: var(--text); text-shadow: 0 0 42px color-mix(in srgb, var(--lime-9) 26%, transparent); overflow-wrap: anywhere; max-width: 100%; }
@@ -81,10 +88,6 @@
 .ams-pay-field-btn:hover .ams-pay-field-row { color: var(--text-2); }
 .ams-pay-field-value { min-width: 0; font-size: 14.5px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .ams-pay-status { display: flex; align-items: center; justify-content: center; gap: 10px; flex-wrap: wrap; }
-.ams-pay-mode { all: unset; box-sizing: border-box; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; height: 32px; padding: 7px 13px; border-radius: 999px; background: var(--card-2); color: var(--text-3); font: 700 12px/18px var(--sans); transition: background .15s ease, color .15s ease, transform 130ms cubic-bezier(0.34, 1.8, 0.5, 1); }
-.ams-pay-mode:hover { background: color-mix(in srgb, var(--text-3) 12%, var(--card-2)); color: var(--text-2); }
-.ams-pay-mode:active { transform: scale(0.95); transition: transform 70ms cubic-bezier(0.4, 0, 0.2, 1); }
-.ams-pay-mode.on { color: var(--text-2); background: color-mix(in srgb, var(--text-3) 18%, var(--card-2)); }
 .ams-stay { margin-top: 8px; opacity: .7; }
 .ams-pay-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 .ams-pay-actions > * { flex: 1; min-width: 160px; }

@@ -1,5 +1,5 @@
 import { Box, Button, Dialog, Flex, SegmentedControl, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { mdiArrowLeft, mdiArrowRight, mdiBankOutline, mdiChartTimelineVariant, mdiChevronDown, mdiContentCopy, mdiEyeOutline, mdiListBoxOutline, mdiLockOutline, mdiOpenInNew, mdiPlus, mdiRefresh, mdiSwapVertical, mdiWalletOutline } from "@mdi/js";
+import { mdiArrowLeft, mdiArrowRight, mdiBankOutline, mdiChartTimelineVariant, mdiChevronDown, mdiContentCopy, mdiEyeOutline, mdiListBoxOutline, mdiLockOutline, mdiPlus, mdiRefresh, mdiSwapVertical, mdiWalletOutline } from "@mdi/js";
 import Icon from "@mdi/react";
 import { AssetId, ByteUtil, Signing } from "tangentsdk/algorithm";
 import { UiUtil } from 'tangentsdk/ui';
@@ -592,6 +592,10 @@ function MarketRouter(props: {
   const slipNumeric = new BigNumber(state.slippage.replace('%', ''));
   return (
     <Box>
+      <div className="card-head" style={{ margin: '4px 2px 10px' }}>
+        <div className="card-title">Swap in wallet</div>
+        <Link to="/swaps" target="_blank" rel="noopener" className="settled-toggle" style={{ textDecoration: 'none' }}>Cross-chain swap<Icon path={mdiArrowRight} size={0.7}></Icon></Link>
+      </div>
       <div className="swap-box">
         <div className="swap-lab"><span>Pay · any token</span><span>Balance { toFancyMoney(props.pair.primary, swapInfo.balanceIn) }</span></div>
         <div className="swap-amt">
@@ -638,7 +642,7 @@ function MarketRouter(props: {
         </div>
         {
           bestPaths && bestPaths.length > 0 &&
-          <div className="tiny dim" style={{ marginTop: 10 }}>Routed across { bestPaths[0].length } book{ bestPaths[0].length > 1 ? 's' : '' }</div>
+          <div className={ 'tiny' + (bestPaths[0].some((leg) => leg.capped) ? ' warn' : ' dim') } style={{ marginTop: 10 }}>{ bestPaths[0].some((leg) => leg.capped) ? 'Only part of the amount is routable — this swap is all-or-none and cannot execute' : <>Routed across { bestPaths[0].length } book{ bestPaths[0].length > 1 ? 's' : '' }</> }</div>
         }
       </div>
       {
@@ -664,6 +668,7 @@ function MarketRouter(props: {
       {
         bestPaths?.map((path: RouterPath, pathIndex: number) => {
           const last = path[path.length - 1];
+          const capped = path.some((leg) => leg.capped);
           const type = convervative ? 'min' : 'max';
           const amountIn = swapInfo.priceIn?.gt(0) && swapInfo.amountIn.gt(0) ? swapInfo.amountIn.multipliedBy(swapInfo.priceIn) : null;
           const amountOut = swapInfo.priceOut?.gt(0) && last.output[type].gt(0) ? last.output[type].multipliedBy(swapInfo.priceOut) : null;
@@ -686,6 +691,10 @@ function MarketRouter(props: {
                   <button className={ 'pct' + (convervative ? ' hot' : '') } title="Quote from worst fills" onClick={() => setConservative(true)}>Min</button>
                 </span>
               </div>
+              {
+                capped &&
+                <div className="callout err" style={{ margin: '8px 2px 0' }}>Cannot fill the full amount within slippage and available liquidity — the swap will not execute. Lower the amount or raise max slippage.</div>
+              }
               <Box mt="2">
                 {
                   path.map((swap, swapIndex: number) =>
@@ -716,7 +725,7 @@ function MarketRouter(props: {
                   <span className="v" style={{ color: (amountOut || new BigNumber(0)).gte(amountIn || new BigNumber(0)) ? 'var(--lime)' : 'var(--down)' }}>{ amountIn && amountOut ? amountOut.minus(amountIn).dividedBy(amountIn).multipliedBy(100).toFixed(2) : '0.00' }%</span>
                 </div>
               </Box>
-              <PerformerButton name={ 'Swap ' + toChainAssetSymbol(props.pair.primary || new AssetId()) + ' → ' + toChainAssetSymbol(props.pair.secondary || new AssetId()) } className={ pathIndex == 0 ? 'btn-brand btn-cta' : undefined } title={ pathIndex == 0 ? 'Review swap' : 'Execute'} description={`Swap involves paying ${UiUtil.toAssetSymbol(props.pair.primary || new AssetId())} to smart contract and placing one or more market orders in a row to receive ${toChainAssetSymbol(props.pair.secondary || new AssetId())} as a result`} variant={ pathIndex == 0 ? undefined : 'soft'} color={pathIndex == 0 ? undefined : 'gray'} style={{ width: '100%', marginTop: 2 }} onBuild={async () => {
+              <PerformerButton disabled={ capped } name={ 'Swap ' + toChainAssetSymbol(props.pair.primary || new AssetId()) + ' → ' + toChainAssetSymbol(props.pair.secondary || new AssetId()) } className={ pathIndex == 0 ? 'btn-brand btn-cta' : undefined } title={ pathIndex == 0 ? 'Review swap' : 'Execute'} description={`Swap involves paying ${UiUtil.toAssetSymbol(props.pair.primary || new AssetId())} to smart contract and placing one or more market orders in a row to receive ${toChainAssetSymbol(props.pair.secondary || new AssetId())} as a result`} variant={ pathIndex == 0 ? undefined : 'soft'} color={pathIndex == 0 ? undefined : 'gray'} style={{ width: '100%', marginTop: 2 }} onBuild={async () => {
                 const pays: Record<string, string> = Exchange.toPayment(new BigNumber(swapInfo.amountIn), assetsIn);
                 const results = await Builder.swap({
                   ...state,
@@ -775,12 +784,6 @@ function MarketRouter(props: {
           <Flex px="4" pt="4" justify="center"><Text size="2" align="center" className="dim">Optimizing swap routes...</Text></Flex> :
           <button className="btn-block" disabled style={{ marginTop: 14, background: 'var(--elev)', color: 'var(--text-3)', border: 0, borderRadius: 'var(--r-md)', height: 48, fontWeight: 700, fontSize: 14, cursor: 'not-allowed', opacity: 0.6 }}>{ bestPaths ? 'No routes for the swap.' : 'Waiting for details' }</button>)
       }
-      <Flex justify="center" mt="8">
-        <Link to="/swaps" target="_blank" style={{ color: 'var(--text-3)', textDecoration: 'none' }}>
-          <Text mr="2">Try atomic swaps</Text>
-          <Icon path={mdiOpenInNew} size={0.6} style={{ transform: 'translateY(3px)' }}></Icon>
-        </Link>
-      </Flex>
     </Box>
   )
 }
@@ -1071,7 +1074,7 @@ function MarketExplorer(props: {
           <div className="pair-list">
             {
               pairsFilter.map((item) =>
-                <button className="pair-row" key={item.pair.id.toString() + ':' + item.pair.primaryAsset.id} onClick={() => navigate(`/orderbook/${Exchange.toOrderbookQuery(item.pair.primaryAsset, item.pair.secondaryAsset)}`)}>
+                <button className="pair-row" key={item.pair.id.toString() + ':' + item.pair.primaryAsset.id} onClick={() => navigate(`/market/${Exchange.toOrderbookQuery(item.pair.primaryAsset, item.pair.secondaryAsset)}`)}>
                   <span style={{ position: 'relative', width: 45, height: 45, flex: 'none' }}>
                     <AssetImage asset={item.pair.primaryAsset} size="3" iconSize="36px"></AssetImage>
                     <AssetImage asset={item.pair.secondaryAsset} size="1" iconSize="22px" style={{ position: 'absolute', bottom: 0, right: 0, border: '2px solid var(--card)', borderRadius: '50%' }}></AssetImage>
@@ -1508,7 +1511,7 @@ export default function PortfolioPage() {
                 </div>
                 <Button className="btn-brand btn-block" style={{ marginTop: 14, height: 46, borderRadius: 'var(--r-md)', fontWeight: 700, fontSize: 15 }} type="submit" disabled={!query.trim().length || !Signing.verifyAddress(query.trim())} onClick={(e) => {
                   e.preventDefault();
-                  navigate(`/portfolio/${query.trim()}?view=wallet`);
+                  navigate(`/markets/${query.trim()}?view=wallet`);
                   setSearching(false);
                 }}>Search</Button>
               </form>
