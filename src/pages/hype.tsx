@@ -99,8 +99,8 @@ function BookingWidget(props: { prices: Record<string, number> | null }) {
   return (
     <div className="bk" data-reveal>
       <div className="bk-head">
-        <b>Atomic swap</b>
-        <span className="bk-live"><span className="bk-pulse"></span>live rate</span>
+        <b>Cross-chain swap</b>
+        <span className="bk-live"><span className="bk-pulse"></span>live</span>
       </div>
       <div className="bk-row">
         <AssetSelector title="You pay" value={payAsset} onChange={setPayAsset} offchain>
@@ -251,9 +251,12 @@ export default function HypePage() {
             <Link to="/restore" className="sg-btn">{ AppData.isWalletExists() ? 'Back to app' : 'Create a wallet' }</Link>
             <Link to="/explorer" className="sg-btn ghost">Just look around</Link>
           </div>
-          <div style={{ marginTop: 'clamp(40px, 5.5vh, 56px)' }}>
-            <BookingWidget prices={prices}></BookingWidget>
-          </div>
+          {
+            Exchange.amsContract() &&
+            <div style={{ marginTop: 'clamp(40px, 5.5vh, 56px)' }}>
+              <BookingWidget prices={prices}></BookingWidget>
+            </div>
+          }
         </div>
       </section>
 

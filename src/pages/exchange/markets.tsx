@@ -189,7 +189,6 @@ function RepayableBalanceView(props: { item: Balance & { type: 'std' | 'wrapped'
     </>
   )
 }
-
 function StandardBalanceView(props: { item: Balance & { equity: { current: BigNumber | null, previous: BigNumber | null } }, available?: boolean }) {
   const item = props.item;
   const baseEquity = item.equity.current || item.equity.previous || new BigNumber(0);
@@ -212,7 +211,6 @@ function StandardBalanceView(props: { item: Balance & { equity: { current: BigNu
     </div>
   )
 }
-
 function WalletNavigator(props: {
   address: string | null,
   readOnly: boolean,
@@ -339,7 +337,6 @@ function WalletNavigator(props: {
     </Box>
   )
 }
-
 function WalletAssets(props: {
   assets: CachedBalance[],
   todayProfits: boolean,
@@ -376,7 +373,6 @@ function WalletAssets(props: {
     </Box>
   )
 }
-
 function MarketRouter(props: {
   assets: CachedBalance[],
   pair: { primary: AssetId | null, secondary: AssetId | null }
@@ -594,7 +590,10 @@ function MarketRouter(props: {
     <Box>
       <div className="card-head" style={{ margin: '4px 2px 10px' }}>
         <div className="card-title">Swap in wallet</div>
-        <Link to="/swaps" target="_blank" rel="noopener" className="settled-toggle" style={{ textDecoration: 'none' }}>Cross-chain swap<Icon path={mdiArrowRight} size={0.7}></Icon></Link>
+        {
+          Exchange.amsContract() &&
+          <Link to="/swaps" target="_blank" rel="noopener" className="settled-toggle" style={{ textDecoration: 'none' }}>Cross-chain swap<Icon path={mdiArrowRight} size={0.7}></Icon></Link>
+        }
       </div>
       <div className="swap-box">
         <div className="swap-lab"><span>Pay · any token</span><span>Balance { toFancyMoney(props.pair.primary, swapInfo.balanceIn) }</span></div>
@@ -937,7 +936,7 @@ function MarketExplorer(props: {
               close: reverse.price.close != null && reverse.price.close.gt(0) ? new BigNumber(1).dividedBy(reverse.price.close) : null
             }
           };
-                    const next = [{ pair: mock }, ...mockPairs.filter((entry) => entry.pair.primaryAsset.id != primary.id || entry.pair.secondaryAsset.id != secondary.id)];
+          const next = [{ pair: mock }, ...mockPairs.filter((entry) => entry.pair.primaryAsset.id != primary.id || entry.pair.secondaryAsset.id != secondary.id)];
           setMockPairs(next);
           persistMockPairs(next);
           setLoading(false);

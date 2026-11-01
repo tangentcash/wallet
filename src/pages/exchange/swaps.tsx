@@ -460,7 +460,8 @@ function SwapHistory() {
     if (blocksLeft <= 0)
       return '0m left';
 
-    return (blocksLeft >= 60 ? `${Math.floor(blocksLeft / 60)}h ${blocksLeft % 60}m` : `${blocksLeft}m`) + ' left';
+    const minutes = Math.floor((blocksLeft * Chain.policy.BLOCK_TIME / 1000) / 60);
+    return (minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`) + ' left';
   };
   return <div className="ams-hist">
     <div className="ams-hist-head"><Icon path={mdiHistory} size={0.8}></Icon>{mode == 'mine' ? 'My swaps' : 'Recent swaps'}<span className="ams-hist-switch"><button className={'ams-hist-seg' + (mode == 'all' ? ' on' : '')} onClick={() => setMode('all')}>All</button><button className={'ams-hist-seg' + (mode == 'mine' ? ' on' : '')} onClick={() => setMode('mine')}>Mine</button></span></div>
@@ -1249,9 +1250,9 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
     {rate != null && !reclaim ? <div className="ams-fee-line">1 {symbolOf(assetIdOf(booking.asset))} ≈ {toFancyMoney(null, rate)} {outLabel}{feeNative != null && !feeNative.isNaN() && feeNative.gt(0) ? <span className="dim tiny"> · {toFancyMoney(null, feeNative)} {feeNativeSymbol} gas fee{feeUsd != null && !feeUsd.isNaN() ? ` (USD ${toFancyMoney(null, feeUsd)})` : ''}</span> : null}</div> : null}
   </div>;
 }
-function Respend({ booking, context, sequencer, onDone }: {
+function Respend({ booking, context, sequencer, onDone, onError }: {
   booking: Booking, context: SigningContext | null, sequencer: string | null,
-  onDone: () => Promise<void> | void
+  onDone: () => Promise<void> | void, onError: (error: string | null) => void
 }) {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -1266,6 +1267,11 @@ function Respend({ booking, context, sequencer, onDone }: {
     }
   }, [booking.outAsset]);
   const addressError = useMemo(() => routingError(outChain, routing), [outChain, routing]);
+  const shownError = error ?? booking.relayError ?? addressError;
+  useEffect(() => {
+    onError(shownError);
+    return () => { onError(null); };
+  }, [shownError]);
   const retry = useCallback(async () => {
     if (context == null || sequencer == null || booking.broadcastHash == null || booking.outAsset == null)
       return;
@@ -1301,11 +1307,8 @@ function Respend({ booking, context, sequencer, onDone }: {
 
   return <div className="ams-inner ams-respend">
     <div className="ams-respend-head">Withdrawal attempt failed</div>
-    {booking.relayError != null ? <div className="ams-error">{booking.relayError}</div> : null}
-    {error != null ? <div className="ams-error">{error}</div> : null}
     <input className="ams-input mono" value={routing} placeholder={receiverPlaceholder(outChain)} onChange={(event) => setRouting(event.target.value.trim())} />
     <div className="dim tiny">You may correct the destination — the respend signature covers the new address.</div>
-    {addressError != null ? <div className="ams-error">{addressError}</div> : null}
     <Button className="btn-brand btn-cta btn-block" color="jade" disabled={context == null || submitting || addressError != null || booking.broadcastHash == null} onClick={retry}>{retryLabel()}</Button>
   </div>;
 }
@@ -1389,9 +1392,11 @@ export default function SwapsPage() {
     const blocksLeft = Number.isFinite(untilBlock) && tipBlock != null ? untilBlock - tipBlock : null;
     if (blocksLeft == null || blocksLeft <= 0)
       return { blocksLeft, text: null };
-    if (blocksLeft >= 60)
-      return { blocksLeft, text: `${Math.floor(blocksLeft / 60)}h ${blocksLeft % 60}m` };
-    return { blocksLeft, text: `${blocksLeft}m` };
+    
+    const minutes = Math.floor((blocksLeft * Chain.policy.BLOCK_TIME / 1000) / 60);
+    if (minutes >= 60)
+      return { blocksLeft, text: `${Math.floor(minutes / 60)}h ${minutes % 60}m` };
+    return { blocksLeft, text: `${minutes}m` };
   }, [booking, tipBlock]);
   const asset = target?.asset ?? '';
   const amount = target?.amount ?? '';
@@ -1628,7 +1633,7 @@ export default function SwapsPage() {
           <div className="ams-stage-title">Finalization</div>
           <div className="ams-stage-rows"><div className="dim tiny">runs automatically after your authorization</div></div>
         </div>
-        : status == 'failing_withdrawal' ? <Respend booking={booking} context={context} sequencer={sequencer} onDone={refresh} />
+        : status == 'failing_withdrawal' ? <Respend booking={booking} context={context} sequencer={sequencer} onDone={refresh} onError={setAuthError} />
           : status == 'finalized'
             ? <div className="ams-hero ams-stage ams-stage-done">
               <span className="ams-stage-ico"><Icon path={mdiCheckDecagram} size={1.4}></Icon></span>
@@ -1676,6 +1681,7 @@ export default function SwapsPage() {
           <input type="file" accept=".json,application/json" style={{ display: 'none' }} onChange={loadBackup} />
           Load control keys
         </label>}
+      <a className="ams-support" href="https://discord.gg/tangentcash" target="_blank" rel="noreferrer"><img src="/social/discord.svg" width={13} height={13} />Community &amp; Support</a>
     </div>
   </div></div>;
 }
