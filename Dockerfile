@@ -5,9 +5,11 @@ RUN apt-get update && apt-get install -y python3 python3-pip && pip install mkdo
 COPY ./ /home/make
 RUN yarn && yarn make && mkdocs build
 
-FROM nginx:1.30.4-alpine AS deployment
+FROM alpine:latest AS deployment
 WORKDIR /home
 COPY --from=build /home/make/dist /home/wallet
-RUN apk add nginx-mod-http-brotli
+RUN apk add --no-cache nginx nginx-mod-http-brotli
+RUN ln -sf /dev/stdout /var/log/nginx/access.log && ln -sf /dev/stderr /var/log/nginx/error.log
 EXPOSE 80
 EXPOSE 443
+CMD ["nginx", "-g", "daemon off;"]
