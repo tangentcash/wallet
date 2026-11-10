@@ -1,6 +1,6 @@
 import { mdiListStatus } from "@mdi/js";
 import { Box, Callout, Flex, Heading, Text } from "@radix-ui/themes";
-import Icon from "@mdi/react";
+import Icon from "../components/icon";
 import { useEffect } from "react";
 import { AppData } from "../core/app";
 

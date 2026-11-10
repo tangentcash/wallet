@@ -5,7 +5,7 @@ import { Exchange } from "../core/exchange";
 import { useEffectAsync } from "../core/react";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import BigNumber from "bignumber.js";
-import Icon from "@mdi/react";
+import Icon from "../components/icon";
 import { AssetId } from "tangentsdk/algorithm";
 import AssetSelector from "../components/exchange/selector";
 import { AssetImage } from "../components/asset-image";
@@ -99,7 +99,7 @@ function BookingWidget(props: { prices: Record<string, number> | null }) {
   return (
     <div className="bk" data-reveal>
       <div className="bk-head">
-        <b>Cross-chain swap</b>
+        <b>Cross-chain DEX</b>
         <span className="bk-live"><span className="bk-pulse"></span>live</span>
       </div>
       <div className="bk-row">

@@ -1,6 +1,6 @@
 import { Box, Button, Dialog, Flex, SegmentedControl, Select, Spinner, Text, TextField, Tooltip } from "@radix-ui/themes";
 import { mdiArrowLeft, mdiArrowRight, mdiBankOutline, mdiChartTimelineVariant, mdiChevronDown, mdiContentCopy, mdiEyeOutline, mdiListBoxOutline, mdiLockOutline, mdiPlus, mdiRefresh, mdiSwapVertical, mdiWalletOutline } from "@mdi/js";
-import Icon from "@mdi/react";
+import Icon from "../../components/icon";
 import { AssetId, ByteUtil, Signing } from "tangentsdk/algorithm";
 import { UiUtil } from 'tangentsdk/ui';
 import { Whitelist } from 'tangentsdk/whitelist';
@@ -589,10 +589,10 @@ function MarketRouter(props: {
   return (
     <Box>
       <div className="card-head" style={{ margin: '4px 2px 10px' }}>
-        <div className="card-title">Swap in wallet</div>
+        <div className="card-title">Simple DEX</div>
         {
           Exchange.amsContract() &&
-          <Link to="/swaps" target="_blank" rel="noopener" className="settled-toggle" style={{ textDecoration: 'none' }}>Cross-chain swap<Icon path={mdiArrowRight} size={0.7}></Icon></Link>
+          <Link to="/swaps" target="_blank" rel="noopener" className="settled-toggle" style={{ textDecoration: 'none' }}>Cross-chain DEX<Icon path={mdiArrowRight} size={0.7}></Icon></Link>
         }
       </div>
       <div className="swap-box">

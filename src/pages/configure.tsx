@@ -8,7 +8,7 @@ import { RPC } from "tangentsdk/rpc";
 import { UiUtil } from "tangentsdk/ui";
 import { Link, useNavigate } from "react-router";
 import { useEffectAsync } from "../core/react";
-import Icon from "@mdi/react";
+import Icon from "../components/icon";
 import License from "../components/license";
 import AddressAvatar from "../components/avatar";
 

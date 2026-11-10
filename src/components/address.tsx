@@ -5,7 +5,7 @@ import type { AssetId } from "tangentsdk/algorithm";
 import { useMemo, useState } from "react";
 import { AlertBox, AlertType } from "./alert";
 import { AssetImage } from "./asset-image";
-import Icon from "@mdi/react";
+import Icon from "./icon";
 import QRCode from "react-qr-code";
 
 function toAddressType(type: string): string {

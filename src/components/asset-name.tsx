@@ -5,7 +5,7 @@ import { UiUtil } from "tangentsdk/ui";
 import { Assetlist } from "tangentsdk/assetlist";
 import { Whitelist } from "tangentsdk/whitelist";
 import { CSSProperties } from "react";
-import Icon from "@mdi/react";
+import Icon from "./icon";
 
 export function AssetName(props: { asset?: AssetId, text?: string, size?: string, weight?: string, badgeSize?: number, badgeOffset?: number, symbol?: boolean, badge?: boolean, tokenOnly?: boolean, style?: CSSProperties }) {
   const size = (props.size || '3') as any;

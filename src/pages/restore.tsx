@@ -10,7 +10,7 @@ import { ByteUtil, Chain, Pubkeyhash, Signing } from "tangentsdk/algorithm";
 import { NetworkType, WalletType } from "tangentsdk/rpc";
 import { AppData } from "../core/app";
 import { UiUtil } from "tangentsdk/ui";
-import Icon from '@mdi/react';
+import Icon from '../components/icon';
 import './restore.css';
 
 // @ts-ignore

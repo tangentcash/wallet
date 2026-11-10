@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { AlertBox, AlertType } from "../alert";
 import { mdiArrowRight, mdiLayers, mdiOpenInNew, mdiWallet } from "@mdi/js";
-import Icon from "@mdi/react";
+import Icon from "../icon";
 import { AssetImage } from "../asset-image";
 import { PerformerButton, Builder, BuilderResult } from "./performer";
 import { defaultMakerState } from "./maker";
@@ -160,7 +160,8 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
 
   const renderFullPool = (open?: boolean) => (
     <Collapsible.Root open={open || expanded}>
-      <button type="button" className={ open ? undefined : 'card-expander' } onClick={ open ? undefined : () => setExpanded(!expanded) }>
+      { !open && (
+      <button type="button" className="card-expander" onClick={() => setExpanded(!expanded)}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <span style={{ position: 'relative', width: 42, height: 42, flex: 'none' }}>
             <AssetImage asset={item.primaryAsset} size="2" iconSize="42px"></AssetImage>
@@ -188,6 +189,7 @@ export function PoolView(props: { item: Pool, open?: boolean, flash?: boolean, r
           );
         })() }
       </button>
+      ) }
       {
         !props.readOnly && item.active &&
         <div style={{ display: 'flex', gap: 10, marginTop: 14, alignItems: 'center' }}>

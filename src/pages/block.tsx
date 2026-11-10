@@ -8,7 +8,7 @@ import { UiUtil, lerp } from "tangentsdk/ui";
 import { AssetId, Chain } from "tangentsdk/algorithm";
 import { RPC } from "tangentsdk/rpc";
 import { AppData } from "../core/app";
-import Icon from "@mdi/react";
+import Icon from "../components/icon";
 import BigNumber from "bignumber.js";
 
 export default function BlockPage() {

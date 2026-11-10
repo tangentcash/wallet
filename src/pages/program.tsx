@@ -6,7 +6,7 @@ import { mdiAlertCircleOutline, mdiContentCopy, mdiOpenInNew } from "@mdi/js";
 import { AlertBox, AlertType } from "../components/alert";
 import { RPC } from "tangentsdk/rpc";
 import { UiUtil } from "tangentsdk/ui";
-import Icon from "@mdi/react";
+import Icon from "../components/icon";
 import { AppData } from "../core/app";
 
 export default function ProgramPage() {

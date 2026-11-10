@@ -6,7 +6,7 @@ import { Exchange, AccountTier, AggregatedLevel, AggregatedLog, AggregatedPair, 
 import { useEffectAsync } from "../../core/react";
 import { CrosshairMode, PriceScaleMode } from "lightweight-charts";
 import { mdiAlert, mdiArrowDownBold, mdiArrowUpBold, mdiChartTimelineVariant, mdiCheckDecagram, mdiLayersMinus, mdiLayersPlus, mdiListBoxOutline } from "@mdi/js";
-import Icon from "@mdi/react";
+import Icon from "../../components/icon";
 import { AlertBox, AlertType } from "../../components/alert";
 import { AssetId, LiquidityPool } from "tangentsdk/algorithm";
 import { Whitelist } from "tangentsdk/whitelist";
@@ -449,10 +449,10 @@ export default function OrderbookPage() {
         try {
           setOrders(await ordersResult || []);
         } catch {  }
-
         try {
           setPools(await poolsResults || []);
         } catch {  }
+
 
         try {
           setTiers(await tiersResult);

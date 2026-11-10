@@ -10,7 +10,7 @@ import { mdiAccountCheckOutline, mdiAccountGroupOutline, mdiAccountKeyOutline, m
 import { AssetImage } from "./asset-image";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
-import Icon from "@mdi/react";
+import Icon from "./icon";
 import { secondsToDuration } from "../core/utils";
 import type { PreattestationEntry, PreattestationRecord, ReceiptRecord, TxRecord } from "../core/types";
 
@@ -529,6 +529,7 @@ export function TransactionInputFields(props: { transaction: any }) {
       for (let commitment in transaction.commitments ?? {})
         signatures += transaction.commitments[commitment].length;
 
+      console.log(transaction.proof);
       if (transaction.proof != null) {
         const from = (transaction.proof.inputs ?? []).map((item: any) => {
           return [{
@@ -538,7 +539,7 @@ export function TransactionInputFields(props: { transaction: any }) {
           }, ...(item.tokens ?? []).map((token: any) => {
             return {
               address: item.link.address || item.link.public_key || item.link.owner,
-              asset: token.asset ? token.asset : AssetId.fromHandle(transaction.asset.chain, token.symbol, token.contract_address),
+              asset: token.asset ? token.asset : AssetId.fromHandle((item.asset || transaction.asset).chain, token.symbol, token.contract_address),
               value: token.value
             };
           })]
@@ -551,7 +552,7 @@ export function TransactionInputFields(props: { transaction: any }) {
           }, ...(item.tokens ?? []).map((token: any) => {
             return {
               address: item.link.address || item.link.public_key || item.link.owner,
-              asset: token.asset ? token.asset : AssetId.fromHandle(transaction.asset.chain, token.symbol, token.contract_address),
+              asset: token.asset ? token.asset : AssetId.fromHandle((item.asset || transaction.asset).chain, token.symbol, token.contract_address),
               value: token.value
             };
           })]

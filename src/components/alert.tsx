@@ -3,7 +3,7 @@ import { mdiAlertCircleOutline, mdiClose, mdiInformationOutline } from '@mdi/js'
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { lerp } from "tangentsdk/ui";
-import Icon from '@mdi/react';
+import Icon from './icon';
 import './alert.css';
 
 const MIN_ALERT_TIME = 8000;

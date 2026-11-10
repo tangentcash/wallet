@@ -2,7 +2,7 @@ import { mdiContactlessPaymentCircleOutline, mdiDotsCircle, mdiRulerSquareCompas
 import { useLocation, useNavigate } from "react-router";
 import { AppData } from "../core/app";
 import { useMemo } from "react";
-import Icon from "@mdi/react";
+import Icon from "./icon";
 
 type Route = {
   path: string | string[],

@@ -11,7 +11,7 @@ import { AssetImage } from "../asset-image";
 import { AssetName } from "../asset-name";
 import { AppStorage } from "../../core/storage";
 import { toFancyMoney, toChainAssetSymbol } from "../../core/utils";
-import Icon from "@mdi/react";
+import Icon from "../icon";
 
 type SelectorAsset = { asset: AssetId, contractAddress: boolean | string, amount?: BigNumber };
 

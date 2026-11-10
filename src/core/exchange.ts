@@ -187,6 +187,38 @@ export type SwapPreview = {
   error: string | null
 }
 
+export type BridgeSelection = {
+  hash: string,
+  name: string,
+  chain: string,
+  feeRate: string,
+  supply: string | null,
+  master: string | null,
+  witnesses: string[],
+  routingPolicy: string | null,
+  simulated: boolean
+}
+
+export type RawRouterLeg = {
+  side: number,
+  capped?: boolean,
+  input?: { min?: string, max?: string },
+  output?: { min?: string, max?: string },
+  pair?: { primaryAsset?: { hash?: { id?: string } }, secondaryAsset?: { hash?: { id?: string } } }
+}
+
+export type BridgeQuote = BridgeSelection & {
+  path: RawRouterLeg[][] | null,
+  sendQuota: SendQuota,
+  sendFee: string
+}
+
+export type SendQuota = {
+  signature: string,
+  blockNumber: string,
+  feeRate: string
+}
+
 export type PseudoDelegatedPool = {
     pairId: BigNumber;
     delegatorAccount: string;
@@ -315,6 +347,7 @@ export class Exchange {
   static prices: PriceDescriptors = { };
   static contracts: Contract[] = [];
   static descriptors: BlockchainInfo[] = [];
+  static tip: number | null = null;
   static equityAsset: AssetId = AssetId.fromHandle('USD');
   static equityRate: BigNumber = new BigNumber(1);
   static orderbook:  string | null = null;
@@ -322,6 +355,9 @@ export class Exchange {
   static ready: boolean = false;
   static quiet: boolean = false;
   static channelId: string | null = null;
+  static channelLast: string[] | null = null;
+  static channelTimer: number | null = null;
+  static channelBackoff = 1_000;
   static awaitables: (() => void)[] = [];
   static requests = {
     pending: new Map<string, { resolve: PromiseCallback } >(),
@@ -389,6 +425,11 @@ export class Exchange {
     }
   }
   static dispatchEvent(type: string, notification: any) {
+    if (type == 'update:chain' && notification != null && notification.data != null) {
+      const tip = Number(notification.data.tip);
+      if (Number.isFinite(tip))
+        this.tip = tip;
+    }
     if (type == 'update:trade' && notification != null && notification.data != null && notification.data.secondaryBase == (this.equityAsset.token || this.equityAsset.chain)) {
       try {
         const asset = new AssetId(notification.data.primaryAsset.id);
@@ -576,6 +617,12 @@ export class Exchange {
   }
   static async channel(addresses: string[] | null): Promise<boolean> {
     if (addresses == null) {
+      if (this.channelTimer != null) {
+        window.clearTimeout(this.channelTimer);
+        this.channelTimer = null;
+      }
+      this.channelLast = null;
+      this.channelBackoff = 1_000;
       if (this.socket != null) {
           this.socket.onmessage = null;
         this.socket.onclose = null;
@@ -584,6 +631,7 @@ export class Exchange {
       }
       return true;
     }
+    this.channelLast = addresses;
 
     if (!this.socket) {
       try {
@@ -596,6 +644,7 @@ export class Exchange {
           RPC.onNodeMessage('erelay', { args: null, result: null }, 0);
         this.socket.onopen = null;
         this.socket.onerror = null;
+        this.channelBackoff = 1_000;
         this.socket.onmessage = (event) => {
           const message = event.data;
           if (!this.socket || typeof message != 'string')
@@ -628,9 +677,10 @@ export class Exchange {
             this.socket.close();
             this.socket = null;
           }
-          this.channel(addresses);
+          this.retryChannel();
         };
       } catch {
+        this.retryChannel();
         return false;
       }
     }
@@ -647,11 +697,29 @@ export class Exchange {
 
     return true;
   }
-  static async assets(base?: string): Promise<{ prices: PriceDescriptors, descriptors: BlockchainInfo[], contracts: Contract[], rate: BigNumber | null } | null> {
+  private static retryChannel(): void {
+    if (this.socket != null || this.channelTimer != null)
+      return;
+
+    const addresses = this.channelLast;
+    if (addresses == null || addresses.length < 1)
+      return;
+
+    const delay = this.channelBackoff;
+    this.channelBackoff = Math.min(this.channelBackoff * 2, 30_000);
+    this.channelTimer = window.setTimeout(() => {
+      this.channelTimer = null;
+      void this.channel(addresses);
+    }, delay);
+  }
+  static async assets(base?: string): Promise<{ prices: PriceDescriptors, descriptors: BlockchainInfo[], contracts: Contract[], tip: number | null, rate: BigNumber | null } | null> {
     const result = await this.fetch('no-cache-direct', 'GET', `assets`, { base: base });
     if (!result)
       return null;
 
+    const tip = Number(result.tip);
+    if (result.tip != null && Number.isFinite(tip))
+      this.tip = tip;
     if (Array.isArray(result.contracts))
       result.contracts = result.contracts.map((x: any) => this.toContract(x));
 
@@ -903,17 +971,25 @@ export class Exchange {
       return [ ];
     }
   }
+  static async swapsQuote(args: { assetOut: string, amount?: string, assetIn?: string, slippage?: string }): Promise<BridgeQuote | null> {
+    try {
+      const result = await this.fetch('no-cache', 'GET', 'swaps/quote', { assetOut: args.assetOut, amount: args.amount, assetIn: args.assetIn, slippage: args.slippage }, undefined, true);
+      return result != null && typeof result.hash == 'string' && Array.isArray(result.witnesses) ? result : null;
+    } catch {
+      return null;
+    }
+  }
   static async swapsBook(asset: string, amount: string, publicKey: string): Promise<{ transaction: string | null, amount?: string | null }> {
     return this.parseResponse(await this.fetch('no-cache', 'POST', 'swaps', { asset, amount, publicKey }));
   }
-  static async swapsPreview(depositHash: string, bridgeHash: string, routingAddress: string, tokenPath: SwapLeg[], feePath: SwapLeg[], signature: string): Promise<SwapPreview> {
-    return this.parseResponse(await this.fetch('no-cache', 'POST', 'swaps/preview', { depositHash, bridgeHash, routingAddress, tokenPath, feePath, signature }));
+  static async swapsPreview(depositHash: string, bridgeHash: string, routingAddress: string, tokenPath: SwapLeg[], feePath: SwapLeg[], feeQuote: SendQuota | null, signature: string): Promise<SwapPreview> {
+    return this.parseResponse(await this.fetch('no-cache', 'POST', 'swaps/preview', { depositHash, bridgeHash, routingAddress, tokenPath, feePath, feeQuote, signature }));
   }
-  static async swapsSpend(depositHash: string, bridgeHash: string, routingAddress: string, tokenPath: SwapLeg[], feePath: SwapLeg[], signature: string): Promise<{ transaction: string | null }> {
-    return this.parseResponse(await this.fetch('no-cache', 'POST', 'swaps/spend', { depositHash, bridgeHash, routingAddress, tokenPath, feePath, signature }));
+  static async swapsSpend(depositHash: string, bridgeHash: string, routingAddress: string, tokenPath: SwapLeg[], feePath: SwapLeg[], feeQuote: SendQuota | null, signature: string): Promise<{ transaction: string | null }> {
+    return this.parseResponse(await this.fetch('no-cache', 'POST', 'swaps/spend', { depositHash, bridgeHash, routingAddress, tokenPath, feePath, feeQuote, signature }));
   }
-  static async swapsRespend(depositHash: string, broadcastHash: string, bridgeHash: string, routingAddress: string, signature: string): Promise<{ transaction: string | null }> {
-    return this.parseResponse(await this.fetch('no-cache', 'POST', 'swaps/respend', { depositHash, broadcastHash, bridgeHash, routingAddress, signature }));
+  static async swapsRespend(depositHash: string, broadcastHash: string, bridgeHash: string, routingAddress: string, feeQuote: SendQuota | null, signature: string): Promise<{ transaction: string | null }> {
+    return this.parseResponse(await this.fetch('no-cache', 'POST', 'swaps/respend', { depositHash, broadcastHash, bridgeHash, routingAddress, feeQuote, signature }));
   }
   static getURL(): string {
     return AppData.props.exchange || '';

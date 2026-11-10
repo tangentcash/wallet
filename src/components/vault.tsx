@@ -15,7 +15,7 @@ import { mdiAlertCircleOutline, mdiClose, mdiInformationOutline, mdiPlus } from 
 import { addressToMemo, WcAsset, WcContext } from "./wc/types";
 import { BigStorage } from "../core/storage";
 import { TextUtil } from "tangentsdk/text";
-import Icon from "@mdi/react";
+import Icon from "./icon";
 import BigNumber from "bignumber.js";
 
 type ExtendedBlockchainInfo = AssetId & {

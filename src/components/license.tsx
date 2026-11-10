@@ -3,7 +3,7 @@ import { AppData } from "../core/app";
 import { mdiDownload, mdiEmail } from "@mdi/js";
 import { CSSProperties } from "react";
 import { Link } from "react-router";
-import Icon from "@mdi/react";
+import Icon from "./icon";
 import { AlertBox, AlertType } from "./alert";
 
 export default function License(props: { style?: CSSProperties, app?: boolean, title?: boolean, size?: number }) {

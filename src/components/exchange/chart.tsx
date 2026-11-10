@@ -11,7 +11,7 @@ import { Assetlist } from "tangentsdk/assetlist";
 import { AssetImage } from "../../components/asset-image";
 import Color from 'colorjs.io';
 import BigNumber from "bignumber.js";
-import Icon from "@mdi/react";
+import Icon from "../icon";
 import Clock from "./clock";
 import { toFancyMoney, toFancyValue } from "../../core/utils";
 

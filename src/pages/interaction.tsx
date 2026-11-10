@@ -16,7 +16,7 @@ import { AppStorage, StorageField } from "../core/storage";
 import { AssetImage } from "../components/asset-image";
 import { AssetName } from "../components/asset-name";
 import { TransactionView } from "../components/transaction";
-import Icon from "@mdi/react";
+import Icon from "../components/icon";
 import BigNumber from "bignumber.js";
 
 export class ProgramTransfer {

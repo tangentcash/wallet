@@ -9,7 +9,7 @@ import { AppData } from "../core/app";
 import { mdiAlertCircleOutline, mdiArrowLeftBoldCircleOutline } from "@mdi/js";
 import { TransactionView, isPreattestationRecord, toTransactionLabel } from "../components/transaction";
 import type { ReceiptRecord, TxRecord } from "../core/types";
-import Icon from "@mdi/react";
+import Icon from "../components/icon";
 import BigNumber from "bignumber.js";
 
 type TransactionTarget = { transaction: TxRecord, receipt?: ReceiptRecord | null, state?: SummaryState };

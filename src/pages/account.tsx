@@ -20,7 +20,7 @@ import { AppStorage, StorageField } from "../core/storage";
 import AddressAvatar from "../components/avatar";
 import BigNumber from "bignumber.js";
 import InfiniteScroll from 'react-infinite-scroll-component';
-import Icon from "@mdi/react";
+import Icon from "../components/icon";
 import Vault from "../components/vault";
 
 const TRANSACTION_COUNT = 16;

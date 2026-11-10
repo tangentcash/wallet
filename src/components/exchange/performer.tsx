@@ -12,7 +12,7 @@ import { Assetlist } from "tangentsdk/assetlist";
 import { SchemaUtil, Stream } from "tangentsdk/serialization";
 import { Transactions } from "tangentsdk/schema";
 import BigNumber from "bignumber.js";
-import Icon from "@mdi/react";
+import Icon from "../icon";
 import { toFancyMoney } from "../../core/utils";
 
 export type BuilderResult = {

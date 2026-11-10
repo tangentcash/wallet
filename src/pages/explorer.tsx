@@ -3,7 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertBox, AlertType } from "../components/alert";
 import { AppData, ASSET_INFORMATION, ExtendedField } from "../core/app";
-import { AssetId, Chain, Signing, Uint256 } from "tangentsdk/algorithm";
+import { AssetId, Chain, Signing } from "tangentsdk/algorithm";
 import { Assetlist } from "tangentsdk/assetlist";
 import { EventResolver, RPC, SummaryState } from "tangentsdk/rpc";
 import { UiUtil } from "tangentsdk/ui";
@@ -13,7 +13,7 @@ import { useEffectAsync } from "../core/react";
 import { TransactionView } from "../components/transaction";
 import { AssetImage } from "../components/asset-image";
 import { AssetName } from "../components/asset-name";
-import Icon from "@mdi/react";
+import Icon from "../components/icon";
 import InfiniteScroll from "react-infinite-scroll-component";
 import BigNumber from "bignumber.js";
 
@@ -62,35 +62,25 @@ export default function ExplorerPage() {
       setLoading(false);
       navigate(target);
     };
-    const value = subject.trim().toLowerCase();
+    const input = subject.trim();
+    const value = input.toLowerCase();
     const publicKeyHash = Signing.decodeAddress(value);
     if (publicKeyHash != null && publicKeyHash.data.length == 20) {
       return jump('/account/' + value);
     }
-  
-    const blockNumber = parseInt(value, 10);
-    if (!isNaN(blockNumber) && blockNumber > 0) {
+
+    if (/^\d+$/.test(value)) {
       return jump('/block/' + value);
     }
 
     try {
-      const hash = new Uint256(value, 16);
-      if (hash.toHex() != value && hash.toCompactHex() != value) {
-        throw false;
-      }
-    } catch {
-      AlertBox.open(AlertType.Error, 'Must be an address, a hash or a number');
-      return setLoading(false);
-    }
-    
-    try {
       const block = await RPC.getBlockByHash(value);
-      if (block != null) {     
+      if (block != null) {
         return jump('/block/' + value);
       }
     } catch { }
 
-    jump('/transaction/' + value);
+    jump('/transaction/' + input);
   }, [subject, loading]);
   const findBlocks = useCallback(async (refresh?: boolean) => {
     const tip = AppData.tip?.toNumber() || 0;
