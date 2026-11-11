@@ -1,23 +1,35 @@
 import { mdiArrowLeftRight, mdiCash, mdiCheck, mdiChevronRight, mdiCodeBraces, mdiLightningBoltOutline, mdiLogout, mdiOpenInNew, mdiPickaxe, mdiRocketLaunch, mdiSafe, mdiShieldCheck, mdiTune, mdiVoteOutline, mdiWeatherNight, mdiWeatherSunny } from "@mdi/js";
 import { Link, useNavigate } from "react-router";
 import { AppData } from "../core/app";
-import { Exchange } from "../core/exchange";
 import { useEffectAsync } from "../core/react";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { secondsToDuration } from "../core/utils";
+import { AssetId } from "tangentsdk/algorithm";
+import { AssetImage } from "../components/asset-image";
 import BigNumber from "bignumber.js";
 import Icon from "../components/icon";
-import { AssetId } from "tangentsdk/algorithm";
 import AssetSelector from "../components/exchange/selector";
-import { AssetImage } from "../components/asset-image";
 import License from "../components/license";
-import { secondsToDuration } from "../core/utils";
+import Mainnet from './../configs/mainnet.json';
 import './hype.css';
 
-
 type Metrics = { accounts: string, actions: string, quantity: string, volume: string };
+type MarketRow = { icon: string, quoteIcon: string, label: string, price: string, change: number, volume: BigNumber, liquidity: BigNumber };
 
-let cachedMetrics: Metrics | null | false = false;
-let cachedPrices: Record<string, number> | null | false = false;
+const genesisTimeDEX = new Date(1772732892203);
+const blockchains = [
+  ['ADA', 'Cardano'],
+  ['BTC', 'Bitcoin'],
+  ['ETH', 'Ethereum'],
+  ['SOL', 'Solana'],
+  ['TRX', 'Tron'],
+  ['XRP', 'Ripple'],
+  ['XLM', 'Stellar'],
+  ['BCH', 'Bitcoin Cash'],
+  ['LTC', 'Litecoin'],
+  ['DOGE', 'Dogecoin'],
+  ['XMR', 'Monero']
+].sort();
 
 function toNiceNumber(number: BigNumber): string {
   const stringify = (value: BigNumber) => value.integerValue().eq(value) ? value.toString() : value.toFixed(1);
@@ -43,25 +55,6 @@ function toNiceRate(rate: BigNumber): string {
     return rate.toFixed(rate.gte(100) ? 1 : 4);
   return parseFloat(rate.toPrecision(4)).toString();
 }
-
-const genesisTimeDEX = new Date(1772732892203);
-const blockchains = [
-  ['ADA', 'Cardano'],
-  ['BTC', 'Bitcoin'],
-  ['ETH', 'Ethereum'],
-  ['SOL', 'Solana'],
-  ['TRX', 'Tron'],
-  ['XRP', 'Ripple'],
-  ['XLM', 'Stellar'],
-  ['BCH', 'Bitcoin Cash'],
-  ['LTC', 'Litecoin'],
-  ['DOGE', 'Dogecoin'],
-  ['XMR', 'Monero']
-].sort();
-type MarketRow = { icon: string, quoteIcon: string, label: string, price: string, change: number, volume: BigNumber };
-let cachedPairs: MarketRow[] | null | false = false;
-
-
 function assetQueryKey(asset: AssetId): string {
   const chain = (asset.chain || '').toUpperCase();
   const token = (asset.token || '').toUpperCase();
@@ -129,6 +122,74 @@ export default function HypePage() {
   const [metrics, setMetrics] = useState<Metrics | null>(null);
   const [prices, setPrices] = useState<Record<string, number> | null>(null);
   const [pairs, setPairs] = useState<MarketRow[] | null>(null);
+  const [swaps, setSwaps] = useState<boolean>(false);
+  const [dark, setDark] = useState(AppData.props.appearance == 'dark');
+  const maxVolume = pairs != null && pairs.length > 0 ? pairs[0].liquidity : null;
+  const barWidth = (row: MarketRow) => maxVolume == null || maxVolume.lte(0) ? 4 : Math.max(4, Math.round(100 * Math.sqrt(Math.min(1, row.liquidity.dividedBy(maxVolume).toNumber()))));
+  useEffectAsync(async () => {
+    const [loadedMetrics, loadedPrices, loadedPairs, loadedAssets] = await Promise.all([
+      fetch(`${Mainnet.exchangeUrl}/market/metrics`).then((r) => r.json()).catch(() => null),
+      fetch(`${Mainnet.exchangeUrl}/asset/prices`).then((r) => r.json()).catch(() => null),
+      fetch(`${Mainnet.exchangeUrl}/market/pairs`).then((r) => r.json()).catch(() => null),
+      fetch(`${Mainnet.exchangeUrl}/assets`).then((r) => r.json()).catch(() => null)
+    ]);
+    if (loadedMetrics != null && loadedMetrics.result != null) {
+      try {
+        setMetrics({
+          accounts: toNiceNumber(new BigNumber(loadedMetrics.result.accounts)),
+          actions: toNiceNumber(new BigNumber(loadedMetrics.result.actions)),
+          quantity: toNiceAmount(new BigNumber(new BigNumber(loadedMetrics.result.quantity).toFixed(2))),
+          volume: toNiceAmount(new BigNumber(new BigNumber(loadedMetrics.result.volume).toFixed(2)).dividedBy(Math.max(1, Math.floor(Math.abs(new Date().getTime() - genesisTimeDEX.getTime()) / 86_400_000))))
+        });
+      } catch {
+        setMetrics(null);
+      }
+    }
+    if (loadedPrices != null && loadedPrices.result != null) {
+      try {
+        const map: Record<string, number> = { };
+        for (const key in loadedPrices.result) {
+          const close = new BigNumber(loadedPrices.result[key]?.price?.close || null);
+          if (close != null && close.isFinite() && close.gt(0))
+            map[key] = close.toNumber();
+        }
+        setPrices(Object.keys(map).length > 1 ? map : null);
+      } catch {
+        setPrices(null);
+      }
+    }
+    if (loadedPairs != null && loadedPairs.result != null) {
+      try {
+        const rows: MarketRow[] = loadedPairs.result.map((pair: any) => {
+          const primaryAsset = new AssetId(pair.primaryAsset);
+          const secondaryAsset = new AssetId(pair.secondaryAsset);
+          const primary = primaryAsset.token || primaryAsset.chain || '';
+          const secondary = secondaryAsset.token || secondaryAsset.chain || '';
+          const close = new BigNumber(pair.price.close ?? 0);
+          const open = new BigNumber(pair.price.open ?? 0);
+          return {
+            icon: primary.toLowerCase(),
+            quoteIcon: secondary.toLowerCase(),
+            label: `${primary} / ${secondary}`,
+            price: toNiceRate(close),
+            change: open.gt(0) ? close.minus(open).dividedBy(open).times(100).toNumber() : 0,
+            volume: new BigNumber(pair.price.totalVolume || 0),
+            liquidity: new BigNumber(pair.price.totalLiquidity || 0)
+          };
+        });
+        setPairs(rows.length > 0 ? rows.sort((a, b) => b.liquidity.minus(a.liquidity).toNumber()).slice(0, 5) : null);
+      } catch {
+        setPairs(null);
+      }
+    }
+    if (loadedAssets != null && loadedAssets.result != null) {
+      try {
+        setSwaps(loadedAssets.result.contracts.find((v: any) => v.type == 'ams') != null);
+      } catch {
+        setSwaps(false);
+      }
+    }
+  }, []); 
   useEffect(() => {
     AppData.setTitle();
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -165,68 +226,7 @@ export default function HypePage() {
     document.querySelectorAll('.hype-page [data-reveal]').forEach((el) => observer.observe(el));
     return () => observer.disconnect();
   }, [metrics]);
-  useEffectAsync(async () => {
-    if (cachedMetrics === false) {
-      try {
-        const metrics = await Exchange.marketMetrics();
-        cachedMetrics = {
-          accounts: toNiceNumber(new BigNumber(metrics.accounts)),
-          actions: toNiceNumber(new BigNumber(metrics.actions)),
-          quantity: toNiceAmount(new BigNumber(metrics.quantity.toFixed(2))),
-          volume: toNiceAmount(new BigNumber(metrics.volume.toFixed(2)).dividedBy(Math.max(1, Math.floor(Math.abs(new Date().getTime() - genesisTimeDEX.getTime()) / 86_400_000))))
-        };
-      } catch {
-        cachedMetrics = null;
-      }
-    }
-    setMetrics(cachedMetrics);
-  }, []);
-  useEffectAsync(async () => {
-    if (cachedPrices === false) {
-      try {
-        const descriptors = await Exchange.assetPrices();
-        const map: Record<string, number> = { };
-        for (const key in descriptors) {
-          const close = descriptors[key]?.price?.close;
-          if (close != null && close.isFinite() && close.gt(0))
-            map[key] = close.toNumber();
-        }
-        cachedPrices = Object.keys(map).length > 1 ? map : null;
-      } catch {
-        cachedPrices = null;
-      }
-    }
-    setPrices(cachedPrices);
-  }, []);
-  useEffectAsync(async () => {
-    if (cachedPairs === false) {
-      try {
-        const pairs = await Exchange.marketPairs();
-        const rows: MarketRow[] = pairs.map((pair) => {
-          const primary = pair.primaryAsset.token || pair.primaryAsset.chain || '';
-          const secondary = pair.secondaryAsset.token || pair.secondaryAsset.chain || '';
-          const close = new BigNumber(pair.price.close ?? 0);
-          const open = new BigNumber(pair.price.open ?? 0);
-          return {
-            icon: primary.toLowerCase(),
-            quoteIcon: secondary.toLowerCase(),
-            label: `${primary} / ${secondary}`,
-            price: toNiceRate(close),
-            change: open.gt(0) ? close.minus(open).dividedBy(open).times(100).toNumber() : 0,
-            volume: new BigNumber(pair.price.totalVolume || 0)
-          };
-        });
-        rows.sort((a, b) => b.volume.minus(a.volume).toNumber());
-        cachedPairs = rows.length > 0 ? rows.slice(0, 5) : null;
-      } catch {
-        cachedPairs = null;
-      }
-    }
-    setPairs(cachedPairs);
-  }, []);
-  const [dark, setDark] = useState(AppData.props.appearance == 'dark');
-  const maxVolume = pairs != null && pairs.length > 0 ? pairs[0].volume : null;
-  const barWidth = (row: MarketRow) => maxVolume == null || maxVolume.lte(0) ? 4 : Math.max(4, Math.round(100 * Math.sqrt(Math.min(1, row.volume.dividedBy(maxVolume).toNumber()))));
+
   return (
     <div className="hype-page">
       <header className="aw-topbar">
@@ -252,7 +252,7 @@ export default function HypePage() {
             <Link to="/explorer" className="sg-btn ghost">Just look around</Link>
           </div>
           {
-            Exchange.amsContract() &&
+            swaps &&
             <div style={{ marginTop: 'clamp(40px, 5.5vh, 56px)' }}>
               <BookingWidget prices={prices}></BookingWidget>
             </div>
@@ -289,7 +289,7 @@ export default function HypePage() {
           </div>
           <div className="sg-pills" data-reveal>
             <span className="sg-pill"><Icon path={mdiCash} size={0.85}></Icon>0.00% trading fees</span>
-            <span className="sg-pill"><Icon path={mdiLightningBoltOutline} size={0.85}></Icon>~12 s settlement</span>
+            <span className="sg-pill"><Icon path={mdiLightningBoltOutline} size={0.85}></Icon>~12s settlement</span>
             <span className="sg-pill"><Icon path={mdiCheck} size={0.85}></Icon>No membership</span>
             <span className="sg-pill"><Icon path={mdiTune} size={0.85}></Icon>Market · limit · stop · trailing</span>
           </div>
@@ -333,12 +333,11 @@ export default function HypePage() {
             <div className="py-visual" data-reveal>
               <div className="py-chat">
                 <div className="chat">
-                  <div className="chat-bubble out">Rent’s here. <span className="mono">tc1x9f…4kcq</span></div>
-                  <div className="chat-bubble in">Received. No fee, about 12 seconds.</div>
-                  <div className="chat-bubble out">Salary batch of 40, one transaction.</div>
-                  <div className="chat-bubble in">All forty landed. Twelve seconds?</div>
+                  <div className="chat-bubble out">Sending now, no fees. <span className="mono">tc1x9f…4kcq</span></div>
+                  <div className="chat-bubble out">Payment batch of 40, one transaction.</div>
+                  <div className="chat-bubble in">Got it in 12 seconds!</div>
                 </div>
-                <div className="py-status"><span className="bk-pulse"></span>Delivered · 12 s · fee $0.41</div>
+                <div className="py-status"><span className="bk-pulse"></span>Delivered · 12s · fee $0.00</div>
               </div>
             </div>
             <div>
@@ -347,7 +346,7 @@ export default function HypePage() {
               <p className="sg-sub" data-reveal>Any chain. About twelve seconds. Receiving is free.</p>
               <div className="sg-list" data-reveal>
                 <div className="sg-mini"><Icon path={mdiCheck} size={1}></Icon>Receive from any chain<b>free</b></div>
-                <div className="sg-mini"><Icon path={mdiLightningBoltOutline} size={1}></Icon>Settlement time<b>~12 s</b></div>
+                <div className="sg-mini"><Icon path={mdiLightningBoltOutline} size={1}></Icon>Settlement time<b>~12s</b></div>
               </div>
               <div className="sg-cta-row" data-reveal><Link to="/interaction" className="sg-btn">Send a payment <Icon path={mdiChevronRight} size={0.85}></Icon></Link></div>
             </div>
@@ -424,7 +423,7 @@ export default function HypePage() {
               <div className="aw-stat"><b>{ metrics.accounts }</b><span>users on the network</span></div>
               <div className="aw-stat"><b>{ metrics.actions }</b><span>actions completed</span></div>
               <div className="aw-stat"><b>{ metrics.quantity }</b><span>held in the market</span></div>
-              <div className="aw-stat"><b>{ metrics.volume }</b><span>traded every day</span></div>
+              <div className="aw-stat"><b>{ metrics.volume }</b><span>moving every day</span></div>
             </div>
           }
           <div className="nl-strip" data-reveal>
