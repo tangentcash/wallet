@@ -184,7 +184,7 @@ export default function InteractionPage() {
       return new BigNumber(value.substring(2), 16);
     return new BigNumber(value == null || value == '' ? 0 : value);
   };
-  const refreshFeeQuote = useCallback(async () => {
+  const refreshFeeQuote = useCallback(async (retries: number = 0) => {
     if (asset == -1 || assets[asset] == null || feeQuoteBusy.current)
       return;
     feeQuoteBusy.current = true;
@@ -196,7 +196,14 @@ export default function InteractionPage() {
     } catch { }
     const chain = assets[asset].asset.chain as string;
     try {
-      const result = await RPC.estimateBridgeFee(AssetId.fromHandle(chain));
+      let result: any = null;
+      for (let attempt = 0; attempt <= retries; attempt++) {
+        if (attempt > 0)
+          await new Promise((res) => setTimeout(res, 1500));
+        result = await RPC.estimateBridgeFee(AssetId.fromHandle(chain));
+        if (result != null)
+          break;
+      }
       const tip = toFeeQuantity(result?.tip || 0);
       const available = (result != null && Array.isArray(result.quotes) ? result.quotes : [])
         .map((item: any) => ({ signature: (item.signature || '') as string, fee: toFeeQuantity(item.fee), expiryBlockNumber: toFeeQuantity(item.expiry_block_number) }))
@@ -234,7 +241,7 @@ export default function InteractionPage() {
   }, [asset, assets, params.fee]);
   useEffect(() => {
     if (params.type == 'withdraw' && asset != -1 && assets[asset] != null)
-      refreshFeeQuote();
+      refreshFeeQuote(2);
   }, [params.type, asset, assets, refreshFeeQuote]);
   const feeQuoteExpired = useMemo((): boolean => {
     if (!(program instanceof ProgramWithdraw) || program.quote == null)
