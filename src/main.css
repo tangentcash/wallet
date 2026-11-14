@@ -1010,7 +1010,7 @@ button.asset-row:hover { background: var(--elev); }
 .amount-box .rt-TextFieldInput::-webkit-outer-spin-button,
 .amount-box .rt-TextFieldInput::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
 .amount-box .rt-TextFieldInput { -moz-appearance: textfield; appearance: textfield; }
-.fee-note { color: var(--text-3); font-size: 12px; margin-top: 10px; }
+.fee-note { color: var(--text-2); font-size: 13px; margin-top: 16px; }
 .pct:focus-visible { outline: 2px solid var(--lime); outline-offset: 2px; }
 
 

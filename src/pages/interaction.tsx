@@ -1,6 +1,6 @@
 import { mdiAlertCircleOutline, mdiArrowLeft, mdiCheckBold, mdiCodeJson, mdiMinus, mdiOpenInNew, mdiPlus, mdiProfessionalHexagon, mdiShovel, mdiTimelapse } from "@mdi/js";
-import { Box, Button, Callout, Checkbox, DropdownMenu, Flex, Heading, IconButton, Progress, SegmentedControl, Select, Text, TextField, Tooltip } from "@radix-ui/themes";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { Box, Button, Callout, Checkbox, DropdownMenu, Flex, Heading, IconButton, Progress, SegmentedControl, Select, Spinner, Switch, Text, TextField, Tooltip } from "@radix-ui/themes";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useEffectAsync } from "../core/react";
 import { Link, Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 import { AlertBox, AlertType } from "../components/alert";
@@ -61,6 +61,8 @@ export class ProgramWithdraw {
   address: string = '';
   value: string = '';
   fee: BigNumber | null = null;
+  feeMode: 'standard' | 'custom' = 'standard';
+  quote: { chain: string, signature: string, fee: BigNumber, expiryBlockNumber: BigNumber } | null = null;
 }
 
 export class ProgramAnticast {
@@ -171,6 +173,82 @@ export default function InteractionPage() {
     back: query.get('back'),
     note: query.get('note')
   }), [query]);
+  const [feeQuoteLoading, setFeeQuoteLoading] = useState(false);
+  const [feeQuoteTip, setFeeQuoteTip] = useState<BigNumber | null>(null);
+  const feeModeAutoTuned = useRef<number>(-1);
+  const feeQuoteBusy = useRef<boolean>(false);
+  const toFeeQuantity = (value: any): BigNumber => {
+    if (BigNumber.isBigNumber(value))
+      return value as BigNumber;
+    if (typeof value == 'string' && value.length > 2 && value.startsWith('0x'))
+      return new BigNumber(value.substring(2), 16);
+    return new BigNumber(value == null || value == '' ? 0 : value);
+  };
+  const refreshFeeQuote = useCallback(async () => {
+    if (asset == -1 || assets[asset] == null || feeQuoteBusy.current)
+      return;
+    feeQuoteBusy.current = true;
+    setFeeQuoteLoading(true);
+    let standardFee: BigNumber | null = null;
+    try {
+      const numeric = new BigNumber((params.fee || '').trim());
+      standardFee = numeric.isFinite() && numeric.gt(0) ? numeric : null;
+    } catch { }
+    const chain = assets[asset].asset.chain as string;
+    try {
+      const result = await RPC.estimateBridgeFee(AssetId.fromHandle(chain));
+      const tip = toFeeQuantity(result?.tip || 0);
+      const available = (result != null && Array.isArray(result.quotes) ? result.quotes : [])
+        .map((item: any) => ({ signature: (item.signature || '') as string, fee: toFeeQuantity(item.fee), expiryBlockNumber: toFeeQuantity(item.expiry_block_number) }))
+        .filter((item: any) => item.signature.length > 0 && item.fee.isFinite() && item.fee.gt(0) && item.expiryBlockNumber.gt(tip));
+      available.sort((left: any, right: any) => left.fee.comparedTo(right.fee));
+      const autoTune = feeModeAutoTuned.current != asset;
+      feeModeAutoTuned.current = asset;
+      setFeeQuoteTip(tip);
+      setProgram((prev) => {
+        if (!(prev instanceof ProgramWithdraw))
+          return prev;
+        const copy = Object.assign(Object.create(Object.getPrototypeOf(prev)), prev);
+        const best = available.length > 0 ? Object.assign({ chain: chain }, available[0]) : null;
+        copy.quote = best != null || prev.quote == null || !prev.quote.expiryBlockNumber.gt(tip) ? best : prev.quote;
+        if (autoTune)
+          copy.feeMode = copy.quote != null && (standardFee == null || copy.quote.fee.lt(standardFee)) ? 'custom' : 'standard';
+        else if (copy.quote == null && copy.feeMode == 'custom')
+          copy.feeMode = 'standard';
+        return copy;
+      });
+    } catch (exception) {
+      setProgram((prev) => {
+        if (!(prev instanceof ProgramWithdraw))
+          return prev;
+        const copy = Object.assign(Object.create(Object.getPrototypeOf(prev)), prev);
+        copy.quote = null;
+        if (copy.feeMode == 'custom')
+          copy.feeMode = 'standard';
+        return copy;
+      });
+    } finally {
+      setFeeQuoteLoading(false);
+      feeQuoteBusy.current = false;
+    }
+  }, [asset, assets, params.fee]);
+  useEffect(() => {
+    if (params.type == 'withdraw' && asset != -1 && assets[asset] != null)
+      refreshFeeQuote();
+  }, [params.type, asset, assets, refreshFeeQuote]);
+  const feeQuoteExpired = useMemo((): boolean => {
+    if (!(program instanceof ProgramWithdraw) || program.quote == null)
+      return false;
+    const tip = feeQuoteTip != null && (AppData.tip == null || AppData.tip.lte(feeQuoteTip)) ? feeQuoteTip : AppData.tip;
+    return tip != null && !program.quote.expiryBlockNumber.gt(tip);
+  }, [program, feeQuoteTip]);
+  useEffect(() => {
+    if (feeQuoteExpired && program instanceof ProgramWithdraw && program.feeMode == 'custom') {
+      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+      copy.feeMode = 'standard';
+      setProgram(copy);
+    }
+  }, [feeQuoteExpired, program]);
   const previewTransaction = useMemo((): any | null => {
     if ((program instanceof ApproveTransaction) && program.transaction != null)
       return program.transaction;
@@ -224,7 +302,7 @@ export default function InteractionPage() {
         }
       }, new BigNumber(0));
     } else if (program instanceof ProgramWithdraw) {
-      const fee = (asset != -1 && !assets[asset].asset.token ? BigNumber.max(0, program.fee || new BigNumber(0)) : new BigNumber(0));
+      const fee = (asset != -1 && !assets[asset].asset.token ? (program.feeMode == 'custom' && program.quote != null && !feeQuoteExpired && program.quote.chain == assets[asset].asset.chain ? program.quote.fee : BigNumber.max(0, program.fee || new BigNumber(0))) : new BigNumber(0));
       try {
         const numeric = new BigNumber(program.value.trim());
         return numeric.isPositive() ? numeric.plus(fee) : fee;
@@ -233,7 +311,7 @@ export default function InteractionPage() {
       }
     }
     return new BigNumber(0);
-  }, [assets, asset, program]);
+  }, [assets, asset, program, feeQuoteExpired]);
   const programError = useMemo((): string | null => {
     if (asset == -1)
       return 'Select paying asset';
@@ -395,16 +473,24 @@ export default function InteractionPage() {
       if (params.vault == null)
         return 'URL must include a vault hash';
 
+      if (program.feeMode == 'custom') {
+        if (program.quote == null)
+          return 'No active custom fee quote: refresh the quotes or use the bridge fee rate';
+        else if (feeQuoteExpired)
+          return 'Custom fee quote has expired: refresh the quotes or use the bridge fee rate';
+      }
+
       if (!sendingValue.gt(0))
         return `Sending too little of ${UiUtil.toAssetSymbol(child.asset)}`;
       else if (sendingValue.gt(assets[asset].balance))
         return `Sending too much ${UiUtil.toAssetSymbol(child.asset)}`;
  
-      if (child.asset.token != null && program.fee != null) {
+      const requiredFee = program.feeMode == 'custom' && program.quote != null && !feeQuoteExpired ? program.quote.fee : BigNumber.max(0, program.fee || new BigNumber(0));
+      if (child.asset.token != null && requiredFee.gt(0)) {
         const base = AssetId.fromHandle(child.asset.chain);
         const parent = assets.find(x => x.asset.chain == child.asset.chain && x.asset.token == null);
-        if (!parent || parent.balance.lt(BigNumber.max(0, program.fee)))
-          return `Not enough ${UiUtil.toAssetSymbol(base)} in your account: ${UiUtil.toMoney(base, program.fee)} required`
+        if (!parent || parent.balance.lt(requiredFee))
+          return `Not enough ${UiUtil.toAssetSymbol(base)} in your account: ${UiUtil.toMoney(base, requiredFee)} required`
       }
 
       return null;
@@ -438,7 +524,7 @@ export default function InteractionPage() {
       return null;
     }
     return 'Unknown transaction type';
-  }, [asset, gasPrice, gasLimit, assets, program]);
+  }, [asset, gasPrice, gasLimit, assets, program, feeQuoteExpired]);
   const transactionError = useMemo((): string | null => {
     if (programError)
       return programError;
@@ -608,13 +694,25 @@ export default function InteractionPage() {
           args: args
         });
       } else if (program instanceof ProgramWithdraw) {
+        const args: any = {
+          bridgeHash: new Uint256(params.vault || ''),
+          address: program.address,
+          value: new BigNumber(program.value)
+        };
+        if (program.feeMode == 'custom' && program.quote != null) {
+          if (program.quote.chain != assets[asset].asset.chain)
+            throw new Error('Custom fee quote is for a different asset, refresh the quote');
+          const tipNumber = await RPC.getBlockTipNumber();
+          if (!program.quote.expiryBlockNumber.gt(toFeeQuantity(tipNumber || 0)))
+            throw new Error('Custom fee quote has expired, refresh the quote or switch to the bridge fee rate');
+          args.quoteExtension = true;
+          args.quoteExtensionSignature = new Hashsig(program.quote.signature);
+          args.quoteExtensionFeeRate = program.quote.fee;
+          args.quoteExtensionBlockNumber = new Uint256(program.quote.expiryBlockNumber.toString());
+        }
         return await buildProgram({
           type: new Transactions.Withdraw(),
-          args: {
-            bridgeHash: new Uint256(params.vault || ''),
-            address: program.address,
-            value: new BigNumber(program.value)
-          }
+          args: args
         });
       } else if (program instanceof ProgramAnticast) {
         return await buildProgram({
@@ -1487,11 +1585,36 @@ export default function InteractionPage() {
                 </div>
               </div>
             </div>
-            <div className="fee-note" style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <Tooltip content="Fee to be deducted from account balance">
-                <span>Vault fee</span>
+            <div className="fee-note" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Tooltip content={program.feeMode == 'custom' && program.quote != null && !feeQuoteExpired ? 'Relayer-quoted network fee, valid until block #' + program.quote.expiryBlockNumber.toNumber() : 'Fee to be deducted from account balance'}>
+                <span>{ program.feeMode == 'custom' ? 'Network fee' : 'Vault fee' }</span>
               </Tooltip>
-              <span className="mono">{ UiUtil.toMoney(AssetId.fromHandle(assets[asset].asset.chain), params.fee) }</span>
+              <Flex gap="2" align="center" style={{ cursor: program.quote != null ? 'pointer' : 'default' }} onClick={(e) => {
+                if (program.quote == null || (e.target as HTMLElement).closest('[role=switch]'))
+                  return;
+                const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                copy.feeMode = program.feeMode == 'custom' ? 'standard' : 'custom';
+                setProgram(copy);
+                if (copy.feeMode == 'custom')
+                  refreshFeeQuote();
+              }}>
+                { feeQuoteLoading ? <Spinner size="1" style={{ color: 'var(--text-2)' }} /> : null }
+                <span className="mono">{ UiUtil.toMoney(AssetId.fromHandle(assets[asset].asset.chain), program.feeMode == 'custom' && program.quote != null && !feeQuoteExpired ? program.quote.fee : BigNumber.max(0, program.fee || new BigNumber(0))) }</span>
+                <Tooltip content={program.quote != null ? 'Pay the quoted network fee instead of the vault fee rate' : 'No cheaper network fee quote available'}>
+                  <span style={{ display: 'inline-flex' }}>
+                    <Switch size="1" disabled={program.quote == null} checked={program.feeMode == 'custom'} onCheckedChange={(checked) => {
+                      if (checked && program.quote == null)
+                        return;
+
+                      const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
+                      copy.feeMode = checked ? 'custom' : 'standard';
+                      setProgram(copy);
+                      if (checked)
+                        refreshFeeQuote();
+                    }} />
+                  </span>
+                </Tooltip>
+              </Flex>
             </div>
           </Box>
         }
