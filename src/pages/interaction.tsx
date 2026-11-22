@@ -94,7 +94,7 @@ async function toPowChallenge(ownerAddress: string, nonce: BigNumber, onProgress
     let blockHash = new Uint256();
     const blockNumber = new BigNumber(await RPC.getBlockTipNumber() || 0).toNumber();
     if (blockNumber > 0) {
-      const block = await RPC.getBlockByNumber(blockNumber);
+      const block = await RPC.fetch<any>('no-cache', 'getblockbynumber', [blockNumber]);
       if (!block) {
         throw new Error('Failed to fetch block ' + blockNumber);
       } else {
@@ -525,7 +525,7 @@ export default function InteractionPage() {
         if (!broadcastHash.gt(0))
           throw false;
       } catch {
-        return 'Fill out the "Relay vault transfer" tx hash';
+        return 'Fill out the "Send transaction" tx hash';
       }
       
       if (program.attestateHash.length > 0) {    
@@ -534,7 +534,7 @@ export default function InteractionPage() {
           if (!attestateHash.gt(0))
             throw false;
         } catch {
-        return 'Fill out the "Vault transfer" tx hash';
+        return 'Fill out the "Cross-chain transaction" tx hash';
         }
       }
 
@@ -1462,7 +1462,7 @@ export default function InteractionPage() {
                       padding: '12px 16px'
                     }}>
                     <Box width="100%">
-                      <Tooltip content='Transaction hash of "Build vault transfer" transaction that has cross-chain relay fault and was initiated by this validator'>
+                      <Tooltip content='Transaction hash of "Send transaction" transaction that has cross-chain relay fault and was initiated by this validator'>
                         <TextField.Root mb="3" size="3" placeholder={'Failed transaction hash'} type="text" value={item.broadcastHash || ''} onChange={(e) => {
                           const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                           copy.migrations[index].broadcastHash = e.target.value;
@@ -1644,8 +1644,8 @@ export default function InteractionPage() {
           asset != -1 && program instanceof ProgramAnticast &&
           <>
             <Box mt="4" width="100%">
-              <Tooltip content="Transaction hash of relay vault transfer transaction that has relay success">
-                <TextField.Root size="3" placeholder={'Relay vault transfer transaction hash'} type="text" value={program.broadcastHash || ''} onChange={(e) => {
+              <Tooltip content='Transaction hash of "Send transaction" transaction that has relay success'>
+                <TextField.Root size="3" placeholder={'"Send transaction" transaction hash'} type="text" value={program.broadcastHash || ''} onChange={(e) => {
                   const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                   copy.broadcastHash = e.target.value;
                   setProgram(copy);
@@ -1653,8 +1653,8 @@ export default function InteractionPage() {
               </Tooltip>
             </Box>
             <Box mt="4" width="100%">
-              <Tooltip content="Transaction hash of vault transfer transaction">
-                <TextField.Root size="3" placeholder={'Vault transfer transaction hash'} type="text" value={program.attestateHash || ''} onChange={(e) => {
+              <Tooltip content='Transaction hash of "Cross-chain transaction" transaction'>
+                <TextField.Root size="3" placeholder={'"Cross-chain transaction" transaction hash'} type="text" value={program.attestateHash || ''} onChange={(e) => {
                   const copy = Object.assign(Object.create(Object.getPrototypeOf(program)), program);
                   copy.attestateHash = e.target.value;
                   setProgram(copy);

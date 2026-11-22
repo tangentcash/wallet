@@ -855,7 +855,7 @@ function TransactionDetails(props: { transaction: any, receipt?: any, state?: Su
         }
         {
           blameQuery != null &&
-          <Tooltip content={ type == 'broadcast' ? 'Report this relayed vault transfer to vault attesters for reconciliation and reserve refund' : 'Report the reserve locked by this vault transfer for reconciliation and refund' }>
+          <Tooltip content={ type == 'broadcast' ? 'Report to vault attesters for reconciliation and reserve refund' : 'Report the reserve locked for reconciliation and refund' }>
             <Button className="btn-soft btn-block" style={{ marginTop: 14 }} onClick={() => navigate('/interaction?type=reconcile&' + blameQuery + '&back=' + encodeURIComponent(location.pathname + location.search))}>
               <Icon path={mdiBackupRestore} size={0.85}></Icon>Blame
             </Button>
