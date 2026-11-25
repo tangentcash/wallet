@@ -56,7 +56,7 @@ export default function TransactionPage() {
         } catch {
           let result = await RPC.getMempoolTransactionByHash(params.id).catch(() => null);
           if (!result) {
-            const preattestations = await RPC.getMempoolPreattestations(0, 16, { transactionIds: [params.id], addresses: [], memoAccounts: [] });
+            const preattestations = await RPC.getMempoolPreattestations(0, 1, { transactionIds: [params.id], addresses: [], memoAccounts: [] });
             const record = Array.isArray(preattestations) ? preattestations.find((x: unknown) => isPreattestationRecord(x)) : null;
             if (record == null)
               throw false;

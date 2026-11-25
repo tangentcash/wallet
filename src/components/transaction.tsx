@@ -6,7 +6,7 @@ import { AlertBox, AlertType } from "./alert";
 import { Link, useLocation, useNavigate } from "react-router";
 import { AppData } from "../core/app";
 import { useMemo, useState } from "react";
-import { mdiAccountCheckOutline, mdiAccountGroupOutline, mdiAccountKeyOutline, mdiAlertCircleOutline, mdiAlertOctagram, mdiArrowDownBold, mdiArrowLeftRight, mdiArrowUpBold, mdiBackupRestore, mdiBankTransfer, mdiBridge, mdiBroadcast, mdiCash, mdiChevronDown, mdiClockOutline, mdiCodeBraces, mdiCogOutline, mdiConsoleLine, mdiDatabaseOutline, mdiEyeOutline, mdiFingerprint, mdiKeyChange, mdiLayersTriple, mdiOpenInNew, mdiPackageVariant, mdiSafe, mdiSafeSquareOutline, mdiStateMachine, mdiTimerOutline } from "@mdi/js";
+import { mdiAccountCheckOutline, mdiAccountGroupOutline, mdiAccountKeyOutline, mdiAlertCircleOutline, mdiAlertOctagram, mdiArrowDownBold, mdiArrowHorizontalLock, mdiArrowLeftRight, mdiArrowUpBold, mdiBackupRestore, mdiBankTransfer, mdiBridge, mdiBroadcast, mdiCash, mdiChevronDown, mdiClockOutline, mdiCodeBraces, mdiCogOutline, mdiConsoleLine, mdiDatabaseOutline, mdiEyeOutline, mdiFingerprint, mdiKeyChange, mdiLayersTriple, mdiOpenInNew, mdiPackageVariant, mdiSafe, mdiSafeSquareOutline, mdiStateMachine, mdiTimerOutline } from "@mdi/js";
 import { AssetImage } from "./asset-image";
 import * as Collapsible from "@radix-ui/react-collapsible";
 import BigNumber from "bignumber.js";
@@ -187,6 +187,7 @@ function toRowDetail(transaction: any, receipt: any, type: string | null, direct
       return null;
   }
 }
+type AttestedBalance = { address: string; value: string | number; asset: AssetId };
 export function TransactionInputFields(props: { transaction: any }) {
   const transaction = props.transaction;
   switch (transaction.type) {
@@ -529,7 +530,6 @@ export function TransactionInputFields(props: { transaction: any }) {
       for (let commitment in transaction.commitments ?? {})
         signatures += transaction.commitments[commitment].length;
 
-      console.log(transaction.proof);
       if (transaction.proof != null) {
         const from = (transaction.proof.inputs ?? []).map((item: any) => {
           return [{
@@ -588,15 +588,15 @@ export function TransactionInputFields(props: { transaction: any }) {
               }}>Copy ABI data</span></span></div>
             </div>
             {
-              from.filter((item: any) => !new BigNumber(item.value).isZero()).map((item: any, index: number) =>
-                <EventRow key={'IF5' + item.address + index} icon={mdiArrowUpBold} cls="lime" title="Balance change"
+              (from as AttestedBalance[]).filter((item) => !new BigNumber(item.value).isZero()).map((item, index) =>
+                <EventRow key={'IF5' + item.address + index} icon={mdiArrowUpBold} cls="warn" title="Input spent"
                   meta={<EventAddress address={item.address} link={false} />}
                   value={ moneyNamed(item.asset, new BigNumber(item.value).negated(), true) } />
               )
             }
             {
-              to.filter((item: any) => !new BigNumber(item.value).isZero()).map((item: any, index: number) =>
-                <EventRow key={'IF6' + item.address + index} icon={mdiArrowDownBold} cls="lime" title="Balance change"
+              (to as AttestedBalance[]).filter((item) => !new BigNumber(item.value).isZero()).map((item, index) =>
+                <EventRow key={'IF6' + item.address + index} icon={mdiArrowDownBold} cls="lime" title="Output made"
                   meta={<EventAddress address={item.address} link={false} />}
                   value={ moneyNamed(item.asset, new BigNumber(item.value), true) } />
               )
@@ -680,7 +680,7 @@ export function TransactionOutputFields(props: { state: SummaryState }) {
                 value={ moneyNamed(event.asset, event.value, true) } />
             }
             case EventType.TransferIsolated: {
-              return <EventRow key={'OF2' + event.type.toString() + index} icon={mdiPackageVariant} cls="lime" title="Supply transfer"
+              return <EventRow key={'OF2' + event.type.toString() + index} icon={mdiArrowHorizontalLock} cls="lime" title="Supply transfer"
                 meta={<EventAddress address={event.owner} />}
                 value={<>
                   { !event.supply.eq(0) && moneyNamed(event.asset, event.supply, true) }
@@ -732,6 +732,10 @@ export function TransactionOutputFields(props: { state: SummaryState }) {
             }
             case EventType.WitnessTransaction: {
               return <EventRow key={'OF11' + event.type.toString() + index} icon={mdiFingerprint} cls="info" title="Witness transaction"
+                meta={<><span className="dim">{ event.asset.chain }</span><EventHash hash={event.stateHash} message="State hash copied!" /></>} />
+            }
+            case EventType.WitnessAsset: {
+              return <EventRow key={'OF11' + event.type.toString() + index} icon={mdiFingerprint} cls="info" title="Witness asset"
                 meta={<><span className="dim">{ event.asset.chain }</span><EventHash hash={event.stateHash} message="State hash copied!" /></>} />
             }
             case EventType.RollupReceipt: {

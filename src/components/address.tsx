@@ -1,5 +1,5 @@
-import { mdiClose } from "@mdi/js";
-import { Box, Button, Flex, Select } from "@radix-ui/themes";
+import { mdiClose, mdiContentCopy } from "@mdi/js";
+import { Box, Flex, Select } from "@radix-ui/themes";
 import { UiUtil } from "tangentsdk/ui";
 import type { AssetId } from "tangentsdk/algorithm";
 import { useMemo, useState } from "react";
@@ -139,7 +139,7 @@ export function AddressView(props: { address: { asset: AssetId, purpose?: string
   }, [props.address]);
   return (
     <Box className="address-view">
-      <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: 8, marginBottom: 16 }}>
         <Select.Root size="3" value={variant.toString()} onValueChange={(value) => { const index = parseInt(value); setVariant(index); if (props.onVariantChange) props.onVariantChange(index); }}>
           <Select.Trigger className="token-select" radius="full">
             <AssetImage asset={props.address.asset} size="1" iconSize="24px"></AssetImage>
@@ -158,6 +158,16 @@ export function AddressView(props: { address: { asset: AssetId, purpose?: string
             </Select.Group>
           </Select.Content>
         </Select.Root>
+        {
+          props.onExit &&
+          <button className="icon-btn" onClick={() => {
+            setVariant(-1);
+            if (props.onExit)
+              props.onExit();
+          }}>
+            <Icon path={mdiClose} size={1}></Icon>
+          </button>
+        }
       </div>
       <div className="qr-real" title="Click to copy">
         {
@@ -169,40 +179,24 @@ export function AddressView(props: { address: { asset: AssetId, purpose?: string
         }
       </div>
       <Flex justify="center">
-        <Box>
-          <div className="av-k">{ toAddressType(props.address.purpose || '') }{ target.tag ? '' : '' }</div>
-          <div className="av-addr">{ UiUtil.toAddress(toTextAddress(target, props.policy), 6) }</div>
-        </Box>
-      </Flex>
-      {
-        target.tag &&
-        <div className="av-memo">
-          <div className="av-k">Memo · tag</div>
-          <div className="av-memo-v">{ target.tag }</div>
-        </div>
-      }
-      <Flex gap="2" justify="center" mt="4">
-        <Button className="btn-soft" onClick={() => {
-          navigator.clipboard.writeText(toTextAddress(target, props.policy));
-          AlertBox.open(AlertType.Info, variants[variant] + ' address copied!');
-        }}>Copy address</Button>
-        {
-          target.tag &&
-          <Button className="btn-soft" onClick={() => {
-            navigator.clipboard.writeText(String(target.tag));
-            AlertBox.open(AlertType.Info, 'Memo copied!');
-          }}>Copy memo</Button>
-        }
-        {
-          props.onExit &&
-          <button className="icon-btn" onClick={() => {
-            setVariant(-1);
-            if (props.onExit)
-              props.onExit();
-          }}>
-            <Icon path={mdiClose} size={1}></Icon>
+        <Box style={{ textAlign: 'center' }}>
+          <div className="av-k">{ toAddressType(props.address.purpose || '') }{ target.tag ? ' (DT)' : '' }</div>
+          <button
+            type="button"
+            className="av-addr"
+            title="Click to copy"
+            onClick={() => {
+              navigator.clipboard.writeText(toTextAddress(target, props.policy));
+              AlertBox.open(AlertType.Info, variants[variant] + ' address copied!');
+            }}>
+            <span>{ UiUtil.toAddress(toTextAddress(target, props.policy), 6) }</span>
+            <Icon path={mdiContentCopy} size="0.9em"></Icon>
           </button>
-        }
+          {
+            target.tag &&
+            <div className="tiny av-memo-hint">Send with memo { String(target.tag) } — the part after&nbsp;#</div>
+          }
+        </Box>
       </Flex>
     </Box>
   )

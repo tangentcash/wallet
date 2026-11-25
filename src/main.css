@@ -1064,10 +1064,13 @@ button.asset-row:hover { background: var(--elev); }
 .address-view .rt-SelectTrigger.token-select .rt-SelectTriggerInner > span { display: inline-flex; align-items: center; gap: 8px; }
 .address-view .rt-SelectTrigger.token-select:hover { background-color: var(--elev); filter: brightness(1.1); }
 .av-k { font-size: 10.5px; letter-spacing: 0.06em; text-transform: uppercase; font-weight: 700; color: var(--text-3); margin-top: 14px; }
-.av-addr { font-family: var(--mono); font-size: 14px; font-weight: 700; margin-top: 4px; color: var(--text); word-break: break-all; }
-.av-memo { margin-top: 12px; background: var(--card-2); border-radius: var(--r-md); padding: 10px 14px; display: inline-block; }
-.av-memo .av-k { margin-top: 0; }
-.av-memo-v { font: 700 16px var(--mono); margin-top: 4px; color: var(--lime); }
+.av-addr { display: inline-flex; align-items: center; gap: 7px; margin: 0 -12px; padding: 12px; border: 0; background: none; font: 600 15px var(--mono); color: var(--info); word-break: break-all; cursor: pointer; }
+.av-addr:hover { text-decoration: underline; }
+.av-addr svg { flex: none; color: var(--info); }
+.av-memo-hint { margin-top: 6px; color: var(--warn); line-height: 1.45; }
+.mode-switch { background: none; border: 0; padding: 6px 12px; border-radius: 999px; color: var(--text-2); font: 650 12.5px var(--sans); cursor: pointer; transition: color 0.18s ease, background 0.18s ease; }
+.mode-switch:hover { color: var(--text); background: var(--elev); }
+.mode-switch:active { transform: scale(0.96); }
 
 
 .rt-Button.btn-sm { height: 40px; padding: 0 18px; font-size: 13.5px; }

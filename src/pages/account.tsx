@@ -178,7 +178,7 @@ export default function AccountPage() {
         }
       });
       const data = await RPC.getMempoolPreattestations(0, TRANSACTION_COUNT, { transactionIds: [], addresses: [...addresses].filter(x => !!x), memoAccounts: [ownerAddress] });
-      setPreattestations(data);
+      setPreattestations(data.reverse());
     } catch {
       setPreattestations([]);
     }

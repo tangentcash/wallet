@@ -324,9 +324,19 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
                 <AssetImage asset={blockchain} iconSize="34px"></AssetImage>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 750, fontSize: 16 }}><AssetName asset={blockchain} badge={false}></AssetName></div>
-                  <div className="tiny dim">{ wcFallback ? 'Registered sender' : 'via WalletConnect' }</div>
+                  <div className="tiny dim">
+                    {
+                      wcFallback ?
+                      (senderAddresses.length > 0 ? <span className="router-link" style={{ cursor: 'pointer' }} onClick={() => setSenderDialog(true)}>Registered senders · { senderAddresses.length }</span> : 'Registered sender · 0') :
+                      'via WalletConnect'
+                    }
+                  </div>
                 </div>
                 { wc?.session != null && <span className="badge ok">{ UiUtil.toAddress(wc.session.address, 5) }</span> }
+                {
+                  wcFallback && senderAddresses.length > 0 &&
+                  <IconButton variant="ghost" color="gray" size="2" aria-label="Add sender" onClick={() => claim()}><Icon path={mdiPlus} size={1}></Icon></IconButton>
+                }
               </div>
               {
                 !wcFallback &&
@@ -337,7 +347,7 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
                       wcContext.current?.acquire();
                   }}>Connect wallet &amp; add funds</Button>
                   <div style={{ marginTop: 12, textAlign: 'center' }}>
-                    <Link to="#" className="router-link" style={{ color: 'var(--info)', fontWeight: 650, fontSize: 12.5 }} onClick={() => setWcFallback(true)}>No WalletConnect? Add a sender address →</Link>
+                    <button type="button" className="mode-switch" onClick={() => setWcFallback(true)}>No WalletConnect? Add a sender address</button>
                   </div>
                 </>
               }
@@ -347,19 +357,9 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
                   {
                     senderAddresses.length > 0 ?
                     <>
-                      <p className="small" style={{ color: 'var(--text-2)', lineHeight: 1.55 }}>Register the address you send <b style={{ color: 'var(--text)' }}>from</b> with one small on-chain action. Transfers from anyone else are ignored.</p>
-                      <div className="dl">
-                        <div className="dl-row">
-                          <span className="dl-k">Registered senders · { senderAddresses.length }</span>
-                          <span className="dl-v mono" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                            <span className="router-link" style={{ cursor: 'pointer' }} onClick={() => setSenderDialog(true)}>{ UiUtil.toAddress(senderAddresses[Math.min(senderIndex, senderAddresses.length - 1)].address, 6) }</span>
-                            <IconButton variant="ghost" color="gray" size="1" aria-label="Add sender" onClick={() => claim()}><Icon path={mdiPlus} size={0.9}></Icon></IconButton>
-                          </span>
-                        </div>
-                      </div>
                       {
                         blockchainAddresses.bridge &&
-                        <div style={{ marginTop: 14 }}>
+                        <div style={{ marginTop: 6 }}>
                           <AddressView address={blockchainAddresses.bridge} policy={blockchain.routing_policy}></AddressView>
                         </div>
                       }
@@ -370,7 +370,7 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
                     </>
                   }
                   <div style={{ marginTop: 12, textAlign: 'center' }}>
-                    <Link to="#" className="router-link" style={{ color: 'var(--info)', fontWeight: 650, fontSize: 12.5 }} onClick={() => setWcFallback(false)}>Use WalletConnect →</Link>
+                    <button type="button" className="mode-switch" onClick={() => setWcFallback(false)}>Use WalletConnect instead</button>
                   </div>
                 </>
               }
@@ -400,10 +400,10 @@ export default function Vault(props: { blockchains: any[], assets: any[], blockc
           }
           {
             !loading && mode == 'out' &&
-            <div className="card" style={{ marginTop: 14 }}>
+            <div className="card" style={{ marginTop: 12, padding: '10px 20px' }}>
               {
                 blockchainAssets.filter((x) => x.balance.gt(0) || x.asset.id == blockchain.id).map((item) =>
-                  <button className="asset-row" key={item.asset.id + '_out'} onClick={() => send(blockchainAssets.indexOf(item))}>
+                  <button className="asset-row" style={{ borderRadius: '24px', padding: '14px' }} key={item.asset.id + '_out'} onClick={() => send(blockchainAssets.indexOf(item))}>
                     <AssetImage asset={item.asset} iconSize="34px"></AssetImage>
                     <div className="asset-main">
                       <div className="asset-name"><AssetName asset={item.asset} badge={false} symbol={true} tokenOnly={true}></AssetName></div>
