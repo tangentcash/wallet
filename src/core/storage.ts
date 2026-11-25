@@ -7,7 +7,8 @@ export enum StorageField {
   Network = '__network__',
   Passphrase = '__passphrase__',
   Accounts = '__accounts__',
-  App = '__app__',
+  LegacyApp = '__app__',
+  App = '__application__',
   VerifiedAssetsOnly = '__verified_assets_only__'
 }
 

@@ -1,5 +1,5 @@
 {
-  "validatorUrl": "p2pt.tangent.cash:18419",
-  "exchangeUrl": "https://p2pt.tangent.cash:19420",
+  "validatorUrl": "tp2p.tangent.cash",
+  "exchangeUrl": "tdex.tangent.cash",
   "cachePrefix": "T00"
 }

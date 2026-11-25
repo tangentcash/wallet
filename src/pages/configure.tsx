@@ -71,7 +71,7 @@ export default function ConfigurePage() {
     try {
       const target = address || null;
       if (target != null)
-        new URL(target);
+        new URL('tcp://' + target.replace(/^https?:\/\//, ''));
       
       AppData.setExchange(target);
       if (target != null) {
@@ -81,7 +81,7 @@ export default function ConfigurePage() {
         AlertBox.open(AlertType.Warning, 'Custom exchange server disabled');
       }
     } catch {
-      AlertBox.open(AlertType.Error, 'Server must be in a URL format');
+      AlertBox.open(AlertType.Error, 'Server must be in a hostname:port format');
     }
 
     setLoadingProps(false);
@@ -372,8 +372,8 @@ export default function ConfigurePage() {
           <span className="f-desc">markets &amp; trading · DEX tab only</span>
         </div>
         <div className="f-input">
-          <Tooltip content="Specify the URL of Exchange RPC server: read-only DEX data">
-            <TextField.Root className="mono" style={{ flex: 1 }} size="3" placeholder="http://hostname:port" type="text" value={exchangeAddress} onChange={(e) => setExchangeAddress(e.target.value.trim())} />
+          <Tooltip content="Specify the address of Exchange RPC server: read-only DEX data">
+            <TextField.Root className="mono" style={{ flex: 1 }} size="3" placeholder="hostname:port" type="text" value={exchangeAddress} onChange={(e) => setExchangeAddress(e.target.value.trim())} />
           </Tooltip>
         </div>
         <Button className="btn-brand btn-block" style={{ marginTop: 20 }} loading={loadingProps} onClick={async () => {

@@ -992,7 +992,13 @@ export class Exchange {
     return this.parseResponse(await this.fetch('no-cache', 'POST', 'swaps/respend', { depositHash, broadcastHash, bridgeHash, routingAddress, feeQuote, signature }));
   }
   static getURL(): string {
-    return AppData.props.exchange || '';
+    const target = AppData.props.exchange;
+    if (target == null || target.length == 0)
+      return '';
+    const host = target.replace(/^https?:\/\//, '');
+    const url = new URL('tcp://' + host);
+    const secure = RPC.requiresSecureTransport(url.hostname) || url.port == '443';
+    return (secure ? 'https://' : 'http://') + host;
   }
   static toOrder(value: any): Order {
     return {

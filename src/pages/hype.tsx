@@ -127,11 +127,12 @@ export default function HypePage() {
   const maxVolume = pairs != null && pairs.length > 0 ? pairs[0].liquidity : null;
   const barWidth = (row: MarketRow) => maxVolume == null || maxVolume.lte(0) ? 4 : Math.max(4, Math.round(100 * Math.sqrt(Math.min(1, row.liquidity.dividedBy(maxVolume).toNumber()))));
   useEffectAsync(async () => {
+    const exchangeUrl = 'https://' + Mainnet.exchangeUrl;
     const [loadedMetrics, loadedPrices, loadedPairs, loadedAssets] = await Promise.all([
-      fetch(`${Mainnet.exchangeUrl}/market/metrics`).then((r) => r.json()).catch(() => null),
-      fetch(`${Mainnet.exchangeUrl}/asset/prices`).then((r) => r.json()).catch(() => null),
-      fetch(`${Mainnet.exchangeUrl}/market/pairs`).then((r) => r.json()).catch(() => null),
-      fetch(`${Mainnet.exchangeUrl}/assets`).then((r) => r.json()).catch(() => null)
+      fetch(`${exchangeUrl}/market/metrics`).then((r) => r.json()).catch(() => null),
+      fetch(`${exchangeUrl}/asset/prices`).then((r) => r.json()).catch(() => null),
+      fetch(`${exchangeUrl}/market/pairs`).then((r) => r.json()).catch(() => null),
+      fetch(`${exchangeUrl}/assets`).then((r) => r.json()).catch(() => null)
     ]);
     if (loadedMetrics != null && loadedMetrics.result != null) {
       try {

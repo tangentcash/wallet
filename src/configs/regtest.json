@@ -1,5 +1,5 @@
 {
   "validatorUrl": "localhost:18419",
-  "exchangeUrl": "http://localhost:19420",
+  "exchangeUrl": "localhost:19420",
   "cachePrefix": "R00"
 }

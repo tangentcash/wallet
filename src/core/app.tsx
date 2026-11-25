@@ -689,6 +689,10 @@ export class AppData {
       this.props.validator = config.validatorUrl;
     if (mustReset || !this.props.exchange)
       this.props.exchange = config.exchangeUrl;
+    if (!this.props.account) {
+      this.props.account = AppStorage.get(StorageField.LegacyApp)?.account || null;
+      this.save(true);
+    }
     if (resetNetwork) {
       RPC.clearCache();
       RPC.disconnectSocket();
