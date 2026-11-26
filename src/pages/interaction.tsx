@@ -899,6 +899,13 @@ export default function InteractionPage() {
       if (!preview || !preview.transaction)
         throw new Error('Failed to decode transaction');
       
+      let assetIndex = assets.findIndex((item) => item.asset.id == body.asset.id);
+      if (assetIndex == -1) {
+        setAssets([{ asset: body.asset, balance: new BigNumber(0), reserve: new BigNumber(0), supply: new BigNumber(0) }, ...assets]);
+        assetIndex = 0;
+      }
+
+      setAsset(assetIndex);
       result.transaction = preview.transaction;
       result.type = body.type;
       result.typename = body.typename;
@@ -908,7 +915,7 @@ export default function InteractionPage() {
     }
     if (!applyOnlyIfSuccessful || result.transaction != null)
       setProgram(result);
-  }, []);
+  }, [assets]);
   useEffectAsync(async () => {
     if (!AppData.isWalletReady())
       return;
