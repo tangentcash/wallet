@@ -31,7 +31,13 @@ type SwapState = {
   slippage: string
 };
 
-type CachedBalance = Balance & { cached: boolean }
+type MockPairEntry = {
+  pair: AggregatedPair
+};
+
+type CachedBalance = Balance & {
+  cached: boolean
+};
 
 let swapPathTimeoutId: number | null = null;
 let portfolioSyncTimeoutId: number | null = null;
@@ -68,6 +74,72 @@ let toMarketExplorerType = (viewer: string): 'pairs' | 'router' | 'pools' | 'del
   return 'pairs';
 };
 
+function loadMockPairs(): MockPairEntry[] {
+  const stored = AppStorage.get(ExchangeField.PortfolioMockPairs);
+  if (!Array.isArray(stored))
+    return [];
+
+  const number = (value: string | null) => value != null ? new BigNumber(value) : null;
+  const result: MockPairEntry[] = [];
+  const seen = new Set<string>();
+  for (const entry of stored) {
+    try {
+      const primaryAsset = new AssetId(entry.pair.primaryAsset);
+      const secondaryAsset = new AssetId(entry.pair.secondaryAsset);
+      const key = primaryAsset.id + ':' + secondaryAsset.id;
+      if (seen.has(key))
+        continue;
+      seen.add(key);
+      result.push({
+        pair: {
+          id: new BigNumber(entry.pair.id),
+          primaryAsset: primaryAsset,
+          secondaryAsset: secondaryAsset,
+          secondaryBase: entry.pair.secondaryBase || null,
+          launchTime: entry.pair.launchTime,
+          poolFeeRate: number(entry.pair.poolFeeRate),
+          price: {
+            orderLiquidity: number(entry.pair.price.orderLiquidity),
+            poolLiquidity: number(entry.pair.price.poolLiquidity),
+            totalLiquidity: number(entry.pair.price.totalLiquidity),
+            orderVolume: number(entry.pair.price.orderVolume),
+            poolVolume: number(entry.pair.price.poolVolume),
+            totalVolume: number(entry.pair.price.totalVolume),
+            open: number(entry.pair.price.open),
+            low: number(entry.pair.price.low),
+            high: number(entry.pair.price.high),
+            close: number(entry.pair.price.close)
+          }
+        }
+      });
+    } catch { }
+  }
+  return result;
+}
+function persistMockPairs(entries: MockPairEntry[]): void {
+  AppStorage.set(ExchangeField.PortfolioMockPairs, entries.map((entry) => ({
+    pair: {
+      id: entry.pair.id.toString(),
+      primaryAsset: entry.pair.primaryAsset.id,
+      secondaryAsset: entry.pair.secondaryAsset.id,
+      secondaryBase: entry.pair.secondaryBase,
+      launchTime: entry.pair.launchTime,
+      poolFeeRate: entry.pair.poolFeeRate?.toString() || null,
+      price: {
+        orderLiquidity: entry.pair.price.orderLiquidity?.toString() || null,
+        poolLiquidity: entry.pair.price.poolLiquidity?.toString() || null,
+        totalLiquidity: entry.pair.price.totalLiquidity?.toString() || null,
+        orderVolume: entry.pair.price.orderVolume?.toString() || null,
+        poolVolume: entry.pair.price.poolVolume?.toString() || null,
+        totalVolume: entry.pair.price.totalVolume?.toString() || null,
+        open: entry.pair.price.open?.toString() || null,
+        low: entry.pair.price.low?.toString() || null,
+        high: entry.pair.price.high?.toString() || null,
+        close: entry.pair.price.close?.toString() || null
+      }
+    }
+  })));
+}
 function RepayableBalanceView(props: { item: Balance & { type: 'std' | 'wrapped' | 'unwrapped', equity: { current: BigNumber | null, previous: BigNumber | null } }, available?: boolean }) {
   const item = props.item;
   const wrapping = item.type == 'unwrapped';
@@ -785,74 +857,6 @@ function MarketRouter(props: {
       }
     </Box>
   )
-}
-
-type MockPairEntry = { pair: AggregatedPair };
-function loadMockPairs(): MockPairEntry[] {
-  const stored = AppStorage.get(ExchangeField.PortfolioMockPairs);
-  if (!Array.isArray(stored))
-    return [];
-
-  const number = (value: string | null) => value != null ? new BigNumber(value) : null;
-  const result: MockPairEntry[] = [];
-  const seen = new Set<string>();
-  for (const entry of stored) {
-    try {
-      const primaryAsset = new AssetId(entry.pair.primaryAsset);
-      const secondaryAsset = new AssetId(entry.pair.secondaryAsset);
-      const key = primaryAsset.id + ':' + secondaryAsset.id;
-      if (seen.has(key))
-        continue;
-      seen.add(key);
-      result.push({
-        pair: {
-          id: new BigNumber(entry.pair.id),
-          primaryAsset: primaryAsset,
-          secondaryAsset: secondaryAsset,
-          secondaryBase: entry.pair.secondaryBase || null,
-          launchTime: entry.pair.launchTime,
-          poolFeeRate: number(entry.pair.poolFeeRate),
-          price: {
-            orderLiquidity: number(entry.pair.price.orderLiquidity),
-            poolLiquidity: number(entry.pair.price.poolLiquidity),
-            totalLiquidity: number(entry.pair.price.totalLiquidity),
-            orderVolume: number(entry.pair.price.orderVolume),
-            poolVolume: number(entry.pair.price.poolVolume),
-            totalVolume: number(entry.pair.price.totalVolume),
-            open: number(entry.pair.price.open),
-            low: number(entry.pair.price.low),
-            high: number(entry.pair.price.high),
-            close: number(entry.pair.price.close)
-          }
-        }
-      });
-    } catch { }
-  }
-  return result;
-}
-function persistMockPairs(entries: MockPairEntry[]): void {
-  AppStorage.set(ExchangeField.PortfolioMockPairs, entries.map((entry) => ({
-    pair: {
-      id: entry.pair.id.toString(),
-      primaryAsset: entry.pair.primaryAsset.id,
-      secondaryAsset: entry.pair.secondaryAsset.id,
-      secondaryBase: entry.pair.secondaryBase,
-      launchTime: entry.pair.launchTime,
-      poolFeeRate: entry.pair.poolFeeRate?.toString() || null,
-      price: {
-        orderLiquidity: entry.pair.price.orderLiquidity?.toString() || null,
-        poolLiquidity: entry.pair.price.poolLiquidity?.toString() || null,
-        totalLiquidity: entry.pair.price.totalLiquidity?.toString() || null,
-        orderVolume: entry.pair.price.orderVolume?.toString() || null,
-        poolVolume: entry.pair.price.poolVolume?.toString() || null,
-        totalVolume: entry.pair.price.totalVolume?.toString() || null,
-        open: entry.pair.price.open?.toString() || null,
-        low: entry.pair.price.low?.toString() || null,
-        high: entry.pair.price.high?.toString() || null,
-        close: entry.pair.price.close?.toString() || null
-      }
-    }
-  })));
 }
 function MarketExplorer(props: {
   assets?: CachedBalance[],

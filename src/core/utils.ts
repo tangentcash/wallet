@@ -38,7 +38,7 @@ export function secondsToDuration(baseSeconds: number, short?: boolean): string 
 export function toFancyPrecision(value: string | number | BigNumber | null, asset?: AssetId | null): BigNumber | null {
   let numeric: BigNumber | null = value ? new BigNumber(BigNumber.isBigNumber(value) ? value.toPrecision(12) : value) : null;
   if (numeric) {
-    if (asset != null && asset == Exchange.equityAsset) {
+    if (asset != null && asset.id == Exchange.equityAsset.id) {
       numeric = numeric?.multipliedBy(Exchange.equityRate);
     }
     

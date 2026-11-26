@@ -190,11 +190,8 @@ function fiatValue(equity: string, assetId: string | null | undefined, amount: s
 
   try {
     const price = Exchange.priceOf(new AssetId(assetId)).close;
-    if (price == null || !price.gt(0))
-      return null;
-
-    const value = new BigNumber(amount).times(price);
-    return value.isFinite() ? equity + ' ' + value.toFormat(2) : null;
+    const value = price?.gt(0) ? new BigNumber(amount).times(price) : null;
+    return toFancyMoney(AssetId.fromHandle(equity), value?.precision(4) || null);
   } catch {
     return null;
   }
