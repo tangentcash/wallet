@@ -288,12 +288,12 @@ async function quoteSwapRoute(assetInId: string, outAsset: AssetId, amountIn: st
   const lastGot = new BigNumber(last.output?.max ?? last.output?.min ?? 0);
   return { legs, received: lastGot.toFixed(), capped: best.some((leg) => leg.capped === true), bridge, quota };
 }
-async function fetchSendQuota(assetId: string): Promise<SendQuota | null> {
+async function fetchSendQuota(assetId: string, amount: string | null): Promise<{ quota: SendQuota | null, error: string | null }> {
   try {
-    const quota = quotaFrom((await Exchange.swapsQuote({ assetOut: assetId }))?.sendQuota);
-    return quota != null && new BigNumber(quota.feeRate).gt(0) ? quota : null;
-  } catch {
-    return null;
+    const quota = quotaFrom((await Exchange.swapsQuote({ assetOut: assetId, amount: amount ?? undefined }))?.sendQuota);
+    return { quota: quota != null && new BigNumber(quota.feeRate).gt(0) ? quota : null, error: null };
+  } catch (exception: unknown) {
+    return { quota: null, error: exception instanceof Error ? exception.message : 'failed to fetch the send fee quote' };
   }
 }
 async function quoteFeeLeg(outAssetId: string, bridge: Bridge | null, received: string | null, slippage: string, feeOverride?: BigNumber | null): Promise<SwapLeg[] | null> {
@@ -439,7 +439,7 @@ function SwapHistory() {
       window.removeEventListener('exchange:ready', onReady);
     };
   }, []);
-  if (rows.length < 1 && mode == 'all')
+  if (rows.length < 1 && mode == 'all' && more)
     return null;
 
   const leftOf = (row: Booking): string => {
@@ -459,7 +459,7 @@ function SwapHistory() {
   return <div className="ams-hist">
     <div className="ams-hist-head"><Icon path={mdiHistory} size={0.8}></Icon>{mode == 'mine' ? 'My swaps' : 'Recent swaps'}<span className="ams-hist-switch"><button className={'ams-hist-seg' + (mode == 'all' ? ' on' : '')} onClick={() => setMode('all')}>All</button><button className={'ams-hist-seg' + (mode == 'mine' ? ' on' : '')} onClick={() => setMode('mine')}>Mine</button></span></div>
     <InfiniteScroll dataLength={rows.length} hasMore={more} next={find} loader={<div className="dim tiny" style={{ padding: '10px 14px' }}>loading more…</div>}>
-      {rows.length < 1 ? <div className="ams-hist-empty">No swaps found for this wallet yet</div> : null}
+      {rows.length < 1 ? <div className="ams-hist-empty">{mode == 'mine' ? 'No swaps found for this wallet yet' : 'No completed swaps on this DEX yet'}</div> : null}
       <div className="ams-hist-list">
         {rows.map((row) => {
           const tone = STATUS_STEPS[row.status]?.tone ?? 'muted';
@@ -922,7 +922,8 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
   const [preview, setPreview] = useState<SwapPreview | null>(null);
   const [previewing, setPreviewing] = useState(false);
   const previewRun = useRef(0);
-  const [assetQuota, setAssetQuota] = useState<SendQuota | null>(null);
+  const [assetQuota, setAssetQuota] = useState<{ quota: SendQuota | null, error: string | null, loading: boolean }>({ quota: null, error: null, loading: false });
+  const quotaRun = useRef(0);
   const original = useMemo(() => {
     if (context == null)
       return null;
@@ -945,14 +946,19 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
     return { tokenPath: context.tokenPath, feePath: context.feePath, bridgeHash: context.bridgeHash, received: last != null ? (last.expected ?? last.amount) : booking.amount };
   }, [context, route, modified, booking.amount]);
   useEffectAsync(async () => {
+    const run = ++quotaRun.current;
     if (outAssetId.length < 1 || modified) {
-      setAssetQuota(null);
+      setAssetQuota({ quota: null, error: null, loading: false });
       return;
     }
 
-    setAssetQuota(await fetchSendQuota(outAssetId));
-  }, [outAssetId, modified]);
-  const sendQuota = useMemo(() => modified && route != null ? route.quota : assetQuota, [modified, route, assetQuota]);
+    setAssetQuota({ quota: null, error: null, loading: true });
+    const resolved = await fetchSendQuota(outAssetId, active?.received ?? booking.amount);
+    if (run == quotaRun.current)
+      setAssetQuota({ ...resolved, loading: false });
+  }, [outAssetId, modified, active, booking.amount]);
+  const sendQuota = useMemo(() => modified && route != null ? route.quota : assetQuota.quota, [modified, route, assetQuota]);
+  const quotaPending = useMemo(() => !modified && (assetQuota.loading || assetQuota.error != null), [modified, assetQuota]);
   const message = useMemo((): Uint8Array | null => {
     if (context == null || sequencer == null || booking.depositHash == null || active == null)
       return null;
@@ -1019,12 +1025,13 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
   const feeNativeSymbol = useMemo(() => symbolOf(outAsset != null ? baseOfAsset(outAsset.id) : null), [outAsset]);
   const feeUsd = useMemo(() => feeCost != null ? new BigNumber(feeCost) : feeNative != null && feeLeg != null ? feeNative.times(feeLeg.price) : null, [feeCost, feeNative, feeLeg]);
   const feeTooBig = useMemo(() => worstNet != null && !worstNet.gt(0), [worstNet]);
-  const blocked = useMemo(() => requoting || noRoute || addressError != null || feeTooBig, [requoting, noRoute, addressError, feeTooBig]);
+  const blocked = useMemo(() => requoting || noRoute || addressError != null || feeTooBig || quotaPending, [requoting, noRoute, addressError, feeTooBig, quotaPending]);
 
   const payloadKey = useMemo(() => active == null || context == null || booking.depositHash == null ? null : JSON.stringify([booking.depositHash, active.bridgeHash, context.asset, booking.amount, context.contract, sequencer, routing, active.tokenPath, active.feePath, sendQuota]), [booking.depositHash, booking.amount, active, context, sequencer, routing, sendQuota]);
   const [simulatedKey, setSimulatedKey] = useState<string | null>(null);
   const canConfirm = useMemo(() => context != null && !submitting && !blocked && !needAddress && message != null && !previewing && preview?.successful === true && simulatedKey === payloadKey && payloadKey != null && posted == null, [context, submitting, blocked, needAddress, message, previewing, preview, simulatedKey, payloadKey, posted]);
-  const autoConfirm = canConfirm && error == null;
+  const autoConfirm = canConfirm && error == null && sendQuota != null;
+  const noQuotaNotice = useMemo(() => !blocked && sendQuota == null && posted == null && preview?.successful === true, [blocked, sendQuota, posted, preview]);
   const [hovered, setHovered] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(AUTO_CONFIRM_SECONDS);
   const shownError = useMemo((): string | null => {
@@ -1034,6 +1041,8 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
       return preview.error ?? 'the spend transaction failed to simulate';
     if (routeError != null)
       return routeError;
+    if (assetQuota.error != null)
+      return `send fee quote unavailable: ${assetQuota.error}`;
     if (route?.capped === true)
       return 'Only part of the amount can be routed within slippage and available liquidity; lower the amount or raise max slippage to re-route';
     if (addressError != null)
@@ -1041,7 +1050,7 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
     if (feeTooBig)
       return 'the fees consume the entire payout — nothing would come back';
     return null;
-  }, [error, preview, routeError, route, addressError, feeTooBig]);
+  }, [error, preview, routeError, assetQuota, route, addressError, feeTooBig]);
   const confirmLabel = (): string => {
     if (context == null)
       return 'No control keys';
@@ -1051,6 +1060,8 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
       return 'Sending…';
     if (previewing)
       return 'Simulating…';
+    if (quotaPending)
+      return 'Fetching fee quote…';
     if (preview?.successful === false)
       return 'Simulation failed';
     if (requoting)
@@ -1261,6 +1272,10 @@ function Authorize({ booking, context, sequencer, onDone, onOut, onError }: {
     <Button className={'btn-cta btn-block ' + (preview?.successful === false ? 'btn-simfail' : 'btn-brand')} color={preview?.successful === false ? 'red' : 'jade'} disabled={!canConfirm} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onClick={sign}>
       {confirmLabel()}
     </Button>
+    {noQuotaNotice ? <div className="callout warn" style={{ width: '100%', marginTop: 12 }}>
+      <Icon path={mdiAlertCircleOutline} size={1}></Icon>
+      <span><b>No send fee quote available.</b> The swap will pay the bridge default fee rate{bridgeFeeShown != null && !bridgeFeeShown.isNaN() && bridgeFeeShown.gt(0) ? <> of <span className="mono">~{toFancyMoney(null, bridgeFeeShown)} {feeNativeSymbol}</span>{feeUsd != null && !feeUsd.isNaN() ? <> (USD {toFancyMoney(null, feeUsd)})</> : null}</> : null} instead of a discounted quote and will <b>not</b> confirm automatically. Confirm manually to proceed anyway.</span>
+    </div> : null}
     {rate != null && !reclaim ? <div className="ams-fee-line">1 {symbolOf(assetIdOf(booking.asset))} ≈ {toFancyMoney(null, rate)} {outLabel}{feeNative != null && !feeNative.isNaN() && feeNative.gt(0) ? <span className="dim tiny"> · {toFancyMoney(null, feeNative)} {feeNativeSymbol} gas fee{feeUsd != null && !feeUsd.isNaN() ? ` (USD ${toFancyMoney(null, feeUsd)})` : ''}</span> : null}</div> : null}
   </div>;
 }
@@ -1278,7 +1293,8 @@ function Respend({ booking, context, sequencer, onDone, onError }: {
     if (booking.outAsset == null)
       return;
 
-    setSendQuota(await fetchSendQuota(String(booking.outAsset)));
+    // respend falls back to the booking's original fee rate on failure; a fresh quota is only a discount opportunity
+    setSendQuota((await fetchSendQuota(String(booking.outAsset), booking.amount)).quota);
   }, [booking.outAsset]);
   const outChain = useMemo((): string | null => {
     try {

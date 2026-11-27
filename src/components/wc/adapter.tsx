@@ -3,7 +3,7 @@ import { defineChain } from 'viem';
 import { TronWeb } from 'tronweb';
 import type { CaipNetwork, CaipNetworkId } from '@reown/appkit';
 import type { AppKitNetwork, ChainNamespace } from '@reown/appkit/networks';
-import { Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@solana/web3.js';
+import { ComputeBudgetProgram, Connection, PublicKey, SystemProgram, Transaction, TransactionInstruction } from '@solana/web3.js';
 import { getAssociatedTokenAddressSync, getMint, createAssociatedTokenAccountIdempotentInstruction, createTransferCheckedInstruction, TOKEN_PROGRAM_ID, TOKEN_2022_PROGRAM_ID } from '@solana/spl-token';
 import { createAppKit } from '@reown/appkit';
 import { WagmiAdapter } from '@reown/appkit-adapter-wagmi';
@@ -32,8 +32,9 @@ const familyOf = (net: AppKitNetwork): Family => {
   if (ns === 'solana' || ns === 'tron') return ns;
   throw new Error(`${caip2Of(net)}: namespace '${ns}' cannot be sent by this component.`);
 };
+const projectId = '1fcd1dac53eae49754bd7726fd55bba4';
 const project = {
-  id: '1fcd1dac53eae49754bd7726fd55bba4',
+  id: projectId,
   name: 'Funding contract',
   description: 'Send EVM, Tron and Solana transfers with a 32-byte memo identifier on-chain.',
   url: window.location.origin,
@@ -75,7 +76,7 @@ const project = {
     opETH: ['blockscout', 'https://explorer.optimism.io'],
     zkETH: ['blockscout', 'https://zksync.blockscout.com'],
     rbhETH: ['blockscout', 'https://robinhoodchain.blockscout.com'],
-    SOL: { indexer: 'https://public.rpc.solanavibestation.com', tx: 'https://solana-rpc.publicnode.com' },
+    SOL: { indexer: `https://rpc.walletconnect.org/v1/?chainId=solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp&projectId=${projectId}`, tx: 'https://solana-rpc.publicnode.com' },
     TRX: {
       feeLimit: 150_000_000,
       adapterConfig: { checkTimeout: 3_000, openUrlWhenWalletNotFound: false }
@@ -569,7 +570,7 @@ export default function WcAdapter({
           const BASE58_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
           if (!BASE58_RE.test(to)) throw new Error('Recipient is not a valid Solana address (base58).');
           if (token && !BASE58_RE.test(token)) throw new Error('Token mint is not a valid Solana address (base58).');
-          const context = provider as { sendTransaction: (tx: unknown, connection: unknown) => Promise<string> };
+          const context = provider as { sendTransaction: (tx: unknown, connection: unknown) => Promise<string>; signTransaction?: (tx: unknown) => Promise<unknown> };
           let toKey: InstanceType<typeof PublicKey>;
           let mintKey: InstanceType<typeof PublicKey> | undefined;
           try {
@@ -581,9 +582,13 @@ export default function WcAdapter({
           const connection = new Connection(project.rpcs.SOL.tx, 'confirmed');
           const fromKey = new PublicKey(from);
           const tx = new Transaction();
+          tx.add(ComputeBudgetProgram.setComputeUnitLimit({ units: mintKey ? 63_000 : 21_000 }));
+          tx.add(ComputeBudgetProgram.setComputeUnitPrice({ microLamports: 100_000 }));
           if (!mintKey) {
             const lamports = toBaseUnits(amount, 9);
             if (lamports > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error('SOL amount is too large.');
+            const spendable = BigInt(await connection.getBalance(fromKey, 'confirmed'));
+            if (lamports + 8_913_800n > spendable) throw new Error(`Not enough SOL: this payment leaves the wallet below the 0.0089 SOL rent-exempt minimum plus fee. Add about ${(Number(lamports + 8_913_800n - spendable) / 1e9).toFixed(5)} more SOL or book a smaller amount.`);
             tx.add(SystemProgram.transfer({ fromPubkey: fromKey, toPubkey: toKey, lamports: Number(lamports) }));
           } else {
             const pinnedMintKey = mintKey;
@@ -606,7 +611,16 @@ export default function WcAdapter({
           const { blockhash } = await connection.getLatestBlockhash('confirmed');
           tx.recentBlockhash = blockhash;
           tx.feePayer = fromKey;
-          hash = await context.sendTransaction(tx, connection);
+          const signTransaction = typeof context.signTransaction === 'function' ? context.signTransaction.bind(context) : undefined;
+          if (signTransaction != null) {
+            const signed = await signTransaction(tx);
+            if (signed == null || typeof signed != 'object' || !('serialize' in signed) || typeof signed.serialize != 'function')
+              throw new Error('The wallet returned an unexpected signTransaction result — nothing was broadcast.');
+
+            hash = await connection.sendRawTransaction(Buffer.from(signed.serialize() as Uint8Array), { skipPreflight: false });
+          } else {
+            hash = await context.sendTransaction(tx, connection);
+          }
           break;
         }
         default:
@@ -631,6 +645,15 @@ export default function WcAdapter({
         else if (o.code === 4001 || o.code === 4100 || o.code === 4200) message = 'Request rejected in the wallet.';
         else { try { const json = JSON.stringify(e); if (json && json !== '{}') message = json; } catch { } }
       } else if (typeof e === 'string' && e.trim()) message = e;
+      const getLogs = o != null && typeof o.getLogs === 'function' ? o.getLogs : undefined;
+      if (/simulation failed/i.test(message) && getLogs != null) {
+        try {
+          const logs = await Promise.resolve(getLogs.call(o));
+          const failed = Array.isArray(logs) ? logs.filter((line): line is string => typeof line === 'string' && /failed|exceeded/i.test(line)).pop() : undefined;
+          if (failed != null)
+            message = `${message.replace(/\s*(Catch the .*)?$/, '').trim()} — ${failed.replace(/^Program\s+\S+\s+/, '')}`;
+        } catch { }
+      }
       const shown = message || 'The wallet returned an unknown error.';
       setError(shown);
       report('error');
